@@ -15,7 +15,7 @@ helper = Helper()
 getWords = GetWords()
 
 '''读取设定配置'''
-config = helper.read_config('configtest.yml')
+config = helper.read_config('config.yml')
 if config['proxy']:
     os.environ['http_proxy'] = config['proxy']
     os.environ['https_proxy'] = config['proxy']
