@@ -3,6 +3,7 @@ import os
 import logging
 import telegram
 import random
+from src.bnhhsh.bnhhsh import dp
 from telegram import Update
 from telegram.ext import filters, MessageHandler, ApplicationBuilder, CommandHandler, ContextTypes
 from src.Helper import Helper
@@ -20,11 +21,14 @@ if config['proxy']:
     os.environ['http_proxy'] = config['proxy']
     os.environ['https_proxy'] = config['proxy']
 TOKEN = config['token']
+botname = config['botname']
+master_id = config['master_id']
 pr_nosese = config['pr_nosese']
 pr_sleep = config['pr_sleep']
 pr_ohayo = config['pr_ohayo']
 pr_niubi = config['pr_niubi']
 pr_aoligei = config['pr_aoligei']
+pr_yinyu = config['pr_yinyu']
 
 
 logging.basicConfig(
@@ -39,7 +43,8 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def unknown(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await context.bot.send_message(chat_id=update.effective_chat.id, text="干嘛喵,kmua不会这个~")
+    text = f"干嘛喵,{botname}不会这个~"
+    await context.bot.send_message(chat_id=update.effective_chat.id, text=text)
 
 
 async def nosese(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -73,13 +78,23 @@ async def niubi(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await context.bot.send_message(chat_id=update.effective_chat.id, text=text)
 
 
+async def yinyu(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if helper.random_unit(pr_yinyu):
+        message = update.effective_message.text
+        en = getWords.get_en(message)
+        yinyu = getWords.get_yinyu(message)
+        text = f'{en} 是 {yinyu} 的意思嘛?'
+        await context.bot.send_message(chat_id=update.effective_chat.id, text=text)
+
+
 async def re_file_id(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if update.effective_chat.id == 745989825:
+    if update.effective_chat.id == master_id:
         file_id = update.message.sticker.file_id
         await context.bot.send_message(chat_id=update.effective_chat.id, text=file_id)
     else:
-        if helper.random_unit(0.01):
-            await context.bot.send_message(chat_id=update.effective_chat.id, text='不要发表情包啦，kmua还看不懂')
+        if helper.random_unit(0.05):
+            text = f'不要发表情包啦，{botname}还看不懂'
+            await context.bot.send_message(chat_id=update.effective_chat.id, text=text)
 
 
 def run():
@@ -92,8 +107,9 @@ def run():
     wanan_handler = MessageHandler(filter_sleep, wanan)
     niubi_handler = MessageHandler(filter_niubi, niubi)
     fileid_handler = MessageHandler(filters.Sticker.ALL, re_file_id)
-    handlers = [start_handler, unknown_handler,
-                setu_handler, ohayo_handler, wanan_handler, niubi_handler, fileid_handler]
+    yinyu_handler = MessageHandler(filter_yinyu, yinyu)
+    handlers = [start_handler, unknown_handler, setu_handler, ohayo_handler,
+                wanan_handler, niubi_handler, fileid_handler, yinyu_handler]
     application.add_handlers(handlers)
 
     application.run_polling()

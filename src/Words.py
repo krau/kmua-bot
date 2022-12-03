@@ -2,7 +2,9 @@ import httpx
 import json
 import os
 import random
+import re
 from src.Helper import Helper
+from src.bnhhsh.bnhhsh import dp
 
 helper = Helper()
 
@@ -61,3 +63,13 @@ class GetWords():
     def get_ohayo(self):
         '''早安!'''
         return random.choice(self.ohayo)
+
+    def get_yinyu(self,message):
+        yinyu = dp(self.get_en(message))
+        return yinyu
+
+    def get_en(self,message):
+        en = ''.join(re.findall(r'[a-zA-Z]',message))
+        return en
+
+

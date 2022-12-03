@@ -7,9 +7,13 @@ proxy: ''
 #bot设置
 botname: 'Kmua'
 
+#主人设置
+master_id: 
+
 # 回复概率设置，在[0,1]区间取值
 pr_nosese: 0.5
 pr_sleep: 1
 pr_ohayo: 1
 pr_niubi: 0.2
 pr_aoligei: 0.2
+pr_yinyu: 0.5
