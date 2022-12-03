@@ -1,0 +1,15 @@
+# bot的token,必填
+token: ''
+
+#代理设置，如不需设置请留空
+proxy: ''
+
+#bot设置
+botname: 'Kmua'
+
+# 回复概率设置，在[0,1]区间取值
+pr_nosese: 0.5
+pr_sleep: 1
+pr_ohayo: 1
+pr_niubi: 0.2
+pr_aoligei: 0.2
