@@ -65,7 +65,7 @@ class GetWords():
         return random.choice(self.ohayo)
 
     def get_yinyu(self,message):
-        yinyu = dp(self.get_en(message))
+        yinyu = dp(self.get_en(message).lower())
         return yinyu
 
     def get_en(self,message):
