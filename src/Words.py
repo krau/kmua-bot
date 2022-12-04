@@ -1,40 +1,22 @@
-import httpx
-import json
-import os
 import random
 import re
-from src.Helper import Helper
-from src.bnhhsh.bnhhsh import dp
+from .Helper import Helper
+from .bnhhsh.bnhhsh import dp
 
 helper = Helper()
 
 config = helper.read_config('config.yml')
-name = config.get('botname', 'Kmua')
+botname = config.get('botname', 'Kmua')
 
-words_path = os.path.join('../', os.getcwd(), 'data/words')
+aoligei_words = helper.load_words('aoligei')
+niubi_words = helper.load_words('niubi')
+wanan_words = helper.load_words('wanan')
+young_words = helper.load_words('wanan')
+ohayo_words = helper.load_words('ohayo')
+weni_words = helper.load_words('weni')
+at_words = helper.load_words('at_reply')
 
-aoligei_path = os.path.join(words_path, 'aoligei.json')
-niubi_path = os.path.join(words_path, 'niubi.json')
-#sese_path = os.path.join(words_path, 'sese.json')
-wanan_path = os.path.join(words_path, 'wanan.json')
-young_path = os.path.join(words_path, 'young.json')
-ohayo_path = os.path.join(words_path, 'ohayo.json')
-
-with open(aoligei_path, 'r') as f:
-    aoligei_words = json.load(f)
-
-with open(niubi_path, 'r') as f:
-    niubi_words = json.loads(f.read().replace('botname', name))
-
-with open(wanan_path, 'r') as f:
-    wanan_words = json.load(f)
-
-with open(young_path, 'r') as f:
-    young_words = json.load(f)
-
-with open(ohayo_path, 'r') as f:
-    ohayo_words = json.load(f)
-
+weni_keys = list(weni_words.keys())
 
 class GetWords():
     def __init__(self):
@@ -44,32 +26,42 @@ class GetWords():
         self.young = young_words
         self.ohayo = ohayo_words
 
-    def get_aoligei(self):
+    def get_aoligei(self) -> str:
         '''获取正能量'''
         return random.choice(self.aoligei)
 
-    def get_niubi(self):
+    def get_niubi(self) -> str:
         '''获取装b句子'''
         return random.choice(self.niubi)
 
-    def get_wanan(self):
+    def get_wanan(self) -> str:
         '''晚安!'''
         return random.choice(self.wanan)
 
-    def get_young(self):
+    def get_young(self) -> str:
         '''获取大老师语录'''
         return random.choice(self.young)
 
-    def get_ohayo(self):
+    def get_ohayo(self) -> str:
         '''早安!'''
         return random.choice(self.ohayo)
 
-    def get_yinyu(self,message):
-        yinyu = dp(self.get_en(message).lower())
+    def get_yinyu(self, text) -> str:
+        '''返回yinyu'''
+        yinyu = dp(self.get_en(text).lower())
         return yinyu
 
-    def get_en(self,message):
-        en = ''.join(re.findall(r'[a-zA-Z]',message))
+    def get_en(self, text) -> str:
+        '''返回句中的英文'''
+        en = ''.join(re.findall(r'[a-zA-Z]', text))
         return en
 
+    def get_weni(self, text: str) -> str:
+        '''返回weni'''
+        for weni_key in weni_keys:
+            if text.find(weni_key) != -1:
+                return random.choice(weni_words[weni_key])
 
+    def get_at_reply(self) -> str:
+        '''有人叫我'''
+        return random.choice(at_words)

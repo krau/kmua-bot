@@ -1,17 +1,21 @@
-import random,os,yaml
+import random
+import os
+import yaml
 import telegram
+import json
+
 
 class Helper:
     def __init__(self) -> None:
         pass
 
-    def random_unit(self,p):
+    def random_unit(self, p):
         '''随机执行
         :p 概率，在[0,1]区间内'''
         assert p >= 0 and p <= 1, "概率P的值应该处在[0,1]之间！"
-        if p == 0:#概率为0，直接返回False
+        if p == 0:  # 概率为0，直接返回False
             return False
-        if p == 1:#概率为1，直接返回True
+        if p == 1:  # 概率为1，直接返回True
             return True
         p_digits = len(str(p).split(".")[1])
         interval_begin = 1
@@ -22,11 +26,24 @@ class Helper:
         else:
             return False
 
-    
-    def read_config(self,config_name):
+    def read_config(self, config_name)-> dict:
         '''读取配置'''
-        config_path = os.path.join(os.path.abspath(os.path.dirname(os.path.dirname(__file__))),f'{config_name}')
+        config_path = os.path.join(os.path.abspath(
+            os.path.dirname(os.path.dirname(__file__))), f'{config_name}')
         with open(config_path, 'r', encoding='utf-8') as f:
             config = f.read()
         config = yaml.load(config, Loader=yaml.FullLoader)
+        print(f'已载入配置{config_name}')
         return config
+
+    def load_words(self, words: str):
+        '''read and load 词库'''
+        words_path = os.path.join('../', os.getcwd(), 'data/words')
+        the_word_path = os.path.join(words_path, words+'.json')
+        print(f'载入词库：{the_word_path}')
+        try:
+            with open(the_word_path, 'r') as f:
+                the_words_json = json.load(f)
+                return the_words_json
+        except:
+            return {'Exception':'except'}

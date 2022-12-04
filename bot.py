@@ -56,8 +56,10 @@ async def nosese(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def ohayo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if helper.random_unit(pr_ohayo):
         text = getWords.get_ohayo()
+        stickers = ['CAACAgUAAxkBAAPnY4xM4SVJj5T5plvLUc89Lra77IUAAvACAAL30uhX8lw2t4mq6GErBA',
+                    'CAACAgUAAxkBAANBY4oyECkXjRogFHgphC4lXWyL1XQAAuADAALYtOlXJmc1qHGknScrBA']
         await context.bot.send_message(chat_id=update.effective_chat.id, text=text)
-        await context.bot.send_sticker(chat_id=update.effective_chat.id, sticker='CAACAgUAAxkBAANBY4oyECkXjRogFHgphC4lXWyL1XQAAuADAALYtOlXJmc1qHGknScrBA')
+        await context.bot.send_sticker(chat_id=update.effective_chat.id, sticker=random.choice(stickers))
 
 
 async def wanan(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -74,7 +76,7 @@ async def wanan(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def niubi(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if helper.random_unit(pr_niubi):
-        text = getWords.get_niubi()
+        text = getWords.get_niubi().format(botname=botname)
         await context.bot.send_message(chat_id=update.effective_chat.id, text=text)
 
 
@@ -97,6 +99,20 @@ async def re_file_id(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await context.bot.send_message(chat_id=update.effective_chat.id, text=text)
 
 
+async def weni(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    text = getWords.get_weni(update.effective_message.text)
+    await context.bot.send_message(chat_id=update.effective_chat.id, text=text)
+    name = update.effective_chat.username
+    msg = update.effective_message.text
+    text2master = f'刚刚{name}对我说：{msg}'
+    await context.bot.send_message(chat_id=master_id, text=text2master)
+
+
+async def at_reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    text = getWords.get_at_reply().format(botname=botname)
+    await context.bot.send_message(chat_id=update.effective_chat.id, text=text)
+
+
 def run():
     application = ApplicationBuilder().token(TOKEN).build()
 
@@ -108,8 +124,11 @@ def run():
     niubi_handler = MessageHandler(filter_niubi, niubi)
     fileid_handler = MessageHandler(filters.Sticker.ALL, re_file_id)
     yinyu_handler = MessageHandler(filter_yinyu, yinyu)
+    weni_handler = MessageHandler(filter_weni, weni)
+    at_reply_handler = MessageHandler(filter_at, at_reply)
+
     handlers = [start_handler, unknown_handler, setu_handler, ohayo_handler,
-                wanan_handler, niubi_handler, fileid_handler, yinyu_handler]
+                wanan_handler, niubi_handler, fileid_handler, yinyu_handler, weni_handler, at_reply_handler]
     application.add_handlers(handlers)
 
     application.run_polling()
