@@ -5,7 +5,7 @@ import telegram
 
 helper = Helper()
 
-config = helper.read_config('configtest.yml')
+config = helper.read_config('config.yml')
 botname = config.get('botname', 'Kmua')
 
 regex_setu = "涩图|色图|色色|涩涩"
