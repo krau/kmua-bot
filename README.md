@@ -1,5 +1,9 @@
+<div align="center">
+
 # Kmua-bot
-A krau's bot
+
+</div>
+
 
 ## 功能
 这个bot什么也不会，只会喵喵喵卖萌
