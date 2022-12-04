@@ -26,7 +26,7 @@ class Helper:
         else:
             return False
 
-    def read_config(self, config_name)-> dict:
+    def read_config(self, config_name) -> dict:
         '''读取配置'''
         config_path = os.path.join(os.path.abspath(
             os.path.dirname(os.path.dirname(__file__))), f'{config_name}')
@@ -46,4 +46,30 @@ class Helper:
                 the_words_json = json.load(f)
                 return the_words_json
         except:
-            return {'Exception':'except'}
+            return {'Exception': 'except'}
+
+    def sleep_recorder(self,mode: str, name: str, time='00:00', status: str = 'sleep'):
+        '''睡眠记录器'''
+        sleep_data_path = os.path.join(
+            '../',os.getcwd(),'data/sleep_data.json')
+        if mode == 'write':
+            try:
+                data = {name:{"time":time ,"status":status}}
+                with open(sleep_data_path, 'r') as f:
+                    content = json.load(f)
+                content.update(data)
+                with open(sleep_data_path, 'w') as f:
+                    json.dump(content, f)
+                return True
+            except:
+                return False
+        elif mode == 'read':
+            try:
+                with open(sleep_data_path,'r') as f:
+                    content = json.load(f)
+                data = content.get(name)
+                return data
+            except:
+                return {}
+        else:
+            return False

@@ -3,6 +3,7 @@ import os
 import logging
 import telegram
 import random
+from datetime import datetime
 from src.bnhhsh.bnhhsh import dp
 from telegram import Update
 from telegram.ext import filters, MessageHandler, ApplicationBuilder, CommandHandler, ContextTypes
@@ -70,6 +71,11 @@ async def wanan(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     'CAACAgUAAxkBAANKY4oyz3UNU7mIgitsGlNhb1CqH30AAm0DAAIytehXTdZ5bv72-fkrBA',
                     'CAACAgUAAxkBAANLY4oy08mWXoE0e3pIqR0Sz-Lm7yoAAqkDAAKUIOBXFZ5cO9IPe0crBA']
         sticker = random.choice(stickers)
+        username = update.effective_user.full_name
+        record = helper.sleep_recorder(mode='write',name=username,time=str(datetime.now()),status='sleep')
+        if record == True:
+            text1 = f'{botname}已经记录下{username}的睡觉时间啦'
+            await context.bot.send_message(chat_id=update.effective_chat.id,text=text1)
         await context.bot.send_message(chat_id=update.effective_chat.id, text=text)
         await context.bot.send_sticker(chat_id=update.effective_chat.id, sticker=sticker)
 

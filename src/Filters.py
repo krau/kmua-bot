@@ -13,7 +13,7 @@ regex_ohayo = "醒了|早起|下床|刚醒|睡醒|早安|早上好|睡过了|哦
 regex_sleep = "睡觉|睡了|眠了|wanan|晚安|哦呀斯密|oyasimi"
 regex_niubi = "bot|机器人|智械危机|Bot"
 regex_yinyu = "[a-zA-Z]"
-regex_noyinyu = f"[^krau|{botname}|{botname.lower()}|{botname.upper()}]"
+regex_noyinyu = f"[^krau|{botname}|{botname.lower()}|{botname.upper()}|krauisme|acherkrau]"
 regex_at = f"{botname}|{botname.lower()}|{botname.upper()}"
 
 
