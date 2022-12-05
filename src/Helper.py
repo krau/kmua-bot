@@ -1,7 +1,7 @@
 import random
 import os
 import yaml
-import telegram
+from datetime import datetime
 import json
 
 
@@ -48,13 +48,13 @@ class Helper:
         except:
             return {'Exception': 'except'}
 
-    def sleep_recorder(self,mode: str, name: str, time='00:00', status: str = 'sleep'):
+    def sleep_recorder(self, mode: str, name: str, time: str = datetime.now().strftime('%Y-%m-%d %H:%M:%S'), status: str = 'sleep'):
         '''睡眠记录器'''
         sleep_data_path = os.path.join(
-            '../',os.getcwd(),'data/sleep_data.json')
+            '../', os.getcwd(), 'data/sleep_data.json')
         if mode == 'write':
             try:
-                data = {name:{"time":time ,"status":status}}
+                data = {name: {"time": time, "status": status}}
                 with open(sleep_data_path, 'r') as f:
                     content = json.load(f)
                 content.update(data)
@@ -65,7 +65,7 @@ class Helper:
                 return False
         elif mode == 'read':
             try:
-                with open(sleep_data_path,'r') as f:
+                with open(sleep_data_path, 'r') as f:
                     content = json.load(f)
                 data = content.get(name)
                 return data

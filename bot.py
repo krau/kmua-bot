@@ -61,6 +61,32 @@ async def ohayo(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     'CAACAgUAAxkBAANBY4oyECkXjRogFHgphC4lXWyL1XQAAuADAALYtOlXJmc1qHGknScrBA']
         await context.bot.send_message(chat_id=update.effective_chat.id, text=text)
         await context.bot.send_sticker(chat_id=update.effective_chat.id, sticker=random.choice(stickers))
+    username = update.effective_user.full_name
+    record = helper.sleep_recorder(mode='read',name=username)
+    if record:
+        sleep_time_str = record.get('time')
+        sleep_time = datetime.strptime(sleep_time_str,'%Y-%m-%d %H:%M:%S')
+        wake_time = datetime.strptime(datetime.now().strftime('%Y-%m-%d %H:%M:%S'),'%Y-%m-%d %H:%M:%S')
+        if wake_time > sleep_time:
+            slumber_time = float(format(((wake_time-sleep_time).seconds / 3600),'.3f'))
+            if  0.50<slumber_time<9.00: 
+                text = f'{username}上次睡觉是在{sleep_time_str},这次一共睡了{slumber_time}小时哦~'
+                await context.bot.send_message(chat_id=update.effective_chat.id,text=text)
+            elif slumber_time<=0.50:
+                text = f'{username}这次只睡了{slumber_time}小时，要好好休息哦~'
+                await context.bot.send_message(chat_id=update.effective_chat.id,text=text)
+            elif sleep_time>=9.00:
+                text = f'{username}这次睡了{slumber_time}小时!!下次需要{botname}叫醒你吗~'
+                await context.bot.send_message(chat_id=update.effective_chat.id,text=text)
+                await context.bot.send_sticker(chat_id=update.effective_chat.id,sticker='CAACAgUAAxkBAAM_Y4oxreCJwFtLa1okJMS3Xz7g8UsAAmYCAAImjuhXJN6lY6dZeNUrBA')
+        else:
+            text = f'不对劲，算不出来{username}的睡眠时间呢，你可能上次睡觉的时候该不会给{botname}说的早安吧？'
+            await context.bot.send_message(chat_id=update.effective_chat.id,text=text)
+    else:
+        text = f'{username}上次睡觉没有和{botname}说晚安哦~虽然没有很不开心就是了!'
+        await context.bot.send_message(chat_id=update.effective_chat.id,text=text)
+        await context.bot.send_sticker(chat_id=update.effective_chat.id,sticker='CAACAgUAAxkBAAM_Y4oxreCJwFtLa1okJMS3Xz7g8UsAAmYCAAImjuhXJN6lY6dZeNUrBA')
+
 
 
 async def wanan(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -71,13 +97,17 @@ async def wanan(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     'CAACAgUAAxkBAANKY4oyz3UNU7mIgitsGlNhb1CqH30AAm0DAAIytehXTdZ5bv72-fkrBA',
                     'CAACAgUAAxkBAANLY4oy08mWXoE0e3pIqR0Sz-Lm7yoAAqkDAAKUIOBXFZ5cO9IPe0crBA']
         sticker = random.choice(stickers)
-        username = update.effective_user.full_name
-        record = helper.sleep_recorder(mode='write',name=username,time=str(datetime.now()),status='sleep')
-        if record == True:
-            text1 = f'{botname}已经记录下{username}的睡觉时间啦'
-            await context.bot.send_message(chat_id=update.effective_chat.id,text=text1)
         await context.bot.send_message(chat_id=update.effective_chat.id, text=text)
         await context.bot.send_sticker(chat_id=update.effective_chat.id, sticker=sticker)
+    username = update.effective_user.full_name
+    record = helper.sleep_recorder(
+        mode='write', name=username, time=datetime.now().strftime('%Y-%m-%d %H:%M:%S'), status='sleep')
+    if record == True:
+        text1 = f'{botname}已经记录下{username}的睡觉时间啦~'
+        await context.bot.send_message(chat_id=update.effective_chat.id, text=text1)
+    else:
+        text1 = f'{botname}没能记录下{username}的睡眠时间呢，找 @acherkrau 问问是怎么回事吧!'
+        await context.bot.send_message(chat_id=update.effective_chat.id, text=text1)
 
 
 async def niubi(update: Update, context: ContextTypes.DEFAULT_TYPE):
