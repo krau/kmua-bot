@@ -19,7 +19,7 @@ regex_at = f"{botname}|{botname.lower()}|{botname.upper()}"
 
 class FilterWeni(MessageFilter):
     def filter(self, message):
-        if len(message.text) < 10:
+        if len(message.text) < 10 and filters.TEXT:
             weni_keys = list(weni_words.keys())
             for weni_key in weni_keys:
                 if message.text.find(weni_key) != -1:
@@ -34,6 +34,6 @@ filter_sleep = filters.Regex(regex_sleep)
 filter_niubi = filters.Regex(regex_niubi)
 filter_yinyu = filters.Regex(regex_yinyu) & filters.Regex(regex_noyinyu)
 filter_at = filters.Regex(regex_at)
-filter_weni = FilterWeni() & (~filters.Regex(regex_at)) & filters.ChatType.PRIVATE & filters.TEXT
+filter_weni = FilterWeni() & (~filters.Regex(regex_at)) & filters.ChatType.PRIVATE
 
 weni_words = helper.load_words('weni')
