@@ -34,6 +34,6 @@ filter_sleep = filters.Regex(regex_sleep)
 filter_niubi = filters.Regex(regex_niubi)
 filter_yinyu = filters.Regex(regex_yinyu) & filters.Regex(regex_noyinyu)
 filter_at = filters.Regex(regex_at)
-filter_weni = FilterWeni() & (~filters.Regex(regex_at)) & filters.ChatType.PRIVATE
+filter_weni = FilterWeni() & (~filters.Regex(regex_at)) & filters.ChatType.PRIVATE & filters.TEXT
 
 weni_words = helper.load_words('weni')

@@ -75,7 +75,7 @@ async def ohayo(update: Update, context: ContextTypes.DEFAULT_TYPE):
             elif slumber_time<=0.50:
                 text = f'{username}这次只睡了{slumber_time}小时，要好好休息哦~'
                 await context.bot.send_message(chat_id=update.effective_chat.id,text=text)
-            elif sleep_time>=9.00:
+            elif slumber_time>=9.00:
                 text = f'{username}这次睡了{slumber_time}小时!!下次需要{botname}叫醒你吗~'
                 await context.bot.send_message(chat_id=update.effective_chat.id,text=text)
                 await context.bot.send_sticker(chat_id=update.effective_chat.id,sticker='CAACAgUAAxkBAAM_Y4oxreCJwFtLa1okJMS3Xz7g8UsAAmYCAAImjuhXJN6lY6dZeNUrBA')
