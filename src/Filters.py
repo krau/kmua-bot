@@ -19,11 +19,14 @@ regex_at = f"{botname}|{botname.lower()}|{botname.upper()}"
 
 class FilterWeni(MessageFilter):
     def filter(self, message):
-        if len(message.text) < 10 and filters.TEXT:
-            weni_keys = list(weni_words.keys())
-            for weni_key in weni_keys:
-                if message.text.find(weni_key) != -1:
-                    return True
+        if filters.TEXT:
+            if len(message.text) < 10:
+                weni_keys = list(weni_words.keys())
+                for weni_key in weni_keys:
+                    if message.text.find(weni_key) != -1:
+                        return True
+            else:
+                return False
         else:
             return False
 
