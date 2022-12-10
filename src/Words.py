@@ -15,8 +15,8 @@ young_words = helper.load_words('wanan')
 ohayo_words = helper.load_words('ohayo')
 weni_words = helper.load_words('weni')
 at_words = helper.load_words('at_reply')
-
 weni_keys = list(weni_words.keys())
+
 
 class GetWords():
     def __init__(self):
