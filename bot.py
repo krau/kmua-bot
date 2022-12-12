@@ -45,6 +45,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await context.bot.send_message(chat_id=update.effective_chat.id, text="喵呜?")
     await context.bot.send_sticker(chat_id=update.effective_chat.id, sticker='CAACAgUAAxkBAAM7Y4oxOY0Tkt5D5keXXph7jFE7U7YAAqUCAAJfIulXxC0Bkai8vqwrBA')
 
+
 async def enable_affair_notice(update: Update, context: ContextTypes.DEFAULT_TYPE):
     '''开启偷情监控'''
     global affair_notice
@@ -159,9 +160,10 @@ async def yinyu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if helper.random_unit(pr_yinyu):
         message = update.effective_message.text
         en = getWords.get_en(message)
-        yinyu = getWords.get_yinyu(message)
-        text = f'{en} 是 {yinyu} 的意思嘛?'
-        await context.bot.send_message(chat_id=update.effective_chat.id, text=text)
+        if len(en) > 1:
+            yinyu = getWords.get_yinyu(message)
+            text = f'{en} 是 {yinyu} 的意思嘛?'
+            await context.bot.send_message(chat_id=update.effective_chat.id, text=text)
 
 
 async def re_file_id(update: Update, context: ContextTypes.DEFAULT_TYPE):
