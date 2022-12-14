@@ -1,23 +1,26 @@
-import asyncio
 import os
-import logging
-import telegram
 import random
 from datetime import datetime
 from src.bnhhsh.bnhhsh import dp
 from telegram import Update
 from telegram.ext import filters, MessageHandler, ApplicationBuilder, CommandHandler, ContextTypes
-from src.Helper import Helper
-from src.Filters import *
-from src.Words import GetWords
+from src.helper import Helper
+from src.filters import *
+from src.words import GetWords
+from src.logger import Logger
+from browsers.mcmod import McMod
 
 
 '''初始化类'''
+logger = Logger(name='bot', show=True)
+logger.info('bot启动中')
 helper = Helper()
 getWords = GetWords()
+mcmod = McMod()
 
 '''读取设定配置'''
-config = helper.read_config('config.yml')
+config = helper.read_config('configtest.yml')
+logger.info(f'读取配置...')
 if config['proxy']:
     os.environ['http_proxy'] = config['proxy']
     os.environ['https_proxy'] = config['proxy']
@@ -33,10 +36,6 @@ pr_yinyu = config['pr_yinyu']
 yinpa = config.get('yinpa', False)
 affair_notice = config.get('affair_notice', False)
 
-logging.basicConfig(
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    level=logging.INFO
-)
 
 '''CMD Func'''
 
@@ -133,7 +132,8 @@ async def wanan(update: Update, context: ContextTypes.DEFAULT_TYPE):
         stickers = ['CAACAgUAAxkBAANEY4oyf4yTWS2IwdQI85PXUX4HQCUAAtkDAAJWFLhWB5Xyu3EaZwcrBA',
                     'CAACAgUAAxkBAANGY4oyj4NN8khNgBs7GYbuUExqUzoAAk4CAALWY0lV3OnyI0c9yfArBA',
                     'CAACAgUAAxkBAANKY4oyz3UNU7mIgitsGlNhb1CqH30AAm0DAAIytehXTdZ5bv72-fkrBA',
-                    'CAACAgUAAxkBAANLY4oy08mWXoE0e3pIqR0Sz-Lm7yoAAqkDAAKUIOBXFZ5cO9IPe0crBA']
+                    'CAACAgUAAxkBAANLY4oy08mWXoE0e3pIqR0Sz-Lm7yoAAqkDAAKUIOBXFZ5cO9IPe0crBA',
+                    'CAACAgUAAxkBAAIDIWOYEVtJZs7H0SsQ2f_ggOMsSB_eAAK2CAAC5uiQVFV28zbFyciULAQ']
         sticker = random.choice(stickers)
         await context.bot.send_message(chat_id=update.effective_chat.id, text=text)
         await context.bot.send_sticker(chat_id=update.effective_chat.id, sticker=sticker)
@@ -151,7 +151,7 @@ async def wanan(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def niubi(update: Update, context: ContextTypes.DEFAULT_TYPE):
     '''牛逼话'''
     if helper.random_unit(pr_niubi):
-        text = getWords.get_niubi().format(botname=botname)
+        text = getWords.get_niubi().replace('botname',botname)
         await context.bot.send_message(chat_id=update.effective_chat.id, text=text)
 
 
@@ -190,8 +190,22 @@ async def weni(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def at_reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
     '''当有人叫bot时'''
-    text = getWords.get_at_reply().format(botname=botname)
+    text = getWords.get_at_reply().replace('botname',botname)
     await context.bot.send_message(chat_id=update.effective_chat.id, text=text)
+
+
+async def get_mcmod(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    '''自动获取mcmod上的模组信息'''
+    urls = getWords.get_mcmod_url(text=update.effective_message.text)
+    for url in urls:
+        name = await mcmod.get_mod_name(url=url)
+        file = await mcmod.screenshot(url=url)
+        with open(f'./pics/{file}', 'rb') as f:
+            text = f'''
+            找到了这个模组~
+            {name}'''
+            await context.bot.send_message(chat_id=update.effective_chat.id, text=text)
+            await context.bot.send_photo(chat_id=update.effective_chat.id, photo=f)
 
 
 def run():
@@ -211,6 +225,7 @@ def run():
     yinyu_handler = MessageHandler(filter_yinyu, yinyu)
     weni_handler = MessageHandler(filter_weni, weni)
     at_reply_handler = MessageHandler(filter_at, at_reply)
+    get_mcmod_handler = MessageHandler(filter_mcmod, get_mcmod)
 
     handlers = [
         start_handler,
@@ -224,10 +239,11 @@ def run():
         fileid_handler,
         yinyu_handler,
         weni_handler,
-        at_reply_handler
+        at_reply_handler,
+        get_mcmod_handler
     ]
     application.add_handlers(handlers)
-
+    logger.info('bot已开始运行')
     application.run_polling()
 
 

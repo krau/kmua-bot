@@ -1,6 +1,7 @@
 from telegram.ext import filters
 from telegram.ext.filters import MessageFilter
-from .Helper import Helper
+from .helper import Helper
+import re
 
 helper = Helper()
 
@@ -14,6 +15,7 @@ regex_niubi = "bot|机器人|智械危机|Bot"
 regex_yinyu = "[a-zA-Z]"
 regex_noyinyu = f"[^krau|{botname}|{botname.lower()}|{botname.upper()}|@krauisme|@acherkrau]"
 regex_at = f"{botname}|{botname.lower()}|{botname.upper()}"
+regex_mcmod = r"https?://www.mcmod.cn/class/.*(\.html)?"
 weni_words = helper.load_words('weni')
 
 class FilterWeniKey(MessageFilter):
@@ -50,6 +52,7 @@ filter_setu = filters.Regex(regex_setu)
 filter_ohayo = filters.Regex(regex_ohayo)
 filter_sleep = filters.Regex(regex_sleep)
 filter_niubi = filters.Regex(regex_niubi)
-filter_yinyu = filters.Regex(regex_yinyu) & filters.Regex(regex_noyinyu) & FilterTextLen()
+filter_yinyu = filters.Regex(regex_yinyu) & filters.Regex(regex_noyinyu) & FilterTextLen(minlen=2,maxlen=10)
 filter_at = filters.Regex(regex_at)
 filter_weni = FilterWeniKey() & (~filters.Regex(regex_at)) & FilterTextLen(minlen=1) & filters.ChatType.PRIVATE
+filter_mcmod = filters.Regex(regex_mcmod)

@@ -3,7 +3,9 @@ import os
 import yaml
 from datetime import datetime
 import json
+from .logger import Logger
 
+logger=Logger(name='helper',show=True)
 
 class Helper:
     def __init__(self) -> None:
@@ -33,19 +35,20 @@ class Helper:
         with open(config_path, 'r', encoding='utf-8') as f:
             config = f.read()
         config = yaml.load(config, Loader=yaml.FullLoader)
-        print(f'已载入配置{config_name}')
+        logger.debug(f'已载入配置{config_name}')
         return config
 
     def load_words(self, words: str):
         '''read and load 词库'''
         words_path = os.path.join('../', os.getcwd(), 'data/words')
         the_word_path = os.path.join(words_path, words+'.json')
-        print(f'载入词库：{the_word_path}')
         try:
             with open(the_word_path, 'r') as f:
                 the_words_json = json.load(f)
+                logger.debug(f'已载入词库：{the_word_path}')
                 return the_words_json
         except:
+            logger.error(f'载入词库出错：{the_word_path}')
             return {'Exception': 'except'}
 
     def sleep_recorder(self, mode: str, name: str, time: str = datetime.now().strftime('%Y-%m-%d %H:%M:%S'), status: str = 'sleep'):

@@ -1,8 +1,9 @@
 import random
 import re
-from .Helper import Helper
+from .helper import Helper
 from .bnhhsh.bnhhsh import dp
-
+from .logger import Logger
+logger = Logger(name='words',show=True)
 helper = Helper()
 
 config = helper.read_config('config.yml')
@@ -51,7 +52,7 @@ class GetWords():
         yinyu = dp(self.get_en(text).lower())
         return yinyu
 
-    def get_en(self, text) -> str:
+    def get_en(self, text: str) -> str:
         '''返回句中的英文'''
         en = ''.join(re.findall(r'[a-zA-Z]', text))
         return en
@@ -65,3 +66,14 @@ class GetWords():
     def get_at_reply(self) -> str:
         '''有人叫我'''
         return random.choice(at_words)
+
+    def get_mcmod_url(self, text: str) -> list[str]:
+        '''返回句中的mcmod页面链接列表'''
+        pattern = re.compile(r"(https?:\/\/[^\s]+\/[0-9]+)(?:[^\u4e00-\u9fa5]*\.html)?")
+        urls = re.findall(pattern, text)
+        if urls:
+            logger.debug(f'获取到mcmod链接{urls}')
+            return urls
+        else:
+            logger.debug('无mcmod链接')
+            return []

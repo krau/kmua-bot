@@ -2,3 +2,6 @@ __pycache__
 *test*
 *venv*
 *old*
+*.log
+tmp/
+logs/

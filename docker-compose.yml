@@ -1,0 +1,8 @@
+version: "3"
+services:
+  kmua:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - ./data:/kmua/data
