@@ -15,7 +15,7 @@ regex_niubi = "bot|机器人|智械危机|Bot"
 regex_yinyu = "[a-zA-Z]"
 regex_noyinyu = f"[^krau|{botname}|{botname.lower()}|{botname.upper()}|@krauisme|@acherkrau]"
 regex_at = f"{botname}|{botname.lower()}|{botname.upper()}"
-regex_mcmod = r"https?://www.mcmod.cn/class/.*(\.html)?"
+regex_mcmod = r"www.mcmod.cn/class"
 weni_words = helper.load_words('weni')
 
 class FilterWeniKey(MessageFilter):

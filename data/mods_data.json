@@ -14,5 +14,13 @@
         "full_name": "植物魔法 | Botania",
         "mod_url": "https://www.mcmod.cn/class/332",
         "pic_path": "./pics/Botania.png"
+    },
+    "https://www.mcmod.cn/class/334": {
+        "file_name": "Gendustry.png",
+        "cn_name": "基因工业",
+        "en_name": "Gendustry",
+        "full_name": "基因工业 | Gendustry",
+        "mod_url": "https://www.mcmod.cn/class/334",
+        "pic_path": "./pics/Gendustry.png"
     }
 }

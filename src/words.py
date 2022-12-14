@@ -90,8 +90,8 @@ class GetWords():
 
     def get_mcmod_url(self, text: str) -> list[str]:
         '''返回句中的mcmod页面链接列表'''
-        pattern = re.compile(r"(https?:\/\/[^\s]+\/[0-9]+)(?:[^\u4e00-\u9fa5]*\.html)?")
-        urls = re.findall(pattern, text)
+        mod_nums = re.findall(r"www\.mcmod\.cn/class/([0-9]+)", text)
+        urls = [f"https://www.mcmod.cn/class/{x}" for x in mod_nums]
         if urls:
             logger.debug(f'获取到mcmod链接{urls}')
             return urls
