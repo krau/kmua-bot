@@ -21,51 +21,72 @@ weni_keys = list(weni_words.keys())
 
 class GetWords():
     def __init__(self):
+        logger.debug('实例化GetWords')
         self.aoligei = aoligei_words
         self.niubi = niubi_words
         self.wanan = wanan_words
         self.young = young_words
         self.ohayo = ohayo_words
+        self.weni = weni_words
+        self.at = at_words
+        self.weni_keys = weni_keys
 
     def get_aoligei(self) -> str:
         '''获取正能量'''
-        return random.choice(self.aoligei)
+        word =  random.choice(self.aoligei)
+        logger.debug(f'获取到正能量:{word}')
+        return word
 
     def get_niubi(self) -> str:
         '''获取装b句子'''
-        return random.choice(self.niubi)
+        word =  str(random.choice(self.niubi)).replace('botname',botname)
+        logger.debug(f'获取到niubi:{word}')
+        return word
+
 
     def get_wanan(self) -> str:
         '''晚安!'''
-        return random.choice(self.wanan)
+        word = random.choice(self.wanan)
+        logger.debug(f'获取到晚安:{word}')
+        return word
 
     def get_young(self) -> str:
         '''获取大老师语录'''
-        return random.choice(self.young)
+        word =  random.choice(self.young)
+        logger.debug(f'获取到语录:{word}')
+        return word
 
     def get_ohayo(self) -> str:
         '''早安!'''
-        return random.choice(self.ohayo)
+        word =  random.choice(self.ohayo)
+        logger.debug(f'获取到早安:{word}')
+        return word
 
     def get_yinyu(self, text) -> str:
         '''返回yinyu'''
         yinyu = dp(self.get_en(text).lower())
+        logger.debug(f'获取到yinyu:{yinyu}')
         return yinyu
 
     def get_en(self, text: str) -> str:
         '''返回句中的英文'''
         en = ''.join(re.findall(r'[a-zA-Z]', text))
+        logger.debug(f'匹配到英文字符{en}')
         return en
 
     def get_weni(self, text: str) -> str:
         '''返回weni'''
-        for weni_key in weni_keys:
+        for weni_key in self.weni_keys:
             if text.find(weni_key) != -1:
-                return random.choice(weni_words[weni_key])
+                word = random.choice(self.weni[weni_key]).replace('botname',botname)
+                logger.debug(f'获取到weni_word:{word}')
+                return word
 
     def get_at_reply(self) -> str:
         '''有人叫我'''
-        return random.choice(at_words)
+        word =  str(random.choice(self.at)).replace('botname',botname)
+        logger.debug(f'获取到at_reply:{word}')
+        return word
 
     def get_mcmod_url(self, text: str) -> list[str]:
         '''返回句中的mcmod页面链接列表'''

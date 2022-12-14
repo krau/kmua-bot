@@ -19,7 +19,7 @@ getWords = GetWords()
 mcmod = McMod()
 
 '''读取设定配置'''
-config = helper.read_config('config.yml')
+config = helper.read_config('configtest.yml')
 logger.info(f'读取配置...')
 if config['proxy']:
     os.environ['http_proxy'] = config['proxy']
@@ -41,6 +41,7 @@ affair_notice = config.get('affair_notice', False)
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    logger.info(f'收到来自{update.effective_chat.username}的/start指令')
     await context.bot.send_message(chat_id=update.effective_chat.id, text="喵呜?")
     await context.bot.send_sticker(chat_id=update.effective_chat.id, sticker='CAACAgUAAxkBAAM7Y4oxOY0Tkt5D5keXXph7jFE7U7YAAqUCAAJfIulXxC0Bkai8vqwrBA')
 
@@ -50,6 +51,7 @@ async def enable_affair_notice(update: Update, context: ContextTypes.DEFAULT_TYP
     global affair_notice
     if update.effective_chat.id == master_id:
         affair_notice = True
+        logger.info(f'{update.effective_chat.username}开启了偷情监控')
         await context.bot.send_message(chat_id=master_id, text='已开启偷情监控')
     else:
         text = f"干嘛喵,{botname}不会这个~真的不会哦~"
@@ -88,7 +90,8 @@ async def ohayo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if helper.random_unit(pr_ohayo):
         text = getWords.get_ohayo()
         stickers = ['CAACAgUAAxkBAAPnY4xM4SVJj5T5plvLUc89Lra77IUAAvACAAL30uhX8lw2t4mq6GErBA',
-                    'CAACAgUAAxkBAANBY4oyECkXjRogFHgphC4lXWyL1XQAAuADAALYtOlXJmc1qHGknScrBA']
+                    'CAACAgUAAxkBAANBY4oyECkXjRogFHgphC4lXWyL1XQAAuADAALYtOlXJmc1qHGknScrBA',
+                    'CAACAgUAAxkBAAIDRGOZwXhR2FYfE21lyfE3ijFpPn7KAAI8AwACxNzoV7UXWq3xmh9pLAQ']
         await context.bot.send_message(chat_id=update.effective_chat.id, text=text)
         await context.bot.send_sticker(chat_id=update.effective_chat.id, sticker=random.choice(stickers))
     username = update.effective_user.full_name
@@ -133,7 +136,8 @@ async def wanan(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     'CAACAgUAAxkBAANGY4oyj4NN8khNgBs7GYbuUExqUzoAAk4CAALWY0lV3OnyI0c9yfArBA',
                     'CAACAgUAAxkBAANKY4oyz3UNU7mIgitsGlNhb1CqH30AAm0DAAIytehXTdZ5bv72-fkrBA',
                     'CAACAgUAAxkBAANLY4oy08mWXoE0e3pIqR0Sz-Lm7yoAAqkDAAKUIOBXFZ5cO9IPe0crBA',
-                    'CAACAgUAAxkBAAIDIWOYEVtJZs7H0SsQ2f_ggOMsSB_eAAK2CAAC5uiQVFV28zbFyciULAQ']
+                    'CAACAgUAAxkBAAIDIWOYEVtJZs7H0SsQ2f_ggOMsSB_eAAK2CAAC5uiQVFV28zbFyciULAQ',
+                    'CAACAgUAAxkBAAIDQmOZwVbDWOYeDFCQb9w49RgJHU40AAIyAgACN2XoV8kIAihs8kTlLAQ']
         sticker = random.choice(stickers)
         await context.bot.send_message(chat_id=update.effective_chat.id, text=text)
         await context.bot.send_sticker(chat_id=update.effective_chat.id, sticker=sticker)
@@ -198,12 +202,11 @@ async def get_mcmod(update: Update, context: ContextTypes.DEFAULT_TYPE):
     '''自动获取mcmod上的模组信息'''
     urls = getWords.get_mcmod_url(text=update.effective_message.text)
     for url in urls:
-        name = await mcmod.get_mod_name(url=url)
-        file = await mcmod.screenshot(url=url)
+        data_dict = await mcmod.screenshot(url=url)
+        file = data_dict.get('file_name')
+        full_name = data_dict.get('full_name')
         with open(f'./pics/{file}', 'rb') as f:
-            text = f'''
-            找到了这个模组~
-            {name}'''
+            text = f'找到了这个模组~\n{full_name}'
             await context.bot.send_message(chat_id=update.effective_chat.id, text=text)
             await context.bot.send_photo(chat_id=update.effective_chat.id, photo=f)
 

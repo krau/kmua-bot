@@ -57,12 +57,15 @@ class Helper:
             '../', os.getcwd(), 'data/sleep_data.json')
         if mode == 'write':
             try:
+                if not os.path.exists(sleep_data_path):
+                    with open(sleep_data_path,'w') as f:
+                        json.dump({},f,ensure_ascii=False)
                 data = {name: {"time": time, "status": status}}
                 with open(sleep_data_path, 'r') as f:
                     content = json.load(f)
                 content.update(data)
                 with open(sleep_data_path, 'w') as f:
-                    json.dump(content, f)
+                    json.dump(content, f,indent=4,ensure_ascii=False)
                 return True
             except:
                 return False
