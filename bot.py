@@ -200,15 +200,19 @@ async def at_reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def get_mcmod(update: Update, context: ContextTypes.DEFAULT_TYPE):
     '''自动获取mcmod上的模组信息'''
-    urls = getWords.get_mcmod_url(text=update.effective_message.text)
-    for url in urls:
-        data_dict = await mcmod.screenshot(url=url)
-        file = data_dict.get('file_name')
-        full_name = data_dict.get('full_name')
-        with open(f'./pics/{file}', 'rb') as f:
-            text = f'找到了这个模组~\n{full_name}'
-            await context.bot.send_message(chat_id=update.effective_chat.id, text=text)
-            await context.bot.send_photo(chat_id=update.effective_chat.id, photo=f)
+    mod_urls = getWords.get_mcmod_url(text=update.effective_message.text)
+    for mod_url in mod_urls:
+        data_dict = await mcmod.screenshot(mod_url=mod_url)
+        if data_dict:
+            file = data_dict.get('file_name')
+            full_name = data_dict.get('full_name')
+            with open(f'./pics/{file}', 'rb') as f:
+                text = f'找到了这个模组~\n{full_name}\n{mod_url}'
+                await context.bot.send_message(chat_id=update.effective_chat.id, text=text)
+                await context.bot.send_photo(chat_id=update.effective_chat.id, photo=f)
+        else:
+            text = f'没能找到这个模组呢:{mod_url}'
+            await context.bot.send_message(chat_id=update.effective_chat.id,text=text)
 
 
 def run():

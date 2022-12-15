@@ -48,7 +48,7 @@ class McMod:
             logger.error(f'错误类型:{e.__class__.__name__}')
             await page.close()
 
-    async def screenshot(self, url: str, width: int = 1280, height: int = 720, close: bool = True) -> dict:
+    async def screenshot(self, mod_url: str, width: int = 1280, height: int = 720, close: bool = True) -> dict:
         """
         获取网页截屏
 
@@ -56,41 +56,54 @@ class McMod:
         :param width: 页面宽度, defaults to 1280
         :param height: 页面高度, defaults to 720
         :param close: 完成后是否关闭网页, defaults to True
-        :return: 文件名字典{'file_name':文件名,'cn_name':中文名,
-                        'en_name':英文名,'full_name':格式化后的全名}
+        :return: 字典{'file_name':文件名,'cn_name':中文名,
+                        'en_name':英文名,'full_name':格式化后的全名,'mod_url':模组链接}
         """
         try:
-            logger.debug(f'开始获取截屏:{url}')
-            data_dict =  self.mod_data_read(mod_url=url)
+            logger.debug(f'开始获取截屏:{mod_url}')
+            data_dict =  self.mod_data_read(mod_url=mod_url)
             if data_dict:
                 return data_dict
             else:
-                page = await self.new_page(url=url, width=width, height=height)
-                logger.debug(f'获取页面 {url} 元素')
+                page = await self.new_page(url=mod_url, width=width, height=height)
+                logger.debug(f'获取页面 {mod_url} 模组名元素')
                 class_title = await page.waitForSelector(selector='.class-title')
-                cn_nm = await(await(await class_title.querySelector('h3')).getProperty('innerText')).jsonValue()
-                en_nm = await(await(await class_title.querySelector('h4')).getProperty('innerText')).jsonValue()
-                logger.debug(f'获取元素成功:{cn_nm},{en_nm}')
-                file_nm = re.sub(r'[^a-zA-Z]', '', en_nm) + '.png'  # 以英文模组名(去除非法字符)保存截屏文件
-                full_nm = f'{cn_nm} | {en_nm}'  # 为了少开一次浏览器，干脆把模组名也顺便获取并返回
-                logger.info(f'获取截屏:{file_nm}')
+                try:
+                    logger.debug('尝试获取中文名')
+                    cn_name = await(await(await class_title.querySelector('h3')).getProperty('innerText')).jsonValue()
+                except:
+                    logger.debug('获取中文名失败,该模组可能无中文名')
+                    cn_name = ''
+                try:
+                    logger.debug('尝试获取英文名')
+                    en_name = await(await(await class_title.querySelector('h4')).getProperty('innerText')).jsonValue()
+                except:
+                    logger.debug('获取英文名失败,该模组可能无英文名')
+                    en_name = ''
+                logger.debug(f'得到模组名:{cn_name},{en_name}')
+                file_name = re.sub(r'[^a-zA-Z]', '', en_name) + '.png'  # 以英文模组名(去除非法字符)保存截屏文件
+                full_name = f'{cn_name} {en_name}'  # 为了少开一次浏览器，干脆把模组名也顺便获取并返回
+                logger.info(f'获取截屏:{file_name}')
                 if not os.path.exists('./pics/'):
                     os.makedirs('./pics/')
                     logger.debug('未找到截图保存路径,已新建')
-                if not os.path.exists(f'./pics/{file_nm}'):
-                    await page.screenshot({'path': f'./pics/{file_nm}'})
-                    logger.info(f'保存截屏{file_nm}成功')
+                if not os.path.exists(f'./pics/{file_name}'):
+                    await page.screenshot({'path': f'./pics/{file_name}'})
+                    logger.info(f'保存截屏{file_name}成功')
                 else:
-                    logger.info(f'截屏文件{file_nm}已存在')
+                    logger.info(f'截屏文件{file_name}已存在')
                 if close:
                     await page.close()
                     logger.debug('关闭页面')
-                data_dict = {'file_name': file_nm, 'cn_name': cn_nm,
-                            'en_name': en_nm, 'full_name': full_nm,'mod_url':url}
-                self.mod_data_record(mod_cn_name=cn_nm,mod_en_name=en_nm,mod_file_name=file_nm,mod_full_name=full_nm,mod_url=url)
-                return data_dict
+                record_flag = self.mod_data_record(mod_cn_name=cn_name,mod_en_name=en_name,mod_file_name=file_name,mod_full_name=full_name,mod_url=mod_url)
+                if record_flag:
+                    data_dict = self.mod_data_read(mod_url=mod_url)
+                    return data_dict
+                else:
+                    logger.error(f'未能记录模组 {mod_url}')
+                    return {}
         except Exception as e:
-            logger.error(f'获取截屏 {url} 失败!')
+            logger.error(f'获取截屏 {mod_url} 失败!')
             logger.error(f'错误类型:{e.__class__.__name__}')
             await page.close()
             return {}
@@ -107,23 +120,33 @@ class McMod:
         try:
             logger.info(f'尝试获取模组名:{url}')
             page = await self.new_page(url=url)
-            logger.debug(f'获取页面 {url} 元素')
+            logger.debug(f'获取页面 {url} 模组名元素')
             class_title = await page.waitForSelector(selector='.class-title')
-            cn_nm = await(await(await class_title.querySelector('h3')).getProperty('innerText')).jsonValue()
-            en_nm = await(await(await class_title.querySelector('h4')).getProperty('innerText')).jsonValue()
-            full_nm = f'{cn_nm} | {en_nm}'
-            logger.info(f'获取模组名成功:{full_nm}')
+            try:
+                logger.debug('尝试获取中文名')
+                cn_name = await(await(await class_title.querySelector('h3')).getProperty('innerText')).jsonValue()
+            except:
+                logger.debug('获取中文名失败,该模组可能无中文名')
+                cn_name = ''
+            try:
+                logger.debug('尝试获取英文名')
+                en_name = await(await(await class_title.querySelector('h4')).getProperty('innerText')).jsonValue()
+            except:
+                logger.debug('获取英文名失败,该模组可能无英文名')
+                en_name = ''
+            full_nm = f'{cn_name} {en_name}'
+            logger.info(f'得到模组名:{full_nm}')
             if close:
                 await page.close()
                 logger.debug('关闭页面')
             if lang == 'full':
                 return full_nm
             elif lang == 'cn':
-                return cn_nm
+                return cn_name
             elif lang == 'en':
-                return en_nm
+                return en_name
             elif lang == 'dict':
-                name_dict = {'cn_name':cn_nm,'en_name':en_nm,'full_name':full_nm}
+                name_dict = {'cn_name':cn_name,'en_name':en_name,'full_name':full_nm}
                 return name_dict
             else:
                 logger.debug(f'lang不能为{lang}')
@@ -133,7 +156,18 @@ class McMod:
             logger.error(f'错误类型:{e.__class__.__name__}')
             return ''
 
-    def mod_data_record(self, mod_file_name: str, mod_cn_name: str, mod_en_name: str, mod_full_name: str, mod_url: str, mod_pic_path: str = ''):
+    def mod_data_record(self, mod_file_name: str,mod_full_name: str, mod_url: str, mod_cn_name: str='', mod_en_name: str='',  mod_pic_path: str = '') ->bool:
+        """
+        以json文件存储模组的信息,变量名定义与其他函数中一致
+
+        :param mod_file_name: 模组去除非法字符(包括空格)的英文全名+后缀名
+        :param mod_full_name: 格式化后的全名, ex: 植物魔法|Botania
+        :param mod_url: 模组链接
+        :param mod_cn_name: 模组中文名, defaults to ''
+        :param mod_en_name: 模组英文名, defaults to ''
+        :param mod_pic_path: 模组页面截图路径, defaults to ''
+        :return: 记录成功返回True,否则False
+        """
         try:
             logger.debug(f'记录模组数据:{mod_cn_name}')
             mods_data_path = './data/mods_data.json'
@@ -155,7 +189,7 @@ class McMod:
             logger.info(f'已记录模组数据:{mod_data}')
             return True
         except Exception as e:
-            logger.error(f'记录模组数据 {mod_cn_name} 错误!')
+            logger.error(f'记录模组数据 {mod_url} 错误!')
             logger.error(f'错误类型:{e.__class__.__name__}')
             return False
 
