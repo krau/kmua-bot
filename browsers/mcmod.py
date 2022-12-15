@@ -211,8 +211,8 @@ class McMod:
             with open(mods_data_path,'r',encoding='utf-8') as f:
                 data = json.load(f)
             if mod_url in data:
-                cn_name = data[mod_url].get('cn_name')
-                logger.info(f'该模组数据已记录过:{cn_name}')
+                full_name = data[mod_url].get('full_name')
+                logger.info(f'该模组数据已记录过:{full_name}')
                 return data[mod_url]
             else:
                 logger.debug('模组数据未记录过')
