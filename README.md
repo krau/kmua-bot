@@ -39,13 +39,18 @@ kmua拥有超乎有机体有机体预期的知性，当有人提及kmua只是一
 睡眠记录器！kmua会计算你睡了多长时间，前提是你要准时和kmua说早安和晚安！
 
 ### 获取Mcmod信息
-Kmua喜欢玩的游戏是MC，所以当有人发给Kmua 1个mcmod.cn的模组页面时(如：https://www.mcmod.cn/class/332.html)，Kmua会自动去寻找它，并把关于这个模组的信息发给你!
+Kmua喜欢玩的游戏是MC，所以当有人发给Kmua 1个mcmod.cn的模组页面时(如：https://www.mcmod.cn/class/332.html )，Kmua会主动去寻找它，并把关于这个模组的信息发给你!
 
 ## 部署
+### 源码运行
 1. `git clone https://github.com/krau/Kmua-bot`
 2. pip install -r requirements.txt
 3. edit config.yml
 4. python3 bot.py
+### 使用docker
+1. `git clone https://github.com/krau/Kmua-bot`
+2. edit config.yml
+3. `docker compose up -d`
 
 ## 鸣谢&引用
 - [RimoChan/bnhhsh](https://github.com/RimoChan/bnhhsh)

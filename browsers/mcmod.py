@@ -47,6 +47,7 @@ class McMod:
             logger.error(f'新建页面 {url} 失败!')
             logger.error(f'错误类型:{e.__class__.__name__}')
             await page.close()
+            await wb.close()
 
     async def screenshot(self, mod_url: str, width: int = 1280, height: int = 720, close: bool = True) -> dict:
         """
@@ -65,7 +66,15 @@ class McMod:
             if data_dict:
                 return data_dict
             else:
-                page = await self.new_page(url=mod_url, width=width, height=height)
+                '''不再使用self.new_page方法建立页面
+                临时解决浏览器进程无法关闭的问题'''
+                logger.debug(f'新建页面:{mod_url}')
+                wb = await launch(options=self.options)
+                page = await wb.newPage()
+                await page.setViewport({'width': width, 'height': height})
+                await page.goto(url=mod_url)
+                logger.debug(f'已新建页面:{mod_url}')
+                #page = await self.new_page(url=mod_url, width=width, height=height)
                 logger.debug(f'获取页面 {mod_url} 模组名元素')
                 class_title = await page.waitForSelector(selector='.class-title')
                 try:
@@ -102,6 +111,7 @@ class McMod:
                     logger.info(f'截屏文件{file_name}已存在')
                 if close:
                     await page.close()
+                    await wb.close()
                     logger.debug('关闭页面')
                 record_flag = self.mod_data_record(mod_cn_name=cn_name,mod_en_name=en_name,mod_file_name=file_name,mod_full_name=full_name,mod_url=mod_url)
                 if record_flag:
@@ -114,6 +124,7 @@ class McMod:
             logger.error(f'获取截屏 {mod_url} 失败!')
             logger.error(f'错误类型:{e.__class__.__name__}')
             await page.close()
+            await wb.close()
             return {}
 
     async def get_mod_name(self, url: str, lang: str = 'full', close: bool = True) -> str:
