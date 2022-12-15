@@ -115,7 +115,7 @@ async def ohayo(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 await context.bot.send_message(chat_id=update.effective_chat.id, text=text)
                 await context.bot.send_sticker(chat_id=update.effective_chat.id, sticker='CAACAgUAAxkBAAM_Y4oxreCJwFtLa1okJMS3Xz7g8UsAAmYCAAImjuhXJN6lY6dZeNUrBA')
             elif slumber_time > 13.00:
-                text = f'{username}上次给{botname}说晚安是在{slumber_time}前呢~昨晚睡觉的时候肯定没说!!'
+                text = f'{username}上次给{botname}说晚安是在{slumber_time}小时前呢~昨晚睡觉的时候肯定没说!!'
                 await context.bot.send_message(chat_id=update.effective_chat.id, text=text)
             else:
                 pass

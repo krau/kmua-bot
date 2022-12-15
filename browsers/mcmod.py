@@ -131,17 +131,25 @@ class McMod:
             logger.debug(f'获取页面 {url} 模组名元素')
             class_title = await page.waitForSelector(selector='.class-title')
             try:
-                logger.debug('尝试获取中文名')
-                cn_name = await(await(await class_title.querySelector('h3')).getProperty('innerText')).jsonValue()
-            except:
-                logger.debug('获取中文名失败,该模组可能无中文名')
-                cn_name = ''
-            try:
-                logger.debug('尝试获取英文名')
+                logger.debug('尝试获取<h4>')
                 en_name = await(await(await class_title.querySelector('h4')).getProperty('innerText')).jsonValue()
+                logger.debug(f'获取到<h4>:{en_name}')
+                try:
+                    logger.debug('尝试获取<h3>')
+                    cn_name = await(await(await class_title.querySelector('h3')).getProperty('innerText')).jsonValue()
+                    logger.debug(f'获取到:<h3>{cn_name}')
+                except:
+                    logger.debug('获取<h3>失败')
             except:
-                logger.debug('获取英文名失败,该模组可能无英文名')
-                en_name = ''
+                logger.debug('获取<h4>失败,该模组可能无中文名') #无中文名时,h3即为英文名
+                try:
+                    logger.debug('尝试获取<h3>')
+                    en_name = await(await(await class_title.querySelector('h3')).getProperty('innerText')).jsonValue()
+                    cn_name = ''
+                except:
+                    logger.debug('获取<h3>失败')
+                    en_name = ''
+                    cn_name = ''
             full_nm = f'{cn_name} {en_name}'
             logger.info(f'得到模组名:{full_nm}')
             if close:
