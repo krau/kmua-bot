@@ -20,7 +20,7 @@ class McMod:
         self.args = ['--headless', '--no-sandbox',
                      '--disable-gpu', '--hide-scrollbars']
         self.options = {'args': self.args, 'defaultViewport': {
-            'width': width, 'height': height}}
+            'width': width, 'height': height},'dumpio':True}
 
     async def new_page(self, url: str = '', width: int = 1280, height: int = 720) -> Page:
         """
