@@ -256,6 +256,7 @@ def run():
         enable_affair_notice_handler,
         disable_affair_notice_handler,
         set_right_handler,
+        unknown_handler,
         setu_handler,
         ohayo_handler,
         wanan_handler,
@@ -264,8 +265,7 @@ def run():
         weni_handler,
         at_reply_handler,
         yinyu_handler,
-        get_mcmod_handler,
-        unknown_handler,
+        get_mcmod_handler
     ]
     application.add_handlers(handlers)
     logger.info('bot已开始运行')
