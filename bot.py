@@ -19,7 +19,7 @@ getWords = GetWords()
 mcmod = McMod()
 
 '''读取设定配置'''
-config = helper.read_config('config.yml')
+config = helper.read_config('configtest.yml')
 logger.info(f'读取配置...')
 if config['proxy']:
     os.environ['http_proxy'] = config['proxy']
@@ -51,8 +51,8 @@ async def enable_affair_notice(update: Update, context: ContextTypes.DEFAULT_TYP
     global affair_notice
     if update.effective_chat.id == master_id:
         affair_notice = True
-        logger.info(f'{update.effective_chat.username}开启了偷情监控')
         await context.bot.send_message(chat_id=master_id, text='已开启偷情监控')
+        logger.info(f'{update.effective_chat.username}开启了偷情监控')
     else:
         text = f"干嘛喵,{botname}不会这个~真的不会哦~"
         await context.bot.send_message(chat_id=update.effective_chat.id, text=text)
@@ -64,10 +64,23 @@ async def disable_affair_notice(update: Update, context: ContextTypes.DEFAULT_TY
     if update.effective_chat.id == master_id:
         affair_notice = False
         await context.bot.send_message(chat_id=master_id, text='已关闭偷情监控')
+        logger.info(f'{update.effective_chat.username}关闭了偷情监控')
     else:
         text = f"干嘛喵,{botname}不会这个~真的不会哦~"
         await context.bot.send_message(chat_id=update.effective_chat.id, text=text)
 
+async def set_right(update:Update,context:ContextTypes.DEFAULT_TYPE):
+    '''设置成员权限'''
+    chat_id = update.effective_chat.id
+    user_id = update.effective_user.id
+    try:
+        await context.bot.promote_chat_member(chat_id=chat_id,user_id=user_id,can_manage_chat=True)
+        logger.info(f'授予{update.effective_user.username}管理员')
+        text = '好,你现在是管理员啦'
+        await context.bot.send_message(chat_id=chat_id,reply_to_message_id=update.effective_message.id,text=text)
+    except:
+        await context.bot.send_message(chat_id=chat_id,text='不行!!')
+        logger.info(f'授予{update.effective_user.username}管理员失败')
 
 async def unknown(update: Update, context: ContextTypes.DEFAULT_TYPE):
     '''响应未知命令'''
@@ -223,6 +236,7 @@ def run():
         'enableaffairnotice', enable_affair_notice)
     disable_affair_notice_handler = CommandHandler(
         'disableaffairnotice', disable_affair_notice)
+    set_right_handler = CommandHandler('p',set_right)
     unknown_handler = MessageHandler(filters.COMMAND, unknown)
     setu_handler = MessageHandler(filter_setu, nosese)
     ohayo_handler = MessageHandler(filter_ohayo, ohayo)
@@ -247,7 +261,8 @@ def run():
         yinyu_handler,
         weni_handler,
         at_reply_handler,
-        get_mcmod_handler
+        get_mcmod_handler,
+        set_right_handler
     ]
     application.add_handlers(handlers)
     logger.info('bot已开始运行')
