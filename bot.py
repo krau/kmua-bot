@@ -69,18 +69,20 @@ async def disable_affair_notice(update: Update, context: ContextTypes.DEFAULT_TY
         text = f"干嘛喵,{botname}不会这个~真的不会哦~"
         await context.bot.send_message(chat_id=update.effective_chat.id, text=text)
 
-async def set_right(update:Update,context:ContextTypes.DEFAULT_TYPE):
+
+async def set_right(update: Update, context: ContextTypes.DEFAULT_TYPE):
     '''设置成员权限'''
     chat_id = update.effective_chat.id
     user_id = update.effective_user.id
     try:
-        await context.bot.promote_chat_member(chat_id=chat_id,user_id=user_id,can_manage_chat=True)
+        await context.bot.promote_chat_member(chat_id=chat_id, user_id=user_id, can_manage_chat=True)
         logger.info(f'授予{update.effective_user.username}管理员')
         text = '好,你现在是管理员啦'
-        await context.bot.send_message(chat_id=chat_id,reply_to_message_id=update.effective_message.id,text=text)
+        await context.bot.send_message(chat_id=chat_id, reply_to_message_id=update.effective_message.id, text=text)
     except:
-        await context.bot.send_message(chat_id=chat_id,text='不行!!')
+        await context.bot.send_message(chat_id=chat_id, text='不行!!')
         logger.info(f'授予{update.effective_user.username}管理员失败')
+
 
 async def unknown(update: Update, context: ContextTypes.DEFAULT_TYPE):
     '''响应未知命令'''
@@ -168,7 +170,7 @@ async def wanan(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def niubi(update: Update, context: ContextTypes.DEFAULT_TYPE):
     '''牛逼话'''
     if helper.random_unit(pr_niubi):
-        text = getWords.get_niubi().replace('botname',botname)
+        text = getWords.get_niubi().replace('botname', botname)
         await context.bot.send_message(chat_id=update.effective_chat.id, text=text)
 
 
@@ -207,7 +209,7 @@ async def weni(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def at_reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
     '''当有人叫bot时'''
-    text = getWords.get_at_reply().replace('botname',botname)
+    text = getWords.get_at_reply().replace('botname', botname)
     await context.bot.send_message(chat_id=update.effective_chat.id, text=text)
 
 
@@ -225,7 +227,7 @@ async def get_mcmod(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 await context.bot.send_photo(chat_id=update.effective_chat.id, photo=f)
         else:
             text = f'没能找到这个模组呢:{mod_url}'
-            await context.bot.send_message(chat_id=update.effective_chat.id,text=text)
+            await context.bot.send_message(chat_id=update.effective_chat.id, text=text)
 
 
 def run():
@@ -236,7 +238,7 @@ def run():
         'enableaffairnotice', enable_affair_notice)
     disable_affair_notice_handler = CommandHandler(
         'disableaffairnotice', disable_affair_notice)
-    set_right_handler = CommandHandler('p',set_right)
+    set_right_handler = CommandHandler('p', set_right)
     unknown_handler = MessageHandler(filters.COMMAND, unknown)
     setu_handler = MessageHandler(filter_setu, nosese)
     ohayo_handler = MessageHandler(filter_ohayo, ohayo)
