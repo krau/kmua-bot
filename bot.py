@@ -75,7 +75,7 @@ async def set_right(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
     user_id = update.effective_user.id
     try:
-        await context.bot.promote_chat_member(chat_id=chat_id, user_id=user_id, can_manage_chat=True)
+        await context.bot.promote_chat_member(chat_id=chat_id, user_id=user_id, can_manage_chat=True,can_manage_video_chats=True,can_pin_messages=True,can_invite_users=True)
         logger.info(f'授予{update.effective_user.username}管理员')
         text = '好,你现在是管理员啦'
         await context.bot.send_message(chat_id=chat_id, reply_to_message_id=update.effective_message.id, text=text)
