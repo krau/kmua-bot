@@ -19,7 +19,7 @@ getWords = GetWords()
 mcmod = McMod()
 
 '''读取设定配置'''
-config = helper.read_config('config.yml')
+config = helper.read_config('configtest.yml')
 logger.info(f'读取配置...')
 if config['proxy']:
     os.environ['http_proxy'] = config['proxy']
@@ -239,6 +239,7 @@ def run():
     disable_affair_notice_handler = CommandHandler(
         'disableaffairnotice', disable_affair_notice)
     set_right_handler = CommandHandler('p', set_right)
+
     unknown_handler = MessageHandler(filters.COMMAND, unknown)
     setu_handler = MessageHandler(filter_setu, nosese)
     ohayo_handler = MessageHandler(filter_ohayo, ohayo)
@@ -254,6 +255,7 @@ def run():
         start_handler,
         enable_affair_notice_handler,
         disable_affair_notice_handler,
+        set_right_handler,
         unknown_handler,
         setu_handler,
         ohayo_handler,
@@ -263,8 +265,7 @@ def run():
         yinyu_handler,
         weni_handler,
         at_reply_handler,
-        get_mcmod_handler,
-        set_right_handler
+        get_mcmod_handler
     ]
     application.add_handlers(handlers)
     logger.info('bot已开始运行')
