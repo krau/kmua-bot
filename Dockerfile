@@ -6,4 +6,4 @@ RUN apt update && apt upgrade -y \
     #&& wget https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb \
     #&& apt install -y ./google-chrome-stable_current_amd64.deb \
     && pip install -r requirements.txt
-CMD [ "python","/kmua/bot.py" ]
+ENTRYPOINT [ "python","/kmua/bot.py" ]

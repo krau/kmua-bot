@@ -1,10 +1,9 @@
 version: "3"
 services:
   kmua:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    image: ghcr.io/krau/kmua-bot:main
     init: true
+    container_name: kmua-main
     volumes:
       - ./data:/kmua/data
       - ./logs:/kmua/logs
