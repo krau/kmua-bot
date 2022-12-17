@@ -21,6 +21,9 @@ weni_keys = list(weni_words.keys())
 
 class GetWords():
     def __init__(self):
+        """
+        该类用于提取消息特定文本，或是返回特定文本
+        """
         logger.debug('实例化GetWords')
         self.aoligei = aoligei_words
         self.niubi = niubi_words

@@ -3,6 +3,7 @@ import random
 from datetime import datetime
 from src.bnhhsh.bnhhsh import dp
 from telegram import Update
+import telegram
 from telegram.ext import filters, MessageHandler, ApplicationBuilder, CommandHandler, ContextTypes
 from src.helper import Helper
 from src.filters import *
@@ -19,7 +20,7 @@ getWords = GetWords()
 mcmod = McMod()
 
 '''读取设定配置'''
-config = helper.read_config('config.yml')
+config = helper.read_config('configtest.yml')
 logger.info(f'读取配置...')
 if config['proxy']:
     os.environ['http_proxy'] = config['proxy']
@@ -48,6 +49,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def enable_affair_notice(update: Update, context: ContextTypes.DEFAULT_TYPE):
     '''开启偷情监控'''
+    logger.debug('调用:enable_affair_notice')
     global affair_notice
     if update.effective_chat.id == master_id:
         affair_notice = True
@@ -60,6 +62,7 @@ async def enable_affair_notice(update: Update, context: ContextTypes.DEFAULT_TYP
 
 async def disable_affair_notice(update: Update, context: ContextTypes.DEFAULT_TYPE):
     '''关闭偷情监控'''
+    logger.debug('调用:disable_affair_notice')
     global affair_notice
     if update.effective_chat.id == master_id:
         affair_notice = False
@@ -72,16 +75,29 @@ async def disable_affair_notice(update: Update, context: ContextTypes.DEFAULT_TY
 
 async def set_right(update: Update, context: ContextTypes.DEFAULT_TYPE):
     '''设置成员权限'''
+    logger.debug('调用:set_right')
     chat_id = update.effective_chat.id
     user_id = update.effective_user.id
-    try:
-        await context.bot.promote_chat_member(chat_id=chat_id, user_id=user_id, can_manage_chat=True,can_manage_video_chats=True,can_pin_messages=True,can_invite_users=True)
-        logger.info(f'授予{update.effective_user.username}管理员')
-        text = '好,你现在是管理员啦'
-        await context.bot.send_message(chat_id=chat_id, reply_to_message_id=update.effective_message.id, text=text)
-    except:
-        await context.bot.send_message(chat_id=chat_id, text='不行!!')
-        logger.info(f'授予{update.effective_user.username}管理员失败')
+    at_flag = False
+    for entity in update.message.entities:
+        if entity.MENTION:
+            at_flag = True
+            break
+        else:
+            await context.bot.send_message(chat_id=chat_id,user_id=user_id,text='不行,你要艾特我!')
+    if at_flag:
+        custom_title = update.effective_message.text[3:]
+        if not custom_title:
+            custom_title = update.effective_user.username
+        try:
+            await context.bot.promote_chat_member(chat_id=chat_id, user_id=user_id, can_manage_chat=True, can_manage_video_chats=True, can_pin_messages=True, can_invite_users=True)
+            await context.bot.set_chat_administrator_custom_title(chat_id=chat_id,user_id=user_id,custom_title=custom_title)
+            logger.info(f'授予{update.effective_user.username} {custom_title}')
+            text = f'好,你现在是{custom_title}啦'
+            await context.bot.send_message(chat_id=chat_id, reply_to_message_id=update.effective_message.id, text=text)
+        except:
+            await context.bot.send_message(chat_id=chat_id, text='不行!!')
+            logger.info(f'授予{update.effective_user.username}管理员失败')
 
 
 async def unknown(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -221,10 +237,10 @@ async def get_mcmod(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if data_dict:
             file = data_dict.get('file_name')
             full_name = data_dict.get('full_name')
-            with open(f'./pics/{file}', 'rb') as f:
-                text = f'找到了这个模组~\n{full_name}\n{mod_url}'
-                await context.bot.send_message(chat_id=update.effective_chat.id, text=text)
-                await context.bot.send_photo(chat_id=update.effective_chat.id, photo=f)
+            with open(f'./data/pics/{file}', 'rb') as f:
+                text = f'找到了这个模组~\n<b><a href="{mod_url}">{full_name}</a></b>'
+                # await context.bot.send_message(chat_id=update.effective_chat.id, text=text,parse_mode='HTML')
+                await context.bot.send_photo(chat_id=update.effective_chat.id, photo=f, caption=text, parse_mode='HTML')
         else:
             text = f'没能找到这个模组呢:{mod_url}'
             await context.bot.send_message(chat_id=update.effective_chat.id, text=text)

@@ -2,7 +2,6 @@ import re
 import os
 import json
 from pyppeteer.launcher import launch
-from pyppeteer.browser import Page
 from src.logger import Logger
 
 logger = Logger(name='McMod', show=True)
@@ -21,33 +20,6 @@ class McMod:
                      '--disable-gpu', '--hide-scrollbars']
         self.options = {'args': self.args, 'defaultViewport': {
             'width': width, 'height': height},'dumpio':True}
-
-    async def new_page(self, url: str = '', width: int = 1280, height: int = 720) -> Page:
-        """
-        启动浏览器并新建页面
-
-        :param url: 网址,如果为空则只启动浏览器, defaults to ''
-        :param width: 页面宽度, defaults to 1280
-        :param height: 页面高度, defaults to 720
-        :return: Page类
-        """
-        try:
-            logger.debug(f'新建页面 {url}')
-            wb = await launch(options=self.options)
-            page = await wb.newPage()
-            await page.setViewport({'width': width, 'height': height})
-            if url:
-                await page.goto(url=url)
-                logger.debug(f'页面已新建 {url}')
-                return page
-            else:
-                logger.debug(f'未传入url,仅开启浏览器')
-                return page
-        except Exception as e:
-            logger.error(f'新建页面 {url} 失败!')
-            logger.error(f'错误类型:{e.__class__.__name__}')
-            await page.close()
-            await wb.close()
 
     async def screenshot(self, mod_url: str, width: int = 1280, height: int = 720, close: bool = True) -> dict:
         """
@@ -101,11 +73,11 @@ class McMod:
                 file_name = re.sub(r'[^a-zA-Z]', '', en_name) + '.png'  # 以英文模组名(去除非法字符)保存截屏文件
                 full_name = f'{cn_name} {en_name}'  # 为了少开一次浏览器，干脆把模组名也顺便获取并返回
                 logger.info(f'获取截屏:{file_name}')
-                if not os.path.exists('./pics/'):
-                    os.makedirs('./pics/')
+                if not os.path.exists('./data/pics/'):
+                    os.makedirs('./data/pics/')
                     logger.debug('未找到截图保存路径,已新建')
-                if not os.path.exists(f'./pics/{file_name}'):
-                    await page.screenshot({'path': f'./pics/{file_name}'})
+                if not os.path.exists(f'./data/pics/{file_name}'):
+                    await page.screenshot({'path': f'./data/pics/{file_name}'})
                     logger.info(f'保存截屏{file_name}成功')
                 else:
                     logger.info(f'截屏文件{file_name}已存在')
@@ -138,7 +110,9 @@ class McMod:
         """
         try:
             logger.info(f'尝试获取模组名:{url}')
-            page = await self.new_page(url=url)
+            wb = await launch(options=self.options)
+            page = wb.newPage()
+            await page.goto(url=url)
             logger.debug(f'获取页面 {url} 模组名元素')
             class_title = await page.waitForSelector(selector='.class-title')
             try:
@@ -165,6 +139,7 @@ class McMod:
             logger.info(f'得到模组名:{full_nm}')
             if close:
                 await page.close()
+                await wb.close()
                 logger.debug('关闭页面')
             if lang == 'full':
                 return full_nm
@@ -203,7 +178,7 @@ class McMod:
                     json.dump({}, f,ensure_ascii=False)
                 logger.debug(f'未找到数据文件路径,已新建')
             if not mod_pic_path:
-                mod_pic_path = f'./pics/{mod_file_name}'
+                mod_pic_path = f'./data/pics/{mod_file_name}'
                 logger.debug(f'未传入pic_path,使用默认:{mod_pic_path}')
             mod_data = {mod_url: {'file_name': mod_file_name, 'cn_name': mod_cn_name,
                                         'en_name': mod_en_name, 'full_name': mod_full_name, 'mod_url': mod_url, 'pic_path': mod_pic_path}}
@@ -231,10 +206,10 @@ class McMod:
                 data = json.load(f)
             if mod_url in data:
                 full_name = data[mod_url].get('full_name')
-                logger.info(f'该模组数据已记录过:{full_name}')
+                logger.info(f'该模组数据已记录:{full_name}')
                 return data[mod_url]
             else:
-                logger.debug('模组数据未记录过')
+                logger.debug('该模组数据未记录')
                 return False
         except Exception as e:
             logger.error(f'读取模组数据 {mod_url} 错误!')
