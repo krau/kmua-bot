@@ -33,7 +33,7 @@ class McMod:
                         'en_name':英文名,'full_name':格式化后的全名,'mod_url':模组链接}
         """
         try:
-            logger.debug(f'开始获取截屏:{mod_url}')
+            logger.debug(f'调用:McMod.screenshot:{mod_url}')
             data_dict =  self.mod_data_read(mod_url=mod_url)
             if data_dict:
                 return data_dict
@@ -170,6 +170,7 @@ class McMod:
         :param mod_pic_path: 模组页面截图路径, defaults to ''
         :return: 记录成功返回True,否则False
         """
+        logger.debug('调用:McMod.mod_data_record')
         try:
             logger.debug(f'记录模组数据:{mod_cn_name}')
             mods_data_path = './data/mods_data.json'
@@ -196,6 +197,7 @@ class McMod:
             return False
 
     def mod_data_read(self,mod_url:str) -> dict:
+        logger.debug('调用:McMod.mod_data_read')
         try:
             logger.debug(f'读取模组数据:{mod_url}')
             mods_data_path = './data/mods_data.json'

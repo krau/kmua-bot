@@ -42,6 +42,7 @@ affair_notice = config.get('affair_notice', False)
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    logger.debug('调用:start')
     logger.info(f'收到来自{update.effective_chat.username}的/start指令')
     await context.bot.send_message(chat_id=update.effective_chat.id, text="喵呜?")
     await context.bot.send_sticker(chat_id=update.effective_chat.id, sticker='CAACAgUAAxkBAAM7Y4oxOY0Tkt5D5keXXph7jFE7U7YAAqUCAAJfIulXxC0Bkai8vqwrBA')
@@ -98,6 +99,7 @@ async def set_right(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def unknown(update: Update, context: ContextTypes.DEFAULT_TYPE):
     '''响应未知命令'''
+    logger.debug('调用:unknown')
     text = f"干嘛喵,{botname}不会这个~"
     await context.bot.send_message(chat_id=update.effective_chat.id, text=text)
 
@@ -107,6 +109,7 @@ async def unknown(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def nosese(update: Update, context: ContextTypes.DEFAULT_TYPE):
     '''不要涩涩'''
+    logger.debug('调用:nosese')
     if helper.random_unit(pr_nosese):
         await context.bot.send_message(chat_id=update.effective_chat.id, text='不要涩涩喵!')
         await context.bot.send_sticker(chat_id=update.effective_chat.id, sticker='CAACAgUAAxkBAAM_Y4oxreCJwFtLa1okJMS3Xz7g8UsAAmYCAAImjuhXJN6lY6dZeNUrBA')
@@ -114,6 +117,7 @@ async def nosese(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def ohayo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     '''早安问候与睡眠时间计算'''
+    logger.debug('调用:ohayo')
     if helper.random_unit(pr_ohayo):
         text = getWords.get_ohayo()
         stickers = ['CAACAgUAAxkBAAPnY4xM4SVJj5T5plvLUc89Lra77IUAAvACAAL30uhX8lw2t4mq6GErBA',
@@ -157,6 +161,7 @@ async def ohayo(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def wanan(update: Update, context: ContextTypes.DEFAULT_TYPE):
     '''晚安与睡眠时间记录'''
+    logger.debug('调用:wanan')
     if helper.random_unit(pr_sleep):
         text = getWords.get_wanan()
         stickers = ['CAACAgUAAxkBAANEY4oyf4yTWS2IwdQI85PXUX4HQCUAAtkDAAJWFLhWB5Xyu3EaZwcrBA',
@@ -181,6 +186,7 @@ async def wanan(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def niubi(update: Update, context: ContextTypes.DEFAULT_TYPE):
     '''牛逼话'''
+    logger.debug('调用:niubi')
     if helper.random_unit(pr_niubi):
         text = getWords.get_niubi().replace('botname', botname)
         await context.bot.send_message(chat_id=update.effective_chat.id, text=text)
@@ -188,6 +194,7 @@ async def niubi(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def yinyu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     '''yinyu翻译'''
+    logger.debug('调用:yinyu')
     if helper.random_unit(pr_yinyu):
         message = update.effective_message.text
         en = getWords.get_en(message)
@@ -199,6 +206,7 @@ async def yinyu(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def re_file_id(update: Update, context: ContextTypes.DEFAULT_TYPE):
     '''file_id获取给主人'''
+    logger.debug('调用:re_file_id')
     if update.effective_chat.id == master_id:
         file_id = update.message.sticker.file_id
         await context.bot.send_message(chat_id=update.effective_chat.id, text=file_id)
@@ -210,6 +218,7 @@ async def re_file_id(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def weni(update: Update, context: ContextTypes.DEFAULT_TYPE):
     '''文爱'''
+    logger.debug('调用:weni')
     text = getWords.get_weni(update.effective_message.text)
     await context.bot.send_message(chat_id=update.effective_chat.id, text=text)
     if update.effective_chat.id != master_id and affair_notice == True:
@@ -221,12 +230,14 @@ async def weni(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def at_reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
     '''当有人叫bot时'''
+    logger.debug('调用:at_reply')
     text = getWords.get_at_reply().replace('botname', botname)
     await context.bot.send_message(chat_id=update.effective_chat.id, text=text)
 
 
 async def get_mcmod(update: Update, context: ContextTypes.DEFAULT_TYPE):
     '''自动获取mcmod上的模组信息'''
+    logger.debug('调用:get_mcmod')
     mod_urls = getWords.get_mcmod_url(text=update.effective_message.text)
     for mod_url in mod_urls:
         data_dict = await mcmod.screenshot(mod_url=mod_url)
@@ -280,8 +291,9 @@ def run():
         get_mcmod_handler
     ]
     application.add_handlers(handlers)
-    logger.info('bot已开始运行')
     application.run_polling()
+    logger.info('bot已开始运行')
+
 
 
 if __name__ == '__main__':
