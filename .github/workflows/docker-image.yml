@@ -10,11 +10,11 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: OCI meta
         id: meta
-        uses: docker/metadata-action@v3
+        uses: docker/metadata-action@v4.1.1
         with:
           images: ghcr.io/${{ github.repository }}
           tags: |
