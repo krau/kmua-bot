@@ -291,8 +291,8 @@ def run():
         get_mcmod_handler
     ]
     application.add_handlers(handlers)
-    application.run_polling()
     logger.info('bot已开始运行')
+    application.run_polling()
 
 
 

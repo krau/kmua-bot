@@ -8,4 +8,4 @@ services:
     volumes:
       - ./data:/kmua/data
       - ./logs:/kmua/logs
-      - ./pics:/kmua/pics
+      - ./config.yml:/kmua/config.yml
