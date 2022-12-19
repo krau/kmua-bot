@@ -43,12 +43,12 @@ Kmua喜欢玩的游戏是MC，所以当有人发给Kmua 1个mcmod.cn的模组页
 
 ## 部署
 ### 源码运行
-1. `git clone https://github.com/krau/Kmua-bot`
+1. `git clone https://github.com/krau/kmua-bot`
 2. pip install -r requirements.txt
 3. edit config.yml
 4. python3 bot.py
-### 使用docker
-1. `git clone https://github.com/krau/Kmua-bot`
+### 使用docker compose
+1. `git clone https://github.com/krau/kmua-bot`
 2. edit config.yml
 3. `docker compose up -d`
 

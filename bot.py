@@ -4,6 +4,7 @@ from datetime import datetime
 from src.bnhhsh.bnhhsh import dp
 from telegram import Update
 import telegram
+import json
 from telegram.ext import filters, MessageHandler, ApplicationBuilder, CommandHandler, ContextTypes
 from src.helper import Helper
 from src.filters import *
@@ -253,6 +254,21 @@ async def get_mcmod(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await context.bot.send_message(chat_id=update.effective_chat.id, text=text)
 
 
+async def saved_mods_list(update:Update,context:ContextTypes.DEFAULT_TYPE):
+    '''输出已经保存的mods'''
+    logger.debug('调用:saved_mods_list')
+    with open('./data/mods_data.json','r') as f:
+        mods_data = json.load(f)
+    text = f'{botname}已经记下了这些模组~\n'
+    for mod_data in mods_data:
+        mod_url = mod_data.get('mod_url')
+        full_name = mod_data.get('mod_full_name')
+        mod_text = f'<b><a href="{mod_url}">{full_name}</a></b>\n'
+        text += mod_text
+    await context.bot.send_message(chat_id=update.effective_chat.id,text=text,parse_mode='HTML')
+        
+
+
 def run():
     application = ApplicationBuilder().token(TOKEN).build()
 
@@ -273,6 +289,7 @@ def run():
     weni_handler = MessageHandler(filter_weni, weni)
     at_reply_handler = MessageHandler(filter_at, at_reply)
     get_mcmod_handler = MessageHandler(filter_mcmod, get_mcmod)
+    saved_mods_list_handler = MessageHandler(filters.Regex('模组列表'),saved_mods_list)
 
     handlers = [
         start_handler,
@@ -288,7 +305,8 @@ def run():
         weni_handler,
         at_reply_handler,
         yinyu_handler,
-        get_mcmod_handler
+        get_mcmod_handler,
+        saved_mods_list_handler
     ]
     application.add_handlers(handlers)
     logger.info('bot已开始运行')
