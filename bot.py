@@ -257,15 +257,19 @@ async def get_mcmod(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def saved_mods_list(update:Update,context:ContextTypes.DEFAULT_TYPE):
     '''输出已经保存的mods'''
     logger.debug('调用:saved_mods_list')
-    with open('./data/mods_data.json','r') as f:
-        mods_data = json.load(f)
-    text = f'{botname}已经记下了这些模组~\n'
-    for mod_data in mods_data:
-        mod_url = mod_data.get('mod_url')
-        full_name = mod_data.get('mod_full_name')
-        mod_text = f'<b><a href="{mod_url}">{full_name}</a></b>\n'
-        text += mod_text
-    await context.bot.send_message(chat_id=update.effective_chat.id,text=text,parse_mode='HTML')
+    try:
+        with open('./data/mods_data.json','r',encoding='UTF-8') as f:
+            mods_data = json.load(f)
+        text = f'{botname}已经记下了这些模组~\n'
+        for mod in mods_data:
+            mod_url = mods_data[mod]['mod_url']
+            full_name = mods_data[mod]['full_name']
+            mod_text = f'<b><a href="{mod_url}">{full_name}</a></b>\n'
+            text += mod_text
+        await context.bot.send_message(chat_id=update.effective_chat.id,text=text,parse_mode='HTML')
+    except:
+        logger.error('异常:saved_mods_list')
+        await context.bot.send_message(chat_id=update.effective_chat.id,text='失败惹')
         
 
 
