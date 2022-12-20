@@ -4,6 +4,7 @@ from datetime import datetime
 from src.bnhhsh.bnhhsh import dp
 from telegram import Update
 import telegram
+import shutil
 import json
 from telegram.ext import filters, MessageHandler, ApplicationBuilder, CommandHandler, ContextTypes
 from src.helper import Helper
@@ -95,7 +96,23 @@ async def set_right(update: Update, context: ContextTypes.DEFAULT_TYPE):
             except:
                 await context.bot.send_message(chat_id=chat_id, text='不行!!')
                 logger.info(f'授予{update.effective_user.username}管理员失败')
-    
+
+async def rm_all_mods(update:Update,context:ContextTypes.DEFAULT_TYPE):
+    '''删除所有模组数据'''
+    logger.debug('调用:rm_all_mods')
+    try:
+        if update.effective_chat.id == master_id:
+            os.remove('./data/mods_data.json')
+            logger.debug('删除:./data/mods_data.json')
+            shutil.rmtree('./pics')
+            logger.debug('删除:./pics')
+            await context.bot.send_message(chat_id=update.effective_chat.id,text='已经删除了所有保存的模组数据')
+            await context.bot.send_sticker(chat_id=update.effective_chat.id,sticker='CAACAgUAAxkBAAIFXGOhEyZbeuhLM41Y9BoyZUHAoGdjAAJRBAACV0C5VoqO8DRjKNWPLAQ')
+        else:
+            await context.bot.send_message(chat_id=update.effective_chat.id,text='不行!!不可以!')
+    except OSError as e:
+        logger.error(f'错误:rm_all_mods:{e.strerror}')
+        await context.bot.send_message(chat_id=update.effective_chat.id,text='出错惹~')
 
 
 async def unknown(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -270,7 +287,6 @@ async def saved_mods_list(update:Update,context:ContextTypes.DEFAULT_TYPE):
     except:
         logger.error('异常:saved_mods_list')
         await context.bot.send_message(chat_id=update.effective_chat.id,text='失败惹')
-        
 
 
 def run():
@@ -282,6 +298,7 @@ def run():
     disable_affair_notice_handler = CommandHandler(
         'disableaffairnotice', disable_affair_notice)
     set_right_handler = CommandHandler('p', set_right)
+    rm_all_mods_handler = CommandHandler('rmallmods',rm_all_mods)
 
     unknown_handler = MessageHandler(filters.COMMAND, unknown)
     setu_handler = MessageHandler(filter_setu, nosese)
@@ -301,6 +318,7 @@ def run():
         disable_affair_notice_handler,
         set_right_handler,
         unknown_handler,
+        rm_all_mods_handler,
         setu_handler,
         ohayo_handler,
         wanan_handler,
