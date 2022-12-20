@@ -7,7 +7,8 @@ jobs:
   publish:
     name: Publish container image
     runs-on: ubuntu-20.04
-
+    env:
+      TZ: Asia/Shanghai
     steps:
       - name: Checkout
         uses: actions/checkout@v3

@@ -8,3 +8,5 @@ services:
       - ./data:/kmua/data
       - ./logs:/kmua/logs
       - ./config.yml:/kmua/config.yml
+    environment:
+      - TZ=Asia/Shanghai
