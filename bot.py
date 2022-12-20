@@ -101,10 +101,10 @@ async def rm_all_mods(update:Update,context:ContextTypes.DEFAULT_TYPE):
     '''删除所有模组数据'''
     logger.debug('调用:rm_all_mods')
     try:
-        if update.effective_chat.id == master_id:
+        if update.effective_user.id == master_id:
             os.remove('./data/mods_data.json')
             logger.debug('删除:./data/mods_data.json')
-            shutil.rmtree('./pics')
+            shutil.rmtree('./data/pics')
             logger.debug('删除:./pics')
             await context.bot.send_message(chat_id=update.effective_chat.id,text='已经删除了所有保存的模组数据')
             await context.bot.send_sticker(chat_id=update.effective_chat.id,sticker='CAACAgUAAxkBAAIFXGOhEyZbeuhLM41Y9BoyZUHAoGdjAAJRBAACV0C5VoqO8DRjKNWPLAQ')
