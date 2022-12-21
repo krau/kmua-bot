@@ -82,22 +82,24 @@ async def set_right(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
     user_id = update.effective_user.id
     for entity in update.message.entities:
-        if entity.MENTION:
+        if entity.type == entity.type.MENTION:
             bot_username_len = len(update._bot.name)
             custom_title = update.effective_message.text[3+bot_username_len:]
             if not custom_title:
                 custom_title = update.effective_user.username
             try:
                 await context.bot.promote_chat_member(chat_id=chat_id, user_id=user_id, can_manage_chat=True, can_manage_video_chats=True, can_pin_messages=True, can_invite_users=True)
-                await context.bot.set_chat_administrator_custom_title(chat_id=chat_id,user_id=user_id,custom_title=custom_title)
-                logger.info(f'授予{update.effective_user.username} {custom_title}')
+                await context.bot.set_chat_administrator_custom_title(chat_id=chat_id, user_id=user_id, custom_title=custom_title)
+                logger.info(
+                    f'授予{update.effective_user.username} {custom_title}')
                 text = f'好,你现在是{custom_title}啦'
                 await context.bot.send_message(chat_id=chat_id, reply_to_message_id=update.effective_message.id, text=text)
             except:
                 await context.bot.send_message(chat_id=chat_id, text='不行!!')
                 logger.info(f'授予{update.effective_user.username}管理员失败')
 
-async def rm_all_mods(update:Update,context:ContextTypes.DEFAULT_TYPE):
+
+async def rm_all_mods(update: Update, context: ContextTypes.DEFAULT_TYPE):
     '''删除所有模组数据'''
     logger.debug('调用:rm_all_mods')
     try:
@@ -106,13 +108,13 @@ async def rm_all_mods(update:Update,context:ContextTypes.DEFAULT_TYPE):
             logger.debug('删除:./data/mods_data.json')
             shutil.rmtree('./data/pics')
             logger.debug('删除:./pics')
-            await context.bot.send_message(chat_id=update.effective_chat.id,text='已经删除了所有保存的模组数据')
-            await context.bot.send_sticker(chat_id=update.effective_chat.id,sticker='CAACAgUAAxkBAAIFXGOhEyZbeuhLM41Y9BoyZUHAoGdjAAJRBAACV0C5VoqO8DRjKNWPLAQ')
+            await context.bot.send_message(chat_id=update.effective_chat.id, text='已经删除了所有保存的模组数据')
+            await context.bot.send_sticker(chat_id=update.effective_chat.id, sticker='CAACAgUAAxkBAAIFXGOhEyZbeuhLM41Y9BoyZUHAoGdjAAJRBAACV0C5VoqO8DRjKNWPLAQ')
         else:
-            await context.bot.send_message(chat_id=update.effective_chat.id,text='不行!!不可以!')
+            await context.bot.send_message(chat_id=update.effective_chat.id, text='不行!!不可以!')
     except OSError as e:
         logger.error(f'错误:rm_all_mods:{e.strerror}')
-        await context.bot.send_message(chat_id=update.effective_chat.id,text='出错惹~')
+        await context.bot.send_message(chat_id=update.effective_chat.id, text='出错惹~')
 
 
 async def unknown(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -271,11 +273,11 @@ async def get_mcmod(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await context.bot.send_message(chat_id=update.effective_chat.id, text=text)
 
 
-async def saved_mods_list(update:Update,context:ContextTypes.DEFAULT_TYPE):
+async def saved_mods_list(update: Update, context: ContextTypes.DEFAULT_TYPE):
     '''输出已经保存的mods'''
     logger.debug('调用:saved_mods_list')
     try:
-        with open('./data/mods_data.json','r',encoding='UTF-8') as f:
+        with open('./data/mods_data.json', 'r', encoding='UTF-8') as f:
             mods_data = json.load(f)
         text = f'{botname}已经记下了这些模组~\n'
         for mod in mods_data:
@@ -283,10 +285,10 @@ async def saved_mods_list(update:Update,context:ContextTypes.DEFAULT_TYPE):
             full_name = mods_data[mod]['full_name']
             mod_text = f'<b><a href="{mod_url}">{full_name}</a></b>\n'
             text += mod_text
-        await context.bot.send_message(chat_id=update.effective_chat.id,text=text,parse_mode='HTML')
+        await context.bot.send_message(chat_id=update.effective_chat.id, text=text, parse_mode='HTML')
     except:
         logger.error('异常:saved_mods_list')
-        await context.bot.send_message(chat_id=update.effective_chat.id,text='失败惹')
+        await context.bot.send_message(chat_id=update.effective_chat.id, text='失败惹')
 
 
 def run():
@@ -298,9 +300,9 @@ def run():
     disable_affair_notice_handler = CommandHandler(
         'disableaffairnotice', disable_affair_notice)
     set_right_handler = CommandHandler('p', set_right)
-    rm_all_mods_handler = CommandHandler('rmallmods',rm_all_mods)
+    rm_all_mods_handler = CommandHandler('rmallmods', rm_all_mods)
 
-    unknown_handler = MessageHandler(filters.COMMAND, unknown)
+    #unknown_handler = MessageHandler(filters.COMMAND, unknown)
     setu_handler = MessageHandler(filter_setu, nosese)
     ohayo_handler = MessageHandler(filter_ohayo, ohayo)
     wanan_handler = MessageHandler(filter_sleep, wanan)
@@ -310,7 +312,8 @@ def run():
     weni_handler = MessageHandler(filter_weni, weni)
     at_reply_handler = MessageHandler(filter_at, at_reply)
     get_mcmod_handler = MessageHandler(filter_mcmod, get_mcmod)
-    saved_mods_list_handler = MessageHandler(filters.Regex('模组列表'),saved_mods_list)
+    saved_mods_list_handler = MessageHandler(
+        filters.Regex('模组列表'), saved_mods_list)
 
     handlers = [
         start_handler,
@@ -318,7 +321,7 @@ def run():
         disable_affair_notice_handler,
         set_right_handler,
         rm_all_mods_handler,
-        unknown_handler,
+        #unknown_handler,
         setu_handler,
         ohayo_handler,
         wanan_handler,
@@ -333,7 +336,6 @@ def run():
     application.add_handlers(handlers)
     logger.info('bot已开始运行')
     application.run_polling()
-
 
 
 if __name__ == '__main__':
