@@ -81,22 +81,20 @@ async def set_right(update: Update, context: ContextTypes.DEFAULT_TYPE):
     logger.debug('调用:set_right')
     chat_id = update.effective_chat.id
     user_id = update.effective_user.id
-    for entity in update.message.entities:
-        if entity.type == entity.type.MENTION:
-            bot_username_len = len(update._bot.name)
-            custom_title = update.effective_message.text[3+bot_username_len:]
-            if not custom_title:
-                custom_title = update.effective_user.username
-            try:
-                await context.bot.promote_chat_member(chat_id=chat_id, user_id=user_id, can_manage_chat=True, can_manage_video_chats=True, can_pin_messages=True, can_invite_users=True)
-                await context.bot.set_chat_administrator_custom_title(chat_id=chat_id, user_id=user_id, custom_title=custom_title)
-                logger.info(
-                    f'授予{update.effective_user.username} {custom_title}')
-                text = f'好,你现在是{custom_title}啦'
-                await context.bot.send_message(chat_id=chat_id, reply_to_message_id=update.effective_message.id, text=text)
-            except:
-                await context.bot.send_message(chat_id=chat_id, text='不行!!')
-                logger.info(f'授予{update.effective_user.username}管理员失败')
+    bot_username_len = len(update._bot.name)
+    custom_title = update.effective_message.text[3+bot_username_len:]
+    if not custom_title:
+        custom_title = update.effective_user.username
+    try:
+        await context.bot.promote_chat_member(chat_id=chat_id, user_id=user_id, can_manage_chat=True, can_manage_video_chats=True, can_pin_messages=True, can_invite_users=True)
+        await context.bot.set_chat_administrator_custom_title(chat_id=chat_id, user_id=user_id, custom_title=custom_title)
+        logger.info(
+            f'授予{update.effective_user.username} {custom_title}')
+        text = f'好,你现在是{custom_title}啦'
+        await context.bot.send_message(chat_id=chat_id, reply_to_message_id=update.effective_message.id, text=text)
+    except:
+        await context.bot.send_message(chat_id=chat_id, text='不行!!')
+        logger.info(f'授予{update.effective_user.username}管理员失败')
 
 
 async def rm_all_mods(update: Update, context: ContextTypes.DEFAULT_TYPE):
