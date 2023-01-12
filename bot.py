@@ -22,7 +22,7 @@ getWords = GetWords()
 mcmod = McMod()
 
 '''读取设定配置'''
-config = helper.read_config('config.yml')
+config = helper.read_config('configtest.yml')
 logger.info(f'读取配置...')
 if config['proxy']:
     os.environ['http_proxy'] = config['proxy']
@@ -115,11 +115,22 @@ async def rm_all_mods(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await context.bot.send_message(chat_id=update.effective_chat.id, text='出错惹~')
 
 
-async def unknown(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    '''响应未知命令'''
-    logger.debug('调用:unknown')
-    text = f"干嘛喵,{botname}不会这个~"
-    await context.bot.send_message(chat_id=update.effective_chat.id, text=text)
+async def into_dict(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    '''入典'''
+    logger.debug('调用:into_dict')
+    try:
+        msg_id = update.effective_message.reply_to_message.message_id
+        await context.bot.pin_chat_message(chat_id=update.effective_chat.id, message_id=msg_id, disable_notification=False)
+        logger.info(f'入典:{update.effective_message.reply_to_message.text}')
+        flag = helper.record_msg_id(chat_id=update.effective_chat.id, msg_id=msg_id)
+        if flag == True:
+            await context.bot.send_message(chat_id=update.effective_chat.id, text='已入典')
+        else:
+            await context.bot.send_message(chat_id=update.effective_chat.id, text='置顶!')
+    except Exception as e:
+        await context.bot.send_message(chat_id=update.effective_chat.id, text='不行!')
+        logger.error(f'错误:q:{e}')
+
 
 
 '''MSG Func'''
@@ -289,6 +300,17 @@ async def saved_mods_list(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await context.bot.send_message(chat_id=update.effective_chat.id, text='失败惹')
 
 
+async def outo_dict(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    '''随机转发入典的消息'''
+    logger.debug('调用:outo_dict')
+    if helper.random_unit(0.05):
+        msg_id = helper.read_msg_id(chat_id=update.effective_chat.id)
+        if msg_id:
+            await context.bot.forward_message(chat_id=update.effective_chat.id, from_chat_id=update.effective_chat.id,message_id=msg_id)
+        else:
+            pass
+
+
 def run():
     application = ApplicationBuilder().token(TOKEN).build()
 
@@ -300,7 +322,6 @@ def run():
     set_right_handler = CommandHandler('p', set_right)
     rm_all_mods_handler = CommandHandler('rmallmods', rm_all_mods)
 
-    #unknown_handler = MessageHandler(filters.COMMAND, unknown)
     setu_handler = MessageHandler(filter_setu, nosese)
     ohayo_handler = MessageHandler(filter_ohayo, ohayo)
     wanan_handler = MessageHandler(filter_sleep, wanan)
@@ -312,6 +333,8 @@ def run():
     get_mcmod_handler = MessageHandler(filter_mcmod, get_mcmod)
     saved_mods_list_handler = MessageHandler(
         filters.Regex('模组列表'), saved_mods_list)
+    into_dict_handler = MessageHandler(filter_into_dict, into_dict)
+    outo_dict_handler = MessageHandler(~filters.COMMAND, outo_dict)
 
     handlers = [
         start_handler,
@@ -319,7 +342,8 @@ def run():
         disable_affair_notice_handler,
         set_right_handler,
         rm_all_mods_handler,
-        #unknown_handler,
+        into_dict_handler,
+
         setu_handler,
         ohayo_handler,
         wanan_handler,
@@ -327,9 +351,10 @@ def run():
         fileid_handler,
         weni_handler,
         at_reply_handler,
-        yinyu_handler,
         get_mcmod_handler,
-        saved_mods_list_handler
+        saved_mods_list_handler,
+        yinyu_handler,
+        outo_dict_handler
     ]
     application.add_handlers(handlers)
     logger.info('bot已开始运行')

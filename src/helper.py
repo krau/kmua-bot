@@ -88,3 +88,56 @@ class Helper:
                 return {}
         else:
             return False
+
+
+    # 记录入典消息的msg_id，以json存储
+    def record_msg_id(self, chat_id: int,msg_id: int):
+        '''记录入典消息的msg_id，以json存储'''
+        logger.debug('调用:Helper.record_msg_id')
+        try:
+            chat_id = str(chat_id)
+            msg_id_path = os.path.join(
+                '../', os.getcwd(), 'data/msg_id.json')
+            if not os.path.exists(msg_id_path):
+                with open(msg_id_path,'w') as f:
+                    json.dump({},f,ensure_ascii=False)
+            with open(msg_id_path,'r') as f:
+                content = json.load(f)
+            if content.get(chat_id,None):
+                content[chat_id].append(msg_id)
+            else:
+                content[chat_id] = [msg_id]
+            with open(msg_id_path,'w') as f:
+                json.dump(content,f,ensure_ascii=False)
+            logger.debug(f'已记录消息ID:{msg_id}')
+            return True
+        except Exception as e:
+            logger.error(f'记录消息ID出错:{e}')
+            return False
+
+    # 读取入典消息的msg_id，随机返回一个
+    def read_msg_id(self,chat_id: int):
+        '''读取入典消息的msg_id'''
+        logger.debug('调用:Helper.read_msg_id')
+        try:
+            chat_id = str(chat_id)
+            msg_id_path = os.path.join(
+                '../', os.getcwd(), 'data/msg_id.json')
+            if not os.path.exists(msg_id_path):
+                with open(msg_id_path,'w') as f:
+                    json.dump({},f,ensure_ascii=False)
+            with open(msg_id_path,'r') as f:
+                content = json.load(f)
+            if len(content) == 0:
+                print('没有消息ID')
+                return False
+            elif not content.get(chat_id,None):
+                print('没有chatID')
+                return False
+            else:
+                msg_id = random.choice(content[chat_id])
+                logger.debug(f'读取消息ID:{msg_id}')
+                return msg_id
+        except Exception as e:
+            logger.error(f'读取消息ID出错:{e}')
+            return False
