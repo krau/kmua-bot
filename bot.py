@@ -36,6 +36,7 @@ pr_ohayo = config['pr_ohayo']
 pr_niubi = config['pr_niubi']
 pr_aoligei = config['pr_aoligei']
 pr_yinyu = config['pr_yinyu']
+pr_发典 = config.get('pr_发典',0.01)
 yinpa = config.get('yinpa', False)
 affair_notice = config.get('affair_notice', False)
 
@@ -303,7 +304,7 @@ async def saved_mods_list(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def outo_dict(update: Update, context: ContextTypes.DEFAULT_TYPE):
     '''随机转发入典的消息'''
     logger.debug('调用:outo_dict')
-    if helper.random_unit(0.05):
+    if helper.random_unit(pr_发典):
         msg_id = helper.read_msg_id(chat_id=update.effective_chat.id)
         if msg_id:
             await context.bot.forward_message(chat_id=update.effective_chat.id, from_chat_id=update.effective_chat.id,message_id=msg_id)
