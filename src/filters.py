@@ -58,4 +58,4 @@ filter_yinyu = filters.Regex(regex_yinyu) & filters.Regex(regex_noyinyu) & Filte
 filter_at = filters.Regex(regex_at)
 filter_weni = FilterWeniKey() & (~filters.Regex(regex_at)) & FilterTextLen(minlen=1) & filters.ChatType.PRIVATE
 filter_mcmod = filters.Regex(regex_mcmod)
-filter_into_dict = (filters.Regex(regex_into_dict) & FilterTextLen(minlen=1,maxlen=10)) | filters.Command('q')
+filter_into_dict = (filters.Regex(regex_into_dict) & FilterTextLen(minlen=1,maxlen=10))

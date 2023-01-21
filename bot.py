@@ -322,6 +322,7 @@ def run():
         'disableaffairnotice', disable_affair_notice)
     set_right_handler = CommandHandler('p', set_right)
     rm_all_mods_handler = CommandHandler('rmallmods', rm_all_mods)
+    into_dict_cmd_handler = CommandHandler('q',into_dict)
 
     setu_handler = MessageHandler(filter_setu, nosese)
     ohayo_handler = MessageHandler(filter_ohayo, ohayo)
@@ -334,7 +335,7 @@ def run():
     get_mcmod_handler = MessageHandler(filter_mcmod, get_mcmod)
     saved_mods_list_handler = MessageHandler(
         filters.Regex('模组列表'), saved_mods_list)
-    into_dict_handler = MessageHandler(filter_into_dict, into_dict)
+    into_dict_msg_handler = MessageHandler(filter_into_dict, into_dict)
     outo_dict_handler = MessageHandler(~filters.COMMAND, outo_dict)
 
     handlers = [
@@ -343,8 +344,8 @@ def run():
         disable_affair_notice_handler,
         set_right_handler,
         rm_all_mods_handler,
-        into_dict_handler,
-
+        into_dict_cmd_handler,
+        into_dict_msg_handler,
         setu_handler,
         ohayo_handler,
         wanan_handler,
