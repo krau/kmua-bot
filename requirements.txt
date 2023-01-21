@@ -2,7 +2,7 @@ PyYAML
 requests
 httpx
 telegram
-python-telegram-bot==20.0a6
+python-telegram-bot
 pypinyin
 parsel
 pyppeteer
