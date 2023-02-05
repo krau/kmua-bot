@@ -5,10 +5,12 @@ from datetime import datetime
 import json
 from .logger import Logger
 
-logger=Logger(name='helper',show=True)
+logger = Logger(name='helper', show=True)
+
 
 class Helper:
     '''该类用于设置一些辅助的方法'''
+
     def __init__(self) -> None:
         logger.debug('实例化Helper')
         pass
@@ -64,14 +66,14 @@ class Helper:
         if mode == 'write':
             try:
                 if not os.path.exists(sleep_data_path):
-                    with open(sleep_data_path,'w') as f:
-                        json.dump({},f,ensure_ascii=False)
+                    with open(sleep_data_path, 'w') as f:
+                        json.dump({}, f, ensure_ascii=False)
                 data = {name: {"time": time, "status": status}}
                 with open(sleep_data_path, 'r') as f:
                     content = json.load(f)
                 content.update(data)
                 with open(sleep_data_path, 'w') as f:
-                    json.dump(content, f,indent=4,ensure_ascii=False)
+                    json.dump(content, f, indent=4, ensure_ascii=False)
                 logger.debug(f'写入睡眠数据{data}')
                 return True
             except:
@@ -89,9 +91,8 @@ class Helper:
         else:
             return False
 
-
     # 记录入典消息的msg_id，以json存储
-    def record_msg_id(self, chat_id: int,msg_id: int):
+    def record_msg_id(self, chat_id: int, msg_id: int):
         '''记录入典消息的msg_id，以json存储'''
         logger.debug('调用:Helper.record_msg_id')
         try:
@@ -99,16 +100,16 @@ class Helper:
             msg_id_path = os.path.join(
                 '../', os.getcwd(), 'data/msg_id.json')
             if not os.path.exists(msg_id_path):
-                with open(msg_id_path,'w') as f:
-                    json.dump({},f,ensure_ascii=False)
-            with open(msg_id_path,'r') as f:
+                with open(msg_id_path, 'w') as f:
+                    json.dump({}, f, ensure_ascii=False)
+            with open(msg_id_path, 'r') as f:
                 content = json.load(f)
-            if content.get(chat_id,None):
+            if content.get(chat_id, None):
                 content[chat_id].append(msg_id)
             else:
                 content[chat_id] = [msg_id]
-            with open(msg_id_path,'w') as f:
-                json.dump(content,f,ensure_ascii=False)
+            with open(msg_id_path, 'w') as f:
+                json.dump(content, f, ensure_ascii=False)
             logger.debug(f'已记录消息ID:{msg_id}')
             return True
         except Exception as e:
@@ -116,7 +117,7 @@ class Helper:
             return False
 
     # 读取入典消息的msg_id，随机返回一个
-    def read_msg_id(self,chat_id: int):
+    def read_msg_id(self, chat_id: int):
         '''读取入典消息的msg_id'''
         logger.debug('调用:Helper.read_msg_id')
         try:
@@ -124,14 +125,14 @@ class Helper:
             msg_id_path = os.path.join(
                 '../', os.getcwd(), 'data/msg_id.json')
             if not os.path.exists(msg_id_path):
-                with open(msg_id_path,'w') as f:
-                    json.dump({},f,ensure_ascii=False)
-            with open(msg_id_path,'r') as f:
+                with open(msg_id_path, 'w') as f:
+                    json.dump({}, f, ensure_ascii=False)
+            with open(msg_id_path, 'r') as f:
                 content = json.load(f)
             if len(content) == 0:
                 print('没有消息ID')
                 return False
-            elif not content.get(chat_id,None):
+            elif not content.get(chat_id, None):
                 print('没有chatID')
                 return False
             else:
@@ -141,3 +142,62 @@ class Helper:
         except Exception as e:
             logger.error(f'读取消息ID出错:{e}')
             return False
+
+    def black(self, id: int) -> bool:
+        '''加入黑名单'''
+        logger.debug('调用:Helper.black')
+        try:
+            black_path = os.path.join(
+                '../', os.getcwd(), 'data/blacklist.json')
+            if not os.path.exists(black_path):
+                with open(black_path, 'w') as f:
+                    json.dump([], f, ensure_ascii=False)
+            with open(black_path, 'r') as f:
+                content = json.load(f)
+            if id not in content:
+                content.append(id)
+            with open(black_path, 'w') as f:
+                json.dump(content, f, ensure_ascii=False)
+            logger.debug(f'已加入黑名单:{id}')
+            return True
+        except Exception as e:
+            logger.error(f'加入黑名单出错:{e}')
+            return False
+
+    def get_blacklist(self) -> list:
+        '''获取黑名单'''
+        logger.debug('调用:Helper.get_blacklist')
+        try:
+            black_path = os.path.join(
+                '../', os.getcwd(), 'data/blacklist.json')
+            if not os.path.exists(black_path):
+                with open(black_path, 'w') as f:
+                    json.dump([], f, ensure_ascii=False)
+            with open(black_path, 'r') as f:
+                content = json.load(f)
+            logger.debug(f'黑名单:{content}')
+            return content
+        except Exception as e:
+            logger.error(f'获取黑名单出错:{e}')
+            return []
+
+    def is_not_blacklist(self, id: int) -> bool:
+        '''检查是否在黑名单'''
+        logger.debug('调用:Helper.check_blacklist')
+        try:
+            black_path = os.path.join(
+                '../', os.getcwd(), 'data/blacklist.json')
+            if not os.path.exists(black_path):
+                with open(black_path, 'w') as f:
+                    json.dump([], f, ensure_ascii=False)
+            with open(black_path, 'r') as f:
+                content = json.load(f)
+            if id in content:
+                logger.debug(f'{id}在黑名单中')
+                return False
+            else:
+                logger.debug(f'{id}不在黑名单中')
+                return True
+        except Exception as e:
+            logger.error(f'检查黑名单出错:{e}')
+            return True
