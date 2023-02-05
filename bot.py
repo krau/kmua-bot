@@ -3,6 +3,7 @@ import random
 from datetime import datetime
 from src.bnhhsh.bnhhsh import dp
 from telegram import Update
+from telegram.constants import MessageEntityType
 import shutil
 import json
 from telegram.ext import filters, MessageHandler, ApplicationBuilder, CommandHandler, ContextTypes
@@ -138,7 +139,7 @@ async def ban(update: Update, context: ContextTypes.DEFAULT_TYPE):
     logger.debug('调用:black')
     if update.effective_user.id == master_id:
         for blackuser in update.effective_message.entities:
-            if blackuser.type == 'mention':
+            if blackuser.type == MessageEntityType.MENTION:
                 blackuser_id = blackuser.user.id
                 logger.info(f'黑名单:{blackuser.user.name}')
                 await context.bot.send_message(chat_id=update.effective_chat.id, text=f'已经将{blackuser.user.name}加入黑名单')
