@@ -324,7 +324,7 @@ async def saved_mods_list(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await context.bot.send_message(chat_id=update.effective_chat.id, text=text, parse_mode='HTML')
     except:
         logger.error('异常:saved_mods_list')
-        await context.bot.send_message(chat_id=update.effective_chat.id, text='失败惹')
+        await context.bot.send_message(chat_id=update.effective_chat.id, text='失败惹,可能是消息太长了')
 
 
 async def rm_mod(update: Update, context: ContextTypes.DEFAULT_TYPE):
