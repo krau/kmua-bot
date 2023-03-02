@@ -327,6 +327,30 @@ async def saved_mods_list(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await context.bot.send_message(chat_id=update.effective_chat.id, text='失败惹')
 
 
+async def rm_mod(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    '''删除某个模组信息'''
+    logger.debug('调用:rm_mod')
+    try:
+        if helper.is_not_blacklist(update.effective_user.id) or update.effective_chat.id == master_id:
+            mod_urls = getWords.get_mcmod_url(
+                text=update.effective_message.text)
+            with open('./data/mods_data.json', 'r', encoding='UTF-8') as f:
+                mods_data = json.load(f)
+            for mod_url in mod_urls:
+                for mod in mods_data:
+                    if mod_url == mods_data[mod]['mod_url']:
+                        del mods_data[mod]
+                        text = f'已经删除了这个模组~\n<b><a href="{mod_url}">{mod}</a></b>'
+                        await context.bot.send_message(chat_id=update.effective_chat.id, text=text, parse_mode='HTML')
+                        break
+                else:
+                    text = f'没有找到这个模组呢:{mod_url}'
+                    await context.bot.send_message(chat_id=update.effective_chat.id, text=text)
+    except:
+        logger.error('异常:rm_mod')
+        await context.bot.send_message(chat_id=update.effective_chat.id, text='失败惹')
+
+
 async def outo_dict(update: Update, context: ContextTypes.DEFAULT_TYPE):
     '''随机转发入典的消息'''
     logger.debug('调用:outo_dict')
@@ -351,6 +375,7 @@ def run():
     rm_all_mods_handler = CommandHandler('rmallmods', rm_all_mods)
     into_dict_cmd_handler = CommandHandler('q', into_dict)
     ban_user_handler = CommandHandler('ban', ban)
+    rm_mod_handler = CommandHandler('rmmod', rm_mod)
 
     setu_handler = MessageHandler(filter_setu, nosese)
     ohayo_handler = MessageHandler(filter_ohayo, ohayo)
@@ -373,6 +398,7 @@ def run():
         disable_affair_notice_handler,
         set_right_handler,
         rm_all_mods_handler,
+        rm_mod_handler,
         into_dict_cmd_handler,
         into_dict_msg_handler,
         setu_handler,
