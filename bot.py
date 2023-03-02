@@ -342,6 +342,8 @@ async def rm_mod(update: Update, context: ContextTypes.DEFAULT_TYPE):
                         del mods_data[mod]
                         text = f'已经删除了这个模组~\n<b><a href="{mod_url}">{mod}</a></b>'
                         await context.bot.send_message(chat_id=update.effective_chat.id, text=text, parse_mode='HTML')
+                        with open('./data/mods_data.json', 'w', encoding='UTF-8') as f:
+                            json.dump(mods_data, f, ensure_ascii=False, indent=4)
                         break
                 else:
                     text = f'没有找到这个模组呢:{mod_url}'
