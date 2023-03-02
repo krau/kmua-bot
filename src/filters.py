@@ -1,7 +1,6 @@
 from telegram.ext import filters
 from telegram.ext.filters import MessageFilter
 from .helper import Helper
-import re
 
 helper = Helper()
 
@@ -22,6 +21,7 @@ weni_words = helper.load_words('weni')
 
 class FilterWeniKey(MessageFilter):
     '''文爱关键词过滤器'''
+
     def filter(self, message):
         try:
             weni_keys = list(weni_words.keys())
@@ -33,9 +33,11 @@ class FilterWeniKey(MessageFilter):
         except:
             return False
 
+
 class FilterTextLen(MessageFilter):
     '''消息长度过滤器'''
-    def __init__(self, name: str = None, data_filter: bool = False, minlen:int = 2,maxlen:int = 16):
+
+    def __init__(self, name: str = None, data_filter: bool = False, minlen: int = 2, maxlen: int = 16):
         super().__init__(name, data_filter)
         self.minlen = minlen
         self.maxlen = maxlen
@@ -54,8 +56,11 @@ filter_setu = filters.Regex(regex_setu)
 filter_ohayo = filters.Regex(regex_ohayo) & FilterTextLen()
 filter_sleep = filters.Regex(regex_sleep) & FilterTextLen()
 filter_niubi = filters.Regex(regex_niubi)
-filter_yinyu = filters.Regex(regex_yinyu) & filters.Regex(regex_noyinyu) & FilterTextLen(minlen=2,maxlen=10)
+filter_yinyu = filters.Regex(regex_yinyu) & filters.Regex(
+    regex_noyinyu) & FilterTextLen(minlen=2, maxlen=10)
 filter_at = filters.Regex(regex_at)
-filter_weni = FilterWeniKey() & (~filters.Regex(regex_at)) & FilterTextLen(minlen=1) & filters.ChatType.PRIVATE
+filter_weni = FilterWeniKey() & (~filters.Regex(regex_at)) & FilterTextLen(
+    minlen=1) & filters.ChatType.PRIVATE
 filter_mcmod = filters.Regex(regex_mcmod)
-filter_into_dict = (filters.Regex(regex_into_dict) & FilterTextLen(minlen=1,maxlen=10))
+filter_into_dict = (filters.Regex(regex_into_dict) &
+                    FilterTextLen(minlen=1, maxlen=10))

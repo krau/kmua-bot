@@ -1,8 +1,18 @@
-import logging,os
+import logging
+import os
+from logging import handlers
 
 
 class Logger:
     def __init__(self, name: str, show: bool, save: bool = True, debug: bool = False) -> None:
+        """
+        日志系统
+
+        :param name: 日志系统实例名
+        :param show: 是否显示在控制台
+        :param save: 是否保存到文件, defaults to True
+        :param debug: debug模式, defaults to False
+        """
         normal_log_path = f'logs/normal.log'
         debug_log_path = f'logs/debug.log'
         if not os.path.exists('./logs'):
@@ -23,10 +33,22 @@ class Logger:
                 sh.setFormatter(self.formatter)
                 self.logger.addHandler(sh)
             if save:
-                fh_debug = logging.FileHandler(debug_log_path)
+                fh_debug = handlers.TimedRotatingFileHandler(
+                    filename=debug_log_path,
+                    when="D",
+                    interval=1,
+                    backupCount=3,
+                    encoding='utf-8'
+                )
                 fh_debug.setLevel(logging.DEBUG)
                 fh_debug.setFormatter(self.formatter)
-                fh = logging.FileHandler(normal_log_path)
+                fh = handlers.TimedRotatingFileHandler(
+                    filename=normal_log_path,
+                    when="D",
+                    interval=1,
+                    backupCount=3,
+                    encoding='utf-8'
+                )
                 fh.setLevel(logging.INFO)
                 fh.setFormatter(self.formatter)
                 self.logger.addHandler(fh)
