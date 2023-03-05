@@ -293,27 +293,6 @@ async def get_mcmod(update: Update, context: ContextTypes.DEFAULT_TYPE):
             continue
         await send_mod_data(update=update, context=context, data_dict=data_dict)
 
-
-async def send_mod_info(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    '''发送保存的模组信息'''
-    mod_name = update.effective_message.text
-    mod_name = mod_name.replace('/mod ', '')
-    try:
-        with open('./data/mods_data.json', 'r', encoding='UTF-8') as f:
-            mods_data = json.load(f)
-        if mod_name in mods_data:
-            mod_url = mods_data[mod_name]['mod_url']
-            full_name = mods_data[mod_name]['full_name']
-            text = f'<b><a href="{mod_url}">{full_name}</a></b>'
-            await context.bot.send_message(chat_id=update.effective_chat.id, text=text, parse_mode='HTML')
-        else:
-            text = f'{botname}还没有记下这个模组呢~'
-            await context.bot.send_message(chat_id=update.effective_chat.id, text=text)
-    except FileNotFoundError as e:
-        text = f'{botname}还没有记下任何模组呢~'
-        await context.bot.send_message(chat_id=update.effective_chat.id, text=text)
-
-
 async def saved_mods_list(update: Update, context: ContextTypes.DEFAULT_TYPE):
     '''输出已经保存的mods'''
     try:
