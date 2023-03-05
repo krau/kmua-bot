@@ -232,10 +232,9 @@ async def re_file_id(update: Update, context: ContextTypes.DEFAULT_TYPE):
         file_id = update.message.sticker.file_id
         await context.bot.send_message(chat_id=update.effective_chat.id, text=file_id)
     else:
-        if utils.is_not_blacklist(update.effective_user.id) or update.effective_chat.id == master_id:
-            if utils.random_with_probability(0.03):
-                text = f'不要发表情包啦，{botname}还看不懂'
-                await context.bot.send_message(chat_id=update.effective_chat.id, text=text)
+        if utils.random_with_probability(0.03):
+            text = f'不要发表情包啦，{botname}还看不懂'
+            await context.bot.send_message(chat_id=update.effective_chat.id, text=text)
 
 
 async def weni(update: Update, context: ContextTypes.DEFAULT_TYPE):
