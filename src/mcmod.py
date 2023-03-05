@@ -33,34 +33,21 @@ class McMod:
                         'en_name':英文名,'full_name':格式化后的全名,'mod_url':模组链接}
         """
         try:
-            # ...
-
             async with async_playwright() as p:
-                # 启动浏览器
-                browser = await p.chromium.launch(options=self.options)
-
-                # 创建新页面对象
-                page = await browser.newPage()
-
-                # 设置浏览器大小
-                await page.setViewportSize({'width': width, 'height': height})
-
-                # 导航到指定网址
+                browser = await p.chromium.launch()
+                page = await browser.new_page()
+                await page.set_viewport_size({'width': width, 'height': height})
                 await page.goto(mod_url)
-
-                # 使用 css 选择器等待页面元素出现
-                await page.waitForSelector('.class-title')
-
-                # 获取模组名
-                class_title = await page.querySelector('.class-title')
+                await page.wait_for_selector('.class-title')
+                class_title = await page.query_selector('.class-title')
                 try:
-                    h4 = await class_title.querySelector('h4')
-                    en_name = await h4.getProperty('innerText')
-                    en_name = await en_name.jsonValue()
+                    h4 = await class_title.query_selector('h4')
+                    en_name = await h4.get_property('innerText')
+                    en_name = await en_name.json_value()
                     try:
-                        h3 = await class_title.querySelector('h3')
-                        cn_name = await h3.getProperty('innerText')
-                        cn_name = await cn_name.jsonValue()
+                        h3 = await class_title.query_selector('h3')
+                        cn_name = await h3.get_property('innerText')
+                        cn_name = await cn_name.json_value()
                     except:
                         cn_name = ''
                 except:
@@ -68,8 +55,6 @@ class McMod:
                     cn_name = ''
                 file_name = re.sub(r'[^a-zA-Z]', '', en_name) + '.png'  # 以英文模组名(去除非法字符)保存截屏文件
                 full_name = f'{cn_name} {en_name}'  # 为了少开一次浏览器，干脆把模组名也顺便获取并返回
-                if not os.path.exists('./data/pics/'):
-                    os.makedirs('./data/pics/')
                 if not os.path.exists(f'./data/pics/{file_name}'):
                     await page.screenshot(path=f'./data/pics/{file_name}')
                 if close:
@@ -84,7 +69,7 @@ class McMod:
                     return {}
         except Exception as e:
             logger.error(f'获取截屏 {mod_url} 失败!')
-            logger.error(f'错误类型:{e.__class__.__name__}')
+            logger.error(f'错误:{e}')
             if close:
                 await page.close()
                 await browser.close()
@@ -101,28 +86,19 @@ class McMod:
         """
         try:
             async with async_playwright() as p:
-                # 启动浏览器
-                browser = await p.chromium.launch(options=self.options)
-
-                # 创建新页面对象
-                page = await browser.newPage()
-
-                # 导航到指定网址
+                browser = await p.chromium.launch()
+                page = await browser.new_page()
                 await page.goto(url)
-
-                # 使用 css 选择器等待页面元素出现
-                await page.waitForSelector('.class-title')
-
-                # 获取模组名
-                class_title = await page.querySelector('.class-title')
+                await page.wait_for_selector('.class-title')
+                class_title = await page.query_selector('.class-title')
                 try:
-                    h4 = await class_title.querySelector('h4')
-                    en_name = await h4.getProperty('innerText')
-                    en_name = await en_name.jsonValue()
+                    h4 = await class_title.query_selector('h4')
+                    en_name = await h4.get_property('innerText')
+                    en_name = await en_name.json_value()
                     try:
-                        h3 = await class_title.querySelector('h3')
-                        cn_name = await h3.getProperty('innerText')
-                        cn_name = await cn_name.jsonValue()
+                        h3 = await class_title.query_selector('h3')
+                        cn_name = await h3.get_property('innerText')
+                        cn_name = await cn_name.json_value()
                     except:
                         cn_name = ''
                 except:
@@ -146,7 +122,7 @@ class McMod:
                     return ''
         except Exception as e:
             logger.error(f'获取模组名称 {url} 失败!')
-            logger.error(f'错误类型:{e.__class__.__name__}')
+            logger.error(f'错误:{e}')
             return ''
 
     def mod_data_record(self, mod_file_name: str,mod_full_name: str, mod_url: str, mod_cn_name: str='', mod_en_name: str='',  mod_pic_path: str = '') ->bool:
