@@ -44,10 +44,10 @@ if not os.path.exists('data'):
     os.mkdir('data')
 if not os.path.exists('data/sleep_data.json'):
     with open('data/sleep_data.json', 'w') as f:
-        f.write('{}')
+        json.dump({}, f,ensure_ascii=False)
 if not os.path.exists('data/mods_data.json'):
     with open('data/mods_data.json', 'w') as f:
-        f.write('{}')
+        json.dump({}, f,ensure_ascii=False)
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     logger.info(f'收到来自{update.effective_chat.username}的/start指令')

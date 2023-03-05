@@ -1,7 +1,7 @@
 import re
 import os
 import json
-from pyppeteer.launcher import launch
+from playwright.async_api import async_playwright
 from src.logger import Logger
 
 logger = Logger(name='McMod', show=True)
@@ -33,55 +33,48 @@ class McMod:
                         'en_name':英文名,'full_name':格式化后的全名,'mod_url':模组链接}
         """
         try:
-            logger.debug(f'调用:McMod.screenshot:{mod_url}')
-            data_dict =  self.mod_data_read(mod_url=mod_url)
-            if data_dict:
-                return data_dict
-            else:
-                logger.debug(f'新建页面:{mod_url}')
-                wb = await launch(options=self.options)
-                page = await wb.newPage()
-                await page.setViewport({'width': width, 'height': height})
-                await page.goto(url=mod_url)
-                logger.debug(f'已新建页面:{mod_url}')
-                logger.debug(f'获取页面 {mod_url} 模组名元素')
-                class_title = await page.waitForSelector(selector='.class-title')
+            # ...
+
+            async with async_playwright() as p:
+                # 启动浏览器
+                browser = await p.chromium.launch(options=self.options)
+
+                # 创建新页面对象
+                page = await browser.newPage()
+
+                # 设置浏览器大小
+                await page.setViewportSize({'width': width, 'height': height})
+
+                # 导航到指定网址
+                await page.goto(mod_url)
+
+                # 使用 css 选择器等待页面元素出现
+                await page.waitForSelector('.class-title')
+
+                # 获取模组名
+                class_title = await page.querySelector('.class-title')
                 try:
-                    logger.debug('尝试获取<h4>')
-                    en_name = await(await(await class_title.querySelector('h4')).getProperty('innerText')).jsonValue()
-                    logger.debug(f'获取到<h4>:{en_name}')
+                    h4 = await class_title.querySelector('h4')
+                    en_name = await h4.getProperty('innerText')
+                    en_name = await en_name.jsonValue()
                     try:
-                        logger.debug('尝试获取<h3>')
-                        cn_name = await(await(await class_title.querySelector('h3')).getProperty('innerText')).jsonValue()
-                        logger.debug(f'获取到:<h3>{cn_name}')
+                        h3 = await class_title.querySelector('h3')
+                        cn_name = await h3.getProperty('innerText')
+                        cn_name = await cn_name.jsonValue()
                     except:
-                        logger.debug('获取<h3>失败')
+                        cn_name = ''
                 except:
-                    logger.debug('获取<h4>失败,该模组可能无中文名') #无中文名时,h3即为英文名
-                    try:
-                        logger.debug('尝试获取<h3>')
-                        en_name = await(await(await class_title.querySelector('h3')).getProperty('innerText')).jsonValue()
-                        cn_name = ''
-                    except:
-                        logger.debug('获取<h3>失败')
-                        en_name = ''
-                        cn_name = ''
-                logger.debug(f'得到模组名:{cn_name},{en_name}')
+                    en_name = ''
+                    cn_name = ''
                 file_name = re.sub(r'[^a-zA-Z]', '', en_name) + '.png'  # 以英文模组名(去除非法字符)保存截屏文件
                 full_name = f'{cn_name} {en_name}'  # 为了少开一次浏览器，干脆把模组名也顺便获取并返回
-                logger.info(f'获取截屏:{file_name}')
                 if not os.path.exists('./data/pics/'):
                     os.makedirs('./data/pics/')
-                    logger.debug('未找到截图保存路径,已新建')
                 if not os.path.exists(f'./data/pics/{file_name}'):
-                    await page.screenshot({'path': f'./data/pics/{file_name}'})
-                    logger.info(f'保存截屏{file_name}成功')
-                else:
-                    logger.info(f'截屏文件{file_name}已存在')
+                    await page.screenshot(path=f'./data/pics/{file_name}')
                 if close:
                     await page.close()
-                    await wb.close()
-                    logger.debug('关闭页面')
+                    await browser.close()
                 record_flag = self.mod_data_record(mod_cn_name=cn_name,mod_en_name=en_name,mod_file_name=file_name,mod_full_name=full_name,mod_url=mod_url)
                 if record_flag:
                     data_dict = self.mod_data_read(mod_url=mod_url)
@@ -92,8 +85,9 @@ class McMod:
         except Exception as e:
             logger.error(f'获取截屏 {mod_url} 失败!')
             logger.error(f'错误类型:{e.__class__.__name__}')
-            await page.close()
-            await wb.close()
+            if close:
+                await page.close()
+                await browser.close()
             return {}
 
     async def get_mod_name(self, url: str, lang: str = 'full', close: bool = True) -> str:
@@ -106,50 +100,50 @@ class McMod:
         :return:
         """
         try:
-            logger.info(f'尝试获取模组名:{url}')
-            wb = await launch(options=self.options)
-            page = wb.newPage()
-            await page.goto(url=url)
-            logger.debug(f'获取页面 {url} 模组名元素')
-            class_title = await page.waitForSelector(selector='.class-title')
-            try:
-                logger.debug('尝试获取<h4>')
-                en_name = await(await(await class_title.querySelector('h4')).getProperty('innerText')).jsonValue()
-                logger.debug(f'获取到<h4>:{en_name}')
+            async with async_playwright() as p:
+                # 启动浏览器
+                browser = await p.chromium.launch(options=self.options)
+
+                # 创建新页面对象
+                page = await browser.newPage()
+
+                # 导航到指定网址
+                await page.goto(url)
+
+                # 使用 css 选择器等待页面元素出现
+                await page.waitForSelector('.class-title')
+
+                # 获取模组名
+                class_title = await page.querySelector('.class-title')
                 try:
-                    logger.debug('尝试获取<h3>')
-                    cn_name = await(await(await class_title.querySelector('h3')).getProperty('innerText')).jsonValue()
-                    logger.debug(f'获取到:<h3>{cn_name}')
+                    h4 = await class_title.querySelector('h4')
+                    en_name = await h4.getProperty('innerText')
+                    en_name = await en_name.jsonValue()
+                    try:
+                        h3 = await class_title.querySelector('h3')
+                        cn_name = await h3.getProperty('innerText')
+                        cn_name = await cn_name.jsonValue()
+                    except:
+                        cn_name = ''
                 except:
-                    logger.debug('获取<h3>失败')
-            except:
-                logger.debug('获取<h4>失败,该模组可能无中文名') #无中文名时,h3即为英文名
-                try:
-                    logger.debug('尝试获取<h3>')
-                    en_name = await(await(await class_title.querySelector('h3')).getProperty('innerText')).jsonValue()
-                    cn_name = ''
-                except:
-                    logger.debug('获取<h3>失败')
                     en_name = ''
                     cn_name = ''
-            full_nm = f'{cn_name} {en_name}'
-            logger.info(f'得到模组名:{full_nm}')
-            if close:
-                await page.close()
-                await wb.close()
-                logger.debug('关闭页面')
-            if lang == 'full':
-                return full_nm
-            elif lang == 'cn':
-                return cn_name
-            elif lang == 'en':
-                return en_name
-            elif lang == 'dict':
-                name_dict = {'cn_name':cn_name,'en_name':en_name,'full_name':full_nm}
-                return name_dict
-            else:
-                logger.debug(f'lang不能为{lang}')
-                return ''
+                full_nm = f'{cn_name} {en_name}'
+                if close:
+                    await page.close()
+                    await browser.close()
+                if lang == 'full':
+                    return full_nm
+                elif lang == 'cn':
+                    return cn_name
+                elif lang == 'en':
+                    return en_name
+                elif lang == 'dict':
+                    name_dict = {'cn_name':cn_name,'en_name':en_name,'full_name':full_nm}
+                    return name_dict
+                else:
+                    logger.debug(f'lang不能为{lang}')
+                    return ''
         except Exception as e:
             logger.error(f'获取模组名称 {url} 失败!')
             logger.error(f'错误类型:{e.__class__.__name__}')
