@@ -1,10 +1,10 @@
 from telegram.ext import filters
 from telegram.ext.filters import MessageFilter
-from .helper import Helper
+from .utils import Utils
 
-helper = Helper()
+utils = Utils()
 
-config = helper.read_config('config.yml')
+config = utils.read_config('config.yml')
 botname = config.get('botname', 'Kmua')
 
 regex_setu = "涩图|色图|色色|涩涩"
@@ -16,7 +16,7 @@ regex_noyinyu = f"[^krau|{botname}|{botname.lower()}|{botname.upper()}|@krauisme
 regex_at = f"{botname}|{botname.lower()}|{botname.upper()}"
 regex_mcmod = r"www.mcmod.cn/class"
 regex_into_dict = "入典|史官"
-weni_words = helper.load_words('weni')
+weni_words = utils.load_words('weni')
 
 
 class FilterWeniKey(MessageFilter):
@@ -24,12 +24,8 @@ class FilterWeniKey(MessageFilter):
 
     def filter(self, message):
         try:
-            weni_keys = list(weni_words.keys())
-            for weni_key in weni_keys:
-                if message.text.find(weni_key) != -1:
-                    return True
-            else:
-                return False
+            weni_keys = weni_words.keys()
+            return any(key in message.text for key in weni_keys)
         except:
             return False
 
@@ -43,11 +39,8 @@ class FilterTextLen(MessageFilter):
         self.maxlen = maxlen
 
     def filter(self, message):
-        if filters.Text(message):
-            if self.minlen <= len(message.text) <= self.maxlen:
-                return True
-            else:
-                return False
+        if filters.Text(message) and self.minlen <= len(message.text) <= self.maxlen:
+            return True
         else:
             return False
 

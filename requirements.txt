@@ -6,3 +6,4 @@ python-telegram-bot
 pypinyin
 parsel
 pyppeteer
+aiofiles
