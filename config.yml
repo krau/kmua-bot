@@ -2,24 +2,24 @@
 token: ''
 
 #代理设置，如不需设置请留空
-proxy: ''
+代理地址: ''
 
 #bot设置
-botname: 'Kmua'
+bot的名字: 'Kmua'
 
 #主人设置
-master_id: 
+主人的id: 
 
 # 回复概率设置，在[0,1]区间取值
-pr_nosese: 0.5
-pr_sleep: 1
-pr_ohayo: 1
-pr_niubi: 0.2
-pr_aoligei: 0.2
-pr_yinyu: 0.6
-pr_发典: 0.01
+概率_不要涩涩: 0.5
+概率_晚安: 1
+概率_早安: 1
+概率_牛逼话: 0.2
+概率_哲理: 0.2
+概率_淫语: 0.6
+概率_发典: 0.01
 
 #功能设置
 
 # 偷情监控
-affair_notice: true
+偷情监控: true

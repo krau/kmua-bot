@@ -6,11 +6,11 @@ from telegram import Update
 import shutil
 import json
 from telegram.ext import filters, MessageHandler, ApplicationBuilder, CommandHandler, ContextTypes
-from utils import Utils
+from src.utils import Utils
 from src.filters import *
 from src.words import GetWords
 from src.logger import Logger
-from mcmod import McMod
+from src.mcmod import McMod
 
 
 '''初始化类'''
@@ -23,22 +23,31 @@ mcmod = McMod()
 '''读取设定配置'''
 config = utils.read_config('config.yml')
 logger.info(f'读取配置...')
-if config['proxy']:
+if config['代理地址']:
     os.environ['http_proxy'] = config['proxy']
     os.environ['https_proxy'] = config['proxy']
 TOKEN = config['token']
-botname = config['botname']
-master_id = config['master_id']
-pr_nosese = config['pr_nosese']
-pr_sleep = config['pr_sleep']
-pr_ohayo = config['pr_ohayo']
-pr_niubi = config['pr_niubi']
-pr_aoligei = config['pr_aoligei']
-pr_yinyu = config['pr_yinyu']
-pr_发典 = config.get('pr_发典', 0.01)
-yinpa = config.get('yinpa', False)
-affair_notice = config.get('affair_notice', False)
+botname = config['bot的名字']
+master_id = config['主人的id']
+pr_nosese = config['概率_不要涩涩']
+pr_sleep = config['概率_晚安']
+pr_ohayo = config['概率_早安']
+pr_niubi = config['概率_牛逼话']
+pr_aoligei = config['概率_哲理']
+pr_yinyu = config['概率_淫语']
+pr_发典 = config.get('概率_发典', 0.01)
+affair_notice = config.get('偷情监控', False)
 
+
+'''初始化目录'''
+if not os.path.exists('data'):
+    os.mkdir('data')
+if not os.path.exists('data/sleep_data.json'):
+    with open('data/sleep_data.json', 'w') as f:
+        f.write('{}')
+if not os.path.exists('data/mods_data.json'):
+    with open('data/mods_data.json', 'w') as f:
+        f.write('{}')
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     logger.info(f'收到来自{update.effective_chat.username}的/start指令')
@@ -281,6 +290,10 @@ async def saved_mods_list(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         with open('./data/mods_data.json', 'r', encoding='UTF-8') as f:
             mods_data = json.load(f)
+        if len(mods_data) == 0:
+            text = f'{botname}还没有记下任何模组呢~'
+            await context.bot.send_message(chat_id=update.effective_chat.id, text=text)
+            return
         text = f'{botname}已经记下了这些模组~\n'
         for mod in mods_data:
             mod_url = mods_data[mod]['mod_url']
@@ -288,8 +301,8 @@ async def saved_mods_list(update: Update, context: ContextTypes.DEFAULT_TYPE):
             mod_text = f'<b><a href="{mod_url}">{full_name}</a></b>\n'
             text += mod_text
         await context.bot.send_message(chat_id=update.effective_chat.id, text=text, parse_mode='HTML')
-    except:
-        logger.error('异常:saved_mods_list')
+    except Exception as e:
+        logger.error(f'输出已经保存的mods失败: {e}')
         await context.bot.send_message(chat_id=update.effective_chat.id, text='失败惹,可能是消息太长了')
 
 

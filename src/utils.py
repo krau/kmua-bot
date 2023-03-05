@@ -15,7 +15,7 @@ class Utils:
         logger.debug('实例化Utils')
         pass
 
-    def random_with_probability(probability: float) -> bool:
+    def random_with_probability(self,probability: float) -> bool:
         '''指定概率返回True或False'''
         assert 0 <= probability <= 1, "参数probability应该在[0,1]之间"
         if probability in (0, 1):
@@ -26,7 +26,7 @@ class Utils:
         r = random.randint(interval_begin, interval_end)
         return float(r) / interval_end < probability
 
-    def read_config(config_name: str) -> dict:
+    def read_config(self,config_name: str) -> dict:
         '''读取配置'''
         config_path = os.path.abspath(os.path.join(os.getcwd(), config_name))
         with open(config_path, 'r', encoding='utf-8') as f:
@@ -39,7 +39,7 @@ class Utils:
         words_path = os.path.join(
             os.getcwd(), 'data', 'words', f'{words}.json')
         try:
-            with open(words_path, 'r') as f:
+            with open(words_path, 'r',encoding='utf-8') as f:
                 the_words_json = json.load(f)
             logger.debug(f'已载入词库：{words_path}')
             return the_words_json
@@ -65,8 +65,8 @@ class Utils:
                     f.truncate()
                 logger.debug(f'写入睡眠数据{data}')
                 return True
-            except:
-                logger.debug('写入睡眠数据错误')
+            except Exception as e:
+                logger.debug(f'写入睡眠数据错误: {e}')
                 return False
 
         elif mode == 'read':
@@ -76,8 +76,8 @@ class Utils:
                 data = content.get(name)
                 logger.debug(f'读取到睡眠数据:{data}')
                 return data
-            except:
-                logger.debug('读取睡眠数据错误')
+            except Exception as e:
+                logger.debug(f'读取睡眠数据错误 {e}')
                 return {}
 
         else:

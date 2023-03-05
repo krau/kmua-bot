@@ -65,7 +65,8 @@ class GetWords():
 
     def get_yinyu(self, text) -> str:
         '''返回yinyu'''
-        yinyu = dp(self.get_en(text).lower())
+        en = ''.join(re.findall(r'[a-zA-Z]', text))
+        yinyu = dp(en.lower())
         logger.info(f'获取到yinyu:{yinyu}')
         return yinyu
 
