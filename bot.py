@@ -256,34 +256,62 @@ async def at_reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await context.bot.send_message(chat_id=update.effective_chat.id, text=text)
 
 
+async def send_mod_data(update:Update, context:ContextTypes.DEFAULT_TYPE, data_dict:dict):
+    '''发送模组数据'''
+    try:
+        file = data_dict['file_name']
+        mod_url = data_dict['mod_url']
+        full_name = data_dict['full_name']
+        async with aiofiles.open(f'./data/pics/{file}', 'rb') as f:
+            photo = await f.read()
+    except FileNotFoundError:
+        text = f'无法找到截图文件：{file}'
+        await context.bot.send_message(chat_id=update.effective_chat.id, text=text)
+        return
+
+    text = f'找到了这个模组~\n<b><a href="{mod_url}">{full_name}</a></b>'
+    await context.bot.send_photo(chat_id=update.effective_chat.id, photo=photo, caption=text, parse_mode='HTML')
+
+
 async def get_mcmod(update: Update, context: ContextTypes.DEFAULT_TYPE):
     '''自动获取mcmod上的模组信息'''
     mod_urls = getWords.get_mcmod_url(text=update.effective_message.text)
     for mod_url in mod_urls:
+        data_dict = mcmod.mod_data_read(mod_url=mod_url)
+        if data_dict:
+            await send_mod_data(update=update, context=context, data_dict=data_dict)
+            continue
         try:
             data_dict = await mcmod.screenshot(mod_url=mod_url)
         except Exception as e:
             text = f'无法获取模组信息：{e}'
             await context.bot.send_message(chat_id=update.effective_chat.id, text=text)
             continue
-
         if not data_dict:
             text = f'无法找到模组信息：{mod_url}'
             await context.bot.send_message(chat_id=update.effective_chat.id, text=text)
             continue
+        await send_mod_data(update=update, context=context, data_dict=data_dict)
 
-        file = data_dict['file_name']
-        full_name = data_dict['full_name']
-        try:
-            async with aiofiles.open(f'./data/pics/{file}', 'rb') as f:
-                photo = await f.read()
-        except FileNotFoundError as e:
-            text = f'无法找到截图文件：{file}'
+
+async def send_mod_info(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    '''发送保存的模组信息'''
+    mod_name = update.effective_message.text
+    mod_name = mod_name.replace('/mod ', '')
+    try:
+        with open('./data/mods_data.json', 'r', encoding='UTF-8') as f:
+            mods_data = json.load(f)
+        if mod_name in mods_data:
+            mod_url = mods_data[mod_name]['mod_url']
+            full_name = mods_data[mod_name]['full_name']
+            text = f'<b><a href="{mod_url}">{full_name}</a></b>'
+            await context.bot.send_message(chat_id=update.effective_chat.id, text=text, parse_mode='HTML')
+        else:
+            text = f'{botname}还没有记下这个模组呢~'
             await context.bot.send_message(chat_id=update.effective_chat.id, text=text)
-            continue
-
-        text = f'找到了这个模组~\n<b><a href="{mod_url}">{full_name}</a></b>'
-        await context.bot.send_photo(chat_id=update.effective_chat.id, photo=photo, caption=text, parse_mode='HTML')
+    except FileNotFoundError as e:
+        text = f'{botname}还没有记下任何模组呢~'
+        await context.bot.send_message(chat_id=update.effective_chat.id, text=text)
 
 
 async def saved_mods_list(update: Update, context: ContextTypes.DEFAULT_TYPE):

@@ -29,7 +29,7 @@ class McMod:
         :param width: 页面宽度, defaults to 1280
         :param height: 页面高度, defaults to 720
         :param close: 完成后是否关闭网页, defaults to True
-        :return: 字典{'file_name':文件名,'cn_name':中文名,
+        :return: 字典{'file_name':截图文件名,'cn_name':中文名,
                         'en_name':英文名,'full_name':格式化后的全名,'mod_url':模组链接}
         """
         try:
@@ -160,11 +160,10 @@ class McMod:
             return True
         except Exception as e:
             logger.error(f'记录模组数据 {mod_url} 错误!')
-            logger.error(f'错误类型:{e.__class__.__name__}')
+            logger.error(f'错误:{e}')
             return False
 
     def mod_data_read(self,mod_url:str) -> dict:
-        logger.debug('调用:McMod.mod_data_read')
         try:
             logger.debug(f'读取模组数据:{mod_url}')
             mods_data_path = './data/mods_data.json'
@@ -179,5 +178,5 @@ class McMod:
                 return False
         except Exception as e:
             logger.error(f'读取模组数据 {mod_url} 错误!')
-            logger.error(f'错误类型:{e.__class__.__name__}')
+            logger.error(f'错误:{e}')
             return False
