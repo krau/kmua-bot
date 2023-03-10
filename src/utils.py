@@ -126,10 +126,8 @@ class Utils:
             with open(msg_id_path, 'r') as f:
                 content = json.load(f)
             if len(content) == 0:
-                print('没有消息ID')
                 return False
             elif not content.get(chat_id, None):
-                print('没有chatID')
                 return False
             else:
                 msg_id = random.choice(content[chat_id])
@@ -137,4 +135,29 @@ class Utils:
                 return msg_id
         except Exception as e:
             logger.error(f'读取消息ID出错:{e}')
+            return False
+        
+
+    def delete_msg_id(self, chat_id: int, msg_id: int):
+        '''删除入典消息的msg_id'''
+        try:
+            chat_id = str(chat_id)
+            msg_id_path = os.path.join(os.getcwd(), 'data', 'msg_id.json')
+            if not os.path.exists(msg_id_path):
+                with open(msg_id_path, 'w') as f:
+                    json.dump({}, f, ensure_ascii=False)
+            with open(msg_id_path, 'r') as f:
+                content = json.load(f)
+            if len(content) == 0:
+                return False
+            elif not content.get(chat_id, None):
+                return False
+            else:
+                content[chat_id].remove(msg_id)
+                with open(msg_id_path, 'w') as f:
+                    json.dump(content, f, ensure_ascii=False)
+                logger.debug(f'已删除消息ID:{msg_id}')
+                return True
+        except Exception as e:
+            logger.error(f'删除消息ID出错:{e}')
             return False
