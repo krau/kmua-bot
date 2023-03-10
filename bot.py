@@ -27,7 +27,7 @@ if config['代理地址']:
     os.environ['http_proxy'] = config['proxy']
     os.environ['https_proxy'] = config['proxy']
 TOKEN = config['token']
-botname = config['bot的名字']
+botname = config['botname']
 master_id = config['主人的id']
 pr_nosese = config['概率_不要涩涩']
 pr_sleep = config['概率_晚安']
@@ -44,12 +44,13 @@ if not os.path.exists('data'):
     os.mkdir('data')
 if not os.path.exists('data/sleep_data.json'):
     with open('data/sleep_data.json', 'w') as f:
-        json.dump({}, f,ensure_ascii=False)
+        json.dump({}, f, ensure_ascii=False)
 if not os.path.exists('data/mods_data.json'):
     with open('data/mods_data.json', 'w') as f:
-        json.dump({}, f,ensure_ascii=False)
+        json.dump({}, f, ensure_ascii=False)
 if not os.path.exists('data/pics'):
     os.mkdir('data/pics')
+
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     logger.info(f'收到来自{update.effective_chat.username}的/start指令')
@@ -96,9 +97,9 @@ async def set_right(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f'授予{update.effective_user.username} {custom_title}')
         text = f'好,你现在是{custom_title}啦'
         await context.bot.send_message(chat_id=chat_id, reply_to_message_id=update.effective_message.id, text=text)
-    except:
-        await context.bot.send_message(chat_id=chat_id, text='不行!!')
-        logger.info(f'授予{update.effective_user.username}管理员失败')
+    except Exception as e:
+        text = f'不行! {e}'
+        await context.bot.send_message(chat_id=chat_id, text=text)
 
 
 async def rm_all_mods(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -112,10 +113,10 @@ async def rm_all_mods(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await context.bot.send_message(chat_id=update.effective_chat.id, text='已经删除了所有保存的模组数据')
             await context.bot.send_sticker(chat_id=update.effective_chat.id, sticker='CAACAgUAAxkBAAIFXGOhEyZbeuhLM41Y9BoyZUHAoGdjAAJRBAACV0C5VoqO8DRjKNWPLAQ')
         else:
-            await context.bot.send_message(chat_id=update.effective_chat.id, text='不行!!不可以!')
+            await context.bot.send_message(chat_id=update.effective_chat.id, text='不行!只有主人才可以!')
     except OSError as e:
-        logger.error(f'错误:rm_all_mods:{e.strerror}')
-        await context.bot.send_message(chat_id=update.effective_chat.id, text='出错惹~')
+        text = f'出错惹~{e}'
+        await context.bot.send_message(chat_id=update.effective_chat.id, text=text)
 
 
 async def into_dict(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -133,7 +134,22 @@ async def into_dict(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         text = f'不行! {e}'
         await context.bot.send_message(chat_id=update.effective_chat.id, text=text)
-        logger.error(f'错误:q:{e}')
+
+
+async def out_dict(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    '''出典'''
+    try:
+        msg_id = update.effective_message.reply_to_message.message_id
+        await context.bot.unpin_chat_message(chat_id=update.effective_chat.id, message_id=msg_id)
+        flag = utils.delete_msg_id(
+            chat_id=update.effective_chat.id, msg_id=msg_id)
+        if flag == True:
+            await context.bot.send_message(chat_id=update.effective_chat.id, text='已出典')
+        else:
+            await context.bot.send_message(chat_id=update.effective_chat.id, text='不在典里,请回复被置顶的典,而不是被转发的典')
+    except Exception as e:
+        text = f'不行! {e}'
+        await context.bot.send_message(chat_id=update.effective_chat.id, text=text)
 
 
 async def nosese(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -146,11 +162,11 @@ async def nosese(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def ohayo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     '''早安问候与睡眠时间计算'''
     if utils.random_with_probability(pr_ohayo):
-        text = getWords.get_ohayo()
+        #text = getWords.get_ohayo()
         stickers = ['CAACAgUAAxkBAAPnY4xM4SVJj5T5plvLUc89Lra77IUAAvACAAL30uhX8lw2t4mq6GErBA',
                     'CAACAgUAAxkBAANBY4oyECkXjRogFHgphC4lXWyL1XQAAuADAALYtOlXJmc1qHGknScrBA',
                     'CAACAgUAAxkBAAIDRGOZwXhR2FYfE21lyfE3ijFpPn7KAAI8AwACxNzoV7UXWq3xmh9pLAQ']
-        await context.bot.send_message(chat_id=update.effective_chat.id, text=text)
+        #await context.bot.send_message(chat_id=update.effective_chat.id, text=text)
         await context.bot.send_sticker(chat_id=update.effective_chat.id, sticker=random.choice(stickers))
     username = update.effective_user.full_name
     record = utils.sleep_recorder(mode='read', name=username)
@@ -189,7 +205,7 @@ async def ohayo(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def wanan(update: Update, context: ContextTypes.DEFAULT_TYPE):
     '''晚安与睡眠时间记录'''
     if utils.random_with_probability(pr_sleep):
-        text = getWords.get_wanan()
+        #text = getWords.get_wanan()
         stickers = ['CAACAgUAAxkBAANEY4oyf4yTWS2IwdQI85PXUX4HQCUAAtkDAAJWFLhWB5Xyu3EaZwcrBA',
                     'CAACAgUAAxkBAANGY4oyj4NN8khNgBs7GYbuUExqUzoAAk4CAALWY0lV3OnyI0c9yfArBA',
                     'CAACAgUAAxkBAANKY4oyz3UNU7mIgitsGlNhb1CqH30AAm0DAAIytehXTdZ5bv72-fkrBA',
@@ -197,7 +213,7 @@ async def wanan(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     'CAACAgUAAxkBAAIDIWOYEVtJZs7H0SsQ2f_ggOMsSB_eAAK2CAAC5uiQVFV28zbFyciULAQ',
                     'CAACAgUAAxkBAAIDQmOZwVbDWOYeDFCQb9w49RgJHU40AAIyAgACN2XoV8kIAihs8kTlLAQ']
         sticker = random.choice(stickers)
-        await context.bot.send_message(chat_id=update.effective_chat.id, text=text)
+        #await context.bot.send_message(chat_id=update.effective_chat.id, text=text)
         await context.bot.send_sticker(chat_id=update.effective_chat.id, sticker=sticker)
     username = update.effective_user.full_name
     record = utils.sleep_recorder(
@@ -234,7 +250,7 @@ async def re_file_id(update: Update, context: ContextTypes.DEFAULT_TYPE):
         file_id = update.message.sticker.file_id
         await context.bot.send_message(chat_id=update.effective_chat.id, text=file_id)
     else:
-        if utils.random_with_probability(0.03):
+        if utils.random_with_probability(0.02):
             text = f'不要发表情包啦，{botname}还看不懂'
             await context.bot.send_message(chat_id=update.effective_chat.id, text=text)
 
@@ -256,7 +272,7 @@ async def at_reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await context.bot.send_message(chat_id=update.effective_chat.id, text=text)
 
 
-async def send_mod_data(update:Update, context:ContextTypes.DEFAULT_TYPE, data_dict:dict):
+async def send_mod_data(update: Update, context: ContextTypes.DEFAULT_TYPE, data_dict: dict):
     '''发送模组数据'''
     try:
         file = data_dict['file_name']
@@ -293,6 +309,7 @@ async def get_mcmod(update: Update, context: ContextTypes.DEFAULT_TYPE):
             continue
         await send_mod_data(update=update, context=context, data_dict=data_dict)
 
+
 async def saved_mods_list(update: Update, context: ContextTypes.DEFAULT_TYPE):
     '''输出已经保存的mods'''
     try:
@@ -310,8 +327,8 @@ async def saved_mods_list(update: Update, context: ContextTypes.DEFAULT_TYPE):
             text += mod_text
         await context.bot.send_message(chat_id=update.effective_chat.id, text=text, parse_mode='HTML')
     except Exception as e:
-        logger.error(f'输出已经保存的mods失败: {e}')
-        await context.bot.send_message(chat_id=update.effective_chat.id, text='失败惹,可能是消息太长了')
+        text = f'失败了~{e}'
+        await context.bot.send_message(chat_id=update.effective_chat.id, text=text)
 
 
 async def rm_mod(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -334,9 +351,9 @@ async def rm_mod(update: Update, context: ContextTypes.DEFAULT_TYPE):
             else:
                 text = f'没有找到这个模组呢:{mod_url}'
                 await context.bot.send_message(chat_id=update.effective_chat.id, text=text)
-    except:
-        logger.error('异常:rm_mod')
-        await context.bot.send_message(chat_id=update.effective_chat.id, text='失败惹')
+    except Exception as e:
+        text = f'失败惹~{e}'
+        await context.bot.send_message(chat_id=update.effective_chat.id, text=text)
 
 
 async def outo_dict(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -361,6 +378,7 @@ def run():
     rm_all_mods_handler = CommandHandler('rmallmods', rm_all_mods)
     into_dict_cmd_handler = CommandHandler('q', into_dict)
     rm_mod_handler = CommandHandler('rmmod', rm_mod)
+    out_dict_handler = CommandHandler('o', out_dict)
 
     setu_handler = MessageHandler(filter_setu, nosese)
     ohayo_handler = MessageHandler(filter_ohayo, ohayo)
@@ -385,6 +403,7 @@ def run():
         rm_mod_handler,
         into_dict_cmd_handler,
         into_dict_msg_handler,
+        out_dict_handler,
         setu_handler,
         ohayo_handler,
         wanan_handler,
