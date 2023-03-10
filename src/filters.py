@@ -8,8 +8,8 @@ config = utils.read_config('config.yml')
 botname = config.get('botname', 'Kmua')
 
 regex_setu = "涩图|色图|色色|涩涩"
-regex_ohayo = "醒了|早起|下床|刚醒|睡醒|早安|早上好|睡过了|哦哈哟|ohayo|醒力"
-regex_sleep = "睡觉|睡了|眠了|wanan|晚安|哦呀斯密|oyasimi|睡力"
+regex_ohayo = "醒了|早起|下床|刚醒|睡醒了|早安|早上好|睡过了|哦哈哟|ohayo|醒力"
+regex_sleep = "睡了|眠了|wanan|晚安|哦呀斯密|oyasimi|睡力"
 regex_niubi = "bot|机器人|智械危机|Bot"
 regex_yinyu = "[a-zA-Z]"
 regex_noyinyu = f"[^krau|{botname}|{botname.lower()}|{botname.upper()}|@krauisme|@acherkrau]"
