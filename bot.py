@@ -240,7 +240,7 @@ async def yinyu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         en = getWords.get_en(message)
         if len(en) > 1:
             yinyu = getWords.get_yinyu(message)
-            text = f'{en} 是 {yinyu} 的意思嘛?'
+            text = f'{en}: {yinyu}'
             await context.bot.send_message(chat_id=update.effective_chat.id, text=text)
 
 
@@ -379,6 +379,8 @@ def run():
     into_dict_cmd_handler = CommandHandler('q', into_dict)
     rm_mod_handler = CommandHandler('rmmod', rm_mod)
     out_dict_handler = CommandHandler('o', out_dict)
+    ohayo_cmd_handler = CommandHandler('ohayo',ohayo)
+    wanan_cmd_handler = CommandHandler('oyasumi',wanan)
 
     setu_handler = MessageHandler(filter_setu, nosese)
     ohayo_handler = MessageHandler(filter_ohayo, ohayo)
@@ -404,6 +406,8 @@ def run():
         into_dict_cmd_handler,
         into_dict_msg_handler,
         out_dict_handler,
+        ohayo_cmd_handler,
+        wanan_cmd_handler,
         setu_handler,
         ohayo_handler,
         wanan_handler,
