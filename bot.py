@@ -162,11 +162,11 @@ async def nosese(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def ohayo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     '''早安问候与睡眠时间计算'''
     if utils.random_with_probability(pr_ohayo):
-        #text = getWords.get_ohayo()
+        # text = getWords.get_ohayo()
         stickers = ['CAACAgUAAxkBAAPnY4xM4SVJj5T5plvLUc89Lra77IUAAvACAAL30uhX8lw2t4mq6GErBA',
                     'CAACAgUAAxkBAANBY4oyECkXjRogFHgphC4lXWyL1XQAAuADAALYtOlXJmc1qHGknScrBA',
                     'CAACAgUAAxkBAAIDRGOZwXhR2FYfE21lyfE3ijFpPn7KAAI8AwACxNzoV7UXWq3xmh9pLAQ']
-        #await context.bot.send_message(chat_id=update.effective_chat.id, text=text)
+        # await context.bot.send_message(chat_id=update.effective_chat.id, text=text)
         await context.bot.send_sticker(chat_id=update.effective_chat.id, sticker=random.choice(stickers))
     username = update.effective_user.full_name
     record = utils.sleep_recorder(mode='read', name=username)
@@ -205,7 +205,7 @@ async def ohayo(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def wanan(update: Update, context: ContextTypes.DEFAULT_TYPE):
     '''晚安与睡眠时间记录'''
     if utils.random_with_probability(pr_sleep):
-        #text = getWords.get_wanan()
+        # text = getWords.get_wanan()
         stickers = ['CAACAgUAAxkBAANEY4oyf4yTWS2IwdQI85PXUX4HQCUAAtkDAAJWFLhWB5Xyu3EaZwcrBA',
                     'CAACAgUAAxkBAANGY4oyj4NN8khNgBs7GYbuUExqUzoAAk4CAALWY0lV3OnyI0c9yfArBA',
                     'CAACAgUAAxkBAANKY4oyz3UNU7mIgitsGlNhb1CqH30AAm0DAAIytehXTdZ5bv72-fkrBA',
@@ -213,7 +213,7 @@ async def wanan(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     'CAACAgUAAxkBAAIDIWOYEVtJZs7H0SsQ2f_ggOMsSB_eAAK2CAAC5uiQVFV28zbFyciULAQ',
                     'CAACAgUAAxkBAAIDQmOZwVbDWOYeDFCQb9w49RgJHU40AAIyAgACN2XoV8kIAihs8kTlLAQ']
         sticker = random.choice(stickers)
-        #await context.bot.send_message(chat_id=update.effective_chat.id, text=text)
+        # await context.bot.send_message(chat_id=update.effective_chat.id, text=text)
         await context.bot.send_sticker(chat_id=update.effective_chat.id, sticker=sticker)
     username = update.effective_user.full_name
     record = utils.sleep_recorder(
@@ -366,6 +366,27 @@ async def outo_dict(update: Update, context: ContextTypes.DEFAULT_TYPE):
             pass
 
 
+async def 设置发典概率(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    '''设置发典概率'''
+    if update.effective_user.id != master_id:
+        text = f'你没有权限设置发典概率哦~'
+        await context.bot.send_message(chat_id=update.effective_chat.id, text=text)
+        return
+    try:
+        pr = float(update.effective_message.text.split(' ')[1])
+        if pr > 1 or pr < 0:
+            text = f'概率必须在0~1之间哦~'
+            await context.bot.send_message(chat_id=update.effective_chat.id, text=text)
+            return
+        global pr_发典
+        pr_发典 = pr
+        text = f'已经把发典概率设置为{pr}啦~'
+        await context.bot.send_message(chat_id=update.effective_chat.id, text=text)
+    except Exception as e:
+        text = f'失败啦! {e}'
+        await context.bot.send_message(chat_id=update.effective_chat.id, text=text)
+
+
 def run():
     application = ApplicationBuilder().token(TOKEN).build()
 
@@ -379,8 +400,9 @@ def run():
     into_dict_cmd_handler = CommandHandler('q', into_dict)
     rm_mod_handler = CommandHandler('rmmod', rm_mod)
     out_dict_handler = CommandHandler('o', out_dict)
-    ohayo_cmd_handler = CommandHandler('ohayo',ohayo)
-    wanan_cmd_handler = CommandHandler('oyasumi',wanan)
+    ohayo_cmd_handler = CommandHandler('ohayo', ohayo)
+    wanan_cmd_handler = CommandHandler('oyasumi', wanan)
+    设置发典概率处理器 = CommandHandler('setpr', 设置发典概率)
 
     setu_handler = MessageHandler(filter_setu, nosese)
     ohayo_handler = MessageHandler(filter_ohayo, ohayo)
@@ -408,6 +430,7 @@ def run():
         out_dict_handler,
         ohayo_cmd_handler,
         wanan_cmd_handler,
+        设置发典概率处理器,
         setu_handler,
         ohayo_handler,
         wanan_handler,
