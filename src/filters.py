@@ -16,7 +16,7 @@ botname = config.get('botname', 'Kmua')
 艾特正则 = f"{botname}|{botname.lower()}|{botname.upper()}"
 mcmod正则 = r"www.mcmod.cn/class"
 入典正则 = "入典|史官"
-文爱关键词 = utils.load_words('weni')
+文爱词库 = utils.load_words('weni')
 
 
 class FilterWeniKey(MessageFilter):
@@ -24,8 +24,8 @@ class FilterWeniKey(MessageFilter):
 
     def filter(self, message):
         try:
-            weni_keys = 文爱关键词.keys()
-            return any(key in message.text for key in weni_keys)
+            文爱关键词 = 文爱词库.keys()
+            return any(key in message.text for key in 文爱关键词)
         except:
             return False
 
