@@ -36,7 +36,7 @@ pr_niubi = 配置['概率_牛逼话']
 pr_aoligei = 配置['概率_哲理']
 pr_yinyu = 配置['概率_淫语']
 pr_发典 = 配置.get('概率_发典', 0.01)
-affair_notice = 配置.get('偷情监控', False)
+偷情监控 = 配置.get('偷情监控', False)
 
 
 '''初始化目录'''
@@ -60,9 +60,9 @@ async def 开始(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def 开启偷情监控(update: Update, context: ContextTypes.DEFAULT_TYPE):
     '''开启偷情监控'''
-    global affair_notice
+    global 偷情监控
     if update.effective_chat.id == master_id:
-        affair_notice = True
+        偷情监控 = True
         await context.bot.send_message(chat_id=master_id, text='已开启偷情监控')
         日志器.info(f'{update.effective_chat.username}开启了偷情监控')
     else:
@@ -72,9 +72,9 @@ async def 开启偷情监控(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
 async def 关闭偷情监控(update: Update, context: ContextTypes.DEFAULT_TYPE):
     '''关闭偷情监控'''
-    global affair_notice
+    global 偷情监控
     if update.effective_chat.id == master_id:
-        affair_notice = False
+        偷情监控 = False
         await context.bot.send_message(chat_id=master_id, text='已关闭偷情监控')
         日志器.info(f'{update.effective_chat.username}关闭了偷情监控')
     else:
@@ -259,7 +259,7 @@ async def 文爱(update: Update, context: ContextTypes.DEFAULT_TYPE):
     '''文爱'''
     text = 获取词.get_weni(update.effective_message.text)
     await context.bot.send_message(chat_id=update.effective_chat.id, text=text)
-    if update.effective_chat.id != master_id and affair_notice == True:
+    if update.effective_chat.id != master_id and 偷情监控 == True:
         name = update.effective_chat.username
         msg = update.effective_message.text
         text2master = f'刚刚{name}对我说：{msg}'
