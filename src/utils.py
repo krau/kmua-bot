@@ -1,6 +1,5 @@
 import random
 import os
-import yaml
 from datetime import datetime
 import json
 from .logger import Logger
@@ -25,14 +24,6 @@ class Utils:
         interval_end = pow(10, p_digits)
         r = random.randint(interval_begin, interval_end)
         return float(r) / interval_end < probability
-
-    def read_config(self,config_name: str) -> dict:
-        '''读取配置'''
-        config_path = os.path.abspath(os.path.join(os.getcwd(), config_name))
-        with open(config_path, 'r', encoding='utf-8') as f:
-            config = yaml.load(f, Loader=yaml.FullLoader)
-        logger.debug(f'已载入配置{config_name}')
-        return config
 
     def load_words(self, words: str):
         '''读取并加载词库'''

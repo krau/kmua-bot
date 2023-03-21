@@ -3,11 +3,13 @@ import re
 from .utils import Utils
 from .bnhhsh.bnhhsh import dp
 from .logger import Logger
+from .config import 配置
+
 logger = Logger(name='words', show=True)
 utils = Utils()
 
-config = utils.read_config('config.yml')
-botname = config.get('botname', 'Kmua')
+
+botname = 配置.botname
 
 aoligei_words = utils.load_words('aoligei')
 niubi_words = utils.load_words('niubi')

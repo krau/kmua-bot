@@ -11,6 +11,7 @@ from src.filters import *
 from src.words import GetWords
 from src.logger import Logger
 from src.mcmod import McMod
+from src.config import 配置
 
 
 '''初始化类'''
@@ -21,7 +22,6 @@ from src.mcmod import McMod
 mcmod = McMod()
 
 '''读取设定配置'''
-配置 = 小工具.read_config('config.yml')
 日志器.info(f'读取配置...')
 if 配置['代理地址']:
     os.environ['http_proxy'] = 配置['proxy']

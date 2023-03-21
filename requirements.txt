@@ -7,3 +7,4 @@ pypinyin
 parsel
 aiofiles
 playwright
+dynaconf

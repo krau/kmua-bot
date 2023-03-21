@@ -1,11 +1,11 @@
 from telegram.ext import filters
 from telegram.ext.filters import MessageFilter
 from .utils import Utils
+from .config import 配置
 
-utils = Utils()
+小工具 = Utils()
 
-config = utils.read_config('config.yml')
-botname = config.get('botname', 'Kmua')
+botname = 配置.botname
 
 色图正则 = "涩图|色图|色色|涩涩"
 早安正则 = "醒了|早起|下床|刚醒|睡醒了|早安|早上好|睡过了|哦哈哟|ohayo|醒力"
@@ -16,10 +16,10 @@ botname = config.get('botname', 'Kmua')
 艾特正则 = f"{botname}|{botname.lower()}|{botname.upper()}"
 mcmod正则 = r"www.mcmod.cn/class"
 入典正则 = "入典|史官"
-文爱词库 = utils.load_words('weni')
+文爱词库 = 小工具.load_words('weni')
 
 
-class FilterWeniKey(MessageFilter):
+class 文爱关键词过滤器类(MessageFilter):
     '''文爱关键词过滤器'''
 
     def filter(self, message):
@@ -30,7 +30,7 @@ class FilterWeniKey(MessageFilter):
             return False
 
 
-class FilterTextLen(MessageFilter):
+class 消息长度过滤器类(MessageFilter):
     '''消息长度过滤器'''
 
     def __init__(self, name: str = None, data_filter: bool = False, minlen: int = 2, maxlen: int = 16):
@@ -46,14 +46,14 @@ class FilterTextLen(MessageFilter):
 
 
 filter_setu = filters.Regex(色图正则)
-filter_ohayo = filters.Regex(早安正则) & FilterTextLen()
-filter_sleep = filters.Regex(晚安正则) & FilterTextLen()
+filter_ohayo = filters.Regex(早安正则) & 消息长度过滤器类()
+filter_sleep = filters.Regex(晚安正则) & 消息长度过滤器类()
 filter_niubi = filters.Regex(牛逼话正则)
 filter_yinyu = filters.Regex(淫语正则) & filters.Regex(
-    不要淫语正则) & FilterTextLen(minlen=2, maxlen=10)
+    不要淫语正则) & 消息长度过滤器类(minlen=2, maxlen=10)
 filter_at = filters.Regex(艾特正则)
-filter_weni = FilterWeniKey() & (~filters.Regex(艾特正则)) & FilterTextLen(
+filter_weni = 文爱关键词过滤器类() & (~filters.Regex(艾特正则)) & 消息长度过滤器类(
     minlen=1) & filters.ChatType.PRIVATE
 filter_mcmod = filters.Regex(mcmod正则)
 filter_into_dict = (filters.Regex(入典正则) &
-                    FilterTextLen(minlen=1, maxlen=10))
+                    消息长度过滤器类(minlen=1, maxlen=10))
