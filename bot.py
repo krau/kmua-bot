@@ -5,7 +5,7 @@ from datetime import datetime
 from telegram import Update
 import shutil
 import json
-from telegram.ext import filters, MessageHandler, ApplicationBuilder, CommandHandler, ContextTypes
+from telegram.ext import filters, MessageHandler, ApplicationBuilder, CommandHandler, ContextTypes, CallbackContext
 from src.utils import Utils, msg_logs_decorator
 from src.filters import *
 from src.words import GetWords
@@ -408,6 +408,10 @@ async def 设置发典概率(update: Update, context: ContextTypes.DEFAULT_TYPE)
         await context.bot.send_message(chat_id=update.effective_chat.id, text=text)
 
 
+async def 错误处理(update: object | None, context: CallbackContext):
+    logger.error(f'发送错误\n{update}\n\n{context.error}')
+
+
 def run():
     机器人 = ApplicationBuilder().token(TOKEN).build()
 
@@ -465,6 +469,7 @@ def run():
         随机转发入典的消息处理器
     ]
     机器人.add_handlers(处理器们)
+    机器人.add_error_handler(错误处理)
     日志器.info('bot已开始运行')
     机器人.run_polling()
 
