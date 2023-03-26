@@ -2,9 +2,7 @@ import re
 import os
 import json
 from playwright.async_api import async_playwright
-from src.logger import Logger
-
-logger = Logger(name='McMod', show=True)
+from src.logger import logger
 
 
 class McMod:
@@ -19,7 +17,7 @@ class McMod:
         self.args = ['--headless', '--no-sandbox',
                      '--disable-gpu', '--hide-scrollbars']
         self.options = {'args': self.args, 'defaultViewport': {
-            'width': width, 'height': height},'dumpio':True}
+            'width': width, 'height': height}, 'dumpio': True}
 
     async def screenshot(self, mod_url: str, width: int = 1280, height: int = 720, close: bool = True) -> dict:
         """
@@ -53,14 +51,16 @@ class McMod:
                 except:
                     en_name = ''
                     cn_name = ''
-                file_name = re.sub(r'[^a-zA-Z]', '', en_name) + '.png'  # 以英文模组名(去除非法字符)保存截屏文件
+                # 以英文模组名(去除非法字符)保存截屏文件
+                file_name = re.sub(r'[^a-zA-Z]', '', en_name) + '.png'
                 full_name = f'{cn_name} {en_name}'  # 为了少开一次浏览器，干脆把模组名也顺便获取并返回
                 if not os.path.exists(f'./data/pics/{file_name}'):
                     await page.screenshot(path=f'./data/pics/{file_name}')
                 if close:
                     await page.close()
                     await browser.close()
-                record_flag = self.mod_data_record(mod_cn_name=cn_name,mod_en_name=en_name,mod_file_name=file_name,mod_full_name=full_name,mod_url=mod_url)
+                record_flag = self.mod_data_record(
+                    mod_cn_name=cn_name, mod_en_name=en_name, mod_file_name=file_name, mod_full_name=full_name, mod_url=mod_url)
                 if record_flag:
                     data_dict = self.mod_data_read(mod_url=mod_url)
                     return data_dict
@@ -115,7 +115,8 @@ class McMod:
                 elif lang == 'en':
                     return en_name
                 elif lang == 'dict':
-                    name_dict = {'cn_name':cn_name,'en_name':en_name,'full_name':full_nm}
+                    name_dict = {'cn_name': cn_name,
+                                 'en_name': en_name, 'full_name': full_nm}
                     return name_dict
                 else:
                     logger.debug(f'lang不能为{lang}')
@@ -125,7 +126,7 @@ class McMod:
             logger.error(f'错误:{e}')
             return ''
 
-    def mod_data_record(self, mod_file_name: str,mod_full_name: str, mod_url: str, mod_cn_name: str='', mod_en_name: str='',  mod_pic_path: str = '') ->bool:
+    def mod_data_record(self, mod_file_name: str, mod_full_name: str, mod_url: str, mod_cn_name: str = '', mod_en_name: str = '',  mod_pic_path: str = '') -> bool:
         """
         以json文件存储模组的信息,变量名定义与其他函数中一致
 
@@ -142,20 +143,20 @@ class McMod:
             logger.debug(f'记录模组数据:{mod_cn_name}')
             mods_data_path = './data/mods_data.json'
             if not os.path.exists(mods_data_path):
-                with open(mods_data_path, 'w',encoding='utf-8') as f:
-                    json.dump({}, f,ensure_ascii=False)
+                with open(mods_data_path, 'w', encoding='utf-8') as f:
+                    json.dump({}, f, ensure_ascii=False)
                 logger.debug(f'未找到数据文件路径,已新建')
             if not mod_pic_path:
                 mod_pic_path = f'./data/pics/{mod_file_name}'
                 logger.debug(f'未传入pic_path,使用默认:{mod_pic_path}')
             mod_data = {mod_url: {'file_name': mod_file_name, 'cn_name': mod_cn_name,
-                                        'en_name': mod_en_name, 'full_name': mod_full_name, 'mod_url': mod_url, 'pic_path': mod_pic_path}}
+                                  'en_name': mod_en_name, 'full_name': mod_full_name, 'mod_url': mod_url, 'pic_path': mod_pic_path}}
             logger.debug(f'模组数据:{mod_data}')
-            with open(mods_data_path,'r',encoding='utf-8') as f:
+            with open(mods_data_path, 'r', encoding='utf-8') as f:
                 data_content = json.load(f)
             data_content.update(mod_data)
-            with open(mods_data_path,'w',encoding='utf-8') as f:
-                json.dump(data_content,f,indent=4,ensure_ascii=False)
+            with open(mods_data_path, 'w', encoding='utf-8') as f:
+                json.dump(data_content, f, indent=4, ensure_ascii=False)
             logger.info(f'已记录模组数据:{mod_data}')
             return True
         except Exception as e:
@@ -163,11 +164,11 @@ class McMod:
             logger.error(f'错误:{e}')
             return False
 
-    def mod_data_read(self,mod_url:str) -> dict:
+    def mod_data_read(self, mod_url: str) -> dict:
         try:
             logger.debug(f'读取模组数据:{mod_url}')
             mods_data_path = './data/mods_data.json'
-            with open(mods_data_path,'r',encoding='utf-8') as f:
+            with open(mods_data_path, 'r', encoding='utf-8') as f:
                 data = json.load(f)
             if mod_url in data:
                 full_name = data[mod_url].get('full_name')

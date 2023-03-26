@@ -2,9 +2,22 @@ import random
 import os
 from datetime import datetime
 import json
-from .logger import Logger
+from .logger import logger
+from telegram import Update
+from telegram.ext import ContextTypes
 
-logger = Logger(name='helper', show=True)
+
+def msg_logs_decorator(func):
+    '''记录消息日志装饰器'''
+    async def wrapper(update: Update, context: ContextTypes.DEFAULT_TYPE):
+        msg_text = update.effective_message.text
+        user = update.effective_user.name
+        chat = update.effective_chat.title
+        if not msg_text:
+            msg_text = '(非文本消息)'
+        logger.info(f'[{user}]({chat}): {msg_text})')
+        return await func(update, context)
+    return wrapper
 
 
 class Utils:
@@ -14,7 +27,7 @@ class Utils:
         logger.debug('实例化Utils')
         pass
 
-    def random_with_probability(self,probability: float) -> bool:
+    def random_with_probability(self, probability: float) -> bool:
         '''指定概率返回True或False'''
         assert 0 <= probability <= 1, "参数probability应该在[0,1]之间"
         if probability in (0, 1):
@@ -30,7 +43,7 @@ class Utils:
         words_path = os.path.join(
             os.getcwd(), 'data', 'words', f'{words}.json')
         try:
-            with open(words_path, 'r',encoding='utf-8') as f:
+            with open(words_path, 'r', encoding='utf-8') as f:
                 the_words_json = json.load(f)
             logger.debug(f'已载入词库：{words_path}')
             return the_words_json
@@ -127,7 +140,6 @@ class Utils:
         except Exception as e:
             logger.error(f'读取消息ID出错:{e}')
             return False
-        
 
     def delete_msg_id(self, chat_id: int, msg_id: int):
         '''删除入典消息的msg_id'''

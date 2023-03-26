@@ -2,10 +2,9 @@ import random
 import re
 from .utils import Utils
 from .bnhhsh.bnhhsh import dp
-from .logger import Logger
+from .logger import logger
 from .config import 配置
 
-logger = Logger(name='words', show=True)
 utils = Utils()
 
 
@@ -84,7 +83,6 @@ class GetWords():
             if weni_key in text:
                 word = random.choice(self.weni[weni_key]).replace(
                     'botname', botname)
-                logger.info(f'获取到weni_word:{word}')
                 return word
 
     def get_at_reply(self) -> str:

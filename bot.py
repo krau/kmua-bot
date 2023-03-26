@@ -6,16 +6,16 @@ from telegram import Update
 import shutil
 import json
 from telegram.ext import filters, MessageHandler, ApplicationBuilder, CommandHandler, ContextTypes
-from src.utils import Utils
+from src.utils import Utils, msg_logs_decorator
 from src.filters import *
 from src.words import GetWords
-from src.logger import Logger
+from src.logger import logger
 from src.mcmod import McMod
 from src.config import 配置
 
 
 '''初始化类'''
-日志器 = Logger(name='bot', show=True)
+日志器 = logger
 日志器.info('bot启动中')
 小工具 = Utils()
 获取词 = GetWords()
@@ -52,36 +52,39 @@ if not os.path.exists('data/pics'):
     os.mkdir('data/pics')
 
 
+@msg_logs_decorator
 async def 开始(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    日志器.info(f'收到来自{update.effective_chat.username}的/start指令')
     await context.bot.send_message(chat_id=update.effective_chat.id, text="喵呜?")
     await context.bot.send_sticker(chat_id=update.effective_chat.id, sticker='CAACAgUAAxkBAAM7Y4oxOY0Tkt5D5keXXph7jFE7U7YAAqUCAAJfIulXxC0Bkai8vqwrBA')
 
 
+@msg_logs_decorator
 async def 开启偷情监控(update: Update, context: ContextTypes.DEFAULT_TYPE):
     '''开启偷情监控'''
     global 偷情监控
     if update.effective_chat.id == master_id:
         偷情监控 = True
         await context.bot.send_message(chat_id=master_id, text='已开启偷情监控')
-        日志器.info(f'{update.effective_chat.username}开启了偷情监控')
+        日志器.info(f'{update.effective_user.name}开启了偷情监控')
     else:
         text = f"干嘛喵,{botname}不会这个~真的不会哦~"
         await context.bot.send_message(chat_id=update.effective_chat.id, text=text)
 
 
+@msg_logs_decorator
 async def 关闭偷情监控(update: Update, context: ContextTypes.DEFAULT_TYPE):
     '''关闭偷情监控'''
     global 偷情监控
     if update.effective_chat.id == master_id:
         偷情监控 = False
         await context.bot.send_message(chat_id=master_id, text='已关闭偷情监控')
-        日志器.info(f'{update.effective_chat.username}关闭了偷情监控')
+        日志器.info(f'{update.effective_user.name}关闭了偷情监控')
     else:
         text = f"干嘛喵,{botname}不会这个~真的不会哦~"
         await context.bot.send_message(chat_id=update.effective_chat.id, text=text)
 
 
+@msg_logs_decorator
 async def 设置群员权限(update: Update, context: ContextTypes.DEFAULT_TYPE):
     '''设置成员权限'''
     chat_id = update.effective_chat.id
@@ -94,7 +97,7 @@ async def 设置群员权限(update: Update, context: ContextTypes.DEFAULT_TYPE)
         await context.bot.promote_chat_member(chat_id=chat_id, user_id=user_id, can_manage_chat=True, can_manage_video_chats=True, can_pin_messages=True, can_invite_users=True)
         await context.bot.set_chat_administrator_custom_title(chat_id=chat_id, user_id=user_id, custom_title=custom_title)
         日志器.info(
-            f'授予{update.effective_user.username} {custom_title}')
+            f'授予{update.effective_user.name} {custom_title}')
         text = f'好,你现在是{custom_title}啦'
         await context.bot.send_message(chat_id=chat_id, reply_to_message_id=update.effective_message.id, text=text)
     except Exception as e:
@@ -102,6 +105,7 @@ async def 设置群员权限(update: Update, context: ContextTypes.DEFAULT_TYPE)
         await context.bot.send_message(chat_id=chat_id, text=text)
 
 
+@msg_logs_decorator
 async def 删除所有模组(update: Update, context: ContextTypes.DEFAULT_TYPE):
     '''删除所有模组数据'''
     try:
@@ -119,6 +123,7 @@ async def 删除所有模组(update: Update, context: ContextTypes.DEFAULT_TYPE)
         await context.bot.send_message(chat_id=update.effective_chat.id, text=text)
 
 
+@msg_logs_decorator
 async def 入典(update: Update, context: ContextTypes.DEFAULT_TYPE):
     '''入典'''
     try:
@@ -136,6 +141,7 @@ async def 入典(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await context.bot.send_message(chat_id=update.effective_chat.id, text=text)
 
 
+@msg_logs_decorator
 async def 取消入典(update: Update, context: ContextTypes.DEFAULT_TYPE):
     '''出典'''
     try:
@@ -152,6 +158,7 @@ async def 取消入典(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await context.bot.send_message(chat_id=update.effective_chat.id, text=text)
 
 
+@msg_logs_decorator
 async def 不要色色(update: Update, context: ContextTypes.DEFAULT_TYPE):
     '''不要涩涩'''
     if 小工具.random_with_probability(pr_nosese):
@@ -159,6 +166,7 @@ async def 不要色色(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await context.bot.send_sticker(chat_id=update.effective_chat.id, sticker='CAACAgUAAxkBAAM_Y4oxreCJwFtLa1okJMS3Xz7g8UsAAmYCAAImjuhXJN6lY6dZeNUrBA')
 
 
+@msg_logs_decorator
 async def 早安(update: Update, context: ContextTypes.DEFAULT_TYPE):
     '''早安问候与睡眠时间计算'''
     if 小工具.random_with_probability(pr_ohayo):
@@ -168,7 +176,7 @@ async def 早安(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     'CAACAgUAAxkBAAIDRGOZwXhR2FYfE21lyfE3ijFpPn7KAAI8AwACxNzoV7UXWq3xmh9pLAQ']
         # await context.bot.send_message(chat_id=update.effective_chat.id, text=text)
         await context.bot.send_sticker(chat_id=update.effective_chat.id, sticker=random.choice(stickers))
-    username = update.effective_user.full_name
+    username = update.effective_user.name
     record = 小工具.sleep_recorder(mode='read', name=username)
     if record:
         sleep_time_str = record.get('time')
@@ -202,6 +210,7 @@ async def 早安(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await context.bot.send_sticker(chat_id=update.effective_chat.id, sticker='CAACAgUAAxkBAAM_Y4oxreCJwFtLa1okJMS3Xz7g8UsAAmYCAAImjuhXJN6lY6dZeNUrBA')
 
 
+@msg_logs_decorator
 async def 晚安(update: Update, context: ContextTypes.DEFAULT_TYPE):
     '''晚安与睡眠时间记录'''
     if 小工具.random_with_probability(pr_sleep):
@@ -215,7 +224,7 @@ async def 晚安(update: Update, context: ContextTypes.DEFAULT_TYPE):
         sticker = random.choice(stickers)
         # await context.bot.send_message(chat_id=update.effective_chat.id, text=text)
         await context.bot.send_sticker(chat_id=update.effective_chat.id, sticker=sticker)
-    username = update.effective_user.full_name
+    username = update.effective_user.name
     record = 小工具.sleep_recorder(
         mode='write', name=username, time=datetime.now().strftime('%Y-%m-%d %H:%M:%S'), status='sleep')
     if record == True:
@@ -226,6 +235,7 @@ async def 晚安(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await context.bot.send_message(chat_id=update.effective_chat.id, text=text1)
 
 
+@msg_logs_decorator
 async def 牛逼(update: Update, context: ContextTypes.DEFAULT_TYPE):
     '''牛逼话'''
     if 小工具.random_with_probability(pr_niubi):
@@ -233,6 +243,7 @@ async def 牛逼(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await context.bot.send_message(chat_id=update.effective_chat.id, text=text)
 
 
+@msg_logs_decorator
 async def 淫语(update: Update, context: ContextTypes.DEFAULT_TYPE):
     '''yinyu翻译'''
     if 小工具.random_with_probability(pr_yinyu):
@@ -244,6 +255,7 @@ async def 淫语(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await context.bot.send_message(chat_id=update.effective_chat.id, text=text)
 
 
+@msg_logs_decorator
 async def 获取file_id(update: Update, context: ContextTypes.DEFAULT_TYPE):
     '''file_id获取给主人'''
     if update.effective_chat.id == master_id:
@@ -255,25 +267,27 @@ async def 获取file_id(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await context.bot.send_message(chat_id=update.effective_chat.id, text=text)
 
 
+@msg_logs_decorator
 async def 文爱(update: Update, context: ContextTypes.DEFAULT_TYPE):
     '''文爱'''
     text = 获取词.get_weni(update.effective_message.text)
     await context.bot.send_message(chat_id=update.effective_chat.id, text=text)
+    logger.info(f'bot：{text}')
     if update.effective_chat.id != master_id and 偷情监控 == True:
-        name = update.effective_chat.username
-        if name is None:
-            name = update.effective_user.full_name
+        name = update.effective_user.name
         msg = update.effective_message.text
         text2master = f'刚刚{name}对我说：{msg}'
         await context.bot.send_message(chat_id=master_id, text=text2master)
 
 
+@msg_logs_decorator
 async def 当有人叫bot时回复(update: Update, context: ContextTypes.DEFAULT_TYPE):
     '''当有人叫bot时'''
     text = 获取词.get_at_reply().replace('botname', botname)
     await context.bot.send_message(chat_id=update.effective_chat.id, text=text)
 
 
+@msg_logs_decorator
 async def 发送模组数据(update: Update, context: ContextTypes.DEFAULT_TYPE, data_dict: dict):
     '''发送模组数据'''
     try:
@@ -291,6 +305,7 @@ async def 发送模组数据(update: Update, context: ContextTypes.DEFAULT_TYPE,
     await context.bot.send_photo(chat_id=update.effective_chat.id, photo=photo, caption=text, parse_mode='HTML')
 
 
+@msg_logs_decorator
 async def 获取模组信息(update: Update, context: ContextTypes.DEFAULT_TYPE):
     '''自动获取mcmod上的模组信息'''
     mod_urls = 获取词.get_mcmod_url(text=update.effective_message.text)
@@ -312,6 +327,7 @@ async def 获取模组信息(update: Update, context: ContextTypes.DEFAULT_TYPE)
         await 发送模组数据(update=update, context=context, data_dict=data_dict)
 
 
+@msg_logs_decorator
 async def 输出已经保存的模组(update: Update, context: ContextTypes.DEFAULT_TYPE):
     '''输出已经保存的mods'''
     try:
@@ -333,6 +349,7 @@ async def 输出已经保存的模组(update: Update, context: ContextTypes.DEFA
         await context.bot.send_message(chat_id=update.effective_chat.id, text=text)
 
 
+@msg_logs_decorator
 async def 删除某个模组信息(update: Update, context: ContextTypes.DEFAULT_TYPE):
     '''删除某个模组信息'''
     try:
@@ -358,6 +375,7 @@ async def 删除某个模组信息(update: Update, context: ContextTypes.DEFAULT
         await context.bot.send_message(chat_id=update.effective_chat.id, text=text)
 
 
+@msg_logs_decorator
 async def 随机转发入典的消息(update: Update, context: ContextTypes.DEFAULT_TYPE):
     '''随机转发入典的消息'''
     if 小工具.random_with_probability(pr_发典):
@@ -368,6 +386,7 @@ async def 随机转发入典的消息(update: Update, context: ContextTypes.DEFA
             pass
 
 
+@msg_logs_decorator
 async def 设置发典概率(update: Update, context: ContextTypes.DEFAULT_TYPE):
     '''设置发典概率'''
     if update.effective_user.id != master_id:
