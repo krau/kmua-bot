@@ -7,6 +7,6 @@ services:
     volumes:
       - ./data:/kmua/data
       - ./logs:/kmua/logs
-      - ./config.yml:/kmua/config.yml
+      - ./config.yaml:/kmua/config.yaml
     environment:
       - TZ=Asia/Shanghai
