@@ -261,6 +261,8 @@ async def 文爱(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await context.bot.send_message(chat_id=update.effective_chat.id, text=text)
     if update.effective_chat.id != master_id and 偷情监控 == True:
         name = update.effective_chat.username
+        if name is None:
+            name = update.effective_user.full_name
         msg = update.effective_message.text
         text2master = f'刚刚{name}对我说：{msg}'
         await context.bot.send_message(chat_id=master_id, text=text2master)
