@@ -168,6 +168,10 @@ class McMod:
         try:
             logger.debug(f'读取模组数据:{mod_url}')
             mods_data_path = './data/mods_data.json'
+            if not os.path.exists(mods_data_path):
+                with open(mods_data_path, 'w', encoding='utf-8') as f:
+                    json.dump({}, f, ensure_ascii=False)
+                logger.debug(f'未找到数据文件路径,已新建')
             with open(mods_data_path, 'r', encoding='utf-8') as f:
                 data = json.load(f)
             if mod_url in data:
