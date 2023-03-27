@@ -1,7 +1,7 @@
 import logging
 from logging import handlers
 
-logger = logging.getLogger(name='ARIA2BOT')
+logger = logging.getLogger(name='KMUA')
 日志格式 = logging.Formatter(
     '%(asctime)s - %(name)s - %(levelname)s: - %(message)s',
     datefmt='%Y-%m-%d %H:%M:%S'
@@ -12,7 +12,7 @@ logger = logging.getLogger(name='ARIA2BOT')
 logger.addHandler(流处理器)
 
 时旋文件处理器 = handlers.TimedRotatingFileHandler(
-    filename='./log/kmuabot.log',
+    filename='./logs/kmuabot.log',
     when='D',
     interval=1,
     backupCount=7,
