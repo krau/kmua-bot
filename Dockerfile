@@ -1,4 +1,4 @@
-FROM python:3.11.2-alpine3.17
+FROM python:3.11.2-slim-bullseye
 COPY . /kmua
 WORKDIR /kmua
 RUN apt-get update \
