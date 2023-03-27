@@ -409,7 +409,7 @@ async def 设置发典概率(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
 
 async def 错误处理(update: object | None, context: CallbackContext):
-    logger.error(f'发送错误\n{update}\n\n{context.error}')
+    logger.error(f'在该更新中发生错误\n{update}\n错误信息\n{context.error}')
 
 
 def run():
