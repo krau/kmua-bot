@@ -1,8 +1,10 @@
 name: Build and publish docker container
 
 on:
+  push:
+    branches:
+      - main
   workflow_dispatch:
-    
 
 jobs:
   publish:
@@ -16,7 +18,7 @@ jobs:
 
       - name: OCI meta
         id: meta
-        uses: docker/metadata-action@v4.1.1
+        uses: docker/metadata-action@v4.3.0
         with:
           images: ghcr.io/${{ github.repository }}
           tags: |
@@ -28,7 +30,7 @@ jobs:
             type=sha
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
-        
+
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v2
 
@@ -46,6 +48,6 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          platforms: linux/amd64,linux/arm64
+          platforms: linux/amd64
           cache-from: type=gha
           cache-to: type=gha,mode=max
