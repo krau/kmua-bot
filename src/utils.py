@@ -15,7 +15,7 @@ def msg_logs_decorator(func):
         chat = update.effective_chat.title
         if not msg_text:
             msg_text = '(非文本消息)'
-        logger.info(f'[{user}]({chat}): {msg_text})')
+        logger.info(f'[{user}]({chat}): {msg_text}')
         return await func(update, context)
     return wrapper
 
