@@ -9,14 +9,14 @@ from telegram.ext import ContextTypes
 
 def msg_logs_decorator(func):
     '''记录消息日志装饰器'''
-    async def wrapper(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    async def wrapper(update: Update, context: ContextTypes.DEFAULT_TYPE, *args, **kwargs):
         msg_text = update.effective_message.text
         user = update.effective_user.name
         chat = update.effective_chat.title
         if not msg_text:
             msg_text = '(非文本消息)'
         logger.info(f'[{user}]({chat}): {msg_text}')
-        return await func(update, context)
+        return await func(update, context, *args, **kwargs)
     return wrapper
 
 
