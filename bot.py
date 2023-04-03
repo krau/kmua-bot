@@ -91,6 +91,9 @@ async def 设置群员权限(update: Update, context: ContextTypes.DEFAULT_TYPE)
     user_id = update.effective_user.id
     bot_username_len = len(update._bot.name)
     custom_title = update.effective_message.text[3+bot_username_len:]
+    if 'krau' or 'Krau' in custom_title:
+        await context.bot.send_message(chat_id=chat_id, text='不行!就是不行!')
+        return
     if not custom_title:
         custom_title = update.effective_user.username
     try:
