@@ -9,7 +9,7 @@ botname = 配置.botname
 
 色图正则 = "涩图|色图|色色|涩涩"
 早安正则 = "醒了|早起|下床|刚醒|睡醒了|早安|早上好|睡过了|哦哈哟|ohayo|醒力"
-晚安正则 = "睡了|眠了|wanan|晚安|哦呀斯密|oyasimi|睡力"
+晚安正则 = "睡了|眠了|wanan|晚安|哦呀斯密|oyasumi|睡力"
 牛逼话正则 = "bot|机器人|智械危机|Bot"
 淫语正则 = "[a-zA-Z]"
 不要淫语正则 = f"[^krau|{botname}|{botname.lower()}|{botname.upper()}|@krauisme|@acherkrau]"
