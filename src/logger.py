@@ -1,10 +1,9 @@
 import logging
 from logging import handlers
 
-logger = logging.getLogger(name='KMUA')
+logger = logging.getLogger(name="KMUA")
 日志格式 = logging.Formatter(
-    '%(asctime)s - %(name)s - %(levelname)s: - %(message)s',
-    datefmt='%Y-%m-%d %H:%M:%S'
+    "%(asctime)s - %(name)s - %(levelname)s: - %(message)s", datefmt="%Y-%m-%d %H:%M:%S"
 )
 流处理器 = logging.StreamHandler()
 流处理器.setLevel(logging.INFO)
@@ -12,11 +11,7 @@ logger = logging.getLogger(name='KMUA')
 logger.addHandler(流处理器)
 
 时旋文件处理器 = handlers.TimedRotatingFileHandler(
-    filename='./logs/kmuabot.log',
-    when='D',
-    interval=1,
-    backupCount=7,
-    encoding='utf-8'
+    filename="./logs/kmuabot.log", when="D", interval=1, backupCount=7, encoding="utf-8"
 )
 
 时旋文件处理器.setLevel(logging.DEBUG)
