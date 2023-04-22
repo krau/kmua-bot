@@ -4,8 +4,8 @@ from pathlib import Path
 基础目录 = Path(__file__).parent.parent.parent
 
 配置文件 = [
-    "config.yaml",
-    "config.dev.yaml",
+    "config.toml",
+    "config.dev.toml",
 ]
 
 配置 = Dynaconf(
