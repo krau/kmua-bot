@@ -3,3 +3,4 @@ dynaconf
 pypinyin
 python_telegram_bot
 pytz
+loguru
