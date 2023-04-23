@@ -135,15 +135,23 @@ async def quote(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
     if not quote_message.text or len(quote_message.text) > 70:
         return
-    avatar = await (
-        await (
-            await context.bot.get_chat(chat_id=quote_message.from_user.id)
-        ).photo.get_big_file()
-    ).download_as_bytearray()
-    quote_img = await generate_quote_img(
-        avatar=avatar, text=quote_message.text, name=quote_message.from_user.name
-    )
-    await context.bot.send_photo(chat_id=update.effective_chat.id, photo=quote_img)
+    try:
+        avatar = await (
+            await (
+                await context.bot.get_chat(chat_id=quote_message.from_user.id)
+            ).photo.get_big_file()
+        ).download_as_bytearray()
+        quote_img = await generate_quote_img(
+            avatar=avatar, text=quote_message.text, name=quote_message.from_user.name
+        )
+        await context.bot.send_photo(chat_id=update.effective_chat.id, photo=quote_img)
+    except AttributeError:
+        pass
+    except Exception as e:
+        await context.bot.send_message(
+            chat_id=update.effective_chat.id, text=f"{e.__class__.__name__}: {e}"
+        )
+        logger.error(f"{e.__class__.__name__}: {e}")
 
 
 async def set_quote_probability(update: Update, context: ContextTypes.DEFAULT_TYPE):

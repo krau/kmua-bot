@@ -7,10 +7,11 @@
 
 ## 功能
 >
-> 这个bot什么也不会，只会喵喵喵卖萌
+> 这个bot只会喵喵喵
 
-demo：<https://t.me/krau_kmuabot>
+demo：<https://t.me/kmuav2bot>
 
+开发中
 
 ## 部署
 
@@ -18,14 +19,13 @@ demo：<https://t.me/krau_kmuabot>
 
 1. `git clone https://github.com/krau/kmua-bot`
 2. pip install -r requirements.txt
-3. edit config.yml
-4. python3 bot.py
+3. edit settings.toml
+4. python bot.py
 
 ### 使用docker compose
 
 1. `git clone https://github.com/krau/kmua-bot`
-2. edit config.yml
-3. `docker compose up -d`
+2. `docker compose up -d`
 
 ## 鸣谢&引用
 
