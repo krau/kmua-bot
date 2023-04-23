@@ -1,0 +1,3 @@
+token=''
+owners = []
+pickle_path='data.pickle'

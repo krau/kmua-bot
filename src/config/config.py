@@ -1,14 +1,23 @@
-
-from dynaconf import Dynaconf
 from pathlib import Path
 
-BASE_DIR = Path(__file__).resolve().parent.parent.parent
+from dynaconf import Dynaconf
+
+from ..logger import logger
+
+_BASE_DIR = Path(__file__).resolve().parent.parent.parent
+
+settings_files = [
+    "settings.toml",
+    "settings.dev.toml",
+]
+
+logger.debug(f"加载配置文件: {settings_files}")
 
 settings = Dynaconf(
     envvar_prefix="KMUA",
-    settings_files=['settings.toml', 'settings.dev.toml'],
-    environments=True,
-    base_dir = BASE_DIR,
+    settings_files=settings_files,
+    environments=False,
+    base_dir=_BASE_DIR,
 )
 
 # `envvar_prefix` = export envvars with `export DYNACONF_FOO=bar`.
