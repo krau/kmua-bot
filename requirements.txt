@@ -1,6 +1,6 @@
-aiofiles
 dynaconf
-pypinyin
-python_telegram_bot
-pytz
-loguru
+pypinyin==0.48.0
+python_telegram_bot==20.2
+pytz==2023.3
+loguru==0.7.0
+pillow==9.5.0
