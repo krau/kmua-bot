@@ -6,6 +6,7 @@ services:
     init: true
     volumes:
       - ./data.pickle:/kmua/data.pickle
+      - ./logs:/kmua/logs
     environment:
       - TZ=Asia/Shanghai
       - KMUA_TOKEN="你的token"
