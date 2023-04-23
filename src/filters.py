@@ -1,7 +1,8 @@
-from telegram import Update
+from telegram import Update, Message
 from telegram.ext.filters import (
     FilterDataDict,
     UpdateFilter,
+    MessageFilter,
 )
 
 
@@ -15,4 +16,14 @@ class StartFilter(UpdateFilter):
         return True
 
 
+class interactFilter(MessageFilter):
+    def filter(self, message: Message) -> bool | FilterDataDict | None:
+        if not message.text:
+            return False
+        if message.text.startswith("/") or message.text.startswith("\\"):
+            return True
+        return False
+
+
 start_filter = StartFilter()
+interact_filter = interactFilter()

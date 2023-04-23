@@ -13,8 +13,9 @@ from .callbacks import (
     set_quote_probability,
     start,
     title,
+    interact
 )
-from .filters import start_filter
+from .filters import start_filter,interact_filter
 
 start_handler = CommandHandler("start", start, filters=start_filter)
 chat_migration_handler = MessageHandler(filters.StatusUpdate.MIGRATE, chat_migration)
@@ -24,6 +25,7 @@ set_quote_probability_handler = CommandHandler("setqp", set_quote_probability)
 random_quote_handler = MessageHandler(~filters.COMMAND, random_quote)
 del_quote_handler = CommandHandler("d", del_quote)
 clear_chat_quote_handler = CommandHandler("c", clear_chat_quote)
+interact_handler = MessageHandler(filters=interact_filter,callback=interact)
 handlers = [
     start_handler,
     chat_migration_handler,
@@ -32,5 +34,6 @@ handlers = [
     set_quote_probability_handler,
     del_quote_handler,
     clear_chat_quote_handler,
+    interact_handler,
     random_quote_handler,
 ]
