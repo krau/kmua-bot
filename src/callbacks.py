@@ -1,14 +1,18 @@
 import random
 
-from telegram import Update, InlineQueryResultArticle, InputTextMessageContent
+from telegram import (
+    Update,
+    InlineKeyboardButton,
+    InlineKeyboardMarkup,
+)
 from telegram.error import BadRequest
 from telegram.ext import ContextTypes
-
-from html import escape
-
+from uuid import uuid1
 from .config.config import settings
 from .logger import logger
 from .utils import generate_quote_img, random_unit
+from .model import ImgQuote, TextQuote
+from datetime import datetime
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -16,13 +20,48 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"[{update.effective_chat.title}]({update.effective_user.name})"
         + f" {update.effective_message.text}"
     )
-    if (
-        update.effective_chat.type != "private"
-        and update.effective_message.text == "/start"
-    ):
+    if update.effective_chat.type != "private":
+        if update.effective_message.text == "/start":
+            # 如果是群聊，且没有艾特，直接返回
+            return
+        await _start_in_group(update, context)
         return
+    start_bot_markup = InlineKeyboardMarkup(
+        [
+            [
+                InlineKeyboardButton(
+                    "拉我进群", url=f"https://t.me/{context.bot.username}?startgroup=new"
+                ),
+                InlineKeyboardButton("开源主页", url="https://github.com/krau/kmua-bot"),
+            ],
+            [InlineKeyboardButton("你的数据", callback_data="user_data_manage")],
+        ]
+    )
+    await context.bot.send_message(
+        chat_id=update.effective_chat.id,
+        text="喵喵喵?",
+        reply_markup=start_bot_markup,
+    )
+
+
+async def _start_in_group(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    logger.info(
+        f"[{update.effective_chat.title}]({update.effective_user.name})"
+        + f" {update.effective_message.text}"
+    )
+    start_bot_markup = InlineKeyboardMarkup(
+        [
+            [
+                InlineKeyboardButton(
+                    "私聊Kmua", url=f"https://t.me/{context.bot.username}?start=start"
+                )
+            ]
+        ]
+    )
     sent_message = await context.bot.send_message(
-        chat_id=update.effective_chat.id, text="喵喵喵?"
+        chat_id=update.effective_chat.id,
+        text="喵喵喵?",
+        reply_markup=start_bot_markup,
     )
     logger.info(f"Bot:{sent_message.text}")
     await context.bot.send_sticker(
@@ -118,6 +157,7 @@ async def quote(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.info(f"Bot: {sent_message.text}")
         return
     quote_message = update.effective_message.reply_to_message
+    quote_user = quote_message.from_user
     await context.bot.pin_chat_message(
         chat_id=update.effective_chat.id, message_id=quote_message.id
     )
@@ -127,7 +167,7 @@ async def quote(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if quote_message.id not in context.chat_data["quote_messages"]:
         context.chat_data["quote_messages"].append(quote_message.id)
         logger.debug(
-            f"将{quote_message.id}([{update.effective_chat.title}]({update.effective_user.name}))"
+            f"将{quote_message.id}([{update.effective_chat.title}]({quote_user.name}))"
             + "加入chat quote"
         )
         await context.bot.send_message(
@@ -135,20 +175,36 @@ async def quote(update: Update, context: ContextTypes.DEFAULT_TYPE):
             text="已入典",
             reply_to_message_id=quote_message.id,
         )
-    if not quote_message.text or len(quote_message.text) > 70:
+    if not quote_message.text:
+        # 如果不是文字消息, 直接
+        return
+    # 是文字消息, 则保存数据
+    if not context.bot_data["quotes"].get(quote_user.id, None):
+        context.bot_data["quotes"][quote_user.id] = {}
+        context.bot_data["quotes"][quote_user.id]["img_bytes"] = []
+        context.bot_data["quotes"][quote_user.id]["text"] = []
+    quote_text_obj = TextQuote(
+        id=uuid1(), content=quote_message.text, created_at=datetime.now()
+    )
+    context.bot_data["quotes"][quote_user.id]["text"].append(quote_text_obj)
+    if len(quote_message.text) > 70:
+        # 如果文字长度超过70, 则不生成图片, 直接
+        return
+    avatar_photo = (await context.bot.get_chat(chat_id=quote_user.id)).photo
+    if not avatar_photo:
+        # 如果没有头像, 或因为权限设置无法获取到头像, 直接
         return
     try:
-        avatar = await (
-            await (
-                await context.bot.get_chat(chat_id=quote_message.from_user.id)
-            ).photo.get_big_file()
-        ).download_as_bytearray()
+        avatar = await (await avatar_photo.get_big_file()).download_as_bytearray()
         quote_img = await generate_quote_img(
-            avatar=avatar, text=quote_message.text, name=quote_message.from_user.name
+            avatar=avatar, text=quote_message.text, name=quote_user.name
         )
         await context.bot.send_photo(chat_id=update.effective_chat.id, photo=quote_img)
-    except AttributeError:
-        pass
+        # 保存图像数据
+        quote_img_obj = ImgQuote(
+            id=uuid1(), content=quote_img, created_at=datetime.now()
+        )
+        context.bot_data["quotes"][quote_user.id]["img_bytes"].append(quote_img_obj)
     except Exception as e:
         await context.bot.send_message(
             chat_id=update.effective_chat.id, text=f"{e.__class__.__name__}: {e}"
@@ -225,12 +281,13 @@ async def random_quote(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.info(
             "Bot: " + (f"{sent_message.text}" if sent_message.text else "<非文本消息>")
         )
-    except BadRequest(message="Message to forward not found"):
+    except BadRequest:
         logger.error(f"{to_forward_message_id} 未找到,从chat quote中移除")
         context.chat_data["quote_messages"].remove(to_forward_message_id)
         sent_message = await context.bot.send_message(
             chat_id=update.effective_chat.id,
             text=f"有一条典突然消失了!\nid: _{to_forward_message_id}_\n已从chat quote中移除",
+            parse_mode="MarkdownV2",
         )
         logger.info(f"Bot: {sent_message.text}")
     except Exception as e:
@@ -279,14 +336,15 @@ async def del_quote(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         logger.info(f"Bot: {sent_message.text}")
     else:
-        await context.bot.send_message(
+        sent_message = await context.bot.send_message(
             chat_id=update.effective_chat.id,
             text="该消息不在典中;请对原始的典消息使用",
             reply_to_message_id=quote_message.id,
         )
+        logger.info(f"Bot: {sent_message.text}")
 
 
-async def clear_chat_quote(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def clear_chat_quote_ask(update: Update, context: ContextTypes.DEFAULT_TYPE):
     logger.info(
         f"[{update.effective_chat.title}]({update.effective_user.name})"
         + f" {update.effective_message.text}"
@@ -297,6 +355,25 @@ async def clear_chat_quote(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         logger.info(f"Bot: {sent_message.text}")
         return
+    clear_chat_quote_markup = InlineKeyboardMarkup(
+        [
+            [
+                InlineKeyboardButton("算了", callback_data="cancel_clear_chat_quote"),
+                InlineKeyboardButton("确认清空", callback_data="clear_chat_quote"),
+            ]
+        ]
+    )
+    sent_message = await context.bot.send_message(
+        chat_id=update.effective_chat.id,
+        text="真的要清空该聊天的典吗?\n\n用户个人数据不会被此操作清除",
+        reply_markup=clear_chat_quote_markup,
+    )
+    logger.info(f"Bot: {sent_message.text}")
+
+
+async def clear_chat_quote(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not context.chat_data.get("quote_messages", None):
+        return
     for message_id in context.chat_data["quote_messages"]:
         try:
             unpin_ok = await context.bot.unpin_chat_message(
@@ -306,12 +383,21 @@ async def clear_chat_quote(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 logger.debug(f"Bot将{message_id}取消置顶")
         except Exception as e:
             logger.error(e)
+            await context.bot.send_message(
+                chat_id=update.effective_chat.id, text=f"{e.__class__.__name__}: {e}"
+            )
             continue
     context.chat_data["quote_messages"] = []
     sent_message = await context.bot.send_message(
         chat_id=update.effective_chat.id, text="已清空该聊天的典"
     )
     logger.info(f"Bot: {sent_message.text}")
+
+
+async def clear_chat_quote_cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await context.bot.delete_message(
+        chat_id=update.effective_chat.id, message_id=update.callback_query.message.id
+    )
 
 
 async def interact(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -372,4 +458,29 @@ async def interact(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def inline_query_quote(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.inline_query.query
+    user_id = update.inline_query.from_user.id
+    chat_id = update.inline_query.from_user.id
+    chat_member = await context.bot.get_chat_member(chat_id=chat_id, user_id=user_id)
+    logger.trace(chat_member)
+
+
+async def user_data_manage(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+    img_bytes_len = len(context.bot_data.get(user_id, {}).get("img_bytes", []))
+    text_len = len(context.bot_data.get(user_id, {}).get("text", []))
+    quote_len = img_bytes_len + text_len
+    user_data_manage_markup = InlineKeyboardMarkup(
+        [[InlineKeyboardButton("❗清空", callback_data="clear_user_data")]]
+    )
+    statistics_data = f"""
+统计信息:
+你的ID: `{update.effective_user.id}`
+已保存的名言总数: `{quote_len}`
+图片数量: `{img_bytes_len}`
+文字数量: `{text_len}`"""
+    sent_message = await context.bot.send_message(
+        chat_id=update.effective_chat.id,
+        text=statistics_data,
+        reply_markup=user_data_manage_markup,
+    )
+    logger.info(f"Bot: {sent_message.text}")

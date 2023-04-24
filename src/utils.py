@@ -98,6 +98,7 @@ async def generate_quote_img(
     img.paste(shadow_img, (-shadow_radius, -shadow_radius), shadow_img)
 
     img_byte_arr = io.BytesIO()
-    img.save(img_byte_arr, format="PNG")
+    img = img.convert("RGB")
+    img.save(img_byte_arr, format="JPEG")
     img_byte_arr = img_byte_arr.getvalue()
     return img_byte_arr

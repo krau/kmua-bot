@@ -1,8 +1,16 @@
-from telegram.ext import CommandHandler, MessageHandler, filters, InlineQueryHandler
+from telegram.ext import (
+    CommandHandler,
+    MessageHandler,
+    filters,
+    InlineQueryHandler,
+    CallbackQueryHandler,
+)
 
 from .callbacks import (
     chat_migration,
+    clear_chat_quote_ask,
     clear_chat_quote,
+    clear_chat_quote_cancel,
     del_quote,
     quote,
     random_quote,
@@ -21,7 +29,13 @@ quote_handler = CommandHandler("q", quote)
 set_quote_probability_handler = CommandHandler("setqp", set_quote_probability)
 random_quote_handler = MessageHandler(~filters.COMMAND, random_quote)
 del_quote_handler = CommandHandler("d", del_quote)
-clear_chat_quote_handler = CommandHandler("c", clear_chat_quote)
+clear_chat_quote_ask_handler = CommandHandler("c", clear_chat_quote_ask)
+clear_chat_quote_handler = CallbackQueryHandler(
+    clear_chat_quote, pattern="clear_chat_quote"
+)
+clear_chat_quote_cancel_handler = CallbackQueryHandler(
+    clear_chat_quote_cancel, pattern="cancel_clear_chat_quote"
+)
 interact_handler = MessageHandler(filters=interact_filter, callback=interact)
 inline_query_handler = InlineQueryHandler(inline_query_quote)
 handlers = [
@@ -31,7 +45,9 @@ handlers = [
     quote_handler,
     set_quote_probability_handler,
     del_quote_handler,
+    clear_chat_quote_ask_handler,
     clear_chat_quote_handler,
+    clear_chat_quote_cancel_handler,
     interact_handler,
     random_quote_handler,
     inline_query_handler,

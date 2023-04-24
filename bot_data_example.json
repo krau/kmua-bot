@@ -1,0 +1,21 @@
+{
+    "bot_username": "bot_username",
+    "quotes": {
+        "user_id": {
+            "img_bytes": [
+                {
+                    "id": "uuid",
+                    "content": "bytes",
+                    "created_at": "datetime"
+                }
+            ],
+            "text": [
+                {
+                    "id": "uuid",
+                    "content": "str",
+                    "created_at": "datetime"
+                }
+            ]
+        }
+    }
+}
