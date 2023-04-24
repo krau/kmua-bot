@@ -11,7 +11,7 @@ from telegram.ext import (
 )
 
 from src.config.config import settings
-from src.handlers import handlers
+from src.handlers import handlers, on_error
 from src.logger import logger
 
 
@@ -52,6 +52,7 @@ def run():
         .build()
     )
     app.add_handlers(handlers)
+    app.add_error_handler(on_error)
     logger.info("Bot已启动")
     app.run_polling()
 

@@ -1,4 +1,5 @@
 from telegram.ext import (
+    CallbackContext,
     CallbackQueryHandler,
     CommandHandler,
     InlineQueryHandler,
@@ -23,6 +24,7 @@ from .callbacks import (
     user_data_manage,
 )
 from .filters import interact_filter, start_filter
+from .logger import logger
 
 start_handler = CommandHandler("start", start, filters=start_filter)
 chat_migration_handler = MessageHandler(filters.StatusUpdate.MIGRATE, chat_migration)
@@ -62,3 +64,7 @@ handlers = [
     user_data_manage_handler,
     clear_user_data_handler,
 ]
+
+
+async def on_error(update: object | None, context: CallbackContext):
+    logger.error(f"在该更新发生错误 {update}\n\n错误信息\n{context.error}")
