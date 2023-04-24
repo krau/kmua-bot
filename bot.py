@@ -6,7 +6,7 @@ from telegram.ext import (
     Application,
     ApplicationBuilder,
     Defaults,
-    PicklePersistence,
+    PicklePersistence,AIORateLimiter
 )
 
 from src.config.config import settings
@@ -39,7 +39,7 @@ def run():
     token = settings.token
     defaults = Defaults(tzinfo=pytz.timezone("Asia/Shanghai"))
     persistence = PicklePersistence(filepath=settings.pickle_path)
-
+    rate_limiter = AIORateLimiter()
     app = (
         ApplicationBuilder()
         .token(token)
@@ -47,6 +47,7 @@ def run():
         .defaults(defaults)
         .concurrent_updates(True)
         .post_init(init_data)
+        .rate_limiter(rate_limiter)
         .build()
     )
     app.add_handlers(handlers)
