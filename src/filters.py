@@ -21,6 +21,8 @@ class interactFilter(MessageFilter):
         if not message.text:
             return False
         if message.text.startswith("/") or message.text.startswith("\\"):
+            if "bot_command" in message.entities[0].type:
+                return False
             return True
         return False
 
