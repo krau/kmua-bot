@@ -1,22 +1,23 @@
 import random
+import time
+from datetime import datetime
+from uuid import uuid1, uuid4
 
 from telegram import (
-    Update,
     InlineKeyboardButton,
     InlineKeyboardMarkup,
     InlineQueryResultArticle,
-    InputTextMessageContent,
     InlineQueryResultCachedPhoto,
+    InputTextMessageContent,
+    Update,
 )
 from telegram.error import BadRequest
 from telegram.ext import ContextTypes
-from uuid import uuid1
+
 from .config.config import settings
 from .logger import logger
-from .utils import generate_quote_img, random_unit
 from .model import ImgQuote, TextQuote
-from datetime import datetime
-from uuid import uuid4
+from .utils import generate_quote_img, random_unit
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -396,11 +397,14 @@ async def clear_chat_quote(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
             if unpin_ok:
                 logger.debug(f"Bot将{message_id}取消置顶")
+        except BadRequest:
+            continue
         except Exception as e:
             logger.error(e)
             await context.bot.send_message(
                 chat_id=update.effective_chat.id, text=f"{e.__class__.__name__}: {e}"
             )
+            time.sleep(0.5)
             continue
     context.chat_data["quote_messages"] = []
     sent_message = await context.bot.send_message(

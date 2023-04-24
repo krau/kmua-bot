@@ -1,6 +1,7 @@
 import io
 import random
 from pathlib import Path
+
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
 from pilmoji import Pilmoji
 

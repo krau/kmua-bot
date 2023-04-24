@@ -1,28 +1,28 @@
 from telegram.ext import (
+    CallbackQueryHandler,
     CommandHandler,
+    InlineQueryHandler,
     MessageHandler,
     filters,
-    InlineQueryHandler,
-    CallbackQueryHandler,
 )
 
 from .callbacks import (
     chat_migration,
-    start,
-    clear_chat_quote_ask,
     clear_chat_quote,
+    clear_chat_quote_ask,
     clear_chat_quote_cancel,
+    clear_user_data,
     del_quote,
+    inline_query_quote,
+    interact,
     quote,
     random_quote,
     set_quote_probability,
+    start,
     title,
-    interact,
-    inline_query_quote,
     user_data_manage,
-    clear_user_data,
 )
-from .filters import start_filter, interact_filter
+from .filters import interact_filter, start_filter
 
 start_handler = CommandHandler("start", start, filters=start_filter)
 chat_migration_handler = MessageHandler(filters.StatusUpdate.MIGRATE, chat_migration)

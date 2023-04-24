@@ -1,5 +1,7 @@
-from loguru import logger
 import sys
+
+from loguru import logger
+
 from .config.config import settings
 
 logger.remove()

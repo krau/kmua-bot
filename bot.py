@@ -3,10 +3,11 @@ from pathlib import Path
 
 import pytz
 from telegram.ext import (
+    AIORateLimiter,
     Application,
     ApplicationBuilder,
     Defaults,
-    PicklePersistence,AIORateLimiter
+    PicklePersistence,
 )
 
 from src.config.config import settings
