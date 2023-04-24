@@ -1,3 +1,4 @@
 token=''
 owners = []
 pickle_path='./data/data.pickle'
+log_level='INFO'

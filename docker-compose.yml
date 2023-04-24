@@ -12,3 +12,4 @@ services:
       - KMUA_TOKEN="你的token"
       - KMUA_OWNERS=[]
       - KMUA_PICKLE_PATH="./data/data.pickle"
+      - KMUA_LOG_LEVEL="INFO"
