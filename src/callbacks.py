@@ -1,8 +1,10 @@
 import random
 
-from telegram import Update
+from telegram import Update, InlineQueryResultArticle, InputTextMessageContent
 from telegram.error import BadRequest
 from telegram.ext import ContextTypes
+
+from html import escape
 
 from .config.config import settings
 from .logger import logger
@@ -213,12 +215,29 @@ async def random_quote(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     if not context.chat_data.get("quote_messages", None):
         return
-    sent_message = await context.bot.forward_message(
-        chat_id=update.effective_chat.id,
-        from_chat_id=update.effective_chat.id,
-        message_id=random.choice(context.chat_data["quote_messages"]),
-    )
-    logger.info("Bot: " + (f"{sent_message.text}" if sent_message.text else "<非文本消息>"))
+    try:
+        to_forward_message_id = (random.choice(context.chat_data["quote_messages"]),)
+        sent_message = await context.bot.forward_message(
+            chat_id=update.effective_chat.id,
+            from_chat_id=update.effective_chat.id,
+            message_id=to_forward_message_id,
+        )
+        logger.info(
+            "Bot: " + (f"{sent_message.text}" if sent_message.text else "<非文本消息>")
+        )
+    except BadRequest(message="Message to forward not found"):
+        logger.error(f"{to_forward_message_id} 未找到,从chat quote中移除")
+        context.chat_data["quote_messages"].remove(to_forward_message_id)
+        sent_message = await context.bot.send_message(
+            chat_id=update.effective_chat.id,
+            text=f"有一条典突然消失了!\nid: _{to_forward_message_id}_\n已从chat quote中移除",
+        )
+        logger.info(f"Bot: {sent_message.text}")
+    except Exception as e:
+        logger.error(f"{e.__class__.__name__}: {e}")
+        await context.bot.send_message(
+            chat_id=update.effective_chat.id, text=f"{e.__class__.__name__}: {e}"
+        )
 
 
 async def del_quote(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -350,3 +369,7 @@ async def interact(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 text=f"{update.effective_user.full_name}被自己{interact_cmd}了!",
             )
             logger.info(f"Bot: {sent_message.text}")
+
+
+async def inline_query_quote(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.inline_query.query

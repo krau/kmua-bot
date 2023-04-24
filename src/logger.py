@@ -1,5 +1,6 @@
 from loguru import logger
 import sys
+from .config.config import settings
 
 logger.remove()
 logger.add(
@@ -11,4 +12,4 @@ logger.add(
     level="TRACE",
 )
 
-logger.add(sys.stderr, level="INFO")
+logger.add(sys.stderr, level=settings.log_level if settings.log_level else "INFO")
