@@ -187,6 +187,10 @@ async def quote(update: Update, context: ContextTypes.DEFAULT_TYPE):
         context.bot_data["quotes"][quote_user.id] = {}
         context.bot_data["quotes"][quote_user.id]["img"] = []
         context.bot_data["quotes"][quote_user.id]["text"] = []
+    for saved_quote_text_obj in context.bot_data["quotes"][quote_user.id]["text"]:
+        if saved_quote_text_obj.content == quote_message.text:
+            # 如果已经存在相同的文字, 直接
+            return
     quote_text_obj = TextQuote(
         id=uuid1(), content=quote_message.text, created_at=datetime.now()
     )

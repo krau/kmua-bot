@@ -2,7 +2,7 @@ import io
 import random
 from pathlib import Path
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
-
+from pilmoji import Pilmoji
 
 
 def random_unit(probability: float) -> bool:
@@ -36,10 +36,11 @@ async def generate_quote_img(
     """
     color_bg = (34, 34, 32, 255)
     img = Image.new("RGBA", (width, height), color_bg)
-
+    # 删除换行
+    text = text.replace("\n", " ")
     # 加载头像
     avatar = Image.open(io.BytesIO(avatar))
-    avatar = avatar.resize((int(width / 2), height), Image.ANTIALIAS)
+    avatar = avatar.resize((640, 640), Image.ANTIALIAS)
     font_path = str(Path(__file__).resolve().parent.parent / "resource" / "TsukuA.ttc")
     font_size = 60
     font = ImageFont.truetype(font_path, font_size)
@@ -71,27 +72,30 @@ async def generate_quote_img(
     draw = ImageDraw.Draw(img)
     # 粘贴背景
     draw.rectangle((int(width / 2), 0, width, height), fill=color_bg)
-    for i in range(len(text_list)):
-        draw.text(
-            (text_x, text_y + i * font_size),
-            text=text_list[i],
-            fill=(255, 255, 252),
-            font=font,
-            align="center",
-        )
+    with Pilmoji(img) as pilmoji:
+        for i in range(len(text_list)):
+            pilmoji.text(
+                (text_x, text_y + i * font_size),
+                text=text_list[i],
+                fill=(255, 255, 252),
+                font=font,
+                align="center",
+                emoji_position_offset=(0, 20),
+            )
     # 在右下角粘贴名字
-    name_font_size = 40
+    name_font_size = 32
     name_font = ImageFont.truetype(font_path, name_font_size)
     name_width, name_height = name_font.getsize(name)
     name_x = int(width / 2) + int((width / 2 - name_width) / 2) + 80
     name_y = int(height - name_height) - 20
-    draw.text(
-        (name_x, name_y),
-        text=f"—— {name}",
-        fill=(255, 255, 252),
-        font=name_font,
-        align="center",
-    )
+    with Pilmoji(img) as pilmoji:
+        pilmoji.text(
+            (name_x, name_y),
+            text=f"—— {name}",
+            font=name_font,
+            fill=(255, 255, 252),
+            align="center",
+        )
     # 粘贴头像
     img.paste(avatar, (0, 0))
     # 粘贴阴影
