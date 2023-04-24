@@ -24,7 +24,7 @@ demo：<https://t.me/kmuav2bot>
 
 ### 使用docker compose
 
-1. `git clone https://github.com/krau/kmua-bot`
+1. `edit docker-compose.yml`
 2. `docker compose up -d`
 
 ## 鸣谢&引用
