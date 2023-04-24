@@ -407,57 +407,67 @@ async def clear_chat_quote_cancel(update: Update, context: ContextTypes.DEFAULT_
 
 async def interact(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if reply_to_message := update.effective_message.reply_to_message:
+        this_user = update.effective_user
+        replied_user = reply_to_message.from_user
+        this_name = this_user.full_name
+        replied_name = replied_user.full_name
+        this_id = this_user.id
+        replied_id = replied_user.id
         if len(update.effective_message.text.split(" ")) == 1:
             if update.effective_message.text.startswith("/"):
-                interact_cmd = update.effective_message.text[1:]
+                cmd = update.effective_message.text[1:]
                 sent_message = await context.bot.send_message(
                     chat_id=update.effective_chat.id,
-                    text=f"{update.effective_user.full_name}{interact_cmd}了{reply_to_message.from_user.full_name}!",
+                    text=f"[{this_name}](tg://user?id={this_id}){cmd}了[{replied_name}](tg://user?id={replied_id})!",
+                    parse_mode="Markdown",
                 )
                 logger.info(f"Bot: {sent_message.text}")
             elif update.effective_message.text.startswith("\\"):
-                interact_cmd = update.effective_message.text[1:]
+                cmd = update.effective_message.text[1:]
                 sent_message = await context.bot.send_message(
                     chat_id=update.effective_chat.id,
-                    text=f"{update.effective_user.full_name}被{reply_to_message.from_user.full_name}{interact_cmd}了!",
+                    text=f"[{this_name}](tg://user?id={this_id})被[{replied_name}](tg://user?id={replied_id}){cmd}了!",
+                    parse_mode="Markdown",
                 )
                 logger.info(f"Bot: {sent_message.text}")
         else:
             if update.effective_message.text.startswith("/"):
-                interact_cmd_front = update.effective_message.text.split(" ")[
-                    0
-                ].replace("/", "")
-                interact_cmd_back = update.effective_message.text.split(" ")[1:]
-                interact_cmd_back = " ".join(interact_cmd_back)
+                cmd_front = update.effective_message.text.split(" ")[0].replace("/", "")
+                cmd_back = update.effective_message.text.split(" ")[1:]
+                cmd_back = " ".join(cmd_back)
                 sent_message = await context.bot.send_message(
                     chat_id=update.effective_chat.id,
-                    text=f"{update.effective_user.full_name}{interact_cmd_front}{reply_to_message.from_user.full_name}{interact_cmd_back}!",
+                    text=f"[{this_name}](tg://user?id={this_id}){cmd_front}[{replied_name}](tg://user?id={replied_id}){cmd_back}!",
+                    parse_mode="Markdown",
                 )
                 logger.info(f"Bot: {sent_message.text}")
             elif update.effective_message.text.startswith("\\"):
-                interact_cmd_front = update.effective_message.text.split(" ")[
-                    0
-                ].replace("\\", "")
-                interact_cmd_back = update.effective_message.text.split(" ")[1:]
-                interact_cmd_back = " ".join(interact_cmd_back)
+                cmd_front = update.effective_message.text.split(" ")[0].replace(
+                    "\\", ""
+                )
+                cmd_back = update.effective_message.text.split(" ")[1:]
+                cmd_back = " ".join(cmd_back)
                 sent_message = await context.bot.send_message(
                     chat_id=update.effective_chat.id,
-                    text=f"{reply_to_message.from_user.full_name}{interact_cmd_front}{update.effective_user.full_name}{interact_cmd_back}!",
+                    text=f"[{replied_name}](tg://user?id={replied_id}){cmd_front}[{this_name}](tg://user?id={this_id}){cmd_back}!",
+                    parse_mode="Markdown",
                 )
                 logger.info(f"Bot: {sent_message.text}")
     else:
         if update.effective_message.text.startswith("/"):
-            interact_cmd = update.effective_message.text[1:]
+            cmd = update.effective_message.text[1:]
             sent_message = await context.bot.send_message(
                 chat_id=update.effective_chat.id,
-                text=f"{update.effective_user.full_name}{interact_cmd}了自己!",
+                text=f"[{update.effective_user.full_name}](tg://user?id={update.effective_user.id}){cmd}了自己!",
+                parse_mode="Markdown",
             )
             logger.info(f"Bot: {sent_message.text}")
         elif update.effective_message.text.startswith("\\"):
-            interact_cmd = update.effective_message.text[1:]
+            cmd = update.effective_message.text[1:]
             sent_message = await context.bot.send_message(
                 chat_id=update.effective_chat.id,
-                text=f"{update.effective_user.full_name}被自己{interact_cmd}了!",
+                text=f"[{update.effective_user.full_name}](tg://user?id={update.effective_user.id})被自己{cmd}了!",
+                parse_mode="Markdown"
             )
             logger.info(f"Bot: {sent_message.text}")
 
