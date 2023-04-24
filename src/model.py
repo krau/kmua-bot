@@ -3,9 +3,10 @@ from datetime import datetime
 
 
 class ImgQuote:
-    def __init__(self, id: UUID, content: bytes, created_at: datetime):
+    def __init__(self, id: UUID, content: str, text: str, created_at: datetime):
         self.id = id
         self.content = content
+        self.text = text
         self.created_at = created_at
 
     def __repr__(self):

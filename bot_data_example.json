@@ -2,10 +2,10 @@
     "bot_username": "bot_username",
     "quotes": {
         "user_id": {
-            "img_bytes": [
+            "img": [
                 {
                     "id": "uuid",
-                    "content": "bytes",
+                    "content": "str(file_id)",
                     "created_at": "datetime"
                 }
             ],
