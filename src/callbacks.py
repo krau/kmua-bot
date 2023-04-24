@@ -4,6 +4,9 @@ from telegram import (
     Update,
     InlineKeyboardButton,
     InlineKeyboardMarkup,
+    InlineQueryResultArticle,
+    InputTextMessageContent,
+    InlineQueryResultPhoto,
 )
 from telegram.error import BadRequest
 from telegram.ext import ContextTypes
@@ -13,6 +16,7 @@ from .logger import logger
 from .utils import generate_quote_img, random_unit
 from .model import ImgQuote, TextQuote
 from datetime import datetime
+from uuid import uuid4
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -187,6 +191,7 @@ async def quote(update: Update, context: ContextTypes.DEFAULT_TYPE):
         id=uuid1(), content=quote_message.text, created_at=datetime.now()
     )
     context.bot_data["quotes"][quote_user.id]["text"].append(quote_text_obj)
+    logger.debug(f"[{quote_text_obj.content}]({quote_text_obj.id})" + "已保存")
     if len(quote_message.text) > 70:
         # 如果文字长度超过70, 则不生成图片, 直接
         return
@@ -459,28 +464,108 @@ async def interact(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def inline_query_quote(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.inline_query.from_user.id
-    chat_id = update.inline_query.from_user.id
-    chat_member = await context.bot.get_chat_member(chat_id=chat_id, user_id=user_id)
-    logger.trace(chat_member)
+    user_name = update.inline_query.from_user.full_name
+    text_quotes: list[TextQuote] = (
+        context.bot_data["quotes"].get(user_id, {}).get("text", [])
+    )
+    if len(text_quotes) == 0:
+        no_quote_inline_markup = InlineKeyboardMarkup(
+            [
+                [
+                    InlineKeyboardButton(
+                        "看看我的", url=f"https://t.me/{context.bot.username}?start=start"
+                    )
+                ]
+            ]
+        )
+        results = [
+            InlineQueryResultArticle(
+                id=uuid4(),
+                title="你还没有保存任何名言",
+                input_message_content=InputTextMessageContent("我还没有任何名言,史官速来!"),
+                reply_markup=no_quote_inline_markup,
+            )
+        ]
+
+        await context.bot.answer_inline_query(
+            update.inline_query.id,
+            results=results,
+            cache_time=10,
+            switch_pm_text="名言管理",
+            switch_pm_parameter="start",
+            is_personal=True,
+        )
+    else:
+        results = []
+        for text_quote in text_quotes:
+            create_at_str = text_quote.created_at.strftime("%Y年%m月%d日%H时%M分%S秒")
+            message_texts = [
+                f"[{user_name}](tg://user?id={user_id})在{create_at_str}之时曾言道:\n\n{text_quote.content}",
+                f"{text_quote.content}\n\n——[{user_name}](tg://user?id={user_id})曾在{create_at_str}强调道",
+                f"{text_quote.content}\n\n——[{user_name}](tg://user?id={user_id})在{create_at_str}说",
+                f"{text_quote.content}\n\n[{user_name}](tg://user?id={user_id})\n{create_at_str}",
+            ]
+            results.append(
+                InlineQueryResultArticle(
+                    id=uuid4(),
+                    title=text_quote.content,
+                    input_message_content=InputTextMessageContent(
+                        message_text=random.choice(message_texts),
+                        parse_mode="Markdown",
+                    ),
+                    description=f"于{text_quote.created_at}记",
+                )
+            )
+        await context.bot.answer_inline_query(
+            update.inline_query.id,
+            results=results,
+            cache_time=10,
+            is_personal=True,
+            switch_pm_text="名言管理",
+            switch_pm_parameter="start",
+        )
 
 
 async def user_data_manage(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
-    img_bytes_len = len(context.bot_data.get(user_id, {}).get("img_bytes", []))
-    text_len = len(context.bot_data.get(user_id, {}).get("text", []))
+    img_bytes_len = len(
+        context.bot_data["quotes"].get(user_id, {}).get("img_bytes", [])
+    )
+    text_len = len(context.bot_data["quotes"].get(user_id, {}).get("text", []))
     quote_len = img_bytes_len + text_len
     user_data_manage_markup = InlineKeyboardMarkup(
         [[InlineKeyboardButton("❗清空", callback_data="clear_user_data")]]
     )
     statistics_data = f"""
 统计信息:
+
 你的ID: `{update.effective_user.id}`
 已保存的名言总数: `{quote_len}`
 图片数量: `{img_bytes_len}`
 文字数量: `{text_len}`"""
-    sent_message = await context.bot.send_message(
+    sent_message = await context.bot.edit_message_text(
         chat_id=update.effective_chat.id,
         text=statistics_data,
         reply_markup=user_data_manage_markup,
+        parse_mode="MarkdownV2",
+        message_id=update.callback_query.message.id,
     )
     logger.info(f"Bot: {sent_message.text}")
+
+
+async def clear_user_data(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+    if not context.bot_data["quotes"].get(user_id, {}):
+        sent_message = await context.bot.edit_message_text(
+            chat_id=update.effective_chat.id,
+            text="你还没有名言",
+            message_id=update.callback_query.message.id,
+        )
+        logger.info(f"Bot: {sent_message.text}")
+        return
+    context.bot_data["quotes"][user_id] = {}
+    await context.bot.edit_message_text(
+        chat_id=update.effective_chat.id,
+        message_id=update.callback_query.message.message_id,
+        text="已清空你的名言录",
+    )

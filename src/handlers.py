@@ -8,6 +8,7 @@ from telegram.ext import (
 
 from .callbacks import (
     chat_migration,
+    start,
     clear_chat_quote_ask,
     clear_chat_quote,
     clear_chat_quote_cancel,
@@ -15,10 +16,11 @@ from .callbacks import (
     quote,
     random_quote,
     set_quote_probability,
-    start,
     title,
     interact,
     inline_query_quote,
+    user_data_manage,
+    clear_user_data,
 )
 from .filters import start_filter, interact_filter
 
@@ -38,6 +40,12 @@ clear_chat_quote_cancel_handler = CallbackQueryHandler(
 )
 interact_handler = MessageHandler(filters=interact_filter, callback=interact)
 inline_query_handler = InlineQueryHandler(inline_query_quote)
+user_data_manage_handler = CallbackQueryHandler(
+    user_data_manage, pattern="user_data_manage"
+)
+clear_user_data_handler = CallbackQueryHandler(
+    clear_user_data, pattern="clear_user_data"
+)
 handlers = [
     start_handler,
     chat_migration_handler,
@@ -51,4 +59,6 @@ handlers = [
     interact_handler,
     random_quote_handler,
     inline_query_handler,
+    user_data_manage_handler,
+    clear_user_data_handler,
 ]

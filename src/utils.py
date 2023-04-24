@@ -1,8 +1,8 @@
 import io
 import random
 from pathlib import Path
-
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
+
 
 
 def random_unit(probability: float) -> bool:
