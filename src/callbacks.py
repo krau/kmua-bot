@@ -17,7 +17,7 @@ from telegram.ext import ContextTypes
 from .config.config import settings
 from .logger import logger
 from .model import ImgQuote, TextQuote
-from .utils import generate_quote_img, random_unit
+from .utils import generate_quote_img, message_recorder, random_unit
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -25,6 +25,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"[{update.effective_chat.title}]({update.effective_user.name})"
         + f" {update.effective_message.text}"
     )
+    await message_recorder(update, context)
     if update.effective_chat.type != "private":
         if update.effective_message.text == "/start":
             # 如果是群聊，且没有艾特，直接返回
@@ -90,6 +91,7 @@ async def title(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"[{update.effective_chat.title}]({update.effective_user.name})"
         + f" {update.effective_message.text}"
     )
+    await message_recorder(update, context)
     if update.effective_chat.type == "private":
         sent_message = await context.bot.send_message(
             chat_id=update.effective_chat.id, text="请在群聊中使用哦"
@@ -165,6 +167,7 @@ async def quote(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"[{update.effective_chat.title}]({update.effective_user.name})"
         + f" {update.effective_message.text}"
     )
+    await message_recorder(update, context)
     if not update.effective_message.reply_to_message:
         sent_message = await context.bot.send_message(
             chat_id=update.effective_chat.id,
@@ -255,6 +258,7 @@ async def set_quote_probability(update: Update, context: ContextTypes.DEFAULT_TY
         f"[{update.effective_chat.title}]({update.effective_user.name})"
         + f" {update.effective_message.text}"
     )
+    await message_recorder(update, context)
     if update.effective_chat.type != "private":
         admins = await context.bot.get_chat_administrators(
             chat_id=update.effective_chat.id
@@ -297,14 +301,14 @@ async def set_quote_probability(update: Update, context: ContextTypes.DEFAULT_TY
 
 
 async def random_quote(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    this_chat = update.effective_chat
+    this_user = update.effective_user
+    this_message = update.effective_message
     logger.info(
-        f"[{update.effective_chat.title}]({update.effective_user.name})"
-        + (
-            f" {update.effective_message.text}"
-            if update.effective_message.text
-            else "<非文本消息>"
-        )
+        f"[{this_chat.title}]({this_user.name})"
+        + (f" {this_message.text}" if this_message.text else "<非文本消息>")
     )
+    await message_recorder(update, context)
     if not random_unit(context.chat_data.get("quote_probability", 0.1)):
         return
     if not context.chat_data.get("quote_messages", None):
@@ -340,6 +344,7 @@ async def del_quote(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"[{update.effective_chat.title}]({update.effective_user.name})"
         + f" {update.effective_message.text}"
     )
+    await message_recorder(update, context)
     if not context.chat_data.get("quote_messages", None):
         sent_message = await context.bot.send_message(
             chat_id=update.effective_chat.id, text="该聊天没有典呢"
@@ -387,6 +392,7 @@ async def clear_chat_quote_ask(update: Update, context: ContextTypes.DEFAULT_TYP
         f"[{update.effective_chat.title}]({update.effective_user.name})"
         + f" {update.effective_message.text}"
     )
+    await message_recorder(update, context)
     if not context.chat_data.get("quote_messages", None):
         sent_message = await context.bot.send_message(
             chat_id=update.effective_chat.id, text="该聊天没有典呢"
@@ -442,6 +448,11 @@ async def clear_chat_quote_cancel(update: Update, context: ContextTypes.DEFAULT_
 
 
 async def interact(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    logger.info(
+        f"[{update.effective_chat.title}]({update.effective_user.name})"
+        + f" {update.effective_message.text}"
+    )
+    await message_recorder(update, context)
     if reply_to_message := update.effective_message.reply_to_message:
         this_user = update.effective_user
         replied_user = reply_to_message.from_user
@@ -624,19 +635,42 @@ async def inline_query_quote(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
 async def user_data_manage(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
-    img_len = len(context.bot_data["quotes"].get(user_id, {}).get("img", []))
-    text_len = len(context.bot_data["quotes"].get(user_id, {}).get("text", []))
-    quote_len = img_len + text_len
+    img_quote_len = len(context.bot_data["quotes"].get(user_id, {}).get("img", []))
+    text_quote_len = len(context.bot_data["quotes"].get(user_id, {}).get("text", []))
+    quote_len = img_quote_len + text_quote_len
+    pm_kmua_num = context.user_data.get("pm_kmua_num", 0) + 1
+    context.user_data["pm_kmua_num"] = pm_kmua_num
+    group_msg_num = context.user_data.get("group_msg_num", 0)
+    text_num = context.user_data.get("text_num", 0)
+    photo_num = context.user_data.get("photo_num", 0)
+    sticker_num = context.user_data.get("sticker_num", 0)
+    voice_num = context.user_data.get("voice_num", 0)
+    video_num = context.user_data.get("video_num", 0)
+    document_num = context.user_data.get("document_num", 0)
     user_data_manage_markup = InlineKeyboardMarkup(
         [[InlineKeyboardButton("❗清空", callback_data="clear_user_data")]]
     )
     statistics_data = f"""
-统计信息:
+你的统计信息:
 
 你的ID: `{update.effective_user.id}`
-已保存的名言总数: `{quote_len}`
-图片数量: `{img_len}`
-文字数量: `{text_len}`"""
+已保存的名言总数: *{quote_len}*
+图片名言数量: *{img_quote_len}*
+文字名言数量: *{text_quote_len}*
+私聊Kmua次数: *{pm_kmua_num}*
+水群消息数: *{group_msg_num}*
+总文字消息数: *{text_num}*
+总图片消息数: *{photo_num}*
+总贴纸消息数: *{sticker_num}*
+总语音消息数: *{voice_num}*
+总视频消息数: *{video_num}*
+总文件消息数: *{document_num}*
+
+点击下方清空按钮将立即删除以下数据:
+1 已保存的名言总数
+2 图片名言数量
+3 文字名言数量
+"""
     sent_message = await context.bot.edit_message_text(
         chat_id=update.effective_chat.id,
         text=statistics_data,
@@ -663,3 +697,45 @@ async def clear_user_data(update: Update, context: ContextTypes.DEFAULT_TYPE):
         message_id=update.callback_query.message.message_id,
         text="已清空你的名言录",
     )
+
+
+async def help(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    help_text = """
+命令:
+/help - 显示此帮助信息
+/start - 开始使用
+/q - 载入史册
+/d - 移出史册
+/c - 清空史册
+/t - 获取头衔|互赠头衔
+/setqp - 设置发典概率
+
+私聊:
+可查询自己的统计信息
+可删除自己的名言
+
+互动:
+对其他人使用 "/"命令 即可对其施法
+例子:
+A使用"/透"回复B的消息
+Bot: "A透了B!"
+使用反斜杠可主客互换
+
+Inline 模式:
+在任意聊天框艾特我即可使用,
+支持搜索名言, 例如: @kmuav2bot 原神
+"""
+    help_markup = InlineKeyboardMarkup(
+        [
+            [
+                InlineKeyboardButton("详细帮助", url="https://t.me/acherkrau"),
+                InlineKeyboardButton("源码", url="https://github.com/krau/kmua-bot"),
+            ]
+        ]
+    )
+    sent_message = await context.bot.send_message(
+        chat_id=update.effective_chat.id,
+        text=help_text,
+        reply_markup=help_markup,
+    )
+    logger.info(f"Bot: {sent_message.text}")

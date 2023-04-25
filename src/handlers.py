@@ -22,8 +22,9 @@ from .callbacks import (
     start,
     title,
     user_data_manage,
+    help,
 )
-from .filters import interact_filter, start_filter
+from .filters import interact_filter, start_filter, help_filter
 from .logger import logger
 
 start_handler = CommandHandler("start", start, filters=start_filter)
@@ -31,9 +32,9 @@ chat_migration_handler = MessageHandler(filters.StatusUpdate.MIGRATE, chat_migra
 title_handler = CommandHandler("t", title)
 quote_handler = CommandHandler("q", quote)
 set_quote_probability_handler = CommandHandler("setqp", set_quote_probability)
-random_quote_handler = MessageHandler(~filters.COMMAND, random_quote)
 del_quote_handler = CommandHandler("d", del_quote)
 clear_chat_quote_ask_handler = CommandHandler("c", clear_chat_quote_ask)
+help_handler = CommandHandler("help", help, filters=help_filter)
 clear_chat_quote_handler = CallbackQueryHandler(
     clear_chat_quote, pattern="clear_chat_quote"
 )
@@ -48,6 +49,7 @@ user_data_manage_handler = CallbackQueryHandler(
 clear_user_data_handler = CallbackQueryHandler(
     clear_user_data, pattern="clear_user_data"
 )
+random_quote_handler = MessageHandler(~filters.COMMAND, random_quote)
 handlers = [
     start_handler,
     chat_migration_handler,
@@ -56,6 +58,7 @@ handlers = [
     set_quote_probability_handler,
     del_quote_handler,
     clear_chat_quote_ask_handler,
+    help_handler,
     clear_chat_quote_handler,
     clear_chat_quote_cancel_handler,
     interact_handler,

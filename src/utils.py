@@ -4,6 +4,10 @@ from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
 from pilmoji import Pilmoji
+from telegram import (
+    Update,
+)
+from telegram.ext import ContextTypes
 
 
 def random_unit(probability: float) -> bool:
@@ -107,3 +111,35 @@ async def generate_quote_img(
     img.save(img_byte_arr, format="JPEG")
     img_byte_arr = img_byte_arr.getvalue()
     return img_byte_arr
+
+
+async def message_recorder(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    this_chat = update.effective_chat
+    this_user = update.effective_user
+    this_message = update.effective_message
+    context.user_data["msg_num"] = context.user_data.get("msg_num", 0) + 1
+    if this_chat.type == "private":
+        context.user_data["pm_kmua_num"] = context.user_data.get("pm_kmua_num", 0) + 1
+    else:
+        context.user_data["group_msg_num"] = (
+            context.user_data.get("group_msg_num", 0) + 1
+        )
+        if not context.chat_data.get("members_data", None):
+            context.chat_data["members_data"] = {}
+        if not context.chat_data["members_data"].get(this_user.id,None):
+            context.chat_data["members_data"][this_user.id] = {}
+        context.chat_data["members_data"][this_user.id]["msg_num"] = (
+            context.chat_data["members_data"][this_user.id].get("msg_num", 0) + 1
+        )
+    if this_message.text:
+        context.user_data["text_num"] = context.user_data.get("text_num", 0) + 1
+    if this_message.photo:
+        context.user_data["photo_num"] = context.user_data.get("photo_num", 0) + 1
+    if this_message.sticker:
+        context.user_data["sticker_num"] = context.user_data.get("sticker_num", 0) + 1
+    if this_message.voice:
+        context.user_data["voice_num"] = context.user_data.get("voice_num", 0) + 1
+    if this_message.video:
+        context.user_data["video_num"] = context.user_data.get("video_num", 0) + 1
+    if this_message.document:
+        context.user_data["document_num"] = context.user_data.get("document_num", 0) + 1

@@ -20,10 +20,11 @@ async def init_data(app: Application):
         [
             ("start", "一键猫叫"),
             ("t", "获取头衔"),
-            ("q", "加入史册"),
+            ("q", "载入史册"),
             ("d", "移出史册"),
             ("c", "清空史册"),
             ("setqp", "设置发典概率"),
+            ("help", "帮助"),
         ]
     )
     bot_user = await app.bot.get_me()

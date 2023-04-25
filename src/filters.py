@@ -29,5 +29,16 @@ class interactFilter(MessageFilter):
         return False
 
 
+class HelpFilter(UpdateFilter):
+    def filter(self, update: Update) -> bool | FilterDataDict | None:
+        if (
+            update.effective_chat.type != "private"
+            and update.effective_message.text == "/help"
+        ):
+            return False
+        return True
+
+
 start_filter = StartFilter()
 interact_filter = interactFilter()
+help_filter = HelpFilter()
