@@ -1,0 +1,14 @@
+site_name: Kmua-botV2
+site_author: Krau
+site_description: Kmua-botV2 官方文档
+repo_name: krau/kmua-bot
+repo_url: https://github.com/krau/kmua-bot
+copyright: CC BY-NC-SA 4.0
+theme:
+  name: material
+  language: zh
+  highlightjs: true
+
+nav:
+  - "index.md"
+  - "license.md"
