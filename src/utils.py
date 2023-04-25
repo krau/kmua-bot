@@ -1,8 +1,7 @@
 import io
-from operator import attrgetter
 import random
+from operator import attrgetter
 from pathlib import Path
-from .model import MemberData
 
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
 from pilmoji import Pilmoji
@@ -10,6 +9,8 @@ from telegram import (
     Update,
 )
 from telegram.ext import ContextTypes
+
+from .model import MemberData
 
 
 def random_unit(probability: float) -> bool:

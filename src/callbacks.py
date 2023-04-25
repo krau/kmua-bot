@@ -16,7 +16,7 @@ from telegram.ext import ContextTypes
 
 from .config.config import settings
 from .logger import logger
-from .model import ImgQuote, TextQuote, MemberData
+from .model import ImgQuote, MemberData, TextQuote
 from .utils import generate_quote_img, message_recorder, random_unit, sort_topn_bykey
 
 
