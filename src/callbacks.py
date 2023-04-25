@@ -554,10 +554,7 @@ async def inline_query_quote(update: Update, context: ContextTypes.DEFAULT_TYPE)
                         InlineQueryResultCachedPhoto(
                             id=str(uuid4()),
                             photo_file_id=img_quote.content,
-                            title=img_quote.text,
                             caption=f"[{user_name}](tg://user?id={user_id}), {create_at_str}",
-                            parse_mode="Markdown",
-                            description=f"图片, 记于{create_at_str}",
                         )
                     )
             if len(results) == 0:
