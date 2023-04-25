@@ -1,4 +1,4 @@
-# 功能详解
+# 详细帮助
 
 ## 功能一览
 
@@ -56,3 +56,40 @@ Kmua 会对自己收到的消息进行记录和统计, 每个群聊(Chat)和用�
 支持搜索
 
 ![InlineQueryWithQuery](./images/inlinequerywithquery.png)
+
+
+## 群内互动
+
+使用斜杠加文字 回复一条消息, 即可与所回复消息的发送者互动
+
+示例:
+
+![interact1](./images/interact1.png)
+
+![interact2](./images/interact2.png)
+
+使用反斜杠可以主客(攻受)互换:
+
+![interact3](./images/interact3.png)
+
+如果不回复消息, 则是对自己使用:
+
+![interact4](./images/interact4.png)
+
+![interact5](./images/interact5.png)
+
+## 获取与互赠群头衔
+
+为 Kmua 赋予足够的管理员权限, 群员可以使用 `/t` + 自定义内容 获取自定义头衔
+
+如不指定自定义内容, 则默认为用户的用户名
+
+可以互相赠予头衔, 使用 `/t` + 自定义内容 回复一条消息即可, Kmua 会将头衔赋予被回复者(如果已经有头衔, 则更改)
+
+互赠时, Kmua 发送的内容是 "{当前用户}把{被回复用户}变成了{自定义头衔}!"
+
+当然, 你可以自己回复自己
+
+## 更多
+
+开发中...
