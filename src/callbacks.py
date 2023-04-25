@@ -797,15 +797,15 @@ async def group_rank(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 共有 *{quote_num}* 条名言,
 
-水群排行榜:
-1 [{msg_top1.name}](tg://user?id={msg_top1.id}) *{msg_top1.msg_num}*)
-2 [{msg_top2.name}](tg://user?id={msg_top2.id}) *{msg_top2.msg_num}*)
-3 [{msg_top3.name}](tg://user?id={msg_top3.id}) *{msg_top3.msg_num}*)
+B话王排行榜:
+1 [{msg_top1.name}](tg://user?id={msg_top1.id}) : *{msg_top1.msg_num}* 条
+2 [{msg_top2.name}](tg://user?id={msg_top2.id}) : *{msg_top2.msg_num}* 条
+3 [{msg_top3.name}](tg://user?id={msg_top3.id}) : *{msg_top3.msg_num}* 条
 
 名言排行榜:
-1 [{quote_top1.name}](tg://user?id={quote_top1.id}) *{quote_top1.quote_num}*)
-2 [{quote_top2.name}](tg://user?id={quote_top2.id}) *{quote_top2.quote_num}*)
-3 [{quote_top3.name}](tg://user?id={quote_top3.id}) *{quote_top3.quote_num}*)
+1 [{quote_top1.name}](tg://user?id={quote_top1.id}) : *{quote_top1.quote_num}* 条
+2 [{quote_top2.name}](tg://user?id={quote_top2.id}) : *{quote_top2.quote_num}* 条
+3 [{quote_top3.name}](tg://user?id={quote_top3.id}) : *{quote_top3.quote_num}* 条
 """
 
     sent_message = await context.bot.send_message(
