@@ -747,7 +747,7 @@ Inline 模式:
     help_markup = InlineKeyboardMarkup(
         [
             [
-                InlineKeyboardButton("详细帮助", url="https://t.me/acherkrau"),
+                InlineKeyboardButton("详细帮助", url="https://krau.github.io/kmua-bot/"),
                 InlineKeyboardButton("源码", url="https://github.com/krau/kmua-bot"),
             ]
         ]
