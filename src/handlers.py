@@ -59,10 +59,10 @@ handlers = [
     clear_chat_quote_handler,
     clear_chat_quote_cancel_handler,
     interact_handler,
-    random_quote_handler,
     inline_query_handler,
     user_data_manage_handler,
     clear_user_data_handler,
+    random_quote_handler,
 ]
 
 

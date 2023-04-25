@@ -310,7 +310,7 @@ async def random_quote(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not context.chat_data.get("quote_messages", None):
         return
     try:
-        to_forward_message_id = (random.choice(context.chat_data["quote_messages"]),)
+        to_forward_message_id: int = random.choice(context.chat_data["quote_messages"])
         sent_message = await context.bot.forward_message(
             chat_id=update.effective_chat.id,
             from_chat_id=update.effective_chat.id,
