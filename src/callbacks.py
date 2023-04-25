@@ -175,6 +175,12 @@ async def quote(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     quote_message = update.effective_message.reply_to_message
     quote_user = quote_message.from_user
+    is_save_data = True
+    forward_from_user = quote_message.forward_from
+    if forward_from_user:
+        quote_user = forward_from_user
+    if quote_message.forward_sender_name and forward_from_user is None:
+        is_save_data = False
     await context.bot.pin_chat_message(
         chat_id=update.effective_chat.id, message_id=quote_message.id
     )
@@ -193,14 +199,17 @@ async def quote(update: Update, context: ContextTypes.DEFAULT_TYPE):
             reply_to_message_id=quote_message.id,
         )
     if not quote_message.text:
-        # 如果不是文字消息, 直接
+        # 如果不是文字消息, 在此处return
         return
-    # 是文字消息, 则保存数据
+    # 是文字消息
+    if not is_save_data:
+        return
     if not context.bot_data["quotes"].get(quote_user.id, None):
         context.bot_data["quotes"][quote_user.id] = {}
         context.bot_data["quotes"][quote_user.id]["img"] = []
         context.bot_data["quotes"][quote_user.id]["text"] = []
     for saved_quote_text_obj in context.bot_data["quotes"][quote_user.id]["text"]:
+        saved_quote_text_obj: TextQuote
         if saved_quote_text_obj.content == quote_message.text:
             # 如果已经存在相同的文字, 直接
             return
@@ -216,6 +225,7 @@ async def quote(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not avatar_photo:
         # 如果没有头像, 或因为权限设置无法获取到头像, 直接
         return
+    # 尝试生成图片
     try:
         avatar = await (await avatar_photo.get_big_file()).download_as_bytearray()
         quote_img = await generate_quote_img(
