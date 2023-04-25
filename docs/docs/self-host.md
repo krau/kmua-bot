@@ -23,3 +23,10 @@ services:
       - KMUA_PICKLE_PATH="./data/data.pickle" # 数据文件保存路径, 如需更改, 则也要更改上面的挂载路径
       - KMUA_LOG_LEVEL="INFO" # 日志等级
 ```
+
+## 源码运行
+
+1. `git clone https://github.com/krau/kmua-bot`
+2. pip install -r requirements.txt
+3. edit settings.toml
+4. python bot.py
