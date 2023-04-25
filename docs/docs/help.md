@@ -27,11 +27,11 @@ Kmua 会对自己收到的消息进行记录和统计, 每个群聊(Chat)和用�
 
 在群内发送 /rank 可获取当前的统计信息
 
-![群组统计](../docs/images/grouprank.png)
+![群组统计](./images/grouprank.png)
 
 私聊 Kmua 可获取自己的数据统计信息
 
-![个人统计](../docs/images/userrank.png)
+![个人统计](./images/userrank.png)
 
 ## Quote
 
@@ -39,7 +39,7 @@ Kmua 会对自己收到的消息进行记录和统计, 每个群聊(Chat)和用�
 
 如果这条消息属于文字消息, Kmua 将会生成一张图片, 示例如下(右下角是用户名,此处被码掉了)
 
-![quote图片示例](../docs/images/quoteexp.png)
+![quote图片示例](./images/quoteexp.png)
 
 当收到新消息时, Kmua 有概率从列表中随机选择一条被记录的消息, 并转发
 
