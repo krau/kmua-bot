@@ -39,6 +39,14 @@ class HelpFilter(UpdateFilter):
         return True
 
 
+class GroupRankFilter(UpdateFilter):
+    def filter(self, update: Update) -> bool | FilterDataDict | None:
+        if update.effective_chat.type != "private":
+            return True
+        return False
+
+
 start_filter = StartFilter()
 interact_filter = interactFilter()
 help_filter = HelpFilter()
+group_rank_filter = GroupRankFilter()

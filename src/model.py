@@ -45,3 +45,11 @@ class TextQuote:
 
     def to_dict(self):
         return {"id": self.id, "content": self.content, "created_at": self.created_at}
+
+
+class MemberData:
+    def __init__(self, name: str, msg_num: int, id: int, quote_num: int) -> None:
+        self.name = name
+        self.msg_num = msg_num
+        self.id = id
+        self.quote_num = quote_num

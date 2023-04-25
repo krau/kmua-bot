@@ -16,8 +16,8 @@ from telegram.ext import ContextTypes
 
 from .config.config import settings
 from .logger import logger
-from .model import ImgQuote, TextQuote
-from .utils import generate_quote_img, message_recorder, random_unit
+from .model import ImgQuote, TextQuote, MemberData
+from .utils import generate_quote_img, message_recorder, random_unit, sort_topn_bykey
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -182,6 +182,16 @@ async def quote(update: Update, context: ContextTypes.DEFAULT_TYPE):
     forward_from_user = quote_message.forward_from
     if forward_from_user:
         quote_user = forward_from_user
+    if not (forward_from_user and quote_message.forward_sender_name):
+        if not context.chat_data["members_data"].get(quote_user.id, None):
+            member_data_obj = MemberData(
+                id=quote_user.id,
+                name=quote_user.full_name,
+                msg_num=0,
+                quote_num=0,
+            )
+            context.chat_data["members_data"][quote_user.id] = member_data_obj
+        context.chat_data["members_data"][quote_user.id].quote_num += 1
     if quote_message.forward_sender_name and forward_from_user is None:
         is_save_data = False
     await context.bot.pin_chat_message(
@@ -700,6 +710,11 @@ async def clear_user_data(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def help(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    logger.info(
+        f"[{update.effective_chat.title}]({update.effective_user.name})"
+        + f" {update.effective_message.text}"
+    )
+    await message_recorder(update, context)
     help_text = """
 命令:
 /help - 显示此帮助信息
@@ -709,6 +724,7 @@ async def help(update: Update, context: ContextTypes.DEFAULT_TYPE):
 /c - 清空史册
 /t - 获取头衔|互赠头衔
 /setqp - 设置发典概率
+/rank - 群统计信息
 
 私聊:
 可查询自己的统计信息
@@ -737,5 +753,61 @@ Inline 模式:
         chat_id=update.effective_chat.id,
         text=help_text,
         reply_markup=help_markup,
+    )
+    logger.info(f"Bot: {sent_message.text}")
+
+
+async def group_rank(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    logger.info(
+        f"[{update.effective_chat.title}]({update.effective_user.name})"
+        + f" {update.effective_message.text}"
+    )
+    await message_recorder(update, context)
+    msg_num = context.chat_data["msg_num"]
+    members_data = context.chat_data.get("members_data", {})
+    if len(members_data) < 3:
+        sent_message = await context.bot.send_message(
+            chat_id=update.effective_chat.id,
+            text="数据不足,请多水水群吧~",
+            reply_to_message_id=update.effective_message.message_id,
+        )
+        logger.info(f"Bot: {sent_message.text}")
+        return
+    msg_num_top: list[MemberData] = sort_topn_bykey(
+        members_data, min(3, len(members_data)), "msg_num"
+    )
+    quote_num_top: list[MemberData] = sort_topn_bykey(
+        members_data, min(3, len(members_data)), "quote_num"
+    )
+    quote_num = len(context.chat_data.get("quote_messages", {}))
+
+    msg_top1 = msg_num_top[0]
+    msg_top2 = msg_num_top[1]
+    msg_top3 = msg_num_top[2]
+    quote_top1 = quote_num_top[0]
+    quote_top2 = quote_num_top[1]
+    quote_top3 = quote_num_top[2]
+    text = f"""
+截止到 {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}:
+
+本群共水了 *{msg_num}* 条消息,
+
+共有 *{quote_num}* 条名言,
+
+水群排行榜:
+1 [{msg_top1.name}](tg://user?id={msg_top1.id}) *{msg_top1.msg_num}*)
+2 [{msg_top2.name}](tg://user?id={msg_top2.id}) *{msg_top2.msg_num}*)
+3 [{msg_top3.name}](tg://user?id={msg_top3.id}) *{msg_top3.msg_num}*)
+
+名言排行榜:
+1 [{quote_top1.name}](tg://user?id={quote_top1.id}) *{quote_top1.quote_num}*)
+2 [{quote_top2.name}](tg://user?id={quote_top2.id}) *{quote_top2.quote_num}*)
+3 [{quote_top3.name}](tg://user?id={quote_top3.id}) *{quote_top3.quote_num}*)
+"""
+
+    sent_message = await context.bot.send_message(
+        chat_id=update.effective_chat.id,
+        text=text,
+        parse_mode="Markdown",
     )
     logger.info(f"Bot: {sent_message.text}")

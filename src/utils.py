@@ -1,6 +1,8 @@
 import io
+from operator import attrgetter
 import random
 from pathlib import Path
+from .model import MemberData
 
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
 from pilmoji import Pilmoji
@@ -124,13 +126,18 @@ async def message_recorder(update: Update, context: ContextTypes.DEFAULT_TYPE):
         context.user_data["group_msg_num"] = (
             context.user_data.get("group_msg_num", 0) + 1
         )
+        context.chat_data["msg_num"] = context.chat_data.get("msg_num", 0) + 1
         if not context.chat_data.get("members_data", None):
             context.chat_data["members_data"] = {}
-        if not context.chat_data["members_data"].get(this_user.id,None):
-            context.chat_data["members_data"][this_user.id] = {}
-        context.chat_data["members_data"][this_user.id]["msg_num"] = (
-            context.chat_data["members_data"][this_user.id].get("msg_num", 0) + 1
-        )
+        if not context.chat_data["members_data"].get(this_user.id, None):
+            member_data_obj = MemberData(
+                name=this_user.full_name,
+                id=this_user.id,
+                msg_num=0,
+                quote_num=0,
+            )
+            context.chat_data["members_data"][this_user.id] = member_data_obj
+        context.chat_data["members_data"][this_user.id].msg_num += 1
     if this_message.text:
         context.user_data["text_num"] = context.user_data.get("text_num", 0) + 1
     if this_message.photo:
@@ -143,3 +150,7 @@ async def message_recorder(update: Update, context: ContextTypes.DEFAULT_TYPE):
         context.user_data["video_num"] = context.user_data.get("video_num", 0) + 1
     if this_message.document:
         context.user_data["document_num"] = context.user_data.get("document_num", 0) + 1
+
+
+def sort_topn_bykey(data: dict, n: int, key: str) -> list:
+    return sorted(data.values(), key=attrgetter(key), reverse=True)[:n]
