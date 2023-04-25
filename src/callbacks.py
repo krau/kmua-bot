@@ -182,7 +182,10 @@ async def quote(update: Update, context: ContextTypes.DEFAULT_TYPE):
     forward_from_user = quote_message.forward_from
     if forward_from_user:
         quote_user = forward_from_user
-    if not (forward_from_user and quote_message.forward_sender_name):
+    if (
+        not (forward_from_user and quote_message.forward_sender_name)
+        and update.effective_chat.type != "private"
+    ):
         if not context.chat_data["members_data"].get(quote_user.id, None):
             member_data_obj = MemberData(
                 id=quote_user.id,
