@@ -10,5 +10,7 @@ theme:
   highlightjs: true
 
 nav:
-  - "index.md"
-  - "license.md"
+  - index.md
+  - help.md
+  - self-host.md
+  - license.md
