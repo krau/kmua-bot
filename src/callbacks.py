@@ -46,6 +46,14 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             [InlineKeyboardButton("你的数据", callback_data="user_data_manage")],
         ]
     )
+    if update.callback_query:
+        await context.bot.edit_message_text(
+            chat_id=update.effective_chat.id,
+            message_id=update.callback_query.message.id,
+            text="喵喵喵?",
+            reply_markup=start_bot_markup,
+        )
+        return
     await context.bot.send_message(
         chat_id=update.effective_chat.id,
         text="喵喵喵?",
@@ -642,7 +650,12 @@ async def user_data_manage(update: Update, context: ContextTypes.DEFAULT_TYPE):
     video_num = context.user_data.get("video_num", 0)
     document_num = context.user_data.get("document_num", 0)
     user_data_manage_markup = InlineKeyboardMarkup(
-        [[InlineKeyboardButton("❗清空", callback_data="clear_user_data")]]
+        [
+            [
+                InlineKeyboardButton("返回", callback_data="back_home"),
+                InlineKeyboardButton("❗清空", callback_data="clear_user_data"),
+            ]
+        ]
     )
     statistics_data = f"""
 你的统计信息:
