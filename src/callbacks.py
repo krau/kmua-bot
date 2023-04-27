@@ -466,70 +466,48 @@ async def interact(update: Update, context: ContextTypes.DEFAULT_TYPE):
         + f" {update.effective_message.text}"
     )
     await message_recorder(update, context)
+    text = ""
+    cmd = ""
+    message_text = update.effective_message.text
     if reply_to_message := update.effective_message.reply_to_message:
+        # 如果是对其他人使用
         this_user = update.effective_user
         replied_user = reply_to_message.from_user
         this_name = this_user.full_name
         replied_name = replied_user.full_name
         this_id = this_user.id
         replied_id = replied_user.id
-        if len(update.effective_message.text.split(" ")) == 1:
-            if update.effective_message.text.startswith("/"):
-                cmd = update.effective_message.text[1:]
-                sent_message = await context.bot.send_message(
-                    chat_id=update.effective_chat.id,
-                    text=f"[{this_name}](tg://user?id={this_id}){cmd}了[{replied_name}](tg://user?id={replied_id})!",
-                    parse_mode="Markdown",
-                )
-                logger.info(f"Bot: {sent_message.text}")
-            elif update.effective_message.text.startswith("\\"):
-                cmd = update.effective_message.text[1:]
-                sent_message = await context.bot.send_message(
-                    chat_id=update.effective_chat.id,
-                    text=f"[{this_name}](tg://user?id={this_id})被[{replied_name}](tg://user?id={replied_id}){cmd}了!",
-                    parse_mode="Markdown",
-                )
-                logger.info(f"Bot: {sent_message.text}")
+        if len(message_text.split(" ")) == 1:
+            if message_text.startswith("/"):
+                cmd = message_text[1:].replace("/", "")
+                text = f"[{this_name}](tg://user?id={this_id}){cmd}了[{replied_name}](tg://user?id={replied_id})!"  # noqa: E501
+
+            elif message_text.startswith("\\"):
+                cmd = message_text[1:]
+                text = f"[{this_name}](tg://user?id={this_id})被[{replied_name}](tg://user?id={replied_id}){cmd}了!"  # noqa: E501
         else:
-            if update.effective_message.text.startswith("/"):
-                cmd_front = update.effective_message.text.split(" ")[0].replace("/", "")
-                cmd_back = update.effective_message.text.split(" ")[1:]
+            if message_text.startswith("/"):
+                cmd_front = message_text.split(" ")[0].replace("/", "")
+                cmd_back = message_text.split(" ")[1:]
+                cmd_back = " ".join(cmd_back).replace("/", "")
+                text = f"[{this_name}](tg://user?id={this_id}){cmd_front}[{replied_name}](tg://user?id={replied_id}){cmd_back}!"  # noqa: E501
+            elif message_text.startswith("\\"):
+                cmd_front = message_text.split(" ")[0].replace("\\", "")
+                cmd_back = message_text.split(" ")[1:]
                 cmd_back = " ".join(cmd_back)
-                sent_message = await context.bot.send_message(
-                    chat_id=update.effective_chat.id,
-                    text=f"[{this_name}](tg://user?id={this_id}){cmd_front}[{replied_name}](tg://user?id={replied_id}){cmd_back}!",
-                    parse_mode="Markdown",
-                )
-                logger.info(f"Bot: {sent_message.text}")
-            elif update.effective_message.text.startswith("\\"):
-                cmd_front = update.effective_message.text.split(" ")[0].replace(
-                    "\\", ""
-                )
-                cmd_back = update.effective_message.text.split(" ")[1:]
-                cmd_back = " ".join(cmd_back)
-                sent_message = await context.bot.send_message(
-                    chat_id=update.effective_chat.id,
-                    text=f"[{replied_name}](tg://user?id={replied_id}){cmd_front}[{this_name}](tg://user?id={this_id}){cmd_back}!",
-                    parse_mode="Markdown",
-                )
-                logger.info(f"Bot: {sent_message.text}")
+                text = f"[{replied_name}](tg://user?id={replied_id}){cmd_front}[{this_name}](tg://user?id={this_id}){cmd_back}!"  # noqa: E501
     else:
-        if update.effective_message.text.startswith("/"):
-            cmd = update.effective_message.text[1:]
-            sent_message = await context.bot.send_message(
-                chat_id=update.effective_chat.id,
-                text=f"[{update.effective_user.full_name}](tg://user?id={update.effective_user.id}){cmd}了自己!",
-                parse_mode="Markdown",
-            )
-            logger.info(f"Bot: {sent_message.text}")
-        elif update.effective_message.text.startswith("\\"):
-            cmd = update.effective_message.text[1:]
-            sent_message = await context.bot.send_message(
-                chat_id=update.effective_chat.id,
-                text=f"[{update.effective_user.full_name}](tg://user?id={update.effective_user.id})被自己{cmd}了!",
-                parse_mode="Markdown",
-            )
-            logger.info(f"Bot: {sent_message.text}")
+        # 如果是对自己使用
+        if message_text.startswith("/"):
+            cmd = message_text[1:].replace("/", "")
+            text = f"[{update.effective_user.full_name}](tg://user?id={update.effective_user.id}){cmd}了自己!"  # noqa: E501
+        elif message_text.startswith("\\"):
+            cmd = message_text[1:]
+            text = f"[{update.effective_user.full_name}](tg://user?id={update.effective_user.id})被自己{cmd}了!"  # noqa: E501
+    sent_message = await context.bot.send_message(
+        chat_id=update.effective_chat.id, text=text, parse_mode="Markdown"
+    )
+    logger.info(f"Bot: {sent_message.text}")
 
 
 async def inline_query_quote(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -588,7 +566,7 @@ async def inline_query_quote(update: Update, context: ContextTypes.DEFAULT_TYPE)
                         InlineQueryResultCachedPhoto(
                             id=str(uuid4()),
                             photo_file_id=img_quote.content,
-                            caption=f"[{user_name}](tg://user?id={user_id}), {create_at_str}",
+                            caption=f"[{user_name}](tg://user?id={user_id}), {create_at_str}",  # noqa: E501
                         )
                     )
             if len(results) == 0:
@@ -631,7 +609,7 @@ async def inline_query_quote(update: Update, context: ContextTypes.DEFAULT_TYPE)
                         id=str(uuid4()),
                         photo_file_id=img_quote.content,
                         title=img_quote.text,
-                        caption=f"[{user_name}](tg://user?id={user_id}), {create_at_str}",
+                        caption=f"[{user_name}](tg://user?id={user_id}), {create_at_str}",  # noqa: E501
                         parse_mode="Markdown",
                         description=f"图片, 记于{create_at_str}",
                     )
