@@ -12,6 +12,7 @@ logger.add(
     enqueue=True,
     encoding="utf-8",
     level="TRACE",
+    retention="30 days",
 )
 
 logger.add(sys.stderr, level=settings.log_level if settings.log_level else "INFO")
