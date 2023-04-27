@@ -23,7 +23,7 @@ async def init_data(app: Application):
             ("q", "载入史册"),
             ("d", "移出史册"),
             ("c", "清空史册"),
-            ("setqp", "设置发典概率"),
+            ("setqp", "设置发名言概率"),
             ("help", "帮助"),
             ("rank", "群统计"),
         ]

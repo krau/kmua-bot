@@ -40,6 +40,9 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 ),
                 InlineKeyboardButton("开源主页", url="https://github.com/krau/kmua-bot"),
             ],
+            [
+                InlineKeyboardButton("详细帮助", url="https://krau.github.io/kmua-bot/"),
+            ],
             [InlineKeyboardButton("你的数据", callback_data="user_data_manage")],
         ]
     )
@@ -211,7 +214,7 @@ async def quote(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         await context.bot.send_message(
             chat_id=update.effective_chat.id,
-            text="已入典",
+            text="已记录下名言",
             reply_to_message_id=quote_message.id,
         )
     if not quote_message.text:
@@ -308,7 +311,7 @@ async def set_quote_probability(update: Update, context: ContextTypes.DEFAULT_TY
     context.chat_data["quote_probability"] = probability
     sent_message = await context.bot.send_message(
         chat_id=update.effective_chat.id,
-        text=f"将本聊天的发典设置概率为{probability}啦",
+        text=f"将本聊天的名言提醒设置概率为{probability}啦",
     )
     logger.info(f"Bot: {sent_message.text}")
 
@@ -341,7 +344,7 @@ async def random_quote(update: Update, context: ContextTypes.DEFAULT_TYPE):
         context.chat_data["quote_messages"].remove(to_forward_message_id)
         sent_message = await context.bot.send_message(
             chat_id=update.effective_chat.id,
-            text=f"有一条典突然消失了!\nid: _{to_forward_message_id}_\n已从chat quote中移除",
+            text=f"有一条名言突然消失了!\nid: _{to_forward_message_id}_\n已从语录中移除",
             parse_mode="MarkdownV2",
         )
         logger.info(f"Bot: {sent_message.text}")
@@ -360,13 +363,13 @@ async def del_quote(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await message_recorder(update, context)
     if not context.chat_data.get("quote_messages", None):
         sent_message = await context.bot.send_message(
-            chat_id=update.effective_chat.id, text="该聊天没有典呢"
+            chat_id=update.effective_chat.id, text="该聊天没有名言呢"
         )
         logger.info(f"Bot: {sent_message.text}")
         return
     if not update.effective_message.reply_to_message:
         sent_message = await context.bot.send_message(
-            chat_id=update.effective_chat.id, text="请回复要移出典的消息"
+            chat_id=update.effective_chat.id, text="请回复要移出语录的消息"
         )
         logger.info(f"Bot: {sent_message.text}")
         return
@@ -387,14 +390,14 @@ async def del_quote(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         sent_message = await context.bot.send_message(
             chat_id=update.effective_chat.id,
-            text="已移出典",
+            text="已移出语录",
             reply_to_message_id=quote_message.id,
         )
         logger.info(f"Bot: {sent_message.text}")
     else:
         sent_message = await context.bot.send_message(
             chat_id=update.effective_chat.id,
-            text="该消息不在典中;请对原始的典消息使用",
+            text="该消息不在语录中;请对原始的名言消息使用",
             reply_to_message_id=quote_message.id,
         )
         logger.info(f"Bot: {sent_message.text}")
@@ -408,7 +411,7 @@ async def clear_chat_quote_ask(update: Update, context: ContextTypes.DEFAULT_TYP
     await message_recorder(update, context)
     if not context.chat_data.get("quote_messages", None):
         sent_message = await context.bot.send_message(
-            chat_id=update.effective_chat.id, text="该聊天没有典呢"
+            chat_id=update.effective_chat.id, text="该聊天没有名言呢"
         )
         logger.info(f"Bot: {sent_message.text}")
         return
@@ -422,7 +425,7 @@ async def clear_chat_quote_ask(update: Update, context: ContextTypes.DEFAULT_TYP
     )
     sent_message = await context.bot.send_message(
         chat_id=update.effective_chat.id,
-        text="真的要清空该聊天的典吗?\n\n用户个人数据不会被此操作清除",
+        text="真的要清空该聊天的语录吗?\n\n用户个人数据不会被此操作清除",
         reply_markup=clear_chat_quote_markup,
     )
     logger.info(f"Bot: {sent_message.text}")
@@ -449,7 +452,7 @@ async def clear_chat_quote(update: Update, context: ContextTypes.DEFAULT_TYPE):
             continue
     context.chat_data["quote_messages"] = []
     sent_message = await context.bot.send_message(
-        chat_id=update.effective_chat.id, text="已清空该聊天的典"
+        chat_id=update.effective_chat.id, text="已清空该聊天的语录"
     )
     logger.info(f"Bot: {sent_message.text}")
 
@@ -575,7 +578,7 @@ async def inline_query_quote(update: Update, context: ContextTypes.DEFAULT_TYPE)
                         id=str(uuid4()),
                         title="没有找到相关名言",
                         input_message_content=InputTextMessageContent(
-                            message_text=f"我没有说过含有 _{query}_ 的名言!",
+                            message_text=f"我没有说过含有 *{query}* 的名言!",
                             parse_mode="Markdown",
                         ),
                         reply_markup=no_quote_inline_markup,
@@ -686,7 +689,7 @@ async def clear_user_data(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await context.bot.edit_message_text(
         chat_id=update.effective_chat.id,
         message_id=update.callback_query.message.message_id,
-        text="已清空你的名言录",
+        text="已清空你的语录",
     )
 
 
@@ -704,7 +707,7 @@ async def help(update: Update, context: ContextTypes.DEFAULT_TYPE):
 /d - 移出史册
 /c - 清空史册
 /t - 获取头衔|互赠头衔
-/setqp - 设置发典概率
+/setqp - 设置发名言概率
 /rank - 群统计信息
 
 私聊:
@@ -775,12 +778,12 @@ async def group_rank(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 共有 *{quote_num}* 条名言,
 
-B话王排行榜:
+水群榜:
 1 [{msg_top1.name}](tg://user?id={msg_top1.id}) : *{msg_top1.msg_num}* 条
 2 [{msg_top2.name}](tg://user?id={msg_top2.id}) : *{msg_top2.msg_num}* 条
 3 [{msg_top3.name}](tg://user?id={msg_top3.id}) : *{msg_top3.msg_num}* 条
 
-名言排行榜:
+名言榜:
 1 [{quote_top1.name}](tg://user?id={quote_top1.id}) : *{quote_top1.quote_num}* 条
 2 [{quote_top2.name}](tg://user?id={quote_top2.id}) : *{quote_top2.quote_num}* 条
 3 [{quote_top3.name}](tg://user?id={quote_top3.id}) : *{quote_top3.quote_num}* 条
