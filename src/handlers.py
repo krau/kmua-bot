@@ -25,7 +25,7 @@ from .callbacks import (
     title,
     user_data_manage,
 )
-from .filters import group_rank_filter, help_filter, interact_filter, start_filter
+from .filters import help_filter, interact_filter, start_filter
 from .logger import logger
 
 start_handler = CommandHandler("start", start, filters=start_filter)
@@ -36,7 +36,7 @@ set_quote_probability_handler = CommandHandler("setqp", set_quote_probability)
 del_quote_handler = CommandHandler("d", del_quote)
 clear_chat_quote_ask_handler = CommandHandler("c", clear_chat_quote_ask)
 help_handler = CommandHandler("help", help, filters=help_filter)
-group_rank_handler = CommandHandler("rank", group_rank, filters=group_rank_filter)
+group_rank_handler = CommandHandler("rank", group_rank)
 clear_chat_quote_handler = CallbackQueryHandler(
     clear_chat_quote, pattern="clear_chat_quote"
 )

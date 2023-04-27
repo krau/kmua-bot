@@ -747,6 +747,13 @@ async def group_rank(update: Update, context: ContextTypes.DEFAULT_TYPE):
         + f" {update.effective_message.text}"
     )
     await message_recorder(update, context)
+    if update.effective_chat.type == "private":
+        sent_message = await context.bot.send_message(
+            chat_id=update.effective_chat.id,
+            text="请在群组中使用哦",
+        )
+        logger.info(f"Bot: {sent_message.text}")
+        return
     msg_num = context.chat_data["msg_num"]
     members_data = context.chat_data.get("members_data", {})
     if len(members_data) < 3:
