@@ -59,12 +59,12 @@ async def quote(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await context.bot.pin_chat_message(
             chat_id=update.effective_chat.id, message_id=quote_message.id
         )
+        logger.debug(f"Bot将 {quote_message.text} 置顶")
     except BadRequest as e:
         if e.message == "Not enough rights to manage pinned messages in the chat":
             pass
         else:
             raise e
-    logger.debug(f"Bot将 {quote_message.text} 置顶")
     if not context.chat_data.get("quote_messages", None):
         context.chat_data["quote_messages"] = []
     if quote_message.id not in context.chat_data["quote_messages"]:
