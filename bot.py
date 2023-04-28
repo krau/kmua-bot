@@ -21,6 +21,7 @@ async def init_data(app: Application):
             ("start", "一键猫叫"),
             ("t", "获取头衔"),
             ("q", "载入史册"),
+            ("qrand", "随机名言"),
             ("d", "移出史册"),
             ("c", "清空史册"),
             ("setqp", "设置发名言概率"),
