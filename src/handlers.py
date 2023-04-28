@@ -79,4 +79,6 @@ handlers = [
 
 
 async def on_error(update: object | None, context: CallbackContext):
-    logger.error(f"在该更新发生错误\n{update}\n错误信息\n{context.error}")
+    logger.error(
+        f"在该更新发生错误\n{update}\n错误信息\n{context.error.__class__.__name__}:{context.error}"
+    )
