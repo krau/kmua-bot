@@ -7,24 +7,23 @@ from telegram.ext import (
     filters,
 )
 
-from .callbacks import (
-    chat_migration,
+from .callbacks.help import help
+from .callbacks.interact import interact
+from .callbacks.others import chat_migration
+from .callbacks.quote import (
     clear_chat_quote,
     clear_chat_quote_ask,
     clear_chat_quote_cancel,
-    clear_user_data,
     del_quote,
-    group_rank,
-    help,
     inline_query_quote,
-    interact,
     quote,
     random_quote,
     set_quote_probability,
-    start,
-    title,
-    user_data_manage,
 )
+from .callbacks.rank import group_rank
+from .callbacks.start import start
+from .callbacks.title import title
+from .callbacks.userdata import clear_user_data, user_data_manage
 from .filters import help_filter, interact_filter, start_filter
 from .logger import logger
 
