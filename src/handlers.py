@@ -39,6 +39,7 @@ del_quote_handler = CommandHandler("d", del_quote)
 clear_chat_quote_ask_handler = CommandHandler("c", clear_chat_quote_ask)
 help_handler = CommandHandler("help", help, filters=help_filter)
 group_rank_handler = CommandHandler("rank", group_rank)
+qrand_handler = CommandHandler("qrand", random_quote)
 start_callback_handler = CallbackQueryHandler(start, pattern="back_home")
 clear_chat_quote_handler = CallbackQueryHandler(
     clear_chat_quote, pattern="clear_chat_quote"
@@ -64,6 +65,7 @@ handlers = [
     quote_handler,
     set_quote_probability_handler,
     del_quote_handler,
+    qrand_handler,
     start_callback_handler,
     clear_chat_quote_ask_handler,
     help_handler,

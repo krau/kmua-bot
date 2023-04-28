@@ -186,7 +186,11 @@ async def random_quote(update: Update, context: ContextTypes.DEFAULT_TYPE):
         + (f" {this_message.text}" if this_message.text else "<非文本消息>")
     )
     await message_recorder(update, context)
-    if not random_unit(context.chat_data.get("quote_probability", 0.1)):
+    flag = random_unit(context.chat_data.get("quote_probability", 0.1))
+    if not update.effective_message.text:
+        if not flag:
+            return
+    if not update.effective_message.text.startswith("/qrand") and not flag:
         return
     if not context.chat_data.get("quote_messages", None):
         return
@@ -206,7 +210,7 @@ async def random_quote(update: Update, context: ContextTypes.DEFAULT_TYPE):
         sent_message = await context.bot.send_message(
             chat_id=update.effective_chat.id,
             text=f"有一条名言突然消失了!\nid: _{to_forward_message_id}_\n已从语录中移除",
-            parse_mode="MarkdownV2",
+            parse_mode="Markdown",
         )
         logger.info(f"Bot: {sent_message.text}")
     except Exception as e:
