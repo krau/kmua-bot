@@ -22,6 +22,7 @@ services:
       - KMUA_OWNERS=[] # bot 的主人id, 是一个数组
       - KMUA_PICKLE_PATH="./data/data.pickle" # 数据文件保存路径, 如需更改, 则也要更改上面的挂载路径
       - KMUA_LOG_LEVEL="INFO" # 日志等级
+      - KMUA_RANDOM_FILTER=0.1 # 随机过滤器概率,会影响某些随机功能的概率. 如 不能好好说话 在群聊中的随机发送
 ```
 
 ## 源码运行
