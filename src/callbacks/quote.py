@@ -360,8 +360,7 @@ async def inline_query_quote(update: Update, context: ContextTypes.DEFAULT_TYPE)
                 if query in text_quote.content:
                     create_at_str = text_quote.created_at.strftime("%Y年%m月%d日%H时%M分%S秒")
                     message_texts = [
-                        f"[{user_name}](tg://user?id={user_id})在{create_at_str}曾言道:\n\n{text_quote.content}",
-                        f"{text_quote.content}\n\n——[{user_name}](tg://user?id={user_id})在{create_at_str}说",
+                        f"{text_quote.content}\n——[{user_name}](tg://user?id={user_id})\n{create_at_str}",
                         f"{text_quote.content}\n\n[{user_name}](tg://user?id={user_id})\n{create_at_str}",
                     ]
                     results.append(
