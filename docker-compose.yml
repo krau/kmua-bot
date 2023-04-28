@@ -13,3 +13,4 @@ services:
       - KMUA_OWNERS=[]
       - KMUA_PICKLE_PATH="./data/data.pickle"
       - KMUA_LOG_LEVEL="INFO"
+      - KMUA_RANDOM_FILTER=0.1

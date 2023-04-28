@@ -2,3 +2,4 @@ token=''
 owners = []
 pickle_path='./data/data.pickle'
 log_level='INFO'
+random_filter=0.1

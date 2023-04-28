@@ -29,6 +29,7 @@ async def init_data(app: Application):
         ]
     )
     bot_user = await app.bot.get_me()
+    global bot_username
     bot_username = bot_user.username
     app.bot_data["bot_username"] = bot_username
     if not app.bot_data.get("quotes", None):
