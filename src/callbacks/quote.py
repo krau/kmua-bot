@@ -383,7 +383,6 @@ async def inline_query_quote(update: Update, context: ContextTypes.DEFAULT_TYPE)
                         InlineQueryResultCachedPhoto(
                             id=str(uuid4()),
                             photo_file_id=img_quote.content,
-                            caption=f"[{user_name}](tg://user?id={user_id}), {create_at_str}",  # noqa: E501
                         )
                     )
             if len(results) == 0:
@@ -403,8 +402,7 @@ async def inline_query_quote(update: Update, context: ContextTypes.DEFAULT_TYPE)
             for text_quote in random.sample(text_quotes, min(len(text_quotes), 10)):
                 create_at_str = text_quote.created_at.strftime("%Y年%m月%d日%H时%M分%S秒")
                 message_texts = [
-                    f"[{user_name}](tg://user?id={user_id})在{create_at_str}曾言道:\n\n{text_quote.content}",
-                    f"{text_quote.content}\n\n——[{user_name}](tg://user?id={user_id})在{create_at_str}说",
+                    f"{text_quote.content}\n\n——[{user_name}](tg://user?id={user_id})\n{create_at_str}",
                     f"{text_quote.content}\n\n[{user_name}](tg://user?id={user_id})\n{create_at_str}",
                 ]
                 results.append(
@@ -425,10 +423,6 @@ async def inline_query_quote(update: Update, context: ContextTypes.DEFAULT_TYPE)
                     InlineQueryResultCachedPhoto(
                         id=str(uuid4()),
                         photo_file_id=img_quote.content,
-                        title=img_quote.text,
-                        caption=f"[{user_name}](tg://user?id={user_id}), {create_at_str}",  # noqa: E501
-                        parse_mode="Markdown",
-                        description=f"图片, 记于{create_at_str}",
                     )
                 )
     await context.bot.answer_inline_query(
