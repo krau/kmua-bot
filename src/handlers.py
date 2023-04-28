@@ -56,6 +56,7 @@ clear_user_data_handler = CallbackQueryHandler(
 )
 random_quote_handler = MessageHandler(~filters.COMMAND, random_quote)
 bnhhsh_handler = MessageHandler(bnhhsh_filter, bnhhsh)
+bnhhsh_command_handler = CommandHandler("bnhhsh", bnhhsh)
 handlers = [
     start_handler,
     chat_migration_handler,
@@ -68,6 +69,7 @@ handlers = [
     help_handler,
     clear_chat_quote_handler,
     group_rank_handler,
+    bnhhsh_command_handler,
     clear_chat_quote_cancel_handler,
     interact_handler,
     bnhhsh_handler,
