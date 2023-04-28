@@ -26,6 +26,7 @@ async def init_data(app: Application):
             ("setqp", "设置发名言概率"),
             ("help", "帮助"),
             ("rank", "群统计"),
+            ("bnhhsh", "不能好好说话!"),
         ]
     )
     bot_user = await app.bot.get_me()

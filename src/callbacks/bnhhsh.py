@@ -21,6 +21,8 @@ async def bnhhsh(update: Update, context: ContextTypes.DEFAULT_TYPE):
     ).removeprefix("/bnhhsh")
     english_words = re.findall(r"[A-Za-z]+", text)
     english_words = list(set(english_words))
+    if not english_words:
+        return
     translated_words = [dp(word.lower()) for word in english_words]
     text = ""
     for i in range(len(english_words)):
