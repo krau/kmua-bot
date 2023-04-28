@@ -16,7 +16,9 @@ async def bnhhsh(update: Update, context: ContextTypes.DEFAULT_TYPE):
         + f" {update.effective_message.text}"
     )
     await message_recorder(update, context)
-    text = update.effective_message.text.removeprefix(f"@{context.bot.username}")
+    text = update.effective_message.text.removeprefix(
+        f"@{context.bot.username}"
+    ).removeprefix("/bnhhsh")
     english_words = re.findall(r"[A-Za-z]+", text)
     english_words = list(set(english_words))
     translated_words = [dp(word.lower()) for word in english_words]
