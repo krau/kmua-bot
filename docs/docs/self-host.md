@@ -27,6 +27,8 @@ services:
 
 ## 源码运行
 
+Python版本: 3.11+
+
 1. `git clone https://github.com/krau/kmua-bot`
 2. pip install -r requirements.txt
 3. edit settings.toml

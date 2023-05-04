@@ -33,7 +33,7 @@ Kmua 会对自己收到的消息进行记录和统计, 每个群聊(Chat)和用�
 
 私聊 Kmua 可获取自己的数据统计信息
 
-![个人统计](./images/userrank.png)
+![个人统计](https://i.imgur.com/VgNkWno.png)
 
 ## Quote
 
