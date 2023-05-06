@@ -7,7 +7,7 @@ from telegram.ext.filters import (
 from telegram.ext import filters
 from .utils import random_unit
 from .config.config import settings
-from .data import weni_data
+from .data import word_dict
 
 
 class StartFilter(UpdateFilter):
@@ -69,7 +69,7 @@ class MentionBotFilter(MessageFilter):
     def filter(self, message: Message) -> bool | FilterDataDict | None:
         if not message.text:
             return False
-        if not message.text.startswith(f"@{message.get_bot().username}"):
+        if f"@{message.get_bot().username}" not in message.text:
             return False
         return True
 
@@ -94,12 +94,12 @@ class ReplyBotFilter(MessageFilter):
         return True
 
 
-class WeniFilter(MessageFilter):
+class KeywordReplyFilter(MessageFilter):
     def filter(self, message: Message) -> bool | FilterDataDict | None:
         if not message.text:
             return False
         message_text = message.text.replace(message.get_bot().username, "").lower()
-        for keyword in weni_data.keys():
+        for keyword in word_dict.keys():
             if keyword in message_text:
                 return True
         return False
@@ -108,11 +108,13 @@ class WeniFilter(MessageFilter):
 start_filter = StartFilter()
 interact_filter = InteractFilter()
 help_filter = HelpFilter()
-weni_filter = (
-    TextLengthFilter(min_length=2, max_length=20) & ~interact_filter & WeniFilter()
+keyword_reply_filter = (
+    TextLengthFilter(min_length=1, max_length=20)
+    & ~interact_filter
+    & KeywordReplyFilter()
 ) & (ReplyBotFilter() | MentionBotFilter() | filters.ChatType.PRIVATE)
 bnhhsh_filter = (
     filters.Regex("[a-zA-Z]")
     & TextLengthFilter(min_length=2, max_length=256)
-    & ~weni_filter
+    & ~keyword_reply_filter
 ) & (filters.ChatType.PRIVATE | MentionBotFilter() | RandomFilter())
