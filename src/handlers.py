@@ -25,9 +25,16 @@ from .callbacks.start import start
 from .callbacks.title import title
 from .callbacks.userdata import clear_user_data, user_data_manage
 from .callbacks.bnhhsh import bnhhsh
+from .callbacks.weni import weni
 
 
-from .filters import help_filter, interact_filter, start_filter, bnhhsh_filter
+from .filters import (
+    help_filter,
+    interact_filter,
+    start_filter,
+    bnhhsh_filter,
+    weni_filter,
+)
 from .logger import logger
 
 start_handler = CommandHandler("start", start, filters=start_filter)
@@ -58,6 +65,7 @@ clear_user_data_handler = CallbackQueryHandler(
 random_quote_handler = MessageHandler(~filters.COMMAND, random_quote)
 bnhhsh_handler = MessageHandler(bnhhsh_filter, bnhhsh)
 bnhhsh_command_handler = CommandHandler("bnhhsh", bnhhsh)
+weni_handler = MessageHandler(weni_filter, weni)
 handlers = [
     start_handler,
     chat_migration_handler,
@@ -74,6 +82,7 @@ handlers = [
     bnhhsh_command_handler,
     clear_chat_quote_cancel_handler,
     interact_handler,
+    weni_handler,
     bnhhsh_handler,
     inline_query_handler,
     user_data_manage_handler,
