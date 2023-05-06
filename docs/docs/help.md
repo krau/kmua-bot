@@ -107,7 +107,7 @@ Kmua 会对自己收到的消息进行记录和统计, 每个群聊(Chat)和用�
 
 ## 关键词回复
 
-kmua 可以对关键词进行回复, 当私聊时, 或回复 kmua 时, 或艾特 kmua 时 响应
+kmua 可以对关键词进行回复, **当私聊时, 或回复 kmua 时, 或艾特 kmua 时** 响应
 
 默认自带一个文爱词库, 来自 [AnimeThesaurus](https://github.com/Kyomotoi/AnimeThesaurus)
 
