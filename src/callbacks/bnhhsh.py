@@ -16,6 +16,8 @@ async def bnhhsh(update: Update, context: ContextTypes.DEFAULT_TYPE):
         + f" {update.effective_message.text}"
     )
     await message_recorder(update, context)
+    if not update.effective_message.text:
+        return
     text = update.effective_message.text.removeprefix("/bnhhsh").removeprefix(
         f"@{context.bot.username}"
     )
