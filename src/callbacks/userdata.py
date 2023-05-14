@@ -102,3 +102,24 @@ async def user_quote_manage(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         logger.info(f"Bot: {sent_message.text}")
         return
+    quotes_content = [quote.content for quote in quotes]
+    keyboard, line = [], []
+    for i, quote in enumerate(quotes):
+        line.append(InlineKeyboardButton(i + 1, callback_data=str(quote.id)))
+        if len(line) == 5:
+            keyboard.append(line.copy())
+            line.clear()
+    if line:
+        keyboard.append(line)
+    keyboard.append([InlineKeyboardButton("返回", callback_data="back_home")])
+    quote_manage_markup = InlineKeyboardMarkup(keyboard)
+    text = "你的名言:\n\n"
+    for i, quote in enumerate(quotes_content):
+        text += f"{i + 1}. {quote}\n"
+    sent_message = await context.bot.edit_message_text(
+        chat_id=update.effective_chat.id,
+        text=text,
+        reply_markup=quote_manage_markup,
+        message_id=update.callback_query.message.id,
+    )
+    logger.info(f"Bot: {sent_message.text}")
