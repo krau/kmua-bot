@@ -8,6 +8,15 @@ from telegram.ext import ContextTypes
 from ..logger import logger
 
 
+_back_home_markup = InlineKeyboardMarkup(
+    [
+        [
+            InlineKeyboardButton("返回", callback_data="back_home"),
+        ]
+    ]
+)
+
+
 async def user_data_manage(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     img_quote_len = len(context.bot_data["quotes"].get(user_id, {}).get("img", []))
@@ -68,6 +77,7 @@ async def clear_user_data(update: Update, context: ContextTypes.DEFAULT_TYPE):
             chat_id=update.effective_chat.id,
             text="你还没有名言",
             message_id=update.callback_query.message.id,
+            reply_markup=_back_home_markup,
         )
         logger.info(f"Bot: {sent_message.text}")
         return
@@ -76,4 +86,19 @@ async def clear_user_data(update: Update, context: ContextTypes.DEFAULT_TYPE):
         chat_id=update.effective_chat.id,
         message_id=update.callback_query.message.message_id,
         text="已清空你的语录",
+        reply_markup=_back_home_markup,
     )
+
+
+async def user_quote_manage(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+    quotes = context.bot_data["quotes"].get(user_id, {}).get("text", [])
+    if not quotes:
+        sent_message = await context.bot.edit_message_text(
+            chat_id=update.effective_chat.id,
+            text="你还没有名言",
+            message_id=update.callback_query.message.id,
+            reply_markup=_back_home_markup,
+        )
+        logger.info(f"Bot: {sent_message.text}")
+        return
