@@ -24,24 +24,25 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     "拉我进群", url=f"https://t.me/{context.bot.username}?startgroup=new"
                 ),
                 InlineKeyboardButton("开源主页", url="https://github.com/krau/kmua-bot"),
-            ],
-            [
                 InlineKeyboardButton("详细帮助", url="https://krau.github.io/kmua-bot/"),
             ],
-            [InlineKeyboardButton("你的数据", callback_data="user_data_manage")],
+            [
+                InlineKeyboardButton("你的数据", callback_data="user_data_manage"),
+                InlineKeyboardButton("名言管理", callback_data="user_quote_manage"),
+            ],
         ]
     )
     if update.callback_query:
         await context.bot.edit_message_text(
             chat_id=update.effective_chat.id,
             message_id=update.callback_query.message.id,
-            text="喵喵喵?",
+            text="喵喵喵,喵喵喵喵喵喵,喵喵喵喵?",
             reply_markup=start_bot_markup,
         )
         return
     await context.bot.send_message(
         chat_id=update.effective_chat.id,
-        text="喵喵喵?",
+        text="喵喵喵,喵喵喵喵喵喵,喵喵喵喵?",
         reply_markup=start_bot_markup,
     )
 
