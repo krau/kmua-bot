@@ -25,10 +25,12 @@ async def help(update: Update, context: ContextTypes.DEFAULT_TYPE):
 /t - 获取头衔|互赠头衔
 /setqp - 设置发名言概率
 /rank - 群统计信息
+/bnhhsh - 不能好好说话!
 
 私聊:
 可查询自己的统计信息
 可删除自己的名言
+可以和 kmua 聊天
 
 互动:
 对其他人使用 "/"命令 即可对其施法
