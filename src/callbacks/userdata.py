@@ -130,7 +130,7 @@ async def user_quote_manage(update: Update, context: ContextTypes.DEFAULT_TYPE):
     quote_manage_markup = InlineKeyboardMarkup(keyboard)
     start_index = (current_page - 1) * 5
     end_index = current_page * 5
-    text = f"你的名言(第{current_page}/{pages}页):\n\n"
+    text = f"你的名言(第{current_page}/{pages}页):\n点击序号对应的按钮删除名言\n\n"
     for i, quote in enumerate(quotes_content[start_index:end_index]):
         text += f"{i + 1 + start_index} - {quote}\n"
     await context.bot.edit_message_text(
@@ -151,7 +151,7 @@ async def prev_page(update: Update, context: ContextTypes.DEFAULT_TYPE):
     current_page -= 1
     start_index = (current_page - 1) * 5
     end_index = current_page * 5
-    text = f"你的名言(第{current_page}/{pages}页):\n\n"
+    text = f"你的名言(第{current_page}/{pages}页):\n点击序号对应的按钮删除名言\n\n"
     for i, quote in enumerate(quotes[start_index:end_index]):
         text += f"{i + 1 + start_index} - {quote.content}\n"
     navigation_buttons = [
@@ -188,7 +188,7 @@ async def next_page(update: Update, context: ContextTypes.DEFAULT_TYPE):
     current_page += 1
     start_index = (current_page - 1) * 5
     end_index = current_page * 5
-    text = f"你的名言(第{current_page}/{pages}页):\n\n"
+    text = f"你的名言(第{current_page}/{pages}页):\n点击序号对应的按钮删除名言\n\n"
     for i, quote in enumerate(quotes[start_index:end_index]):
         text += f"{i + 1 + start_index} - {quote.content}\n"
     navigation_buttons = [
