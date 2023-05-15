@@ -41,7 +41,6 @@ async def init_data(app: Application):
 def run():
     if not os.path.exists(Path(settings.pickle_path).parent):
         os.makedirs(Path(settings.pickle_path).parent)
-    logger.info("启动bot...")
     token = settings.token
     defaults = Defaults(tzinfo=pytz.timezone("Asia/Shanghai"))
     persistence = PicklePersistence(filepath=settings.pickle_path)
