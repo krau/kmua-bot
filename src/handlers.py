@@ -23,7 +23,14 @@ from .callbacks.quote import (
 from .callbacks.rank import group_rank
 from .callbacks.start import start
 from .callbacks.title import title
-from .callbacks.userdata import clear_user_data, user_data_manage, user_quote_manage
+from .callbacks.userdata import (
+    clear_user_data,
+    user_data_manage,
+    user_quote_manage,
+    prev_page,
+    next_page,
+    delete_quote,
+)
 from .callbacks.bnhhsh import bnhhsh
 from .callbacks.keyword_reply import keyword_reply
 
@@ -65,6 +72,9 @@ clear_user_data_handler = CallbackQueryHandler(
 user_quote_manage_handler = CallbackQueryHandler(
     user_quote_manage, pattern="user_quote_manage"
 )
+prev_page_handler = CallbackQueryHandler(prev_page, pattern=r"prev_page")
+next_page_handler = CallbackQueryHandler(next_page, pattern=r"next_page")
+delete_quote_handler = CallbackQueryHandler(delete_quote, pattern=r"delete_quote")
 random_quote_handler = MessageHandler(~filters.COMMAND, random_quote)
 bnhhsh_handler = MessageHandler(bnhhsh_filter, bnhhsh)
 bnhhsh_command_handler = CommandHandler("bnhhsh", bnhhsh)
@@ -90,6 +100,9 @@ handlers = [
     inline_query_handler,
     user_data_manage_handler,
     user_quote_manage_handler,
+    prev_page_handler,
+    next_page_handler,
+    delete_quote_handler,
     clear_user_data_handler,
     random_quote_handler,
 ]
