@@ -16,6 +16,11 @@ _back_home_markup = InlineKeyboardMarkup(
     ]
 )
 
+_clear_quote_buttons = [
+    InlineKeyboardButton("清空图片名言", callback_data="clear_user_img_quote"),
+    InlineKeyboardButton("清空文字名言", callback_data="clear_user_text_quote"),
+]
+
 
 async def user_data_manage(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
@@ -31,14 +36,6 @@ async def user_data_manage(update: Update, context: ContextTypes.DEFAULT_TYPE):
     voice_num = context.user_data.get("voice_num", 0)
     video_num = context.user_data.get("video_num", 0)
     document_num = context.user_data.get("document_num", 0)
-    user_data_manage_markup = InlineKeyboardMarkup(
-        [
-            [
-                InlineKeyboardButton("返回", callback_data="back_home"),
-                InlineKeyboardButton("❗清空", callback_data="clear_user_data"),
-            ]
-        ]
-    )
     statistics_data = f"""
 你的统计信息:
 
@@ -54,24 +51,19 @@ async def user_data_manage(update: Update, context: ContextTypes.DEFAULT_TYPE):
 总语音消息数: *{voice_num}*
 总视频消息数: *{video_num}*
 总文件消息数: *{document_num}*
-
-点击下方清空按钮将立即删除以下数据:
-1 已保存的名言总数
-2 图片名言数量
-3 文字名言数量
 """
     await context.bot.edit_message_text(
         chat_id=update.effective_chat.id,
         text=statistics_data,
-        reply_markup=user_data_manage_markup,
+        reply_markup=_back_home_markup,
         parse_mode="MarkdownV2",
         message_id=update.callback_query.message.id,
     )
 
 
-async def clear_user_data(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def clear_user_text_quote(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
-    if not context.bot_data["quotes"].get(user_id, {}):
+    if not context.bot_data["quotes"].get(user_id, {}).get("text", []):
         sent_message = await context.bot.edit_message_text(
             chat_id=update.effective_chat.id,
             text="你还没有名言",
@@ -80,7 +72,27 @@ async def clear_user_data(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         logger.info(f"Bot: {sent_message.text}")
         return
-    context.bot_data["quotes"][user_id] = {}
+    context.bot_data["quotes"][user_id]["text"] = []
+    await context.bot.edit_message_text(
+        chat_id=update.effective_chat.id,
+        message_id=update.callback_query.message.message_id,
+        text="已清空你的语录",
+        reply_markup=_back_home_markup,
+    )
+
+
+async def clear_user_img_quote(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+    if not context.bot_data["quotes"].get(user_id, {}).get("img", []):
+        sent_message = await context.bot.edit_message_text(
+            chat_id=update.effective_chat.id,
+            text="你还没有名言",
+            message_id=update.callback_query.message.id,
+            reply_markup=_back_home_markup,
+        )
+        logger.info(f"Bot: {sent_message.text}")
+        return
+    context.bot_data["quotes"][user_id]["img"] = []
     await context.bot.edit_message_text(
         chat_id=update.effective_chat.id,
         message_id=update.callback_query.message.message_id,
@@ -92,7 +104,8 @@ async def clear_user_data(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def user_quote_manage(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     quotes = context.bot_data["quotes"].get(user_id, {}).get("text", [])
-    if not quotes:
+    img_quotes = context.bot_data["quotes"].get(user_id, {}).get("img", [])
+    if not quotes and not img_quotes:
         sent_message = await context.bot.edit_message_text(
             chat_id=update.effective_chat.id,
             text="你没有名言",
@@ -126,6 +139,7 @@ async def user_quote_manage(update: Update, context: ContextTypes.DEFAULT_TYPE):
             InlineKeyboardButton("下一页", callback_data=f"next_page_{current_page}"),
         ]
         keyboard.append(navigation_buttons)
+    keyboard.append(_clear_quote_buttons)
     keyboard.append([InlineKeyboardButton("返回", callback_data="back_home")])
     quote_manage_markup = InlineKeyboardMarkup(keyboard)
     start_index = (current_page - 1) * 5
@@ -168,6 +182,7 @@ async def prev_page(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
     keyboard.append(line)
     keyboard.append(navigation_buttons)
+    keyboard.append(_clear_quote_buttons)
     keyboard.append([InlineKeyboardButton("返回", callback_data="back_home")])
     quote_manage_markup = InlineKeyboardMarkup(keyboard)
     await context.bot.edit_message_text(
@@ -205,6 +220,7 @@ async def next_page(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
     keyboard.append(line)
     keyboard.append(navigation_buttons)
+    keyboard.append(_clear_quote_buttons)
     keyboard.append([InlineKeyboardButton("返回", callback_data="back_home")])
     quote_manage_markup = InlineKeyboardMarkup(keyboard)
     await context.bot.edit_message_text(
@@ -222,9 +238,8 @@ async def delete_quote(update: Update, context: ContextTypes.DEFAULT_TYPE):
     img_quotes = context.bot_data["quotes"].get(user_id, {}).get("img", [])
     for i, quote in enumerate(text_quotes):
         if str(quote.id) == quote_id:
-            content = quote.content
             for j, img_quote in enumerate(img_quotes):
-                if img_quote.content == content:
+                if img_quote.id == quote_id:
                     img_quotes.pop(j)
                     break
             text_quotes.pop(i)

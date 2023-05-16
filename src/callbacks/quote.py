@@ -93,8 +93,9 @@ async def quote(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if saved_quote_text_obj.content == quote_message.text:
             # 如果已经存在相同的文字, 直接
             return
+    uuid = uuid1()
     quote_text_obj = TextQuote(
-        id=uuid1(), content=quote_message.text, created_at=datetime.now()
+        id=uuid, content=quote_message.text, created_at=datetime.now()
     )
     context.bot_data["quotes"][quote_user.id]["text"].append(quote_text_obj)
     logger.debug(f"[{quote_text_obj.content}]({quote_text_obj.id})" + "已保存")
@@ -117,7 +118,7 @@ async def quote(update: Update, context: ContextTypes.DEFAULT_TYPE):
         photo_id = sent_photo.photo[0].file_id
         # 保存图像数据
         quote_img_obj = ImgQuote(
-            id=uuid1(),
+            id=uuid,
             content=photo_id,
             created_at=datetime.now(),
             text=quote_message.text,

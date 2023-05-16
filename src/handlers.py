@@ -24,7 +24,8 @@ from .callbacks.rank import group_rank
 from .callbacks.start import start
 from .callbacks.title import title
 from .callbacks.userdata import (
-    clear_user_data,
+    clear_user_img_quote,
+    clear_user_text_quote,
     user_data_manage,
     user_quote_manage,
     prev_page,
@@ -61,14 +62,21 @@ clear_chat_quote_handler = CallbackQueryHandler(
 clear_chat_quote_cancel_handler = CallbackQueryHandler(
     clear_chat_quote_cancel, pattern="cancel_clear_chat_quote"
 )
+
+clear_user_img_quote_handler = CallbackQueryHandler(
+    clear_user_img_quote, pattern="clear_user_img_quote"
+)
+clear_user_text_quote_handler = CallbackQueryHandler(
+    clear_user_text_quote, pattern="clear_user_text_quote"
+)
+
 interact_handler = MessageHandler(filters=interact_filter, callback=interact)
 inline_query_handler = InlineQueryHandler(inline_query_quote)
 user_data_manage_handler = CallbackQueryHandler(
     user_data_manage, pattern="user_data_manage"
 )
-clear_user_data_handler = CallbackQueryHandler(
-    clear_user_data, pattern="clear_user_data"
-)
+
+
 user_quote_manage_handler = CallbackQueryHandler(
     user_quote_manage, pattern="user_quote_manage"
 )
@@ -103,7 +111,8 @@ handlers = [
     prev_page_handler,
     next_page_handler,
     delete_quote_handler,
-    clear_user_data_handler,
+    clear_user_img_quote_handler,
+    clear_user_text_quote_handler,
     random_quote_handler,
 ]
 
