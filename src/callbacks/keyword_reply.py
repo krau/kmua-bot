@@ -4,6 +4,7 @@ from telegram import (
     Update,
 )
 from telegram.ext import ContextTypes
+from telegram.constants import ChatAction
 
 from ..logger import logger
 from ..data import word_dict
@@ -19,6 +20,9 @@ async def keyword_reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
     message_text = update.effective_message.text.replace(
         context.bot.username, ""
     ).lower()
+    await context.bot.send_chat_action(
+        chat_id=update.effective_chat.id, action=ChatAction.TYPING
+    )
     for keyword, resplist in word_dict.items():
         if keyword in message_text:
             await update.effective_message.reply_text(

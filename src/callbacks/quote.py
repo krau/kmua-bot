@@ -13,6 +13,7 @@ from telegram import (
 )
 from telegram.error import BadRequest
 from telegram.ext import ContextTypes
+from telegram.constants import ChatAction
 
 from ..config.config import settings
 from ..logger import logger
@@ -108,6 +109,9 @@ async def quote(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     # 尝试生成图片
     try:
+        await context.bot.send_chat_action(
+            chat_id=update.effective_chat.id, action=ChatAction.UPLOAD_PHOTO
+        )
         avatar = await (await avatar_photo.get_big_file()).download_as_bytearray()
         quote_img = await generate_quote_img(
             avatar=avatar, text=quote_message.text, name=quote_user.name
