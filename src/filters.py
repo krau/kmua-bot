@@ -24,6 +24,8 @@ class InteractFilter(MessageFilter):
     def filter(self, message: Message) -> bool | FilterDataDict | None:
         if not message.text:
             return False
+        if len(message.text) <= 1:
+            return False
         if message.text.startswith("/") or message.text.startswith("\\"):
             if len(message.entities) == 0:
                 return True
