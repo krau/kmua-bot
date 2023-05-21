@@ -25,7 +25,7 @@ async def title(update: Update, context: ContextTypes.DEFAULT_TYPE):
     replied_user = None
     replied_message = None
     bot_username = context.bot_data["bot_username"]
-    custom_title = update.effective_message.text[3:]
+    custom_title = update.effective_message.text[len(f"/t@{bot_username} "):]
     user_id = this_user.id
     if bot_username in this_message.text:
         custom_title = custom_title.replace(bot_username, "")[1:]
