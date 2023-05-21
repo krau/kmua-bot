@@ -25,12 +25,10 @@ async def title(update: Update, context: ContextTypes.DEFAULT_TYPE):
     replied_user = None
     replied_message = None
     bot_username = context.bot_data["bot_username"]
-    custom_title = update.effective_message.text[len(bot_username) + 2 :]
+    custom_title = this_message.text[len(bot_username) + 4 :]
     user_id = this_user.id
-    if bot_username in this_message.text:
-        custom_title = custom_title.replace(bot_username, "")[1:]
-    if update.effective_message.reply_to_message:
-        replied_message = update.effective_message.reply_to_message
+    if this_message.reply_to_message:
+        replied_message = this_message.reply_to_message
         replied_user = replied_message.from_user
         user_id = replied_user.id
         if not custom_title:
