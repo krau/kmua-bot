@@ -111,7 +111,7 @@ start_filter = StartFilter()
 interact_filter = InteractFilter()
 help_filter = HelpFilter()
 keyword_reply_filter = (
-    TextLengthFilter(min_length=1, max_length=20)
+    TextLengthFilter(min_length=1, max_length=200)
     & ~interact_filter
     & KeywordReplyFilter()
 ) & (ReplyBotFilter() | MentionBotFilter() | filters.ChatType.PRIVATE)
