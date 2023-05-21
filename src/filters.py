@@ -108,6 +108,7 @@ class KeywordReplyFilter(MessageFilter):
 
 
 start_filter = StartFilter()
+mention_bot_filter = MentionBotFilter()
 interact_filter = InteractFilter()
 help_filter = HelpFilter()
 keyword_reply_filter = (

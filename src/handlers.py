@@ -39,6 +39,7 @@ from .callbacks.keyword_reply import keyword_reply
 from .filters import (
     help_filter,
     interact_filter,
+    mention_bot_filter,
     start_filter,
     bnhhsh_filter,
     keyword_reply_filter,
@@ -47,7 +48,7 @@ from .logger import logger
 
 start_handler = CommandHandler("start", start, filters=start_filter)
 chat_migration_handler = MessageHandler(filters.StatusUpdate.MIGRATE, chat_migration)
-title_handler = CommandHandler("t", title)
+title_handler = CommandHandler("t", title, filters=mention_bot_filter)
 quote_handler = CommandHandler("q", quote)
 set_quote_probability_handler = CommandHandler("setqp", set_quote_probability)
 del_quote_handler = CommandHandler("d", del_quote)
