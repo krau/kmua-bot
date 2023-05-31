@@ -13,7 +13,7 @@ from telegram.ext import ContextTypes
 from .model import MemberData
 
 
-def random_with_probability(probability: float) -> bool:
+def random_unit(probability: float) -> bool:
     """指定概率返回True或False"""
     assert 0 <= probability <= 1, "参数probability应该在[0,1]之间"
     if probability in (0, 1):
