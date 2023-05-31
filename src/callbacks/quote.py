@@ -194,10 +194,11 @@ async def random_quote(update: Update, context: ContextTypes.DEFAULT_TYPE):
     probability = context.chat_data.get("quote_probability", 0.1)
     probability = float(probability)
     flag = random_unit(probability)
+    if update.effective_message.text is not None:
+        if update.effective_message.text.startswith("/qrand"):
+            flag = True
     if not flag:
-        if update.effective_message.text:
-            if not update.effective_message.text.startswith("/qrand"):
-                return
+        return
     if not context.chat_data.get("quote_messages", None):
         return
     try:
