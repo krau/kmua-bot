@@ -191,7 +191,9 @@ async def random_quote(update: Update, context: ContextTypes.DEFAULT_TYPE):
         + (f" {this_message.text}" if this_message.text else "<非文本消息>")
     )
     await message_recorder(update, context)
-    flag = random_unit(context.chat_data.get("quote_probability", 0.1))
+    probability = context.chat_data.get("quote_probability", 0.1)
+    probability = float(probability)
+    flag = random_unit(probability)
     if not flag:
         if update.effective_message.text:
             if not update.effective_message.text.startswith("/qrand"):
