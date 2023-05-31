@@ -13,15 +13,16 @@ from telegram.ext import ContextTypes
 from .model import MemberData
 
 
-def random_unit(probability: float) -> bool:
-    """
-    指定概率返回Bool
-
-    :param probability: 概率,0-1浮点数
-    :return: bool
-    """
+def random_with_probability(probability: float) -> bool:
+    """指定概率返回True或False"""
     assert 0 <= probability <= 1, "参数probability应该在[0,1]之间"
-    return random.random() < probability
+    if probability in (0, 1):
+        return bool(probability)
+    p_digits = len(str(probability).split(".")[1])
+    interval_begin = 1
+    interval_end = pow(10, p_digits)
+    r = random.randint(interval_begin, interval_end)
+    return float(r) / interval_end < probability
 
 
 async def generate_quote_img(
