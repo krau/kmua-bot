@@ -13,7 +13,7 @@ async def remake(update: Update, context: ContextTypes.DEFAULT_TYPE):
         + f" {update.effective_message.text}"
     )
     await message_recorder(update, context)
-    if random_unit(0.1):
+    if random_unit(0.114):
         await update.effective_message.reply_text(text="重开失败!您没能出生!")
         return
     text = f"重开成功\! 您出生在*{random.choice(country)}*的*{random.choice(birthplace)}*\! 是*{random.choice(role)}*\!"  # noqa: E501
