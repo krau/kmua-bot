@@ -35,6 +35,7 @@ from .callbacks.userdata import (
 from .callbacks.bnhhsh import bnhhsh
 from .callbacks.keyword_reply import keyword_reply
 from .callbacks.remake import remake
+from .callbacks.suicide import suicide
 
 from .filters import (
     help_filter,
@@ -57,6 +58,7 @@ help_handler = CommandHandler("help", help, filters=help_filter)
 group_rank_handler = CommandHandler("rank", group_rank)
 qrand_handler = CommandHandler("qrand", random_quote)
 remake_handler = CommandHandler("remake", remake, filters=mention_bot_filter)
+suicide_handler = CommandHandler("suicide", suicide, filters=mention_bot_filter)
 start_callback_handler = CallbackQueryHandler(start, pattern="back_home")
 clear_chat_quote_handler = CallbackQueryHandler(
     clear_chat_quote, pattern="clear_chat_quote"
@@ -98,6 +100,7 @@ handlers = [
     del_quote_handler,
     qrand_handler,
     remake_handler,
+    suicide_handler,
     start_callback_handler,
     clear_chat_quote_ask_handler,
     help_handler,
