@@ -13,7 +13,7 @@ async def suicide(update: Update, context: ContextTypes.DEFAULT_TYPE):
         + f" {update.effective_message.text}"
     )
     await message_recorder(update, context)
-    if random_unit(0.05):
+    if random_unit(0.01):
         await update.effective_message.reply_text(text="成功注销地球OL账号!")
         return
     text = f"紫砂失败! 因为{random.choice(suicide_fail_msg)}!"
