@@ -287,6 +287,16 @@ async def clear_chat_quote_ask(update: Update, context: ContextTypes.DEFAULT_TYP
         )
         logger.info(f"Bot: {sent_message.text}")
         return
+    admins = await context.bot.get_chat_administrators(chat_id=update.effective_chat.id)
+    if (
+        update.effective_user.id not in [admin.user.id for admin in admins]
+        and update.effective_user.id not in settings["owners"]
+    ):
+        sent_message = await context.bot.send_message(
+            chat_id=update.effective_chat.id, text="你没有权限哦"
+        )
+        logger.info(f"Bot: {sent_message.text}")
+        return
     clear_chat_quote_markup = InlineKeyboardMarkup(
         [
             [
@@ -306,6 +316,11 @@ async def clear_chat_quote_ask(update: Update, context: ContextTypes.DEFAULT_TYP
 async def clear_chat_quote(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not context.chat_data.get("quote_messages", None):
         return
+    edited_message = await context.bot.edit_message_text(
+        chat_id=update.effective_chat.id,
+        text="正在清空...",
+        message_id=update.callback_query.message.id,
+    )
     for message_id in context.chat_data["quote_messages"]:
         try:
             unpin_ok = await context.bot.unpin_chat_message(
@@ -323,8 +338,10 @@ async def clear_chat_quote(update: Update, context: ContextTypes.DEFAULT_TYPE):
             time.sleep(0.5)
             continue
     context.chat_data["quote_messages"] = []
-    sent_message = await context.bot.send_message(
-        chat_id=update.effective_chat.id, text="已清空该聊天的语录"
+    sent_message = await context.bot.edit_message_text(
+        chat_id=update.effective_chat.id,
+        text="已清空该聊天的语录",
+        message_id=edited_message.id,
     )
     logger.info(f"Bot: {sent_message.text}")
 
