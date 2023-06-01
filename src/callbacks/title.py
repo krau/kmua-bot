@@ -41,13 +41,7 @@ async def title(update: Update, context: ContextTypes.DEFAULT_TYPE):
         custom_title = this_user.username if this_user.username else this_user.full_name
     try:
         await context.bot.promote_chat_member(
-            chat_id=update.effective_chat.id,
-            user_id=user_id,
-            can_manage_chat=True,
-            can_change_info=True,
-            can_manage_video_chats=True,
-            can_pin_messages=True,
-            can_invite_users=True,
+            chat_id=update.effective_chat.id, user_id=user_id, can_manage_chat=True
         )
         await context.bot.set_chat_administrator_custom_title(
             chat_id=update.effective_chat.id,
