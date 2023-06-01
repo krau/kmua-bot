@@ -120,4 +120,4 @@ bnhhsh_filter = (
     filters.Regex("[a-zA-Z]")
     & TextLengthFilter(min_length=2, max_length=256)
     & ~keyword_reply_filter
-) & (filters.ChatType.PRIVATE | MentionBotFilter() | RandomFilter())
+) & (MentionBotFilter() | RandomFilter())
