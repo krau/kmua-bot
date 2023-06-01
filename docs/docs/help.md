@@ -60,6 +60,7 @@ Kmua 会对自己收到的消息进行记录和统计, 每个群聊(Chat)和用�
 
 ![InlineQueryWithQuery](./images/inlinequerywithquery.png)
 
+自己部署时, 需要私聊 [@BotFather](https://t.me/BotFather) 开启 Inline Mode
 
 ## 群内互动
 
