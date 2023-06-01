@@ -18,8 +18,8 @@ async def bnhhsh(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await message_recorder(update, context)
     if not update.effective_message.text:
         return
-    text = update.effective_message.text.removeprefix("/bnhhsh").removeprefix(
-        f"@{context.bot.username}"
+    text = update.effective_message.text.replace("/bnhhsh", "").replace(
+        context.bot.username, ""
     )
     english_words = re.findall(r"[A-Za-z]+", text)
     english_words = list(set(english_words))
