@@ -1,10 +1,11 @@
+import random
+
 from telegram import Update
 from telegram.ext import ContextTypes
 
+from ..data import suicide_fail_msg
 from ..logger import logger
 from ..utils import message_recorder, random_unit
-from ..data import suicide_fail_msg
-import random
 
 
 async def suicide(update: Update, context: ContextTypes.DEFAULT_TYPE):

@@ -1,10 +1,11 @@
+import random
+
 from telegram import Update
 from telegram.ext import ContextTypes
 
+from ..data import birthplace, country, role
 from ..logger import logger
 from ..utils import message_recorder, random_unit
-from ..data import country, role, birthplace
-import random
 
 
 async def remake(update: Update, context: ContextTypes.DEFAULT_TYPE):

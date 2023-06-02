@@ -1,8 +1,6 @@
 from datetime import datetime
 
-from telegram import (
-    Update,
-)
+from telegram import Update
 from telegram.ext import ContextTypes
 
 from ..logger import logger

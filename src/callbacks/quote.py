@@ -11,9 +11,9 @@ from telegram import (
     InputTextMessageContent,
     Update,
 )
+from telegram.constants import ChatAction
 from telegram.error import BadRequest
 from telegram.ext import ContextTypes
-from telegram.constants import ChatAction
 
 from ..config.config import settings
 from ..logger import logger
