@@ -288,7 +288,9 @@ async def clear_chat_quote_ask(update: Update, context: ContextTypes.DEFAULT_TYP
         logger.info(f"Bot: {sent_message.text}")
         return
     if update.effective_chat.type != "private":
-        admins = await context.bot.get_chat_administrators(chat_id=update.effective_chat.id)
+        admins = await context.bot.get_chat_administrators(
+            chat_id=update.effective_chat.id
+        )
         if (
             update.effective_user.id not in [admin.user.id for admin in admins]
             and update.effective_user.id not in settings["owners"]
