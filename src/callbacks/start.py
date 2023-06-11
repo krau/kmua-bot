@@ -36,13 +36,13 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await context.bot.edit_message_text(
             chat_id=update.effective_chat.id,
             message_id=update.callback_query.message.id,
-            text="喵喵喵,喵喵喵喵喵喵,喵喵喵喵?",
+            text="喵喵喵喵喵?",
             reply_markup=start_bot_markup,
         )
         return
     await context.bot.send_message(
         chat_id=update.effective_chat.id,
-        text="喵喵喵,喵喵喵喵喵喵,喵喵喵喵?",
+        text="喵喵喵喵喵?",
         reply_markup=start_bot_markup,
     )
 
