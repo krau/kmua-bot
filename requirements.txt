@@ -1,8 +1,9 @@
 dynaconf
 pypinyin==0.48.0
-python_telegram_bot==20.2
+python_telegram_bot
 pytz==2023.3
 loguru==0.7.0
 pillow==9.5.0
 pilmoji
 python-telegram-bot[rate-limiter]
+python-telegram-bot[job-queue]
