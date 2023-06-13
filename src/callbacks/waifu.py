@@ -1,9 +1,11 @@
-from telegram import Update
-from telegram.ext import ContextTypes
-from telegram.constants import ChatAction
-from ..utils import message_recorder
-from ..logger import logger
 import random
+
+from telegram import Update
+from telegram.constants import ChatAction
+from telegram.ext import ContextTypes
+
+from ..logger import logger
+from ..utils import message_recorder
 
 
 async def today_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE):

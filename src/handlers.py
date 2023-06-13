@@ -1,6 +1,7 @@
 from telegram.ext import (
     CallbackContext,
     CallbackQueryHandler,
+    ChatMemberHandler,
     CommandHandler,
     InlineQueryHandler,
     MessageHandler,
@@ -8,6 +9,7 @@ from telegram.ext import (
 )
 
 from .callbacks.bnhhsh import bnhhsh
+from .callbacks.chatmember import chat_member_updated
 from .callbacks.help import help
 from .callbacks.interact import interact
 from .callbacks.keyword_reply import keyword_reply
@@ -37,8 +39,6 @@ from .callbacks.userdata import (
     user_quote_manage,
 )
 from .callbacks.waifu import today_waifu
-
-
 from .filters import (
     bnhhsh_filter,
     help_filter,
@@ -96,9 +96,13 @@ random_quote_handler = MessageHandler(~filters.COMMAND, random_quote)
 bnhhsh_handler = MessageHandler(bnhhsh_filter, bnhhsh)
 bnhhsh_command_handler = CommandHandler("bnhhsh", bnhhsh)
 keyword_reply_handler = MessageHandler(keyword_reply_filter, keyword_reply)
+chat_member_updated_handler = ChatMemberHandler(
+    chat_member_updated, ChatMemberHandler.CHAT_MEMBER
+)
 handlers = [
     start_handler,
     chat_migration_handler,
+    chat_member_updated_handler,
     title_handler,
     quote_handler,
     set_quote_probability_handler,

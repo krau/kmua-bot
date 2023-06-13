@@ -1,7 +1,9 @@
+import datetime
 import os
 from pathlib import Path
-import datetime
+
 import pytz
+from telegram import Update
 from telegram.ext import (
     AIORateLimiter,
     Application,
@@ -10,10 +12,10 @@ from telegram.ext import (
     PicklePersistence,
 )
 
+from src.callbacks.jobs import refresh_data
 from src.config.config import settings
 from src.handlers import handlers, on_error
 from src.logger import logger
-from src.callbacks.jobs import refresh_data
 
 
 async def init_data(app: Application):
@@ -66,7 +68,7 @@ def run():
     app.add_handlers(handlers)
     app.add_error_handler(on_error)
     logger.info("Bot已启动")
-    app.run_polling()
+    app.run_polling(allowed_updates=Update.ALL_TYPES)
 
 
 if __name__ == "__main__":
