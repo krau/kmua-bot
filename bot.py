@@ -29,6 +29,7 @@ async def init_data(app: Application):
             ("help", "帮助"),
             ("rank", "群统计"),
             ("bnhhsh", "不能好好说话!"),
+            ("waifu", "今日老婆!"),
         ]
     )
     bot_user = await app.bot.get_me()
