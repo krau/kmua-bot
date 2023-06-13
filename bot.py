@@ -1,6 +1,6 @@
 import os
 from pathlib import Path
-
+import datetime
 import pytz
 from telegram.ext import (
     AIORateLimiter,
@@ -13,6 +13,7 @@ from telegram.ext import (
 from src.config.config import settings
 from src.handlers import handlers, on_error
 from src.logger import logger
+from src.callbacks.jobs import refresh_data
 
 
 async def init_data(app: Application):
@@ -27,7 +28,7 @@ async def init_data(app: Application):
             ("setqp", "设置发名言概率"),
             ("help", "帮助"),
             ("rank", "群统计"),
-            ("bnhhsh", "不能好好说话!")
+            ("bnhhsh", "不能好好说话!"),
         ]
     )
     bot_user = await app.bot.get_me()
@@ -36,8 +37,8 @@ async def init_data(app: Application):
     app.bot_data["bot_username"] = bot_username
     if not app.bot_data.get("quotes", None):
         app.bot_data["quotes"] = {}
-    global job_queue
-    job_queue = app.job_queue
+    if not app.bot_data.get("today_waifu", None):
+        app.bot_data["today_waifu"] = {}
 
 
 def run():
@@ -56,6 +57,10 @@ def run():
         .post_init(init_data)
         .rate_limiter(rate_limiter)
         .build()
+    )
+    job_queue = app.job_queue
+    job_queue.run_daily(
+        refresh_data, time=datetime.time(4, 0, 0, 0), name="refresh_data"
     )
     app.add_handlers(handlers)
     app.add_error_handler(on_error)

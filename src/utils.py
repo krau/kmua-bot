@@ -121,10 +121,7 @@ async def message_recorder(update: Update, context: ContextTypes.DEFAULT_TYPE):
             context.chat_data["members_data"] = {}
         if not context.chat_data["members_data"].get(this_user.id, None):
             member_data_obj = MemberData(
-                name=this_user.full_name,
-                id=this_user.id,
-                msg_num=0,
-                quote_num=0,
+                name=this_user.full_name, id=this_user.id, msg_num=0, quote_num=0
             )
             context.chat_data["members_data"][this_user.id] = member_data_obj
         context.chat_data["members_data"][this_user.id].msg_num += 1

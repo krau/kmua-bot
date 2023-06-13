@@ -24,7 +24,13 @@ class TextQuote:
 
 
 class MemberData:
-    def __init__(self, name: str, msg_num: int, id: int, quote_num: int) -> None:
+    def __init__(
+        self,
+        name: str,
+        msg_num: int,
+        id: int,
+        quote_num: int,
+    ) -> None:
         self.name = name
         self.msg_num = msg_num
         self.id = id

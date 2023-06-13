@@ -17,5 +17,10 @@
                 }
             ]
         }
+    },
+    "today_waifu": {
+        "user_id": {
+            "chat_id": "waifu_id"
+        }
     }
 }

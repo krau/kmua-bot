@@ -36,6 +36,9 @@ from .callbacks.userdata import (
     user_data_manage,
     user_quote_manage,
 )
+from .callbacks.waifu import today_waifu
+
+
 from .filters import (
     bnhhsh_filter,
     help_filter,
@@ -58,6 +61,9 @@ group_rank_handler = CommandHandler("rank", group_rank)
 qrand_handler = CommandHandler("qrand", random_quote)
 remake_handler = CommandHandler("remake", remake)
 suicide_handler = CommandHandler("suicide", suicide)
+today_waifu_handler = CommandHandler(
+    "waifu", today_waifu, filters=filters.ChatType.GROUPS
+)
 start_callback_handler = CallbackQueryHandler(start, pattern="back_home")
 clear_chat_quote_handler = CallbackQueryHandler(
     clear_chat_quote, pattern="clear_chat_quote"
@@ -100,6 +106,7 @@ handlers = [
     qrand_handler,
     remake_handler,
     suicide_handler,
+    today_waifu_handler,
     start_callback_handler,
     clear_chat_quote_ask_handler,
     help_handler,
