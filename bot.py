@@ -27,9 +27,7 @@ async def init_data(app: Application):
             ("setqp", "设置发名言概率"),
             ("help", "帮助"),
             ("rank", "群统计"),
-            ("bnhhsh", "不能好好说话!"),
-            ("remake", "重开"),
-            ("suicide", "销号地球OL"),
+            ("bnhhsh", "不能好好说话!")
         ]
     )
     bot_user = await app.bot.get_me()
@@ -38,6 +36,8 @@ async def init_data(app: Application):
     app.bot_data["bot_username"] = bot_username
     if not app.bot_data.get("quotes", None):
         app.bot_data["quotes"] = {}
+    global job_queue
+    job_queue = app.job_queue
 
 
 def run():

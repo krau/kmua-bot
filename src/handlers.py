@@ -56,12 +56,8 @@ clear_chat_quote_ask_handler = CommandHandler("c", clear_chat_quote_ask)
 help_handler = CommandHandler("help", help, filters=help_filter)
 group_rank_handler = CommandHandler("rank", group_rank)
 qrand_handler = CommandHandler("qrand", random_quote)
-remake_handler = CommandHandler(
-    "remake", remake, filters=(mention_bot_filter | filters.ChatType.PRIVATE)
-)
-suicide_handler = CommandHandler(
-    "suicide", suicide, filters=(mention_bot_filter | filters.ChatType.PRIVATE)
-)
+remake_handler = CommandHandler("remake", remake)
+suicide_handler = CommandHandler("suicide", suicide)
 start_callback_handler = CallbackQueryHandler(start, pattern="back_home")
 clear_chat_quote_handler = CallbackQueryHandler(
     clear_chat_quote, pattern="clear_chat_quote"
