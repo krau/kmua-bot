@@ -29,7 +29,6 @@ async def init_data(app: Application):
             ("c", "清空史册"),
             ("setqp", "设置发名言概率"),
             ("help", "帮助"),
-            ("rank", "群统计"),
             ("bnhhsh", "不能好好说话!"),
             ("waifu", "今日老婆!"),
         ]
