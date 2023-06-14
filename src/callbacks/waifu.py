@@ -27,23 +27,19 @@ async def today_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if not group_member:
             await update.message.reply_text(text="你现在没有老婆, 因为kmua的记录中找不到其他群友")
             return
-        waifu = await context.bot.get_chat_member(
-            chat_id=chat_id, user_id=random.choice(group_member)
-        )
+        waifu = await context.bot.get_chat(chat_id=random.choice(group_member))
     else:
-        waifu = await context.bot.get_chat_member(
-            chat_id=chat_id,
-            user_id=waifu_id,
-        )
+        waifu = await context.bot.get_chat(chat_id=waifu_id)
         is_had_waifu = True
-    waifu = waifu.user
-    avatar = await waifu.get_profile_photos(limit=1)
+    avatar = waifu.photo
+    if avatar:
+        avatar = await (await waifu.photo.get_big_file()).download_as_bytearray()
+        avatar = bytes(avatar)
     if is_had_waifu:
         text = f"你今天已经抽过老婆了\! {waifu.mention_markdown_v2()} 是你今天的老婆\!"
     else:
         text = f"你今天的群友老婆是 {waifu.mention_markdown_v2()} \!"
-    if avatar.photos:
-        avatar = avatar.photos[0][0].file_id
+    if avatar:
         await update.message.reply_photo(
             photo=avatar,
             caption=text,
