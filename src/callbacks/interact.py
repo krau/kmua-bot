@@ -18,26 +18,17 @@ async def interact(update: Update, context: ContextTypes.DEFAULT_TYPE):
     message = update.effective_message
     this_is_chat = True if message.sender_chat else False
     this_user = update.effective_user
-    this_name = this_user.full_name
-    this_id = this_user.id
-    this_link = f"[{this_name}](tg://user?id={this_id})"
     if this_is_chat:
         this_user = message.sender_chat
-        this_name = this_user.title
-        this_id = this_user.username
-        this_link = f"[{this_name}](https://t.me/{this_id})"
+    this_link = this_user.mention_markdown()
     if reply_to_message := update.effective_message.reply_to_message:
         # 如果是对其他人使用
         replied_is_chat = True if reply_to_message.sender_chat else False
-        replied_user = reply_to_message.from_user
-        replied_name = replied_user.full_name
-        replied_id = replied_user.id
-        replied_link = f"[{replied_name}](tg://user?id={replied_id})"
         if replied_is_chat:
             replied_user = reply_to_message.sender_chat
-            replied_name = replied_user.title
-            replied_id = replied_user.username
-            replied_link = f"[{replied_name}](https://t.me/{replied_id})"
+        else:
+            replied_user = reply_to_message.from_user
+        replied_link = replied_user.mention_markdown()
         if len(message.text.split(" ")) == 1:
             if message.text.startswith("/"):
                 cmd = message.text[1:].replace("/", "")
@@ -61,7 +52,7 @@ async def interact(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if len(message.text.split(" ")) == 1:
             if message.text.startswith("/"):
                 cmd = message.text[1:].replace("/", "")
-                text = f"{this_link}{cmd}了自己!"
+                text = f"{this_link}{cmd}了!"
             elif message.text.startswith("\\"):
                 cmd = message.text[1:]
                 text = f"{this_link}被自己{cmd}了!"
