@@ -26,6 +26,7 @@ async def help(update: Update, context: ContextTypes.DEFAULT_TYPE):
 /setqp - 设置发名言概率
 /rank - 群统计信息
 /bnhhsh - 不能好好说话!
+/waifu - 今天的群友老婆
 
 私聊:
 可查询自己的统计信息
