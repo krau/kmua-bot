@@ -252,14 +252,17 @@ async def del_quote(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"将{quote_message.id}([{update.effective_chat.title}]({update.effective_user.name}))"
             + "移出chat quote"
         )
-        await context.bot.unpin_chat_message(
+        try:
+            await context.bot.unpin_chat_message(
             chat_id=update.effective_chat.id, message_id=quote_message.id
         )
-        logger.debug(
+            logger.debug(
             "Bot将"
             + (f"{quote_message.text}" if quote_message.text else "<一条非文本消息>")
             + "取消置顶"
         )
+        except Exception as e:
+            logger.error(f"{e.__class__.__name__}: {e}")
         sent_message = await context.bot.send_message(
             chat_id=update.effective_chat.id,
             text="已移出语录",
