@@ -56,7 +56,15 @@ async def chat_member_updated(
         #     f"{member_name} is no longer with us. Thanks a lot, {cause_name} ...",
         #     parse_mode="Markdown",
         # )
-        del context.chat_data["members_data"][updated_member.id]
-        logger.debug(
-            f"将 {updated_member.full_name} 从 {update.effective_chat.title} 数据中移除"
-        )
+        try:
+            del context.chat_data["members_data"][updated_member.id]
+            logger.debug(
+                f"将 {updated_member.full_name} 退出了群聊 {update.effective_chat.title} "
+            )
+            logger.debug(
+                f"将 {updated_member.full_name} 从 {update.effective_chat.title} 数据中移除"
+            )
+        except KeyError:
+            logger.debug(
+                f"将 {updated_member.full_name} 未在 {update.effective_chat.title} 数据中"
+            )
