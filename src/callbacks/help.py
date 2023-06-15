@@ -24,7 +24,6 @@ async def help(update: Update, context: ContextTypes.DEFAULT_TYPE):
 /c - 清空史册
 /t - 获取头衔|互赠头衔
 /setqp - 设置发名言概率
-/rank - 群统计信息
 /bnhhsh - 不能好好说话!
 /waifu - 今天的群友老婆
 
