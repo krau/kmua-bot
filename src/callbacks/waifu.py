@@ -36,6 +36,8 @@ async def today_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except BadRequest:
         logger.warning(f"无法为 {update.effective_user.name} 获取id为 {waifu_id} 的waifu")
         await update.message.reply_text(text="你没能抽到老婆, 再试一次吧~")
+        poped_value = context.chat_data["members_data"].pop(waifu_id, "群组数据中无该成员")
+        logger.debug(f"移除: {poped_value}")
         return
     except Exception as e:
         raise e
