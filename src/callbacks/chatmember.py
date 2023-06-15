@@ -15,4 +15,4 @@ async def chat_member_left(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"将 {updated_member.full_name} 从 {update.effective_chat.title} 数据中移除"
         )
     except KeyError:
-        logger.debug(f"{updated_member.full_name} 未在 {update.effective_chat.title} 数据中")
+        logger.debug(f"{updated_member.full_name} 未在 {update.effective_chat.title} 数据中")  # noqa: E501

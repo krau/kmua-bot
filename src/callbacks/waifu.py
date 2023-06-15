@@ -27,16 +27,16 @@ async def today_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         group_member: list[int] = list(context.chat_data["members_data"].keys())
         group_member.remove(user_id)
         if not group_member:
-            await update.message.reply_text(text="你现在没有老婆, 因为kmua的记录中找不到其他群友")
+            await update.message.reply_text(text="你现在没有老婆, 因为kmua的记录中找不到其他群友")  # noqa: E501
             return
         waifu_id = random.choice(group_member)
     try:
         waifu = await context.bot.get_chat(waifu_id)
         is_success = True
     except BadRequest:
-        logger.warning(f"无法为 {update.effective_user.name} 获取id为 {waifu_id} 的waifu")
+        logger.warning(f"无法为 {update.effective_user.name} 获取id为 {waifu_id} 的waifu")  # noqa: E501
         await update.message.reply_text(text="你没能抽到老婆, 再试一次吧~")
-        poped_value = context.chat_data["members_data"].pop(waifu_id, "群组数据中无该成员")
+        poped_value = context.chat_data["members_data"].pop(waifu_id, "群组数据中无该成员")  # noqa: E501
         logger.debug(f"移除: {poped_value}")
         return
     except Exception as e:

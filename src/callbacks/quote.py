@@ -158,7 +158,7 @@ async def set_quote_probability(update: Update, context: ContextTypes.DEFAULT_TY
         probability = float(update.effective_message.text.split(" ")[1])
     except ValueError:
         sent_message = await context.bot.send_message(
-            chat_id=update.effective_chat.id, text="概率是在[0,1]之间的浮点数,请检查输入"
+            chat_id=update.effective_chat.id, text="概率是在[0,1]之间的浮点数,请检查输入"  # noqa: E501
         )
         logger.info(f"Bot: {sent_message.text}")
         return
@@ -170,7 +170,7 @@ async def set_quote_probability(update: Update, context: ContextTypes.DEFAULT_TY
         return
     if probability < 0 or probability > 1:
         sent_message = await context.bot.send_message(
-            chat_id=update.effective_chat.id, text="概率是在[0,1]之间的浮点数,请检查输入"
+            chat_id=update.effective_chat.id, text="概率是在[0,1]之间的浮点数,请检查输入"  # noqa: E501
         )
         logger.info(f"Bot: {sent_message.text}")
         return
@@ -216,7 +216,7 @@ async def random_quote(update: Update, context: ContextTypes.DEFAULT_TYPE):
         context.chat_data["quote_messages"].remove(to_forward_message_id)
         sent_message = await context.bot.send_message(
             chat_id=update.effective_chat.id,
-            text=f"有一条名言突然消失了!\nid: _{to_forward_message_id}_\n已从语录中移除",
+            text=f"有一条名言突然消失了!\nid: _{to_forward_message_id}_\n已从语录中移除",  # noqa: E501
             parse_mode="Markdown",
         )
         logger.info(f"Bot: {sent_message.text}")
@@ -392,7 +392,7 @@ async def inline_query_quote(update: Update, context: ContextTypes.DEFAULT_TYPE)
         if query:
             for text_quote in text_quotes:
                 if query in text_quote.content:
-                    create_at_str = text_quote.created_at.strftime("%Y年%m月%d日%H时%M分%S秒")
+                    create_at_str = text_quote.created_at.strftime("%Y年%m月%d日%H时%M分%S秒")  # noqa: E501
                     message_texts = [
                         f"{text_quote.content}\n——[{user_name}](tg://user?id={user_id})\n{create_at_str}",
                         f"{text_quote.content}\n\n[{user_name}](tg://user?id={user_id})\n{create_at_str}",
@@ -408,7 +408,7 @@ async def inline_query_quote(update: Update, context: ContextTypes.DEFAULT_TYPE)
                     )
             for img_quote in img_quotes:
                 if query in img_quote.text:
-                    create_at_str = img_quote.created_at.strftime("%Y年%m月%d日%H时%M分%S秒")
+                    create_at_str = img_quote.created_at.strftime("%Y年%m月%d日%H时%M分%S秒")  # noqa: E501
                     results.append(
                         InlineQueryResultCachedPhoto(
                             id=str(uuid4()),
@@ -430,7 +430,7 @@ async def inline_query_quote(update: Update, context: ContextTypes.DEFAULT_TYPE)
         else:
             results = []
             for text_quote in random.sample(text_quotes, min(len(text_quotes), 10)):
-                create_at_str = text_quote.created_at.strftime("%Y年%m月%d日%H时%M分%S秒")
+                create_at_str = text_quote.created_at.strftime("%Y年%m月%d日%H时%M分%S秒")  # noqa: E501
                 message_texts = [
                     f"{text_quote.content}\n\n——[{user_name}](tg://user?id={user_id})\n{create_at_str}",
                     f"{text_quote.content}\n\n[{user_name}](tg://user?id={user_id})\n{create_at_str}",
@@ -448,7 +448,7 @@ async def inline_query_quote(update: Update, context: ContextTypes.DEFAULT_TYPE)
                 )
 
             for img_quote in random.sample(img_quotes, min(len(img_quotes), 10)):
-                create_at_str = img_quote.created_at.strftime("%Y年%m月%d日%H时%M分%S秒")
+                create_at_str = img_quote.created_at.strftime("%Y年%m月%d日%H时%M分%S秒")  # noqa: E501
                 results.append(
                     InlineQueryResultCachedPhoto(
                         id=str(uuid4()),
