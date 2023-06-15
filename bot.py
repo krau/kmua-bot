@@ -62,7 +62,9 @@ def run():
     )
     job_queue = app.job_queue
     job_queue.run_daily(
-        refresh_data, time=datetime.time(4, 0, 0, 0), name="refresh_data"
+        refresh_data,
+        time=datetime.time(4, 0, 0, 0, tzinfo=pytz.timezone("Asia/Shanghai")),
+        name="refresh_data",
     )
     app.add_handlers(handlers)
     app.add_error_handler(on_error)
