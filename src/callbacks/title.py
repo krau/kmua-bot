@@ -47,7 +47,7 @@ async def title(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         if replied_message:
             text_when_have_replied_message = f"""
-            [{this_user.full_name}](tg://user?id={this_user.id})把[{replied_user.full_name}](tg://user?id={replied_user.id})变成{custom_title}!
+{this_user.mention_markdown()}把{replied_user.mention_markdown()}变成{custom_title}!
             """
         text = (
             f"好, 你现在是{custom_title}啦"
