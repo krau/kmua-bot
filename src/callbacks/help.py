@@ -25,7 +25,7 @@ async def help(update: Update, context: ContextTypes.DEFAULT_TYPE):
 /t - 获取头衔|互赠头衔
 /setqp - 设置发名言概率
 /bnhhsh - 不能好好说话!
-/waifu - 今天的群友老婆
+/waifu - 今天的群友老婆!
 
 私聊:
 可查询自己的统计信息
@@ -38,10 +38,6 @@ async def help(update: Update, context: ContextTypes.DEFAULT_TYPE):
 A使用"/透"回复B的消息
 Bot: "A透了B!"
 使用反斜杠可主客互换
-
-Inline 模式:
-在任意聊天框艾特我即可使用,
-支持搜索名言, 例如: @kmuav2bot 原神
 """
     help_markup = InlineKeyboardMarkup(
         [
