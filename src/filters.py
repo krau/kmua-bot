@@ -1,23 +1,12 @@
-from telegram import Message, Update
+from telegram import Message
 from telegram.ext.filters import (
     FilterDataDict,
     MessageFilter,
-    UpdateFilter,
 )
 from telegram.ext import filters
 from .utils import random_unit
 from .config.config import settings
 from .data import word_dict
-
-
-class StartFilter(UpdateFilter):
-    def filter(self, update: Update) -> bool | FilterDataDict | None:
-        if (
-            update.effective_chat.type != "private"
-            and update.effective_message.text == "/start"
-        ):
-            return False
-        return True
 
 
 class InteractFilter(MessageFilter):
@@ -33,16 +22,6 @@ class InteractFilter(MessageFilter):
                 return False
             return True
         return False
-
-
-class HelpFilter(UpdateFilter):
-    def filter(self, update: Update) -> bool | FilterDataDict | None:
-        if (
-            update.effective_chat.type != "private"
-            and update.effective_message.text == "/help"
-        ):
-            return False
-        return True
 
 
 class TextLengthFilter(MessageFilter):
@@ -107,10 +86,8 @@ class KeywordReplyFilter(MessageFilter):
         return False
 
 
-start_filter = StartFilter()
-mention_bot_filter = MentionBotFilter()
+mention_or_private_filter = MentionBotFilter() | filters.ChatType.PRIVATE
 interact_filter = InteractFilter()
-help_filter = HelpFilter()
 keyword_reply_filter = (
     TextLengthFilter(min_length=1, max_length=200)
     & ~interact_filter

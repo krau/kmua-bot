@@ -40,22 +40,20 @@ from .callbacks.userdata import (
 from .callbacks.waifu import today_waifu
 from .filters import (
     bnhhsh_filter,
-    help_filter,
     interact_filter,
     keyword_reply_filter,
-    mention_bot_filter,
-    start_filter,
+    mention_or_private_filter,
 )
 from .logger import logger
 
-start_handler = CommandHandler("start", start, filters=start_filter)
+start_handler = CommandHandler("start", start, filters=mention_or_private_filter)
 chat_migration_handler = MessageHandler(filters.StatusUpdate.MIGRATE, chat_migration)
-title_handler = CommandHandler("t", title, filters=mention_bot_filter)
+title_handler = CommandHandler("t", title, filters=mention_or_private_filter)
 quote_handler = CommandHandler("q", quote)
 set_quote_probability_handler = CommandHandler("setqp", set_quote_probability)
 del_quote_handler = CommandHandler("d", del_quote)
 clear_chat_quote_ask_handler = CommandHandler("c", clear_chat_quote_ask)
-help_handler = CommandHandler("help", help, filters=help_filter)
+help_handler = CommandHandler("help", help, filters=mention_or_private_filter)
 group_rank_handler = CommandHandler("rank", group_rank)
 qrand_handler = CommandHandler("qrand", random_quote)
 remake_handler = CommandHandler("remake", remake)
