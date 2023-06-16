@@ -141,3 +141,15 @@ async def message_recorder(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 def sort_topn_bykey(data: dict, n: int, key: str) -> list:
     return sorted(data.values(), key=attrgetter(key), reverse=True)[:n]
+
+
+def escape(text: str) -> str:
+    return (
+        text.replace("/", "")
+        .replace("(", "\(")
+        .replace(")", "\)")
+        .replace("[", "\[")
+        .replace("]", "\]")
+        .replace("!", "\!")
+        .replace("*", "\*")
+    )

@@ -4,7 +4,7 @@ from telegram import (
 from telegram.ext import ContextTypes
 
 from ..logger import logger
-from ..utils import message_recorder
+from ..utils import message_recorder, escape
 
 
 async def interact(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -31,41 +31,45 @@ async def interact(update: Update, context: ContextTypes.DEFAULT_TYPE):
         replied_link = replied_user.mention_markdown_v2()
         if len(message.text.split(" ")) == 1:
             if message.text.startswith("/"):
-                cmd = message.text[1:].replace("/", "")
+                cmd = escape(message.text[1:])
                 text = f"{this_link}{cmd}了{replied_link} \!"
             elif message.text.startswith("\\"):
-                cmd = message.text[1:]
+                cmd = escape(message.text[1:])
                 text = f"{this_link}被{replied_link}{cmd}了 \!"
         else:
             if message.text.startswith("/"):
-                cmd_front = message.text.split(" ")[0].replace("/", "")
+                cmd_front = escape(message.text.split(" ")[0])
                 cmd_back = message.text.split(" ")[1:]
                 cmd_back = " ".join(cmd_back).replace("/", "")
+                cmd_back = escape(cmd_back)
                 text = f"{this_link}{cmd_front}{replied_link}{cmd_back} \!"
             elif message.text.startswith("\\"):
-                cmd_front = message.text.split(" ")[0].replace("\\", "")
+                cmd_front = escape(message.text.split(" ")[0])
                 cmd_back = message.text.split(" ")[1:]
                 cmd_back = " ".join(cmd_back)
+                cmd_back = escape(cmd_back)
                 text = f"{replied_link}{cmd_front}{this_link}{cmd_back} \!"
     else:
         # 如果是对自己使用
         if len(message.text.split(" ")) == 1:
             if message.text.startswith("/"):
-                cmd = message.text[1:].replace("/", "")
+                cmd = escape(message.text[1:])
                 text = f"{this_link}{cmd}了\!"
             elif message.text.startswith("\\"):
-                cmd = message.text[1:]
+                cmd = escape(message.text[1:])
                 text = f"{this_link}被自己{cmd}了 \!"
         else:
             if message.text.startswith("/"):
-                cmd_front = message.text.split(" ")[0].replace("/", "")
+                cmd_front = escape(message.text.split(" ")[0])
                 cmd_back = message.text.split(" ")[1:]
                 cmd_back = " ".join(cmd_back).replace("/", "")
+                cmd_back = escape(cmd_back)
                 text = f"{this_link}{cmd_front}自己{cmd_back} \!"
             elif message.text.startswith("\\"):
-                cmd_front = message.text.split(" ")[0].replace("\\", "")
+                cmd_front = escape(message.text.split(" ")[0])
                 cmd_back = message.text.split(" ")[1:]
                 cmd_back = " ".join(cmd_back)
+                cmd_back = escape(cmd_back)
                 text = f"{this_link}被自己{cmd_front}了{cmd_back} \!"
     sent_message = await context.bot.send_message(
         chat_id=update.effective_chat.id, text=text, parse_mode="MarkdownV2"
