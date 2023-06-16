@@ -7,3 +7,4 @@ pillow==9.5.0
 pilmoji
 python-telegram-bot[rate-limiter]
 python-telegram-bot[job-queue]
+zhconv

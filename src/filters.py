@@ -7,6 +7,7 @@ from telegram.ext import filters
 from .utils import random_unit
 from .config.config import settings
 from .data import word_dict
+from zhconv import convert
 
 
 class InteractFilter(MessageFilter):
@@ -80,6 +81,7 @@ class KeywordReplyFilter(MessageFilter):
         if not message.text:
             return False
         message_text = message.text.replace(message.get_bot().username, "").lower()
+        message_text = convert(message_text, "zh-cn")
         for keyword in word_dict.keys():
             if keyword in message_text:
                 return True

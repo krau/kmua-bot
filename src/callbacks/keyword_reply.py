@@ -5,7 +5,7 @@ from telegram import (
 )
 from telegram.ext import ContextTypes
 from telegram.constants import ChatAction
-
+from zhconv import convert
 from ..logger import logger
 from ..data import word_dict
 from ..utils import message_recorder
@@ -20,6 +20,7 @@ async def keyword_reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
     message_text = update.effective_message.text.replace(
         context.bot.username, ""
     ).lower()
+    message_text = convert(message_text, "zh-cn")
     await context.bot.send_chat_action(
         chat_id=update.effective_chat.id, action=ChatAction.TYPING
     )
