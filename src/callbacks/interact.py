@@ -20,7 +20,10 @@ async def interact(update: Update, context: ContextTypes.DEFAULT_TYPE):
     this_user = update.effective_user
     if this_is_chat:
         this_user = message.sender_chat
-    this_link = this_user.mention_markdown_v2()
+    try:
+        this_link = this_user.mention_markdown_v2()
+    except TypeError:
+        this_link = f"[{this_user.full_name}](tg://user?id={this_user.id})"
     if reply_to_message := update.effective_message.reply_to_message:
         # 如果是对其他人使用
         replied_is_chat = True if reply_to_message.sender_chat else False
@@ -28,7 +31,10 @@ async def interact(update: Update, context: ContextTypes.DEFAULT_TYPE):
             replied_user = reply_to_message.sender_chat
         else:
             replied_user = reply_to_message.from_user
-        replied_link = replied_user.mention_markdown_v2()
+        try:
+            replied_link = replied_user.mention_markdown_v2()
+        except TypeError:
+            replied_link = f"[{replied_user.full_name}](tg://user?id={replied_user.id})"
         if len(message.text.split(" ")) == 1:
             if message.text.startswith("/"):
                 cmd = escape(message.text[1:])
