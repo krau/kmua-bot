@@ -74,11 +74,6 @@ async def quote(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"将{quote_message.id}([{update.effective_chat.title}]({quote_user.name}))"
             + "加入chat quote"
         )
-        await context.bot.send_message(
-            chat_id=update.effective_chat.id,
-            text="已记录下名言",
-            reply_to_message_id=quote_message.id,
-        )
     if not quote_message.text:
         # 如果不是文字消息, 在此处return
         return
