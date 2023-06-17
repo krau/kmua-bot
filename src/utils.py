@@ -14,7 +14,12 @@ from .model import MemberData
 
 
 def random_unit(probability: float) -> bool:
-    """指定概率返回True或False"""
+    """
+    以probability的概率返回True
+
+    :param probability: 概率
+    :return: bool
+    """
     assert 0 <= probability <= 1, "参数probability应该在[0,1]之间"
     return random.uniform(0, 1) < probability
 
@@ -140,6 +145,14 @@ async def message_recorder(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 def sort_topn_bykey(data: dict, n: int, key: str) -> list:
+    """
+    将字典按照指定的key排序，取前n个
+
+    :param data: 字典
+    :param n: 取前n个
+    :param key: 指定的key
+    :return: 排序后的列表
+    """
     return sorted(data.values(), key=attrgetter(key), reverse=True)[:n]
 
 
