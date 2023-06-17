@@ -26,6 +26,8 @@ async def today_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         is_got_waifu = False
         group_member: list[int] = list(context.chat_data["members_data"].keys())
         group_member.remove(user_id)
+        if 777000 in group_member:
+            group_member.remove(777000)
         if not group_member:
             await update.message.reply_text(text="你现在没有老婆, 因为kmua的记录中找不到其他群友")  # noqa: E501
             return
