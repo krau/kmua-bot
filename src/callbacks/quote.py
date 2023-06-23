@@ -74,6 +74,11 @@ async def quote(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"将{quote_message.id}([{update.effective_chat.title}]({quote_user.name}))"
             + "加入chat quote"
         )
+    await context.bot.send_message(
+            chat_id=update.effective_chat.id,
+            text="已记录名言",
+            reply_to_message_id=quote_message.id,
+        )
     if not quote_message.text:
         # 如果不是文字消息, 在此处return
         return
@@ -209,12 +214,6 @@ async def random_quote(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except BadRequest:
         logger.error(f"{to_forward_message_id} 未找到,从chat quote中移除")
         context.chat_data["quote_messages"].remove(to_forward_message_id)
-        sent_message = await context.bot.send_message(
-            chat_id=update.effective_chat.id,
-            text=f"有一条名言突然消失了!\nid: _{to_forward_message_id}_\n已从语录中移除",  # noqa: E501
-            parse_mode="Markdown",
-        )
-        logger.info(f"Bot: {sent_message.text}")
     except Exception as e:
         logger.error(f"{e.__class__.__name__}: {e}")
         await context.bot.send_message(
