@@ -14,6 +14,7 @@ def _load_word_dict():
     )
     word_dict = {}
     for file in glob.glob(f"{word_dict_path_internal}" + r"/*.json"):
+        logger.debug(f"加载内置词库: {file}")
         try:
             with open(file, "r") as f:
                 for k, v in json.load(f).items():
@@ -26,6 +27,7 @@ def _load_word_dict():
             continue
     if os.path.exists(word_dict_path_user):
         for file in glob.glob(f"{word_dict_path_user}" + r"/*.json"):
+            logger.debug(f"加载用户词库: {file}")
             try:
                 with open(file, "r") as f:
                     for k, v in json.load(f).items():
@@ -36,6 +38,7 @@ def _load_word_dict():
             except Exception as e:
                 logger.error(f"加载词库失败: {file}: {e.__class__.__name__}: {e}")
                 continue
+    logger.debug(f"词库加载完成, 共加载词条: {len(word_dict)}")
     return word_dict
 
 
