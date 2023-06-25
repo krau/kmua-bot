@@ -1,8 +1,10 @@
+import asyncio
+
 from telegram.ext import (
-    CallbackContext,
     CallbackQueryHandler,
     ChatMemberHandler,
     CommandHandler,
+    ContextTypes,
     InlineQueryHandler,
     MessageHandler,
     filters,
@@ -13,7 +15,7 @@ from .callbacks.chatmember import on_member_join, on_member_left, track_chats
 from .callbacks.help import help
 from .callbacks.interact import interact
 from .callbacks.keyword_reply import keyword_reply
-from .callbacks.others import chat_migration
+from .callbacks.others import chat_migration, error_notice_control
 from .callbacks.quote import (
     clear_chat_quote,
     clear_chat_quote_ask,
@@ -39,6 +41,7 @@ from .callbacks.userdata import (
     user_quote_manage,
 )
 from .callbacks.waifu import today_waifu
+from .config.config import settings
 from .filters import (
     bnhhsh_filter,
     interact_filter,
@@ -55,6 +58,7 @@ set_quote_probability_handler = CommandHandler("setqp", set_quote_probability)
 del_quote_handler = CommandHandler("d", del_quote)
 clear_chat_quote_ask_handler = CommandHandler("c", clear_chat_quote_ask)
 help_handler = CommandHandler("help", help, filters=mention_or_private_filter)
+error_notice_control_handler = CommandHandler("error_notice", error_notice_control)
 group_rank_handler = CommandHandler("rank", group_rank)
 qrand_handler = CommandHandler("qrand", random_quote)
 remake_handler = CommandHandler("remake", remake)
@@ -119,6 +123,7 @@ handlers = [
     start_callback_handler,
     clear_chat_quote_ask_handler,
     help_handler,
+    error_notice_control_handler,
     clear_chat_quote_handler,
     group_rank_handler,
     bnhhsh_command_handler,
@@ -138,7 +143,17 @@ handlers = [
 ]
 
 
-async def on_error(update: object | None, context: CallbackContext):
+async def on_error(update: object | None, context: ContextTypes.DEFAULT_TYPE):
     logger.error(
         f"在该更新发生错误\n{update}\n错误信息\n{context.error.__class__.__name__}:{context.error}"
     )
+    if context.bot_data.get("error_notice", False):
+
+        async def send_update_error(chat_id):
+            await context.bot.send_message(
+                chat_id=chat_id,
+                text=f"在该更新发生错误\n{update}\n错误信息\n\n{context.error.__class__.__name__}:{context.error}",
+            )
+
+        tasks = [send_update_error(chat_id) for chat_id in settings.owners]
+        await asyncio.gather(*tasks)
