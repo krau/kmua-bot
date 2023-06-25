@@ -89,7 +89,7 @@ class KeywordReplyFilter(MessageFilter):
 
 
 mention_or_private_filter = MentionBotFilter() | filters.ChatType.PRIVATE
-interact_filter = InteractFilter()
+interact_filter = InteractFilter() & TextLengthFilter(min_length=1, max_length=100)
 keyword_reply_filter = (
     TextLengthFilter(min_length=1, max_length=200)
     & ~interact_filter
