@@ -16,7 +16,6 @@ async def keyword_reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"[{update.effective_chat.title}]({update.effective_user.name})"
         + f" {update.effective_message.text}"
     )
-    await message_recorder(update, context)
     message_text = update.effective_message.text.replace(
         context.bot.username, ""
     ).lower()
@@ -31,3 +30,4 @@ async def keyword_reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
             logger.info(f"Bot: {sent_message.text}")
             return
+    await message_recorder(update, context)

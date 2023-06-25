@@ -14,7 +14,6 @@ async def help(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"[{update.effective_chat.title}]({update.effective_user.name})"
         + f" {update.effective_message.text}"
     )
-    await message_recorder(update, context)
     help_text = """
 命令:
 /help - 显示此帮助信息
@@ -52,4 +51,5 @@ Bot: "A透了B!"
         text=help_text,
         reply_markup=help_markup,
     )
+    await message_recorder(update, context)
     logger.info(f"Bot: {sent_message.text}")

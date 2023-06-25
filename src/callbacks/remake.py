@@ -13,8 +13,6 @@ async def remake(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"[{update.effective_chat.title}]({update.effective_user.name})"
         + f" {update.effective_message.text}"
     )
-    await message_recorder(update, context)
-
     if random_unit(0.114):
         await update.effective_message.reply_text(text="重开失败!您没能出生!")
         return
@@ -22,4 +20,5 @@ async def remake(update: Update, context: ContextTypes.DEFAULT_TYPE):
     sent_message = await update.effective_message.reply_text(
         text=text, parse_mode="MarkdownV2"
     )
+    await message_recorder(update, context)
     logger.info(f"Bot: {sent_message.text}")

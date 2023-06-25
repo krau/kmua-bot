@@ -13,7 +13,6 @@ async def group_rank(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"[{update.effective_chat.title}]({update.effective_user.name})"
         + f" {update.effective_message.text}"
     )
-    await message_recorder(update, context)
     if update.effective_chat.type == "private":
         sent_message = await context.bot.send_message(
             chat_id=update.effective_chat.id,
@@ -75,4 +74,5 @@ async def group_rank(update: Update, context: ContextTypes.DEFAULT_TYPE):
         text=text,
         parse_mode="Markdown",
     )
+    await message_recorder(update, context)
     logger.info(f"Bot: {sent_message.text}")
