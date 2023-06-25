@@ -1,6 +1,7 @@
 from telegram.ext import (
     CallbackContext,
     CallbackQueryHandler,
+    ChatMemberHandler,
     CommandHandler,
     InlineQueryHandler,
     MessageHandler,
@@ -8,7 +9,7 @@ from telegram.ext import (
 )
 
 from .callbacks.bnhhsh import bnhhsh
-from .callbacks.chatmember import chat_member_left
+from .callbacks.chatmember import on_member_join, on_member_left, track_chats
 from .callbacks.help import help
 from .callbacks.interact import interact
 from .callbacks.keyword_reply import keyword_reply
@@ -93,14 +94,20 @@ random_quote_handler = MessageHandler(~filters.COMMAND, random_quote)
 bnhhsh_handler = MessageHandler(bnhhsh_filter, bnhhsh)
 bnhhsh_command_handler = CommandHandler("bnhhsh", bnhhsh)
 keyword_reply_handler = MessageHandler(keyword_reply_filter, keyword_reply)
-chat_member_updated_handler = MessageHandler(
-    filters.StatusUpdate.LEFT_CHAT_MEMBER,
-    chat_member_left,
+track_chats_handler = ChatMemberHandler(track_chats, ChatMemberHandler.MY_CHAT_MEMBER)
+member_left_handler = MessageHandler(
+    filters.StatusUpdate.LEFT_CHAT_MEMBER, on_member_left
 )
+member_join_handler = MessageHandler(
+    filters.StatusUpdate.NEW_CHAT_MEMBERS, on_member_join
+)
+
 handlers = [
     start_handler,
+    track_chats_handler,
+    member_left_handler,
+    member_join_handler,
     chat_migration_handler,
-    chat_member_updated_handler,
     title_handler,
     quote_handler,
     set_quote_probability_handler,
