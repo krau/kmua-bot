@@ -69,6 +69,8 @@ async def today_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         poped_value = context.chat_data["members_data"].pop(waifu_id, "群组数据中无该成员")
         logger.debug(f"移除: {poped_value}")
         return
+    if not update.message:
+        return
     if avatar:
         await update.message.reply_photo(
             photo=avatar,
