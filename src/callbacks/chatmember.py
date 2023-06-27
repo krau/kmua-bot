@@ -78,4 +78,35 @@ async def on_member_left(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def on_member_join(update: Update, context: ContextTypes.DEFAULT_TYPE):
     joined_user = update.effective_message.new_chat_members[0]
     logger.debug(f"{joined_user} 加入了群聊 {update.effective_chat.title} ")
-    # TODO: greet new member
+    if joined_user.is_bot:
+        return
+    greet_message = context.chat_data.get("greet_message")
+    if greet_message:
+        greet_message = greet_message.format(
+            user=joined_user.mention_markdown(),
+            chat=update.effective_chat.title,
+        )
+        sent_message = await context.bot.send_message(
+            chat_id=update.effective_chat.id,
+            text=greet_message,
+            reply_to_message_id=update.effective_message.message_id,
+            parse_mode="Markdown",
+        )
+        logger.info(f"Bot: {sent_message.text}")
+
+
+async def set_greet(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    logger.info(
+        f"[{update.effective_chat.title}]({update.effective_user.name})"
+        + f" {update.effective_message.text}"
+    )
+    admins = await context.bot.get_chat_administrators(chat_id=update.effective_chat.id)
+    if update.effective_user.id not in [admin.user.id for admin in admins]:
+        await update.message.reply_text("你不是管理员哦")
+        return
+    greet_message = " ".join(context.args)
+    context.chat_data["greet_message"] = greet_message
+    if greet_message:
+        await update.message.reply_text("入群欢迎设置好啦")
+    else:
+        await update.message.reply_text("入群欢迎已清除")

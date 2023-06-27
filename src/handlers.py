@@ -11,7 +11,7 @@ from telegram.ext import (
 )
 
 from .callbacks.bnhhsh import bnhhsh
-from .callbacks.chatmember import on_member_join, on_member_left, track_chats
+from .callbacks.chatmember import on_member_join, on_member_left, track_chats, set_greet
 from .callbacks.help import help
 from .callbacks.interact import interact
 from .callbacks.keyword_reply import keyword_reply
@@ -65,6 +65,9 @@ remake_handler = CommandHandler("remake", remake)
 suicide_handler = CommandHandler("suicide", suicide)
 today_waifu_handler = CommandHandler(
     "waifu", today_waifu, filters=filters.ChatType.GROUPS
+)
+set_greet_handler = CommandHandler(
+    "set_greet", set_greet, filters=filters.ChatType.GROUPS
 )
 start_callback_handler = CallbackQueryHandler(start, pattern="back_home")
 clear_chat_quote_handler = CallbackQueryHandler(
@@ -120,6 +123,7 @@ handlers = [
     remake_handler,
     suicide_handler,
     today_waifu_handler,
+    set_greet_handler,
     start_callback_handler,
     clear_chat_quote_ask_handler,
     help_handler,
