@@ -188,7 +188,7 @@ async def random_quote(update: Update, context: ContextTypes.DEFAULT_TYPE):
     this_user = update.effective_user
     this_message = update.effective_message
     logger.info(
-        f"[{this_chat.title}]({this_user.name})"
+        f"[{this_chat.title}]({this_user.name if this_user else None})"
         + (f" {this_message.text}" if this_message.text else "<非文本消息>")
     )
     await message_recorder(update, context)
