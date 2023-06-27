@@ -29,5 +29,5 @@ async def keyword_reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 random.choice(resplist), quote=True
             )
             logger.info(f"Bot: {sent_message.text}")
-            return
+            break
     await message_recorder(update, context)
