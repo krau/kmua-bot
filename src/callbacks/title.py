@@ -63,7 +63,7 @@ async def title(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.info(f"Bot: {sent_message.text}")
     except BadRequest:
         sent_message = await context.bot.send_message(
-            chat_id=update.effective_chat.id, text="Kmua没有足够的权限"
+            chat_id=update.effective_chat.id, text="咱没有足够的权限"
         )
         logger.info(f"Bot: {sent_message.text}")
     except Exception as e:

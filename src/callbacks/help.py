@@ -29,7 +29,7 @@ async def help(update: Update, context: ContextTypes.DEFAULT_TYPE):
 私聊:
 可查询自己的统计信息
 可删除自己的名言
-可以和 kmua 聊天
+可以和我聊天
 
 互动:
 对其他人使用 "/"命令 即可对其施法

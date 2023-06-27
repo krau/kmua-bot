@@ -37,7 +37,7 @@ async def today_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         ]
         group_member = [member for member in group_member if member not in to_remove]
         if not group_member:
-            await update.message.reply_text(text="你现在没有老婆, 因为kmua的记录中找不到其他群友")
+            await update.message.reply_text(text="你现在没有老婆, 因为咱的记录中找不到其他群友")
             return
         waifu_id = random.choice(group_member)
     try:

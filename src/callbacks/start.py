@@ -56,7 +56,7 @@ async def _start_in_group(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [
             [
                 InlineKeyboardButton(
-                    "私聊Kmua", url=f"https://t.me/{context.bot.username}?start=start"
+                    "私聊咱", url=f"https://t.me/{context.bot.username}?start=start"
                 )
             ]
         ]

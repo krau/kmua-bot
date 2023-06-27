@@ -43,7 +43,7 @@ async def user_data_manage(update: Update, context: ContextTypes.DEFAULT_TYPE):
 已保存的名言总数: *{quote_len}*
 图片名言数量: *{img_quote_len}*
 文字名言数量: *{text_quote_len}*
-私聊Kmua次数: *{pm_kmua_num}*
+私聊我次数: *{pm_kmua_num}*
 水群消息数: *{group_msg_num}*
 总文字消息数: *{text_num}*
 总图片消息数: *{photo_num}*
