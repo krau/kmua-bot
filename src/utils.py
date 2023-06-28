@@ -11,6 +11,7 @@ from telegram import (
 from telegram.ext import ContextTypes
 
 from .model import MemberData
+import re
 
 
 def random_unit(probability: float) -> bool:
@@ -163,23 +164,6 @@ def sort_topn_bykey(data: dict, n: int, key: str) -> list:
 
 
 def escape(text: str) -> str:
-    return (
-        text.replace("/", "")
-        .replace("(", "\(")
-        .replace(")", "\)")
-        .replace("[", "\[")
-        .replace("]", "\]")
-        .replace("!", "\!")
-        .replace("*", "\*")
-        .replace("~", "\~")
-        .replace("`", "\`")
-        .replace(">", "\>")
-        .replace("#", "\#")
-        .replace("+", "\+")
-        .replace("-", "\-")
-        .replace("=", "\=")
-        .replace("|", "\|")
-        .replace("{", "\{")
-        .replace("}", "\}")
-        .replace(".", "\.")
-    )
+    special_characters = r"\/()[]!*~\>#+-=|{}."
+    escaped_text = re.sub(rf"[{re.escape(special_characters)}]", r"\\\g<0>", text)
+    return escaped_text
