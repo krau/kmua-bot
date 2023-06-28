@@ -25,9 +25,9 @@ async def keyword_reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     for keyword, resplist in word_dict.items():
         if keyword in message_text:
-            sent_message = await update.effective_message.reply_text(
-                random.choice(resplist), quote=True
-            )
+            text = random.choice(resplist)
+            text.replace("@name", update.effective_user.name)
+            sent_message = await update.effective_message.reply_text(text, quote=True)
             logger.info(f"Bot: {sent_message.text}")
             break
     await message_recorder(update, context)
