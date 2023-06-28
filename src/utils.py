@@ -182,5 +182,4 @@ def escape(text: str) -> str:
         .replace("{", "\{")
         .replace("}", "\}")
         .replace(".", "\.")
-        .replace("-", "\-")
     )
