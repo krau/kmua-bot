@@ -164,6 +164,23 @@ def sort_topn_bykey(data: dict, n: int, key: str) -> list:
 
 
 def escape(text: str) -> str:
-    special_characters = r"\/()[]!*~\>#+-=|{}."
-    escaped_text = re.sub(rf"[{re.escape(special_characters)}]", r"\\\g<0>", text)
-    return escaped_text
+    return (
+        text.replace("/", "")
+        .replace("(", "\(")
+        .replace(")", "\)")
+        .replace("[", "\[")
+        .replace("]", "\]")
+        .replace("!", "\!")
+        .replace("*", "\*")
+        .replace("~", "\~")
+        .replace("`", "\`")
+        .replace(">", "\>")
+        .replace("#", "\#")
+        .replace("+", "\+")
+        .replace("-", "\-")
+        .replace("=", "\=")
+        .replace("|", "\|")
+        .replace("{", "\{")
+        .replace("}", "\}")
+        .replace(".", "\.")
+    )
