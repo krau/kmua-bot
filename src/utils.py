@@ -114,6 +114,8 @@ async def generate_quote_img(
 async def message_recorder(update: Update, context: ContextTypes.DEFAULT_TYPE):
     this_user = update.effective_user
     this_chat = update.effective_chat
+    if not this_user:
+        return
     if this_user and this_user.is_bot:
         context.user_data.clear()
         if this_chat.type != "private" and context.chat_data.get("members_data"):
