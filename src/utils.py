@@ -11,7 +11,6 @@ from telegram import (
 from telegram.ext import ContextTypes
 
 from .model import MemberData
-import re
 
 
 def random_unit(probability: float) -> bool:
