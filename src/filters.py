@@ -6,8 +6,6 @@ from telegram.ext.filters import (
 from telegram.ext import filters
 from .utils import random_unit
 from .config.config import settings
-from .data import word_dict
-from zhconv import convert
 
 
 class InteractFilter(MessageFilter):
@@ -76,24 +74,10 @@ class ReplyBotFilter(MessageFilter):
         return True
 
 
-class KeywordReplyFilter(MessageFilter):
-    def filter(self, message: Message) -> bool | FilterDataDict | None:
-        if not message.text:
-            return False
-        message_text = message.text.replace(message.get_bot().username, "").lower()
-        message_text = convert(message_text, "zh-cn")
-        for keyword in word_dict.keys():
-            if keyword in message_text:
-                return True
-        return False
-
-
 mention_or_private_filter = MentionBotFilter() | filters.ChatType.PRIVATE
 interact_filter = InteractFilter() & TextLengthFilter(min_length=1, max_length=100)
 keyword_reply_filter = (
-    TextLengthFilter(min_length=1, max_length=200)
-    & ~interact_filter
-    & KeywordReplyFilter()
+    TextLengthFilter(min_length=1, max_length=200) & ~interact_filter
 ) & (ReplyBotFilter() | MentionBotFilter() | filters.ChatType.PRIVATE)
 bnhhsh_filter = (
     filters.Regex("[a-zA-Z]")
