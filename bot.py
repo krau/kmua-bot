@@ -23,14 +23,15 @@ async def init_data(app: Application):
         [
             ("start", "一键猫叫"),
             ("t", "获取头衔"),
+            ("waifu", "今日老婆!"),
             ("q", "载入史册"),
-            ("qrand", "随机名言"),
-            ("d", "移出史册"),
-            ("c", "清空史册"),
+            ("clear_chat_quote", "清空史册"),
             ("setqp", "设置发名言概率"),
             ("help", "帮助"),
             ("bnhhsh", "不能好好说话!"),
-            ("waifu", "今日老婆!"),
+            ("qrand", "随机名言"),
+            ("d", "移出史册"),
+            ("clear_chat_data", "⚠清空聊天数据"),
         ]
     )
     bot_user = await app.bot.get_me()
