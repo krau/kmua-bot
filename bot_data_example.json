@@ -19,8 +19,13 @@
         }
     },
     "today_waifu": {
-        "user_id": {
-            "chat_id": "waifu_id"
+        "user_id1": {
+            "chat_id1": "waifu_id1",
+            "chat_id2": "waifu_id2"
+        },
+        "user_id2": {
+            "chat_id3": "waifu_id3",
+            "chat_id4": "waifu_id4"
         }
     }
 }
