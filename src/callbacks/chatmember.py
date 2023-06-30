@@ -55,7 +55,7 @@ async def track_chats(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
 
         elif was_member and not is_member:
             logger.debug(f"{cause_name} 将bot移出群组 {chat.title}")
-            context.chat_data.clear()
+            context.application.drop_chat_data(chat.id)
             logger.debug(f"清除 {chat.title} 数据")
 
     elif not was_member and is_member:
@@ -100,9 +100,9 @@ async def set_greet(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"[{update.effective_chat.title}]({update.effective_user.name})"
         + f" {update.effective_message.text}"
     )
-    admins = await context.bot.get_chat_administrators(chat_id=update.effective_chat.id)
-    if update.effective_user.id not in [admin.user.id for admin in admins]:
-        await update.message.reply_text("你不是管理员哦")
+    this_chat_member = await update.effective_chat.get_member(update.effective_user.id)
+    if this_chat_member.status != "creator":
+        await update.message.reply_text("只有群主才能设置入群欢迎哦")
         return
     greet_message = " ".join(context.args)
     context.chat_data["greet_message"] = greet_message
