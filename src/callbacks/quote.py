@@ -273,6 +273,16 @@ async def del_quote(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.info(f"Bot: {sent_message.text}")
 
 
+_clear_chat_quote_markup = InlineKeyboardMarkup(
+    [
+        [
+            InlineKeyboardButton("算了", callback_data="cancel_clear_chat_quote"),
+            InlineKeyboardButton("确认清空", callback_data="clear_chat_quote"),
+        ]
+    ]
+)
+
+
 async def clear_chat_quote_ask(update: Update, context: ContextTypes.DEFAULT_TYPE):
     logger.info(
         f"[{update.effective_chat.title}]({update.effective_user.name})"
@@ -286,35 +296,31 @@ async def clear_chat_quote_ask(update: Update, context: ContextTypes.DEFAULT_TYP
         logger.info(f"Bot: {sent_message.text}")
         return
     if update.effective_chat.type != "private":
-        admins = await context.bot.get_chat_administrators(
-            chat_id=update.effective_chat.id
+        this_chat_member = await update.effective_chat.get_member(
+            update.effective_user.id
         )
-        if (
-            update.effective_user.id not in [admin.user.id for admin in admins]
-            and update.effective_user.id not in settings["owners"]
-        ):
-            sent_message = await context.bot.send_message(
-                chat_id=update.effective_chat.id, text="你没有权限哦"
-            )
-            logger.info(f"Bot: {sent_message.text}")
+        if this_chat_member.status != "creator":
+            await update.effective_message.reply_text("你没有权限哦")
             return
-    clear_chat_quote_markup = InlineKeyboardMarkup(
-        [
-            [
-                InlineKeyboardButton("算了", callback_data="cancel_clear_chat_quote"),
-                InlineKeyboardButton("确认清空", callback_data="clear_chat_quote"),
-            ]
-        ]
-    )
-    sent_message = await context.bot.send_message(
-        chat_id=update.effective_chat.id,
+    sent_message = await update.message.reply_text(
         text="真的要清空该聊天的语录吗?\n\n用户个人数据不会被此操作清除",
-        reply_markup=clear_chat_quote_markup,
+        reply_markup=_clear_chat_quote_markup,
     )
     logger.info(f"Bot: {sent_message.text}")
 
 
 async def clear_chat_quote(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if update.effective_chat.type != "private":
+        if (
+            update.effective_user.id
+            != update.callback_query.message.reply_to_message.from_user.id
+        ):
+            await context.bot.answer_callback_query(
+                callback_query_id=update.callback_query.id,
+                text="你没有权限哦",
+                show_alert=True,
+            )
+            return
     if not context.chat_data.get("quote_messages", None):
         return
     edited_message = await context.bot.edit_message_text(
@@ -348,9 +354,18 @@ async def clear_chat_quote(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def clear_chat_quote_cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await context.bot.delete_message(
-        chat_id=update.effective_chat.id, message_id=update.callback_query.message.id
-    )
+    if update.effective_chat.type != "private":
+        if (
+            update.effective_user.id
+            != update.callback_query.message.reply_to_message.from_user.id
+        ):
+            await context.bot.answer_callback_query(
+                callback_query_id=update.callback_query.id,
+                text="你没有权限哦",
+                show_alert=True,
+            )
+            return
+    await update.callback_query.message.delete()
 
 
 async def inline_query_quote(update: Update, context: ContextTypes.DEFAULT_TYPE):
