@@ -40,6 +40,11 @@ from .callbacks.userdata import (
     user_data_manage,
     user_quote_manage,
 )
+from .callbacks.chatdata import (
+    clear_chat_data_ask,
+    clear_chat_data,
+    clear_chat_data_cancel,
+)
 from .callbacks.waifu import today_waifu
 from .config.config import settings
 from .filters import (
@@ -56,7 +61,11 @@ title_handler = CommandHandler("t", title, filters=mention_or_private_filter)
 quote_handler = CommandHandler("q", quote)
 set_quote_probability_handler = CommandHandler("setqp", set_quote_probability)
 del_quote_handler = CommandHandler("d", del_quote)
-clear_chat_quote_ask_handler = CommandHandler("c", clear_chat_quote_ask)
+clear_chat_quote_ask_handler = CommandHandler("clear_chat_quote", clear_chat_quote_ask)
+clear_chat_data_ask_handler = CommandHandler("clear_chat_data", clear_chat_data_ask)
+clear_chat_data_handler = CallbackQueryHandler(
+    clear_chat_data, pattern="clear_chat_data"
+)
 help_handler = CommandHandler("help", help, filters=mention_or_private_filter)
 error_notice_control_handler = CommandHandler("error_notice", error_notice_control)
 group_rank_handler = CommandHandler("rank", group_rank)
@@ -82,6 +91,10 @@ clear_user_img_quote_handler = CallbackQueryHandler(
 )
 clear_user_text_quote_handler = CallbackQueryHandler(
     clear_user_text_quote, pattern="clear_user_text_quote"
+)
+
+clear_chat_data_cancel_handler = CallbackQueryHandler(
+    clear_chat_data_cancel, "cancel_clear_chat_data"
 )
 
 interact_handler = MessageHandler(filters=interact_filter, callback=interact)
@@ -126,12 +139,15 @@ handlers = [
     set_greet_handler,
     start_callback_handler,
     clear_chat_quote_ask_handler,
+    clear_chat_data_ask_handler,
     help_handler,
     error_notice_control_handler,
     clear_chat_quote_handler,
+    clear_chat_data_handler,
     group_rank_handler,
     bnhhsh_command_handler,
     clear_chat_quote_cancel_handler,
+    clear_chat_data_cancel_handler,
     interact_handler,
     keyword_reply_handler,
     bnhhsh_handler,
