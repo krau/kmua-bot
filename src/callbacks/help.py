@@ -19,8 +19,6 @@ async def help(update: Update, context: ContextTypes.DEFAULT_TYPE):
 /help - 显示此帮助信息
 /start - 开始使用
 /q - 载入史册
-/d - 移出史册
-/c - 清空史册
 /t - 获取头衔|互赠头衔
 /setqp - 设置发名言概率
 /bnhhsh - 不能好好说话!
