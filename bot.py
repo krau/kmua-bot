@@ -31,6 +31,7 @@ async def init_data(app: Application):
             ("bnhhsh", "不能好好说话!"),
             ("qrand", "随机名言"),
             ("d", "移出史册"),
+            ("set_greet", "设置入群欢迎"),
             ("clear_chat_data", "⚠清空聊天数据"),
         ]
     )
