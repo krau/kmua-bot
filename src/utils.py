@@ -167,6 +167,7 @@ def sort_topn_bykey(data: dict, n: int, key: str) -> list:
 def escape(text: str) -> str:
     return (
         text.replace("/", "")
+        .replace("$", "")
         .replace("(", "\(")
         .replace(")", "\)")
         .replace("[", "\[")

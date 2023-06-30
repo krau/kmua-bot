@@ -61,7 +61,7 @@ async def interact(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if len(message.text.split(" ")) == 1:
             if message.text.startswith("/"):
                 cmd = escape(message.text[1:])
-                text = f"{this_link}{cmd}了\!"
+                text = f"{this_link}{cmd}了自己\!"
             elif message.text.startswith("\\"):
                 cmd = escape(message.text[1:])
                 text = f"{this_link}被自己{cmd}了 \!"
