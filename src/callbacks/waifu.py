@@ -13,10 +13,8 @@ async def today_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"[{update.effective_chat.title}]({update.effective_user.name})"
         + f" {update.effective_message.text}"
     )
-    if context.user_data.get("wait_for_waifu", False):
-        return
     await message_recorder(update, context)
-    context.user_data["wait_for_waifu"] = True
+    context.user_data["wait_for_waifu"] = None
     user_id = update.effective_user.id
     chat_id = update.effective_chat.id
     await context.bot.send_chat_action(chat_id, ChatAction.TYPING)
@@ -41,7 +39,6 @@ async def today_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         group_member = [member for member in group_member if member not in to_remove]
         if not group_member:
             await update.message.reply_text(text="你现在没有老婆, 因为咱的记录中找不到其他群友")
-            context.user_data["wait_for_waifu"] = False
             return
         waifu_id = random.choice(group_member)
     try:
@@ -52,10 +49,8 @@ async def today_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(text="你没能抽到老婆, 再试一次吧~")
         poped_value = context.chat_data["members_data"].pop(waifu_id, "群组数据中无该成员")
         logger.debug(f"移除: {poped_value}")
-        context.user_data["wait_for_waifu"] = False
         return
     except Exception as e:
-        context.user_data["wait_for_waifu"] = False
         raise e
     avatar = waifu.photo
     if avatar:
@@ -74,10 +69,8 @@ async def today_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(text=text, parse_mode="MarkdownV2")
         poped_value = context.chat_data["members_data"].pop(waifu_id, "群组数据中无该成员")
         logger.debug(f"移除: {poped_value}")
-        context.user_data["wait_for_waifu"] = False
         return
     if not update.message:
-        context.user_data["wait_for_waifu"] = False
         return
     if avatar:
         await update.message.reply_photo(
@@ -90,4 +83,3 @@ async def today_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if is_success:
         context.bot_data["today_waifu"][user_id][chat_id] = waifu.id
     logger.info(f"Bot: {text}")
-    context.user_data["wait_for_waifu"] = False
