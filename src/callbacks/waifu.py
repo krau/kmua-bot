@@ -1,4 +1,5 @@
 import random
+import asyncio
 
 from telegram import Update
 from telegram.constants import ChatAction
@@ -40,17 +41,22 @@ async def today_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text(text="你现在没有老婆, 因为咱的记录中找不到其他群友")
             return
         waifu_id = random.choice(group_member)
-    try:
-        waifu = await context.bot.get_chat(waifu_id)
-        is_success = True
-    except Exception as e:
-        logger.warning(
-            f"无法为 {update.effective_user.name} 获取id为 {waifu_id} 的waifu:\n{e.__class__.__name__}: {e}"
-        )
+    retry = 0
+    while not is_success and retry < 3:
+        try:
+            waifu = await context.bot.get_chat(waifu_id)
+            is_success = True
+        except Exception as e:
+            logger.error(
+                f"无法为 {update.effective_user.name} 获取id为 {waifu_id} 的waifu:\n{e.__class__.__name__}: {e}"
+            )
+            retry += 1
+            await asyncio.sleep(1)
+    if not is_success:
         await update.message.reply_text(text="你没能抽到老婆, 再试一次吧~")
         poped_value = context.chat_data["members_data"].pop(waifu_id, "群组数据中无该成员")
         logger.debug(f"移除: {poped_value}")
-        raise e
+        return
     avatar = waifu.photo
     if avatar:
         avatar = await (await waifu.photo.get_big_file()).download_as_bytearray()
