@@ -164,9 +164,12 @@ handlers = [
 
 
 async def on_error(update: object | None, context: ContextTypes.DEFAULT_TYPE):
-    logger.error(
-        f"在该更新发生错误\n{update}\n错误信息\n{context.error.__class__.__name__}:{context.error}"
-    )
+    error = context.error
+    # 如果聊天限制了 bot 发送消息, 忽略
+    if error.__class__.__name__ == "BadRequest":
+        if error.message == "Chat_write_forbidden":
+            return
+    logger.error(f"在该更新发生错误\n{update}\n错误信息\n{error.__class__.__name__}:{error}")
     if context.bot_data.get("error_notice", False):
 
         async def send_update_error(chat_id):
