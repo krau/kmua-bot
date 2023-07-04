@@ -53,6 +53,7 @@ async def today_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
             retry += 1
             err = e
+            waifu_id = random.choice(group_member)
             await asyncio.sleep(1)
     if not is_success:
         await update.message.reply_text(text="你没能抽到老婆, 再试一次吧~")
