@@ -14,14 +14,13 @@ async def today_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         + f" {update.effective_message.text}"
     )
     await message_recorder(update, context)
-    context.user_data["wait_for_waifu"] = None
     user_id = update.effective_user.id
     chat_id = update.effective_chat.id
+    if not context.bot_data["today_waifu"].get(user_id, None):
+        context.bot_data["today_waifu"][user_id] = {}
     await context.bot.send_chat_action(chat_id, ChatAction.TYPING)
     is_got_waifu = True
     is_success = False
-    if not context.bot_data["today_waifu"].get(user_id, None):
-        context.bot_data["today_waifu"][user_id] = {}
     waifu_id = context.bot_data["today_waifu"][user_id].get(chat_id, None)
     if not waifu_id:
         is_got_waifu = False
@@ -44,8 +43,10 @@ async def today_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         waifu = await context.bot.get_chat(waifu_id)
         is_success = True
-    except BadRequest:
-        logger.warning(f"无法为 {update.effective_user.name} 获取id为 {waifu_id} 的waifu")
+    except BadRequest as e:
+        logger.warning(
+            f"无法为 {update.effective_user.name} 获取id为 {waifu_id} 的waifu:\n{e.message}"
+        )
         await update.message.reply_text(text="你没能抽到老婆, 再试一次吧~")
         poped_value = context.chat_data["members_data"].pop(waifu_id, "群组数据中无该成员")
         logger.debug(f"移除: {poped_value}")
