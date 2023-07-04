@@ -1,7 +1,7 @@
 import random
 import asyncio
 
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, MessageEntity
 from telegram.constants import ChatAction
 from telegram.ext import ContextTypes
 from telegram.error import BadRequest
@@ -89,13 +89,12 @@ async def today_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
         if not update.message:
             return
-        waifuname = waifu.full_name.replace(" ", "")
         today_waifu_markup = InlineKeyboardMarkup(
             [
                 [
                     InlineKeyboardButton(
                         text="从卡池中移除",
-                        callback_data=f"remove_waifu {waifu_id} {waifuname} {user_id} {username}",
+                        callback_data=f"remove_waifu {waifu_id} {user_id}",
                     )
                 ]
             ]
@@ -131,6 +130,7 @@ async def today_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def remove_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     this_chat_member = await update.effective_chat.get_member(update.effective_user.id)
+    username = this_chat_member.user.name
     if this_chat_member.status != "creator":
         await context.bot.answer_callback_query(
             callback_query_id=update.callback_query.id,
@@ -139,9 +139,15 @@ async def remove_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     data = update.callback_query.data.split(" ")
     waifu_id = int(data[1])
-    waifuname = data[2]
-    user_id = int(data[3])
-    username = data[4]
+    user_id = int(data[2])
+    message = update.callback_query.message
+    waifuname = None
+    for entity in message.caption_entities:
+        if entity.type == "text_mention":
+            waifuname = entity.user.name
+            break
+    if not waifuname:
+        waifuname = waifu_id
     poped_value = context.chat_data["members_data"].pop(waifu_id, "群组数据中无该成员")
     logger.debug(f"移除: {poped_value}")
     if context.bot_data["today_waifu"].get(user_id):
