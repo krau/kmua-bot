@@ -67,7 +67,4 @@ async def title(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         logger.info(f"Bot: {sent_message.text}")
     except Exception as e:
-        await context.bot.send_message(
-            chat_id=update.effective_chat.id, text=f"{e.__class__.__name__}: {e}"
-        )
-        logger.error(f"{e.__class__.__name__}: {e}")
+        raise e
