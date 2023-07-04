@@ -1,7 +1,7 @@
 import random
 import asyncio
 
-from telegram import Update
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.constants import ChatAction
 from telegram.ext import ContextTypes
 from telegram.error import BadRequest
@@ -15,6 +15,7 @@ async def today_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         + f" {update.effective_message.text}"
     )
     user_id = update.effective_user.id
+    username = update.effective_user.name
     chat_id = update.effective_chat.id
     if not context.bot_data["today_waifu"].get(user_id, None):
         context.bot_data["today_waifu"][user_id] = {}
@@ -88,25 +89,64 @@ async def today_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
         if not update.message:
             return
+        waifuname = waifu.full_name.replace(" ", "")
+        today_waifu_markup = InlineKeyboardMarkup(
+            [
+                [
+                    InlineKeyboardButton(
+                        text="从卡池中移除",
+                        callback_data=f"remove_waifu {waifu_id} {waifuname} {user_id} {username}",
+                    )
+                ]
+            ]
+        )
         if avatar:
             try:
                 await update.message.reply_photo(
                     photo=avatar,
                     caption=text,
                     parse_mode="MarkdownV2",
+                    reply_markup=today_waifu_markup,
                 )
             except BadRequest as e:
                 if e.message == "Not enough rights to send photos to the chat":
-                    await update.message.reply_markdown_v2(text=text)
+                    await update.message.reply_markdown_v2(
+                        text=text, reply_markup=today_waifu_markup
+                    )
                 else:
                     raise e
             except Exception as e:
                 raise e
         else:
-            await update.message.reply_markdown_v2(text=text)
+            await update.message.reply_markdown_v2(
+                text=text, reply_markup=today_waifu_markup
+            )
         logger.info(f"Bot: {text}")
     except Exception as e:
         raise e
     finally:
         context.bot_data["today_waifu"][user_id]["waiting"] = False
         await context.application.persistence.flush()
+
+
+async def remove_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    this_chat_member = await update.effective_chat.get_member(update.effective_user.id)
+    if this_chat_member.status != "creator":
+        await context.bot.answer_callback_query(
+            callback_query_id=update.callback_query.id,
+            text="你没有权限哦, 只有群主可以移除卡池",
+        )
+        return
+    data = update.callback_query.data.split(" ")
+    waifu_id = int(data[1])
+    waifuname = data[2]
+    user_id = int(data[3])
+    username = data[4]
+    poped_value = context.chat_data["members_data"].pop(waifu_id, "群组数据中无该成员")
+    logger.debug(f"移除: {poped_value}")
+    if context.bot_data["today_waifu"].get(user_id):
+        context.bot_data["today_waifu"][user_id].pop(update.effective_chat.id, None)
+    await update.callback_query.message.delete()
+    await update.effective_chat.send_message(
+        text=f"已从本群数据中移除 {waifuname}, {username} 可以重新抽取",
+    )

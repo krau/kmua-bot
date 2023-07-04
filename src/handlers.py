@@ -45,7 +45,7 @@ from .callbacks.chatdata import (
     clear_chat_data,
     clear_chat_data_cancel,
 )
-from .callbacks.waifu import today_waifu
+from .callbacks.waifu import today_waifu, remove_waifu
 from .config.config import settings
 from .filters import (
     bnhhsh_filter,
@@ -96,7 +96,7 @@ clear_user_text_quote_handler = CallbackQueryHandler(
 clear_chat_data_cancel_handler = CallbackQueryHandler(
     clear_chat_data_cancel, "cancel_clear_chat_data"
 )
-
+remove_waifu_handler = CallbackQueryHandler(remove_waifu, pattern=r"remove_waifu")
 interact_handler = MessageHandler(filters=interact_filter, callback=interact)
 inline_query_handler = InlineQueryHandler(inline_query_quote)
 user_data_manage_handler = CallbackQueryHandler(
@@ -149,6 +149,7 @@ handlers = [
     clear_chat_quote_cancel_handler,
     clear_chat_data_cancel_handler,
     interact_handler,
+    remove_waifu_handler,
     keyword_reply_handler,
     bnhhsh_handler,
     inline_query_handler,
