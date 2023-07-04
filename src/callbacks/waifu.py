@@ -14,11 +14,11 @@ async def today_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"[{update.effective_chat.title}]({update.effective_user.name})"
         + f" {update.effective_message.text}"
     )
-    await message_recorder(update, context)
     user_id = update.effective_user.id
     chat_id = update.effective_chat.id
     if not context.bot_data["today_waifu"].get(user_id, None):
         context.bot_data["today_waifu"][user_id] = {}
+    await message_recorder(update, context)
     await context.bot.send_chat_action(chat_id, ChatAction.TYPING)
     is_got_waifu = True
     is_success = False
@@ -42,6 +42,7 @@ async def today_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
         waifu_id = random.choice(group_member)
     retry = 0
+    err = None
     while not is_success and retry < 3:
         try:
             waifu = await context.bot.get_chat(waifu_id)
@@ -51,12 +52,13 @@ async def today_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 f"无法为 {update.effective_user.name} 获取id为 {waifu_id} 的waifu:\n{e.__class__.__name__}: {e}"
             )
             retry += 1
+            err = e
             await asyncio.sleep(1)
     if not is_success:
         await update.message.reply_text(text="你没能抽到老婆, 再试一次吧~")
         poped_value = context.chat_data["members_data"].pop(waifu_id, "群组数据中无该成员")
         logger.debug(f"移除: {poped_value}")
-        return
+        raise err
     avatar = waifu.photo
     if avatar:
         avatar = await (await waifu.photo.get_big_file()).download_as_bytearray()
