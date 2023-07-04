@@ -129,7 +129,19 @@ async def today_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def remove_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    this_chat_member = await update.effective_chat.get_member(update.effective_user.id)
+    try:
+        this_chat_member = await update.effective_chat.get_member(
+            update.effective_user.id
+        )
+    except BadRequest as e:
+        if e.message == "User not found":
+            await update.callback_query.answer(
+                text="无法获取信息, 如果群组开启了隐藏成员, 请赋予 bot 管理员权限",
+                show_alert=True,
+            )
+            return
+        else:
+            raise e
     username = this_chat_member.user.name
     if this_chat_member.status != "creator":
         await context.bot.answer_callback_query(
