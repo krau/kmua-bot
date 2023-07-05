@@ -12,7 +12,7 @@ on:
 jobs:
   publish:
     name: Publish container image
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     env:
       TZ: Asia/Shanghai
     steps:
