@@ -122,6 +122,10 @@ async def message_recorder(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 del context.chat_data["members_data"][this_user.id]
         return
     this_message = update.effective_message
+    if this_message.is_automatic_forward:
+        return
+    if this_message.reply_to_message:
+        return
     context.user_data["msg_num"] = context.user_data.get("msg_num", 0) + 1
     if this_chat.type == "private":
         context.user_data["pm_kmua_num"] = context.user_data.get("pm_kmua_num", 0) + 1
