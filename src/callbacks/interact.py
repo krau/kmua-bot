@@ -45,13 +45,13 @@ async def interact(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 text = f"{this_link}被{replied_link}{cmd}了 \!"
         else:
             if message.text.startswith("/"):
-                cmd_front = escape(message.text.split(" ")[0])
+                cmd_front = escape(message.text.split(" ")[0][1:])
                 cmd_back = message.text.split(" ")[1:]
                 cmd_back = " ".join(cmd_back).replace("/", "")
                 cmd_back = escape(cmd_back)
                 text = f"{this_link}{cmd_front}{replied_link}{cmd_back} \!"
             elif message.text.startswith("\\"):
-                cmd_front = escape(message.text.split(" ")[0])
+                cmd_front = escape(message.text.split(" ")[0][1:])
                 cmd_back = message.text.split(" ")[1:]
                 cmd_back = " ".join(cmd_back)
                 cmd_back = escape(cmd_back)
@@ -67,13 +67,13 @@ async def interact(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 text = f"{this_link}被自己{cmd}了 \!"
         else:
             if message.text.startswith("/"):
-                cmd_front = escape(message.text.split(" ")[0])
+                cmd_front = escape(message.text.split(" ")[0][1:])
                 cmd_back = message.text.split(" ")[1:]
                 cmd_back = " ".join(cmd_back).replace("/", "")
                 cmd_back = escape(cmd_back)
                 text = f"{this_link}{cmd_front}自己{cmd_back} \!"
             elif message.text.startswith("\\"):
-                cmd_front = escape(message.text.split(" ")[0])
+                cmd_front = escape(message.text.split(" ")[0][1:])
                 cmd_back = message.text.split(" ")[1:]
                 cmd_back = " ".join(cmd_back)
                 cmd_back = escape(cmd_back)
