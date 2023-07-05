@@ -142,7 +142,7 @@ async def remove_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
         else:
             raise e
-    username = this_chat_member.user.name
+
     if this_chat_member.status != "creator":
         await context.bot.answer_callback_query(
             callback_query_id=update.callback_query.id,
@@ -160,6 +160,11 @@ async def remove_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE):
             break
     if not waifuname:
         waifuname = waifu_id
+    try:
+        user = await context.bot.get_chat(user_id)
+        username = user.username or user.full_name
+    except Exception:
+        username = user_id
     poped_value = context.chat_data["members_data"].pop(waifu_id, "群组数据中无该成员")
     logger.debug(f"移除: {poped_value}")
     if context.bot_data["today_waifu"].get(user_id):
