@@ -45,7 +45,7 @@ from .callbacks.chatdata import (
     clear_chat_data,
     clear_chat_data_cancel,
 )
-from .callbacks.waifu import today_waifu, remove_waifu
+from .callbacks.waifu import today_waifu, remove_waifu, user_waifu_manage, set_mention
 from .config.config import settings
 from .filters import (
     bnhhsh_filter,
@@ -55,6 +55,7 @@ from .filters import (
 )
 from .logger import logger
 
+# CommandHandlers
 start_handler = CommandHandler("start", start, filters=mention_or_private_filter)
 chat_migration_handler = MessageHandler(filters.StatusUpdate.MIGRATE, chat_migration)
 title_handler = CommandHandler("t", title, filters=mention_or_private_filter)
@@ -63,9 +64,7 @@ set_quote_probability_handler = CommandHandler("setqp", set_quote_probability)
 del_quote_handler = CommandHandler("d", del_quote)
 clear_chat_quote_ask_handler = CommandHandler("clear_chat_quote", clear_chat_quote_ask)
 clear_chat_data_ask_handler = CommandHandler("clear_chat_data", clear_chat_data_ask)
-clear_chat_data_handler = CallbackQueryHandler(
-    clear_chat_data, pattern="clear_chat_data"
-)
+bnhhsh_command_handler = CommandHandler("bnhhsh", bnhhsh)
 help_handler = CommandHandler("help", help, filters=mention_or_private_filter)
 error_notice_control_handler = CommandHandler("error_notice", error_notice_control)
 group_rank_handler = CommandHandler("rank", group_rank)
@@ -78,14 +77,18 @@ today_waifu_handler = CommandHandler(
 set_greet_handler = CommandHandler(
     "set_greet", set_greet, filters=filters.ChatType.GROUPS
 )
+
+# CallbackQueryHandlers
 start_callback_handler = CallbackQueryHandler(start, pattern="back_home")
+clear_chat_data_handler = CallbackQueryHandler(
+    clear_chat_data, pattern="clear_chat_data"
+)
 clear_chat_quote_handler = CallbackQueryHandler(
     clear_chat_quote, pattern="clear_chat_quote"
 )
 clear_chat_quote_cancel_handler = CallbackQueryHandler(
     clear_chat_quote_cancel, pattern="cancel_clear_chat_quote"
 )
-
 clear_user_img_quote_handler = CallbackQueryHandler(
     clear_user_img_quote, pattern="clear_user_img_quote"
 )
@@ -97,22 +100,26 @@ clear_chat_data_cancel_handler = CallbackQueryHandler(
     clear_chat_data_cancel, "cancel_clear_chat_data"
 )
 remove_waifu_handler = CallbackQueryHandler(remove_waifu, pattern=r"remove_waifu")
-interact_handler = MessageHandler(filters=interact_filter, callback=interact)
-inline_query_handler = InlineQueryHandler(inline_query_quote)
 user_data_manage_handler = CallbackQueryHandler(
     user_data_manage, pattern="user_data_manage"
 )
-
-
 user_quote_manage_handler = CallbackQueryHandler(
     user_quote_manage, pattern="user_quote_manage"
 )
 prev_page_handler = CallbackQueryHandler(prev_page, pattern=r"prev_page")
 next_page_handler = CallbackQueryHandler(next_page, pattern=r"next_page")
 delete_quote_handler = CallbackQueryHandler(delete_quote, pattern=r"delete_quote")
+user_waifu_manage_handler = CallbackQueryHandler(
+    user_waifu_manage, pattern="user_waifu_manage"
+)
+set_mention_handler = CallbackQueryHandler(set_mention, pattern="set_mention")
+
+
+# others
+interact_handler = MessageHandler(filters=interact_filter, callback=interact)
+inline_query_handler = InlineQueryHandler(inline_query_quote)
 random_quote_handler = MessageHandler(~filters.COMMAND, random_quote)
 bnhhsh_handler = MessageHandler(bnhhsh_filter, bnhhsh)
-bnhhsh_command_handler = CommandHandler("bnhhsh", bnhhsh)
 keyword_reply_handler = MessageHandler(keyword_reply_filter, keyword_reply)
 track_chats_handler = ChatMemberHandler(track_chats, ChatMemberHandler.MY_CHAT_MEMBER)
 member_left_handler = MessageHandler(
@@ -160,6 +167,8 @@ handlers = [
     delete_quote_handler,
     clear_user_img_quote_handler,
     clear_user_text_quote_handler,
+    user_waifu_manage_handler,
+    set_mention_handler,
     random_quote_handler,
 ]
 

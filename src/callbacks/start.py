@@ -30,6 +30,9 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 InlineKeyboardButton("你的数据", callback_data="user_data_manage"),
                 InlineKeyboardButton("名言管理", callback_data="user_quote_manage"),
             ],
+            [
+                InlineKeyboardButton("老婆管理", callback_data="user_waifu_manage"),
+            ]
         ]
     )
     if update.callback_query:

@@ -73,11 +73,22 @@ async def today_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if avatar:
             avatar = await (await waifu.photo.get_big_file()).download_as_bytearray()
             avatar = bytes(avatar)
+        is_mention_waifu = (
+            (await context.application.persistence.get_user_data())
+            .get(waifu_id, {})
+            .get("waifu_is_mention", True)
+        )
         try:
-            if is_got_waifu:
-                text = f"你今天已经抽过老婆了\! {waifu.mention_markdown_v2()} 是你今天的老婆\!"
+            if is_mention_waifu:
+                if is_got_waifu:
+                    text = f"你今天已经抽过老婆了\! {waifu.mention_markdown_v2()} 是你今天的老婆\!"
+                else:
+                    text = f"你今天的群友老婆是 {waifu.mention_markdown_v2()} \!"
             else:
-                text = f"你今天的群友老婆是 {waifu.mention_markdown_v2()} \!"
+                if is_got_waifu:
+                    text = f"你今天已经抽过老婆了\! {waifu.full_name} 是你今天的老婆\!"
+                else:
+                    text = f"你今天的群友老婆是 {waifu.full_name} \!"
         except TypeError:
             if is_got_waifu:
                 text = f"你的老婆消失了...TA的id曾是: *{waifu_id}*"
@@ -173,3 +184,41 @@ async def remove_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.effective_chat.send_message(
         text=f"已从本群数据中移除 {waifuname}, {username} 可以重新抽取",
     )
+
+
+async def user_waifu_manage(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    is_mention = context.user_data.get("waifu_is_mention", True)
+    set_mention_text = "别@你" if is_mention else "抽到你时@你"
+    waifu_manage_markup = InlineKeyboardMarkup(
+        [
+            [InlineKeyboardButton(text=set_mention_text, callback_data="set_mention")],
+            [InlineKeyboardButton(text="返回", callback_data="back_home")],
+        ]
+    )
+    text = f"""
+当前设置:
+是否@你: {is_mention}"""
+    await update.callback_query.message.edit_text(
+        text=text, reply_markup=waifu_manage_markup
+    )
+    await context.application.persistence.flush()
+
+
+async def set_mention(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    is_mention = context.user_data.get("waifu_is_mention", True)
+    context.user_data["waifu_is_mention"] = not is_mention
+    is_mention = context.user_data["waifu_is_mention"]
+    set_mention_text = "别艾特我" if is_mention else "抽到我时艾特我"
+    waifu_manage_markup = InlineKeyboardMarkup(
+        [
+            [InlineKeyboardButton(text=set_mention_text, callback_data="set_mention")],
+            [InlineKeyboardButton(text="返回", callback_data="back_home")],
+        ]
+    )
+    text = f"""
+当前设置:
+是否@你: {is_mention}"""
+    await update.callback_query.message.edit_text(
+        text=text, reply_markup=waifu_manage_markup
+    )
+    await context.application.persistence.flush()
