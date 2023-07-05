@@ -208,7 +208,7 @@ async def set_mention(update: Update, context: ContextTypes.DEFAULT_TYPE):
     is_mention = context.user_data.get("waifu_is_mention", True)
     context.user_data["waifu_is_mention"] = not is_mention
     is_mention = context.user_data["waifu_is_mention"]
-    set_mention_text = "别艾特我" if is_mention else "抽到我时艾特我"
+    set_mention_text = "别@你" if is_mention else "抽到你时@你"
     waifu_manage_markup = InlineKeyboardMarkup(
         [
             [InlineKeyboardButton(text=set_mention_text, callback_data="set_mention")],
