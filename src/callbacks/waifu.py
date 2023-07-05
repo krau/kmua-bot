@@ -1,10 +1,11 @@
-import random
 import asyncio
+import random
 
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, MessageEntity
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.constants import ChatAction
-from telegram.ext import ContextTypes
 from telegram.error import BadRequest
+from telegram.ext import ContextTypes
+
 from ..logger import logger
 from ..utils import message_recorder
 
@@ -15,7 +16,6 @@ async def today_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         + f" {update.effective_message.text}"
     )
     user_id = update.effective_user.id
-    username = update.effective_user.name
     chat_id = update.effective_chat.id
     if not context.bot_data["today_waifu"].get(user_id, None):
         context.bot_data["today_waifu"][user_id] = {}
