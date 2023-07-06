@@ -27,15 +27,6 @@ async def user_data_manage(update: Update, context: ContextTypes.DEFAULT_TYPE):
     img_quote_len = len(context.bot_data["quotes"].get(user_id, {}).get("img", []))
     text_quote_len = len(context.bot_data["quotes"].get(user_id, {}).get("text", []))
     quote_len = img_quote_len + text_quote_len
-    pm_kmua_num = context.user_data.get("pm_kmua_num", 0) + 1
-    context.user_data["pm_kmua_num"] = pm_kmua_num
-    group_msg_num = context.user_data.get("group_msg_num", 0)
-    text_num = context.user_data.get("text_num", 0)
-    photo_num = context.user_data.get("photo_num", 0)
-    sticker_num = context.user_data.get("sticker_num", 0)
-    voice_num = context.user_data.get("voice_num", 0)
-    video_num = context.user_data.get("video_num", 0)
-    document_num = context.user_data.get("document_num", 0)
     statistics_data = f"""
 你的统计信息:
 
@@ -43,14 +34,6 @@ async def user_data_manage(update: Update, context: ContextTypes.DEFAULT_TYPE):
 已保存的名言总数: *{quote_len}*
 图片名言数量: *{img_quote_len}*
 文字名言数量: *{text_quote_len}*
-私聊我次数: *{pm_kmua_num}*
-水群消息数: *{group_msg_num}*
-总文字消息数: *{text_num}*
-总图片消息数: *{photo_num}*
-总贴纸消息数: *{sticker_num}*
-总语音消息数: *{voice_num}*
-总视频消息数: *{video_num}*
-总文件消息数: *{document_num}*
 """
     await context.bot.edit_message_text(
         chat_id=update.effective_chat.id,
