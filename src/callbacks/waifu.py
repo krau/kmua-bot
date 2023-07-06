@@ -81,20 +81,20 @@ async def today_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         try:
             if is_mention_waifu:
                 if is_got_waifu:
-                    text = f"你今天已经抽过老婆了\! {waifu.mention_markdown_v2()} 是你今天的老婆\!"
+                    text = f"你今天已经抽过老婆了! {waifu.mention_html()} 是你今天的老婆!"
                 else:
-                    text = f"你今天的群友老婆是 {waifu.mention_markdown_v2()} \!"
+                    text = f"你今天的群友老婆是 {waifu.mention_html()} !"
             else:
                 if is_got_waifu:
-                    text = f"你今天已经抽过老婆了\! {waifu.full_name} 是你今天的老婆\!"
+                    text = f"你今天已经抽过老婆了! {waifu.full_name} 是你今天的老婆!"
                 else:
-                    text = f"你今天的群友老婆是 {waifu.full_name} \!"
+                    text = f"你今天的群友老婆是 {waifu.full_name} !"
         except TypeError:
             if is_got_waifu:
-                text = f"你的老婆消失了...TA的id曾是: *{waifu_id}*"
+                text = f"你的老婆消失了...TA的id曾是: {waifu_id}"
             else:
                 text = "你没能抽到老婆, 再试一次吧~"
-            await update.message.reply_text(text=text, parse_mode="MarkdownV2")
+            await update.message.reply_text(text=text)
             poped_value = context.chat_data["members_data"].pop(waifu_id, "群组数据中无该成员")
             logger.debug(f"移除: {poped_value}")
             return
@@ -115,12 +115,12 @@ async def today_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 await update.message.reply_photo(
                     photo=avatar,
                     caption=text,
-                    parse_mode="MarkdownV2",
+                    parse_mode="HTML",
                     reply_markup=today_waifu_markup,
                 )
             except BadRequest as e:
                 if e.message == "Not enough rights to send photos to the chat":
-                    await update.message.reply_markdown_v2(
+                    await update.message.reply_html(
                         text=text, reply_markup=today_waifu_markup
                     )
                 else:
@@ -128,9 +128,7 @@ async def today_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE):
             except Exception as e:
                 raise e
         else:
-            await update.message.reply_markdown_v2(
-                text=text, reply_markup=today_waifu_markup
-            )
+            await update.message.reply_html(text=text, reply_markup=today_waifu_markup)
         logger.info(f"Bot: {text}")
     except Exception as e:
         raise e
