@@ -371,7 +371,6 @@ async def clear_chat_quote_cancel(update: Update, context: ContextTypes.DEFAULT_
 async def inline_query_quote(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.inline_query.query
     user_id = update.inline_query.from_user.id
-    user_name = update.inline_query.from_user.full_name
     quotes_data = context.bot_data["quotes"].get(user_id, {})
     text_quotes: list[TextQuote] = quotes_data.get("text", [])
     img_quotes: list[ImgQuote] = quotes_data.get("img", [])
@@ -394,7 +393,7 @@ async def inline_query_quote(update: Update, context: ContextTypes.DEFAULT_TYPE)
             InlineQueryResultArticle(
                 id=uuid4(),
                 title="你还没有保存任何名言",
-                input_message_content=InputTextMessageContent("我还没有任何名言,史官快来为我记录吧!"),
+                input_message_content=InputTextMessageContent("我还没有任何名言"),
                 reply_markup=no_quote_inline_markup,
             )
         )
@@ -402,27 +401,19 @@ async def inline_query_quote(update: Update, context: ContextTypes.DEFAULT_TYPE)
         if query:
             for text_quote in text_quotes:
                 if query in text_quote.content:
-                    create_at_str = text_quote.created_at.strftime(
-                        "%Y年%m月%d日%H时%M分%S秒"
-                    )  # noqa: E501
-                    message_texts = [
-                        f"{text_quote.content}\n——[{user_name}](tg://user?id={user_id})\n{create_at_str}",
-                        f"{text_quote.content}\n\n[{user_name}](tg://user?id={user_id})\n{create_at_str}",
-                    ]
+                    create_at_str = text_quote.created_at.strftime("%Y年%m月%d日%H时%M分%S秒")
                     results.append(
                         InlineQueryResultArticle(
                             id=str(uuid4()),
                             title=text_quote.content,
                             input_message_content=InputTextMessageContent(
-                                random.choice(message_texts), parse_mode="Markdown"
+                                text_quote.content
                             ),
                         )
                     )
             for img_quote in img_quotes:
                 if query in img_quote.text:
-                    create_at_str = img_quote.created_at.strftime(
-                        "%Y年%m月%d日%H时%M分%S秒"
-                    )  # noqa: E501
+                    create_at_str = img_quote.created_at.strftime("%Y年%m月%d日%H时%M分%S秒")
                     results.append(
                         InlineQueryResultCachedPhoto(
                             id=str(uuid4()),
@@ -444,29 +435,21 @@ async def inline_query_quote(update: Update, context: ContextTypes.DEFAULT_TYPE)
         else:
             results = []
             for text_quote in random.sample(text_quotes, min(len(text_quotes), 10)):
-                create_at_str = text_quote.created_at.strftime(
-                    "%Y年%m月%d日%H时%M分%S秒"
-                )  # noqa: E501
-                message_texts = [
-                    f"{text_quote.content}\n\n——[{user_name}](tg://user?id={user_id})\n{create_at_str}",
-                    f"{text_quote.content}\n\n[{user_name}](tg://user?id={user_id})\n{create_at_str}",
-                ]
+                create_at_str = text_quote.created_at.strftime("%Y年%m月%d日%H时%M分%S秒")
                 results.append(
                     InlineQueryResultArticle(
                         id=str(uuid4()),
                         title=text_quote.content,
                         input_message_content=InputTextMessageContent(
-                            message_text=random.choice(message_texts),
+                            message_text=text_quote.content,
                             parse_mode="Markdown",
                         ),
-                        description=f"于{text_quote.created_at}记",
+                        description=f"于{create_at_str}记",
                     )
                 )
 
             for img_quote in random.sample(img_quotes, min(len(img_quotes), 10)):
-                create_at_str = img_quote.created_at.strftime(
-                    "%Y年%m月%d日%H时%M分%S秒"
-                )  # noqa: E501
+                create_at_str = img_quote.created_at.strftime("%Y年%m月%d日%H时%M分%S秒")
                 results.append(
                     InlineQueryResultCachedPhoto(
                         id=str(uuid4()),
