@@ -89,13 +89,17 @@ async def today_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     text = f"你今天已经抽过老婆了! {waifu.full_name} 是你今天的老婆!"
                 else:
                     text = f"你今天的群友老婆是 {waifu.full_name} !"
-        except TypeError:
+        except TypeError as e:
+            logger.error(
+                f"无法为 {update.effective_user.name} 获取id为 {waifu_id} 的waifu:\n{e.__class__.__name__}: {e}"
+            )
             if is_got_waifu:
                 text = f"你的老婆消失了...TA的id曾是: {waifu_id}"
             else:
                 text = "你没能抽到老婆, 再试一次吧~"
             await update.message.reply_text(text=text)
             poped_value = context.chat_data["members_data"].pop(waifu_id, "群组数据中无该成员")
+            context.bot_data["today_waifu"][user_id][chat_id] = None
             logger.debug(f"移除: {poped_value}")
             return
         if not update.message:
