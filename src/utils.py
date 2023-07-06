@@ -126,14 +126,18 @@ async def message_recorder(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     if this_message.reply_to_message:
         return
-    context.user_data["msg_num"] = context.user_data.get("msg_num", 0) + 1
-    if this_chat.type == "private":
-        context.user_data["pm_kmua_num"] = context.user_data.get("pm_kmua_num", 0) + 1
-    else:
-        context.user_data["group_msg_num"] = (
-            context.user_data.get("group_msg_num", 0) + 1
-        )
-        context.chat_data["msg_num"] = context.chat_data.get("msg_num", 0) + 1
+    if context.user_data.get("msg_num", None):
+        context.user_data.pop("msg_num", None)
+        context.user_data.pop("pm_kmua_num", None)
+        context.user_data.pop("group_msg_num", None)
+        context.chat_data.pop("msg_num", None)
+        context.user_data.pop("text_num", None)
+        context.user_data.pop("photo_num", None)
+        context.user_data.pop("sticker_num", None)
+        context.user_data.pop("voice_num", None)
+        context.user_data.pop("video_num", None)
+        context.user_data.pop("document_num", None)
+    if this_chat.type != "private":
         if not context.chat_data.get("members_data", None):
             context.chat_data["members_data"] = {}
         if not context.chat_data["members_data"].get(this_user.id, None):
@@ -142,18 +146,6 @@ async def message_recorder(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
             context.chat_data["members_data"][this_user.id] = member_data_obj
         context.chat_data["members_data"][this_user.id].msg_num += 1
-    if this_message.text:
-        context.user_data["text_num"] = context.user_data.get("text_num", 0) + 1
-    if this_message.photo:
-        context.user_data["photo_num"] = context.user_data.get("photo_num", 0) + 1
-    if this_message.sticker:
-        context.user_data["sticker_num"] = context.user_data.get("sticker_num", 0) + 1
-    if this_message.voice:
-        context.user_data["voice_num"] = context.user_data.get("voice_num", 0) + 1
-    if this_message.video:
-        context.user_data["video_num"] = context.user_data.get("video_num", 0) + 1
-    if this_message.document:
-        context.user_data["document_num"] = context.user_data.get("document_num", 0) + 1
 
 
 def sort_topn_bykey(data: dict, n: int, key: str) -> list:
