@@ -164,6 +164,7 @@ def escape(text: str) -> str:
     return (
         text.replace("/", "")
         .replace("$", "")
+        .replace("_", "\_")
         .replace("(", "\(")
         .replace(")", "\)")
         .replace("[", "\[")
