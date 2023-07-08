@@ -2,6 +2,7 @@ import random
 import time
 from datetime import datetime
 from uuid import uuid1, uuid4
+from .jobs import del_message
 
 from telegram import (
     InlineKeyboardButton,
@@ -74,10 +75,17 @@ async def quote(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"将{quote_message.id}([{update.effective_chat.title}]({quote_user.name}))"
             + "加入chat quote"
         )
-    await context.bot.send_message(
+    sent_message = await context.bot.send_message(
         chat_id=update.effective_chat.id,
         text="已记录名言",
         reply_to_message_id=quote_message.id,
+    )
+    context.job_queue.run_once(
+        del_message,
+        5,
+        data={"message_id": sent_message.message_id},
+        chat_id=update.effective_chat.id,
+        user_id=update.effective_user.id,
     )
     if not quote_message.text:
         # 如果不是文字消息, 在此处return
