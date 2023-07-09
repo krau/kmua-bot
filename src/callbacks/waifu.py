@@ -9,7 +9,64 @@ from telegram.ext import ContextTypes
 from ..logger import logger
 from ..utils import message_recorder
 
+"""
+relationships: a generator yields (int, int) for (user_id, waifu_id)
+user_info: a dict, user_id -> {"avatar": Optional[bytes], "username": str}
+"""
+from matplotlib import offsetbox, pyplot as plt
+import networkx as nx
+import io
+import random
 
+def render_waifu_graph(relationships, user_info):
+    # 创建有向图
+    G = nx.DiGraph()
+
+    # 添加节点和边
+    for user_id, wife_id in relationships:
+        G.add_edge(user_id, wife_id)
+
+    # 创建节点标签和图像字典
+    labels = {}
+    img_dict = {}
+
+    for user_id, info in user_info.items():
+        username = info.get('username')
+        avatar = info.get('avatar')
+
+        labels[user_id] = username
+
+        if avatar is not None:
+            img_dict[user_id] = avatar
+
+    # 绘制图形
+    pos = nx.spring_layout(G, seed=random.randint(1, 10000))  # 设定节点位置
+
+    nx.draw_networkx_edges(G, pos)
+    nx.draw_networkx_labels(G, pos, labels=labels)
+
+    for node_id, pos in pos.items():
+        if node_id in img_dict:
+            img_data = img_dict[node_id]
+            img = plt.imread(img_data)
+            imagebox = offsetbox.AnnotationBbox(offsetbox.OffsetImage(img), pos)
+            plt.gca().add_artist(imagebox)
+
+    plt.axis('off')  # 关闭坐标轴
+
+    # 将图形保存为字节数据
+    buf = io.BytesIO()
+    plt.savefig(buf, format='png')
+    plt.close()
+
+    # 获取字节数据并返回
+    buf.seek(0)
+    image_bytes = buf.read()
+    buf.close()
+
+    return image_bytes
+
+from itertools import chain
 async def waifu_graph(update: Update, context: ContextTypes.DEFAULT_TYPE):
     logger.info(
         f"[{update.effective_chat.title}]({update.effective_user.name})"
@@ -17,8 +74,36 @@ async def waifu_graph(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
     chat_id = update.effective_chat.id
+    today_waifu = context.bot_data["today_waifu"]
+    if not today_waifu.get(chat_id, None):
+        return
+    relationships = ((user_id, waifu_info["waifu"]) for user_id, waifu_info in
+                     today_waifu[chat_id].items() if waifu_info.get("waifu", None))
 
-    pass
+    user_info = {}
+    for user_id in chain((waifu_info["waifu"] for waifu_info in today_waifu[chat_id].values()
+                           if waifu_info.get("waifu", None)), today_waifu[chat_id].keys()):
+        try:
+            user = await context.bot.get_chat(user_id)
+            username = user.username
+            avatar = user.photo
+            if avatar:
+                avatar = await (await user.photo.get_big_file()).download_as_bytearray()
+                avatar = bytes(avatar)
+
+            user_info[user_id] = {
+                "username": username,
+                "avatar": avatar,
+            }
+        except Exception as e:
+            logger.error(f"获取waifu信息时出错: {e}")
+
+    try:
+        image_bytes = render_waifu_graph(relationships, user_info)
+        await context.bot.send_photo(chat_id, photo=image_bytes)
+    except Exception as e:
+        logger.error(f"生成waifu图时出错: {e}")
+
 
 async def today_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     logger.info(
@@ -62,6 +147,7 @@ async def today_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 await update.message.reply_text(text="你现在没有老婆, 因为咱的记录中找不到其他群友")
                 return
             waifu_id = random.choice(group_member)
+
         retry = 0
         err = None
         while not is_success and retry < 3:
@@ -76,6 +162,7 @@ async def today_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 err = e
                 waifu_id = random.choice(group_member)
                 await asyncio.sleep(1)
+
         if not is_success:
             await update.message.reply_text(text="你没能抽到老婆, 再试一次吧~")
             poped_value = context.chat_data["members_data"].pop(waifu_id, "群组数据中无该成员")
@@ -83,6 +170,7 @@ async def today_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE):
             raise err
         else:
             context.bot_data["today_waifu"][chat_id][user_id]["waifu"] = waifu.id
+
         avatar = waifu.photo
         if avatar:
             avatar = await (await waifu.photo.get_big_file()).download_as_bytearray()
