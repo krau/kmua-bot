@@ -11,6 +11,13 @@ from ..utils import message_recorder
 
 
 async def waifu_graph(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    logger.info(
+        f"[{update.effective_chat.title}]({update.effective_user.name})"
+        + f" {update.effective_message.text}"
+    )
+
+    chat_id = update.effective_chat.id
+
     pass
 
 async def today_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -20,17 +27,21 @@ async def today_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     user_id = update.effective_user.id
     chat_id = update.effective_chat.id
-    if not context.bot_data["today_waifu"].get(user_id, None):
-        context.bot_data["today_waifu"][user_id] = {}
-    if context.bot_data["today_waifu"][user_id].get("waiting", False):
+
+    if not context.bot_data["today_waifu"].get(chat_id, None):
+        context.bot_data["today_waifu"][chat_id] = {}
+    if not context.bot_data["today_waifu"][chat_id].get(user_id, None):
+        context.bot_data["today_waifu"][chat_id][user_id] = {}
+    if context.bot_data["today_waifu"][chat_id][user_id].get("waiting", False):
         return
-    context.bot_data["today_waifu"][user_id]["waiting"] = True
+    context.bot_data["today_waifu"][chat_id][user_id]["waiting"] = True
+
     await message_recorder(update, context)
     try:
         await context.bot.send_chat_action(chat_id, ChatAction.TYPING)
         is_got_waifu = True
         is_success = False
-        waifu_id = context.bot_data["today_waifu"][user_id].get(chat_id, None)
+        waifu_id = context.bot_data["today_waifu"][chat_id][user_id].get("waifu", None)
         if not waifu_id:
             is_got_waifu = False
             group_member: list[int] = list(context.chat_data["members_data"].keys())
@@ -71,7 +82,7 @@ async def today_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE):
             logger.debug(f"移除: {poped_value}")
             raise err
         else:
-            context.bot_data["today_waifu"][user_id][chat_id] = waifu.id
+            context.bot_data["today_waifu"][chat_id][user_id]["waifu"] = waifu.id
         avatar = waifu.photo
         if avatar:
             avatar = await (await waifu.photo.get_big_file()).download_as_bytearray()
@@ -140,7 +151,7 @@ async def today_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         raise e
     finally:
-        context.bot_data["today_waifu"][user_id]["waiting"] = False
+        context.bot_data["today_waifu"][chat_id][user_id]["waiting"] = False
         await context.application.persistence.flush()
 
 
@@ -183,8 +194,10 @@ async def remove_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         username = user_id
     poped_value = context.chat_data["members_data"].pop(waifu_id, "群组数据中无该成员")
     logger.debug(f"移除: {poped_value}")
-    if context.bot_data["today_waifu"].get(user_id):
-        context.bot_data["today_waifu"][user_id].pop(update.effective_chat.id, None)
+    
+    chat_id = update.effective_chat.id
+    if context.bot_data["today_waifu"][chat_id]:
+        context.bot_data["today_waifu"][chat_id].pop(user_id, None)
     await update.callback_query.message.delete()
     await update.effective_chat.send_message(
         text=f"已从本群数据中移除 {waifuname}, {username} 可以重新抽取",
