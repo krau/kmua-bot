@@ -10,6 +10,9 @@ from ..logger import logger
 from ..utils import message_recorder
 
 
+async def waifu_graph(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    pass
+
 async def today_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     logger.info(
         f"[{update.effective_chat.title}]({update.effective_user.name})"
