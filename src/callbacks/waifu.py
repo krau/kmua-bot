@@ -21,12 +21,9 @@ from PIL import Image
 
 
 def render_waifu_graph(relationships, user_info):
-    # 创建有向图
     G = nx.DiGraph()
 
-    # 添加节点和边
-    for user_id, wife_id in relationships:
-        G.add_edge(user_id, wife_id)
+    G.add_edges_from(relationships)
 
     # 创建节点标签和图像字典
     labels = {}
@@ -41,17 +38,19 @@ def render_waifu_graph(relationships, user_info):
         if avatar is not None:
             img_dict[user_id] = avatar
 
-    # 绘制图形
-    pos = nx.spring_layout(G, seed=random.randint(1, 10000))  # 设定节点位置
+    plt.figure(layout='constrained', figsize=(1.414*len(user_info), 1.414*len(user_info)))
 
-    nx.draw_networkx_edges(G, pos)
+    # 绘制图形
+    pos = nx.spring_layout(G, seed=random.randint(1, 10000), k=1.5)  # 设定节点位置
+
     nx.draw_networkx_labels(G, pos, labels=labels)
+    nx.draw_networkx_edges(G, pos, arrows=True)
 
     for node_id, pos in pos.items():
         if node_id in img_dict:
             img_data = img_dict[node_id]
             img = Image.open(io.BytesIO(img_data))
-            imagebox = offsetbox.AnnotationBbox(offsetbox.OffsetImage(img), pos)
+            imagebox = offsetbox.AnnotationBbox(offsetbox.OffsetImage(img, zoom=0.5), pos)
             plt.gca().add_artist(imagebox)
 
     plt.axis('off')  # 关闭坐标轴
@@ -90,7 +89,7 @@ async def waifu_graph(update: Update, context: ContextTypes.DEFAULT_TYPE):
             username = user.username
             avatar = user.photo
             if avatar:
-                avatar = await (await user.photo.get_big_file()).download_as_bytearray()
+                avatar = await (await user.photo.get_small_file()).download_as_bytearray()
                 avatar = bytes(avatar)
 
             user_info[user_id] = {
@@ -102,7 +101,8 @@ async def waifu_graph(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     try:
         image_bytes = render_waifu_graph(relationships, user_info)
-        await context.bot.send_photo(chat_id, photo=image_bytes)
+        await context.bot.send_document(chat_id, document=image_bytes, filename="waifu_relation.png",
+                                        reply_to_message_id=update.effective_message.id)
     except Exception as e:
         logger.error(f"生成waifu图时出错: {e}")
 
