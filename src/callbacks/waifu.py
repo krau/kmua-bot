@@ -90,7 +90,7 @@ async def waifu_graph(update: Update, context: ContextTypes.DEFAULT_TYPE):
             username = user.username
             avatar = user.photo
             if avatar:
-                avatar = await (await user.photo.get_big_file()).download_as_bytearray()
+                avatar = await (await user.photo.get_small_file()).download_as_bytearray()
                 avatar = bytes(avatar)
 
             user_info[user_id] = {
