@@ -45,7 +45,7 @@ from .callbacks.chatdata import (
     clear_chat_data,
     clear_chat_data_cancel,
 )
-from .callbacks.waifu import today_waifu, remove_waifu, user_waifu_manage, set_mention
+from .callbacks.waifu import today_waifu, remove_waifu, user_waifu_manage, set_mention, waifu_graph
 from .config.config import settings
 from .filters import (
     bnhhsh_filter,
@@ -73,6 +73,9 @@ remake_handler = CommandHandler("remake", remake)
 suicide_handler = CommandHandler("suicide", suicide)
 today_waifu_handler = CommandHandler(
     "waifu", today_waifu, filters=filters.ChatType.GROUPS
+)
+waifu_graph_handler = CommandHandler(
+    "waifu_graph", waifu_graph, filters=filters.ChatType.GROUPS
 )
 set_greet_handler = CommandHandler(
     "set_greet", set_greet, filters=filters.ChatType.GROUPS
