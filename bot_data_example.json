@@ -19,13 +19,25 @@
         }
     },
     "today_waifu": {
-        "user_id1": {
-            "chat_id1": "waifu_id1",
-            "chat_id2": "waifu_id2"
+        "chat_id1": {
+            "user_id1": {
+                "waifu": "waifu_id1",
+                "waiting": "bool"
+            },
+            "user_id2": {
+                "waifu": "waifu_id2",
+                "waiting": "bool"
+            }
         },
-        "user_id2": {
-            "chat_id3": "waifu_id3",
-            "chat_id4": "waifu_id4"
+        "chat_id2": {
+            "user_id3": {
+                "waifu": "waifu_id3",
+                "waiting": "bool"
+            },
+            "user_id4": {
+                "waifu": "waifu_id4",
+                "waiting": "bool"
+            }
         }
     }
 }
