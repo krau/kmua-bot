@@ -30,15 +30,17 @@ def render_waifu_graph(relationships, user_info):
     img_dict = {}
 
     for user_id, info in user_info.items():
-        username = info.get('username')
-        avatar = info.get('avatar')
+        username = info.get("username")
+        avatar = info.get("avatar")
 
         labels[user_id] = username
 
         if avatar is not None:
             img_dict[user_id] = avatar
 
-    plt.figure(layout='constrained', figsize=(1.414*len(user_info), 1.414*len(user_info)))
+    plt.figure(
+        layout="constrained", figsize=(1.414 * len(user_info), 1.414 * len(user_info))
+    )
 
     # 绘制图形
     pos = nx.spring_layout(G, seed=random.randint(1, 10000), k=1.5)  # 设定节点位置
@@ -50,14 +52,16 @@ def render_waifu_graph(relationships, user_info):
         if node_id in img_dict:
             img_data = img_dict[node_id]
             img = Image.open(io.BytesIO(img_data))
-            imagebox = offsetbox.AnnotationBbox(offsetbox.OffsetImage(img, zoom=0.5), pos)
+            imagebox = offsetbox.AnnotationBbox(
+                offsetbox.OffsetImage(img, zoom=0.5), pos
+            )
             plt.gca().add_artist(imagebox)
 
-    plt.axis('off')  # 关闭坐标轴
+    plt.axis("off")  # 关闭坐标轴
 
     # 将图形保存为字节数据
     buf = io.BytesIO()
-    plt.savefig(buf, format='png')
+    plt.savefig(buf, format="png")
     plt.close()
 
     # 获取字节数据并返回
@@ -67,7 +71,10 @@ def render_waifu_graph(relationships, user_info):
 
     return image_bytes
 
+
 from itertools import chain
+
+
 async def waifu_graph(update: Update, context: ContextTypes.DEFAULT_TYPE):
     logger.info(
         f"[{update.effective_chat.title}]({update.effective_user.name})"
@@ -78,18 +85,29 @@ async def waifu_graph(update: Update, context: ContextTypes.DEFAULT_TYPE):
     today_waifu = context.bot_data["today_waifu"]
     if not today_waifu.get(chat_id, None):
         return
-    relationships = ((user_id, waifu_info["waifu"]) for user_id, waifu_info in
-                     today_waifu[chat_id].items() if waifu_info.get("waifu", None))
+    relationships = (
+        (user_id, waifu_info["waifu"])
+        for user_id, waifu_info in today_waifu[chat_id].items()
+        if waifu_info.get("waifu", None)
+    )
 
     user_info = {}
-    for user_id in chain((waifu_info["waifu"] for waifu_info in today_waifu[chat_id].values()
-                           if waifu_info.get("waifu", None)), today_waifu[chat_id].keys()):
+    for user_id in chain(
+        (
+            waifu_info["waifu"]
+            for waifu_info in today_waifu[chat_id].values()
+            if waifu_info.get("waifu", None)
+        ),
+        today_waifu[chat_id].keys(),
+    ):
         try:
             user = await context.bot.get_chat(user_id)
             username = user.username
             avatar = user.photo
             if avatar:
-                avatar = await (await user.photo.get_small_file()).download_as_bytearray()
+                avatar = await (
+                    await user.photo.get_small_file()
+                ).download_as_bytearray()
                 avatar = bytes(avatar)
 
             user_info[user_id] = {
@@ -101,8 +119,12 @@ async def waifu_graph(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     try:
         image_bytes = render_waifu_graph(relationships, user_info)
-        await context.bot.send_document(chat_id, document=image_bytes, filename="waifu_relation.png",
-                                        reply_to_message_id=update.effective_message.id)
+        await context.bot.send_document(
+            chat_id,
+            document=image_bytes,
+            filename="waifu_relation.png",
+            reply_to_message_id=update.effective_message.id,
+        )
     except Exception as e:
         logger.error(f"生成waifu图时出错: {e}")
 
@@ -284,7 +306,7 @@ async def remove_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         username = user_id
     poped_value = context.chat_data["members_data"].pop(waifu_id, "群组数据中无该成员")
     logger.debug(f"移除: {poped_value}")
-    
+
     chat_id = update.effective_chat.id
     if context.bot_data["today_waifu"][chat_id]:
         context.bot_data["today_waifu"][chat_id].pop(user_id, None)
