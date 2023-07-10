@@ -16,7 +16,7 @@ from ..logger import logger
 from ..utils import message_recorder
 
 
-def render_waifu_graph(relationships, user_info):
+def render_waifu_graph(relationships, user_info) -> bytes:
     """
     render waifu graph
 
