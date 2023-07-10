@@ -17,6 +17,8 @@ from matplotlib import offsetbox, pyplot as plt
 import networkx as nx
 import io
 import random
+from PIL import Image
+
 
 def render_waifu_graph(relationships, user_info):
     # 创建有向图
@@ -48,7 +50,7 @@ def render_waifu_graph(relationships, user_info):
     for node_id, pos in pos.items():
         if node_id in img_dict:
             img_data = img_dict[node_id]
-            img = plt.imread(img_data)
+            img = Image.open(io.BytesIO(img_data))
             imagebox = offsetbox.AnnotationBbox(offsetbox.OffsetImage(img), pos)
             plt.gca().add_artist(imagebox)
 
