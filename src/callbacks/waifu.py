@@ -1,6 +1,12 @@
 import asyncio
+import io
 import random
+from itertools import chain
 
+import networkx as nx
+from matplotlib import offsetbox
+from matplotlib import pyplot as plt
+from PIL import Image
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.constants import ChatAction
 from telegram.error import BadRequest
@@ -9,26 +15,20 @@ from telegram.ext import ContextTypes
 from ..logger import logger
 from ..utils import message_recorder
 
-"""
-relationships: a generator yields (int, int) for (user_id, waifu_id)
-user_info: a dict, user_id -> {"avatar": Optional[bytes], "username": str}
-"""
-from matplotlib import offsetbox, pyplot as plt
-import networkx as nx
-import io
-import random
-from PIL import Image
 
-
-def render_waifu_graph(relationships, user_info):
+def render_waifu_graph(relationships, user_info) -> bytes:
+    """
+    render waifu graph
+    :param relationships: a generator yields (int, int) for (user_id, waifu_id)
+    :param user_info: a dict, user_id -> {"avatar": Optional[bytes], "username": str}
+    :return: bytes
+    """
     G = nx.DiGraph()
 
     G.add_edges_from(relationships)
-
     # 创建节点标签和图像字典
     labels = {}
     img_dict = {}
-
     for user_id, info in user_info.items():
         username = info.get("username")
         avatar = info.get("avatar")
@@ -36,7 +36,7 @@ def render_waifu_graph(relationships, user_info):
         labels[user_id] = username
 
         if avatar is not None:
-            img_dict[user_id] = avatar
+            img_dict[user_id] = avatar=
 
     plt.figure(
         layout="constrained", figsize=(1.414 * len(user_info), 1.414 * len(user_info))
@@ -56,23 +56,16 @@ def render_waifu_graph(relationships, user_info):
                 offsetbox.OffsetImage(img, zoom=0.5), pos
             )
             plt.gca().add_artist(imagebox)
-
     plt.axis("off")  # 关闭坐标轴
-
     # 将图形保存为字节数据
     buf = io.BytesIO()
     plt.savefig(buf, format="png")
     plt.close()
-
     # 获取字节数据并返回
     buf.seek(0)
     image_bytes = buf.read()
     buf.close()
-
     return image_bytes
-
-
-from itertools import chain
 
 
 async def waifu_graph(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -80,7 +73,6 @@ async def waifu_graph(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"[{update.effective_chat.title}]({update.effective_user.name})"
         + f" {update.effective_message.text}"
     )
-
     chat_id = update.effective_chat.id
     today_waifu = context.bot_data["today_waifu"]
     if not today_waifu.get(chat_id, None):
@@ -90,7 +82,6 @@ async def waifu_graph(update: Update, context: ContextTypes.DEFAULT_TYPE):
         for user_id, waifu_info in today_waifu[chat_id].items()
         if waifu_info.get("waifu", None)
     )
-
     user_info = {}
     for user_id in chain(
         (
@@ -116,7 +107,6 @@ async def waifu_graph(update: Update, context: ContextTypes.DEFAULT_TYPE):
             }
         except Exception as e:
             logger.error(f"获取waifu信息时出错: {e}")
-
     try:
         image_bytes = render_waifu_graph(relationships, user_info)
         await context.bot.send_document(
