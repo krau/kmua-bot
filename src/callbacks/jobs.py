@@ -11,8 +11,11 @@ async def refresh_data(context: ContextTypes.DEFAULT_TYPE):
         await asyncio.gather(
             *(_waifu_graph(None, chat_id, context) for chat_id in today_waifu.keys())
         )
+    except Exception as err:
+        logger.error(f"{err} happend when performing waifu graph tasks")
     finally:
         today_waifu = {}
+        context.bot_data["waifu_mutex"] = {}
         logger.debug("数据已刷新: today_waifu")
 
 
