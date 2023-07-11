@@ -2,7 +2,6 @@ import asyncio
 import io
 import random
 from itertools import chain
-from typing import Optional
 
 import networkx as nx
 from matplotlib import offsetbox
@@ -106,11 +105,13 @@ async def waifu_graph(update: Update, context: ContextTypes.DEFAULT_TYPE):
     msg_id = update.effective_message.id
     chat_id = update.effective_chat.id
 
-    await _waifu_graph(msg_id, chat_id, context)
+    await _waifu_graph(chat_id, context, msg_id)
 
 
 async def _waifu_graph(
-    msg_id: Optional[int], chat_id: int, context: ContextTypes.DEFAULT_TYPE
+    chat_id: int,
+    context: ContextTypes.DEFAULT_TYPE,
+    msg_id: int | None = None,
 ):
     today_waifu = context.bot_data["today_waifu"]
     if not today_waifu.get(chat_id, None):

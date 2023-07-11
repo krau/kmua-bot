@@ -9,7 +9,7 @@ async def refresh_data(context: ContextTypes.DEFAULT_TYPE):
 
     try:
         await asyncio.gather(
-            *(_waifu_graph(None, chat_id, context) for chat_id in today_waifu.keys())
+            *(_waifu_graph(chat_id, context) for chat_id in today_waifu.keys())
         )
     except Exception as err:
         logger.error(f"{err} happend when performing waifu graph tasks")
