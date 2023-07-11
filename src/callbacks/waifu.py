@@ -106,11 +106,13 @@ async def waifu_graph(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     waifu_mutex = context.bot_data["waifu_mutex"]
     if waifu_mutex.get(chat_id, False):
-        await context.bot.send_message(
+        message = await context.bot.send_message(
             chat_id, "呜呜.. 不许看！等人家换好衣服啦", reply_to_message_id=msg_id
         )
+        await asyncio.sleep(3)
+        await message.delete()
         return
-    
+
     waifu_mutex[chat_id] = True
 
     relationships = (
