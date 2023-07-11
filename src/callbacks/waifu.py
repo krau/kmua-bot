@@ -101,7 +101,7 @@ async def waifu_graph(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
     today_waifu = context.bot_data["today_waifu"]
     if not today_waifu.get(chat_id, None):
-        await context.bot.send_message("群里还没有老婆！", reply_to_message_id=msg_id)
+        await context.bot.send_message(chat_id, "群里还没有老婆！", reply_to_message_id=msg_id)
         return
     relationships = (
         (user_id, waifu_info["waifu"])
