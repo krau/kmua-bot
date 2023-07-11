@@ -133,7 +133,7 @@ async def waifu_graph(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 user = await context.bot.get_chat(user_id)
                 successed = True
             except Exception as err:
-                logger.error(f"获取waifu信息时出错: {e}")
+                logger.error(f"获取waifu信息时出错: {err}")
 
         if not successed:
             logger.debug(f"cannot get chat for {user_id}")
