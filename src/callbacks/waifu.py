@@ -19,16 +19,13 @@ from ..utils import message_recorder
 def render_waifu_graph(relationships, user_info) -> bytes:
     """
     render waifu graph
-
     :param relationships: a generator yields (int, int) for (user_id, waifu_id)
     :param user_info: a dict, user_id -> {"avatar": Optional[bytes], "username": str}
     :return: bytes
     """
-    # 创建有向图
     G = nx.DiGraph()
-    # 添加节点和边
-    for user_id, wife_id in relationships:
-        G.add_edge(user_id, wife_id)
+
+    G.add_edges_from(relationships)
     # 创建节点标签和图像字典
     labels = {}
     img_dict = {}
@@ -39,16 +36,25 @@ def render_waifu_graph(relationships, user_info) -> bytes:
         labels[user_id] = username
 
         if avatar is not None:
-            img_dict[user_id] = avatar
+            img_dict[user_id] = avatar=
+
+    plt.figure(
+        layout="constrained", figsize=(1.414 * len(user_info), 1.414 * len(user_info))
+    )
+
     # 绘制图形
-    pos = nx.spring_layout(G, seed=random.randint(1, 10000))  # 设定节点位置
-    nx.draw_networkx_edges(G, pos)
+    pos = nx.spring_layout(G, seed=random.randint(1, 10000), k=1.5)  # 设定节点位置
+
     nx.draw_networkx_labels(G, pos, labels=labels)
+    nx.draw_networkx_edges(G, pos, arrows=True)
+
     for node_id, pos in pos.items():
         if node_id in img_dict:
             img_data = img_dict[node_id]
             img = Image.open(io.BytesIO(img_data))
-            imagebox = offsetbox.AnnotationBbox(offsetbox.OffsetImage(img), pos)
+            imagebox = offsetbox.AnnotationBbox(
+                offsetbox.OffsetImage(img, zoom=0.5), pos
+            )
             plt.gca().add_artist(imagebox)
     plt.axis("off")  # 关闭坐标轴
     # 将图形保存为字节数据
@@ -103,7 +109,12 @@ async def waifu_graph(update: Update, context: ContextTypes.DEFAULT_TYPE):
             logger.error(f"获取waifu信息时出错: {e}")
     try:
         image_bytes = render_waifu_graph(relationships, user_info)
-        await context.bot.send_photo(chat_id, photo=image_bytes)
+        await context.bot.send_document(
+            chat_id,
+            document=image_bytes,
+            filename="waifu_relation.png",
+            reply_to_message_id=update.effective_message.id,
+        )
     except Exception as e:
         logger.error(f"生成waifu图时出错: {e}")
 
