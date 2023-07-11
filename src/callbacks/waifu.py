@@ -141,7 +141,7 @@ async def waifu_graph(update: Update, context: ContextTypes.DEFAULT_TYPE):
         username = user.username
         avatar = user.photo
         if avatar:
-            avatar = await (await user.photo.get_big_file()).download_as_bytearray()
+            avatar = await (await user.photo.get_small_file()).download_as_bytearray()
             avatar = bytes(avatar)
 
         user_info[user_id] = {
@@ -149,12 +149,11 @@ async def waifu_graph(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "avatar": avatar if successed else None,
         }
         loaded_user += 1
-        await status_msg.edit_caption(f"少女祈祷中... {loaded_user}/{len(users)}")
+        await status_msg.edit_text(f"少女祈祷中... {loaded_user}/{len(users)}")
 
     try:
         image_bytes = render_waifu_graph(relationships, user_info)
         logger.debug(f"image_size: {len(image_bytes)}")
-        await status_msg.delete()
         await context.bot.send_photo(
             chat_id,
             image_bytes,
@@ -167,6 +166,8 @@ async def waifu_graph(update: Update, context: ContextTypes.DEFAULT_TYPE):
             chat_id, f"呜呜呜... kmua被 玩坏惹\n{e}", reply_to_message_id=msg_id
         )
         logger.error(f"生成waifu图时出错: {e}")
+
+    await status_msg.delete()
 
 
 async def today_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE):
