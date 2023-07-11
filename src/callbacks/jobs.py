@@ -1,6 +1,6 @@
 from telegram.ext import ContextTypes
 from ..logger import logger
-from waifu import _waifu_graph
+from .waifu import _waifu_graph
 import asyncio
 
 
