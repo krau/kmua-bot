@@ -235,6 +235,7 @@ async def _waifu_graph(
         raise err
     finally:
         waifu_mutex[chat_id] = False
+        await context.application.persistence.flush()
 
 
 async def today_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE):
