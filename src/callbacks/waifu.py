@@ -158,7 +158,7 @@ async def waifu_graph(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 logger.debug(f"cannot get chat for {user_id}")
                 continue
 
-            username = user.username or user.full_name
+            username = user.full_name
             avatar = user.photo
             if avatar:
                 avatar = await (
