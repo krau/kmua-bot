@@ -103,6 +103,16 @@ async def waifu_graph(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not today_waifu.get(chat_id, None):
         await context.bot.send_message(chat_id, "群里还没有老婆！", reply_to_message_id=msg_id)
         return
+
+    waifu_mutex = context.bot_data["waifu_mutex"]
+    if waifu_mutex.get(chat_id, False):
+        await context.bot.send_message(
+            chat_id, "呜呜.. 不许看！等人家换好衣服啦", reply_to_message_id=msg_id
+        )
+        return
+    
+    waifu_mutex[chat_id] = True
+
     relationships = (
         (user_id, waifu_info["waifu"])
         for user_id, waifu_info in today_waifu[chat_id].items()
@@ -153,6 +163,7 @@ async def waifu_graph(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await status_msg.edit_text(f"少女祈祷中... {loaded_user}/{len(users)}")
 
     try:
+        await context.bot.send_chat_action(chat_id, ChatAction.TYPING)
         image_bytes = render_waifu_graph(relationships, user_info)
         logger.debug(f"image_size: {len(image_bytes)}")
         await context.bot.send_photo(
@@ -169,6 +180,7 @@ async def waifu_graph(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.error(f"生成waifu图时出错: {e}")
 
     await status_msg.delete()
+    waifu_mutex[chat_id] = False
 
 
 async def today_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -178,6 +190,9 @@ async def today_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     user_id = update.effective_user.id
     chat_id = update.effective_chat.id
+
+    if context.bot_data["waifu_mutex"].get(chat_id, False):
+        return
 
     if not context.bot_data["today_waifu"].get(chat_id, None):
         context.bot_data["today_waifu"][chat_id] = {}
