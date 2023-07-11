@@ -84,8 +84,6 @@ def render_waifu_graph(relationships, user_info) -> bytes:
 
     plt.axis("off")  # 关闭坐标轴
 
-    plt.rcParams["font.sans-serif"] = "Source Han Sans CN"
-
     # 将图形保存为字节数据
     buf = io.BytesIO()
     plt.savefig(buf, format="png")
@@ -158,7 +156,7 @@ async def waifu_graph(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 logger.debug(f"cannot get chat for {user_id}")
                 continue
 
-            username = user.full_name
+            username = user.username or f"id: {user_id}"
             avatar = user.photo
             if avatar:
                 avatar = await (
