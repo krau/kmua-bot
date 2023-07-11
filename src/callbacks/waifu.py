@@ -18,6 +18,15 @@ from ..config.config import settings
 
 
 async def migrate_waifu_shutdown(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if update.effective_user.id not in settings.owners:
+        msg_id = update.effective_message.id
+        msg = await context.bot.send_message(
+            chat_id=msg_id, text="呜呜... 你不是咱的主人！", reply_to_message_id=msg_id
+        )
+        await asyncio.sleep(5)
+        await msg.delete()
+        return
+
     new_today_waifu = {}
 
     for user_id, user_data in context.bot_data["today_waifu"].items():
