@@ -44,6 +44,8 @@ async def init_data(app: Application):
     if not app.bot_data.get("today_waifu", None):
         app.bot_data["today_waifu"] = {}
 
+    app.bot_data["waifu_mutex"] = {}
+
 
 def run():
     if not os.path.exists(Path(settings.pickle_path).parent):
