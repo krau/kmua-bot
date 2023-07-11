@@ -12,7 +12,10 @@ async def refresh_data(context: ContextTypes.DEFAULT_TYPE):
             *(_waifu_graph(chat_id, context) for chat_id in today_waifu.keys())
         )
     except Exception as err:
-        logger.error(f"{err} happend when performing waifu graph tasks")
+        logger.error(
+            f"{err.__class__.__name__}: {err} happend when performing waifu graph tasks"
+        )
+        raise err
     finally:
         today_waifu = {}
         context.bot_data["waifu_mutex"] = {}
