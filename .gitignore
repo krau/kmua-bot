@@ -6,5 +6,6 @@ __pycache__
 tmp/
 logs/
 .idea
+.vscode
 settings.dev*
 data.dev*
