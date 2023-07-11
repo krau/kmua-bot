@@ -36,7 +36,7 @@ def render_waifu_graph(relationships, user_info) -> bytes:
         labels[user_id] = username
 
         if avatar is not None:
-            img_dict[user_id] = avatar=
+            img_dict[user_id] = avatar
 
     plt.figure(
         layout="constrained", figsize=(1.414 * len(user_info), 1.414 * len(user_info))
