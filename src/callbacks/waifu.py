@@ -37,7 +37,7 @@ async def migrate_waifu_shutdown(update: Update, context: ContextTypes.DEFAULT_T
 
             new_today_waifu[chat_id][user_id] = {"waifu": waifu_id, "waiting": False}
 
-    logger.info(f"migration finished!")
+    logger.info("migration finished!")
     await context.bot.shutdown()
 
 
