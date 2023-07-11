@@ -40,7 +40,7 @@ def render_waifu_graph(relationships, user_info) -> bytes:
 
     plt.figure(
         layout="constrained",
-        figsize=(1.5 * 1.414 * len(user_info), 1.5 * 1.414 * len(user_info)),
+        figsize=(1.2 * 1.414 * len(user_info), 1.2 * 1.414 * len(user_info)),
     )
 
     # 绘制图形
@@ -143,7 +143,7 @@ async def waifu_graph(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         user_info = {}
         for user_id in users:
-            retry = 3
+            retry = 5
             successed = False
             for i in range(retry):
                 try:
@@ -151,9 +151,16 @@ async def waifu_graph(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     successed = True
                 except Exception as err:
                     logger.error(f"获取waifu信息时出错: {err}")
+                    await asyncio.sleep(1)
 
             if not successed:
                 logger.debug(f"cannot get chat for {user_id}")
+
+                user_info[user_id] = {
+                    "username": f"id: {user_id}",
+                    "avatar": None,
+                }
+
                 continue
 
             username = user.username or f"id: {user_id}"
@@ -175,10 +182,11 @@ async def waifu_graph(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await context.bot.send_chat_action(chat_id, ChatAction.TYPING)
             image_bytes = render_waifu_graph(relationships, user_info)
             logger.debug(f"image_size: {len(image_bytes)}")
-            await context.bot.send_photo(
+            await context.bot.send_document(
                 chat_id,
-                image_bytes,
-                f"老婆关系图\nloaded {loaded_user} in {len(users)} users",
+                document=image_bytes,
+                caption=f"老婆关系图\nloaded {loaded_user} of {len(users)} users",
+                filename="waifu_graph.png",
                 reply_to_message_id=update.effective_message.id,
                 allow_sending_without_reply=True,
             )
