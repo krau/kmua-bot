@@ -9,3 +9,4 @@ logs/
 .vscode
 settings.dev*
 data.dev*
+data/data.pickle
