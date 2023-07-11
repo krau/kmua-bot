@@ -469,5 +469,6 @@ async def clear_waifu_data(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_user.id not in settings.owners:
         return
     context.bot_data["today_waifu"] = {}
+    context.bot_data["waifu_mutex"] = {}
     await context.application.persistence.flush()
     await update.message.reply_text(text="已清除今日老婆数据")
