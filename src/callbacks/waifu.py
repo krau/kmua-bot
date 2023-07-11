@@ -39,22 +39,45 @@ def render_waifu_graph(relationships, user_info):
             img_dict[user_id] = avatar
 
     plt.figure(
-        layout="constrained", figsize=(1.414 * len(user_info), 1.414 * len(user_info))
+        layout="constrained",
+        figsize=(1.5 * 1.414 * len(user_info), 1.5 * 1.414 * len(user_info)),
     )
 
     # 绘制图形
-    pos = nx.spring_layout(G, seed=random.randint(1, 10000), k=1.5)  # 设定节点位置
+    pos = nx.spring_layout(G, seed=random.randint(1, 10000), k=2.0)  # 设定节点位置
 
-    nx.draw_networkx_labels(G, pos, labels=labels)
-    nx.draw_networkx_edges(G, pos, arrows=True)
+    nx.draw_networkx_edges(
+        G,
+        pos,
+        arrows=True,
+        arrowsize=18,
+        arrowstyle="fancy",
+        edge_color=(0.2, 0.5, 0.8, 0.5),
+    )
+    nx.draw_networkx_labels(
+        G,
+        pos,
+        labels=(
+            {user: waifu for user, waifu in labels.items() if user not in img_dict}
+        ),
+    )
 
     for node_id, pos in pos.items():
         if node_id in img_dict:
             img_data = img_dict[node_id]
             img = Image.open(io.BytesIO(img_data))
-            imagebox = offsetbox.AnnotationBbox(
-                offsetbox.OffsetImage(img, zoom=0.5), pos
+
+            combined_box = offsetbox.VPacker(
+                children=[
+                    offsetbox.OffsetImage(img, zoom=0.5),
+                    offsetbox.TextArea(labels[node_id]),
+                ],
+                align="center",
+                pad=0,
+                sep=5,
             )
+
+            imagebox = offsetbox.AnnotationBbox(combined_box, pos, frameon=False)
             plt.gca().add_artist(imagebox)
 
     plt.axis("off")  # 关闭坐标轴
@@ -117,13 +140,17 @@ async def waifu_graph(update: Update, context: ContextTypes.DEFAULT_TYPE):
         except Exception as e:
             logger.error(f"获取waifu信息时出错: {e}")
 
+    logger.debug(f"relationships: {relationships}")
+
     try:
         image_bytes = render_waifu_graph(relationships, user_info)
-        await context.bot.send_document(
+        logger.debug(f"image_size: {len(image_bytes)}")
+        await context.bot.send_photo(
             chat_id,
-            document=image_bytes,
-            filename="waifu_relation.png",
+            image_bytes,
+            "老婆关系图",
             reply_to_message_id=update.effective_message.id,
+            allow_sending_without_reply=True,
         )
     except Exception as e:
         logger.error(f"生成waifu图时出错: {e}")
