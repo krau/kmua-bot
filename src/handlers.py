@@ -146,6 +146,7 @@ handlers = [
     remake_handler,
     suicide_handler,
     today_waifu_handler,
+    waifu_graph_handler,
     set_greet_handler,
     start_callback_handler,
     clear_chat_quote_ask_handler,
