@@ -17,6 +17,21 @@ from ..utils import message_recorder
 from ..config.config import settings
 
 
+async def migrate_waifu_shutdown(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    new_today_waifu = {}
+
+    for user_id, user_data in context.bot_data["today_waifu"].items():
+        logger.info(f"migrating for {user_id}...")
+        for chat_id, waifu_id in user_data.items():
+            if not new_today_waifu.get(chat_id, None):
+                new_today_waifu[chat_id] = {}
+
+            new_today_waifu[chat_id][user_id] = {"waifu": waifu_id, "waiting": False}
+
+    logger.info(f"migration finished!")
+    await context.bot.shutdown()
+
+
 def render_waifu_graph(relationships, user_info) -> bytes:
     """
     render waifu graph
