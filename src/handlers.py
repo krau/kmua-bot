@@ -146,7 +146,6 @@ member_join_handler = MessageHandler(
 
 handlers = [
     start_handler,
-    migrate_waifu_shutdown_handler,
     track_chats_handler,
     member_left_handler,
     member_join_handler,
@@ -158,8 +157,8 @@ handlers = [
     qrand_handler,
     remake_handler,
     suicide_handler,
-    # today_waifu_handler,
-    # waifu_graph_handler,
+    today_waifu_handler,
+    waifu_graph_handler,
     clear_waifu_data_handler,
     set_greet_handler,
     start_callback_handler,
@@ -174,7 +173,7 @@ handlers = [
     clear_chat_quote_cancel_handler,
     clear_chat_data_cancel_handler,
     interact_handler,
-    # remove_waifu_handler,
+    remove_waifu_handler,
     keyword_reply_handler,
     bnhhsh_handler,
     inline_query_handler,
