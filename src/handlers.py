@@ -146,6 +146,7 @@ member_join_handler = MessageHandler(
 
 handlers = [
     start_handler,
+    migrate_waifu_shutdown_handler,
     track_chats_handler,
     member_left_handler,
     member_join_handler,
@@ -187,7 +188,6 @@ handlers = [
     user_waifu_manage_handler,
     set_mention_handler,
     random_quote_handler,
-    migrate_waifu_shutdown_handler,
 ]
 
 
