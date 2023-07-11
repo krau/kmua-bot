@@ -14,6 +14,7 @@ from telegram.ext import ContextTypes
 
 from ..logger import logger
 from ..utils import message_recorder
+from ..config.config import settings
 
 
 def render_waifu_graph(relationships, user_info) -> bytes:
@@ -342,3 +343,11 @@ async def set_mention(update: Update, context: ContextTypes.DEFAULT_TYPE):
         text=text, reply_markup=waifu_manage_markup
     )
     await context.application.persistence.flush()
+
+
+async def clear_waifu_data(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if update.effective_user.id not in settings.owners:
+        return
+    context.bot_data["today_waifu"] = {}
+    await context.application.persistence.flush()
+    await update.message.reply_text(text="已清除今日老婆数据")
