@@ -45,7 +45,14 @@ from .callbacks.chatdata import (
     clear_chat_data,
     clear_chat_data_cancel,
 )
-from .callbacks.waifu import today_waifu, remove_waifu, user_waifu_manage, set_mention, waifu_graph
+from .callbacks.waifu import (
+    today_waifu,
+    remove_waifu,
+    user_waifu_manage,
+    set_mention,
+    waifu_graph,
+    clear_waifu_data,
+)
 from .config.config import settings
 from .filters import (
     bnhhsh_filter,
@@ -77,6 +84,7 @@ today_waifu_handler = CommandHandler(
 waifu_graph_handler = CommandHandler(
     "waifu_graph", waifu_graph, filters=filters.ChatType.GROUPS
 )
+clear_waifu_data_handler = CommandHandler("clear_waifu_data", clear_waifu_data)
 set_greet_handler = CommandHandler(
     "set_greet", set_greet, filters=filters.ChatType.GROUPS
 )
@@ -147,6 +155,7 @@ handlers = [
     suicide_handler,
     today_waifu_handler,
     waifu_graph_handler,
+    clear_waifu_data_handler,
     set_greet_handler,
     start_callback_handler,
     clear_chat_quote_ask_handler,
