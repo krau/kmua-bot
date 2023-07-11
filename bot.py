@@ -43,8 +43,8 @@ async def init_data(app: Application):
         app.bot_data["quotes"] = {}
     if not app.bot_data.get("today_waifu", None):
         app.bot_data["today_waifu"] = {}
-    if not app.bot_data.get("waifu_mutex", None):
-        app.bot_data["waifu_mutex"] = {}
+
+    app.bot_data["waifu_mutex"] = {}
 
 
 def run():

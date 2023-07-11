@@ -63,23 +63,29 @@ def render_waifu_graph(relationships, user_info) -> bytes:
     )
 
     for node_id, pos in pos.items():
-        if node_id in img_dict:
-            img_data = img_dict[node_id]
-            img = Image.open(io.BytesIO(img_data))
+        if node_id not in img_dict:
+            continue
 
-            combined_box = offsetbox.VPacker(
-                children=[
-                    offsetbox.OffsetImage(img, zoom=0.5),
-                    offsetbox.TextArea(labels[node_id]),
-                ],
-                align="center",
-                pad=0,
-                sep=5,
-            )
+        img_data = img_dict[node_id]
+        img = Image.open(io.BytesIO(img_data))
 
-            imagebox = offsetbox.AnnotationBbox(combined_box, pos, frameon=False)
-            plt.gca().add_artist(imagebox)
+        combined_box = offsetbox.VPacker(
+            children=[
+                offsetbox.OffsetImage(img, zoom=0.5),
+                offsetbox.TextArea(labels[node_id], {}),
+            ],
+            align="center",
+            pad=0,
+            sep=5,
+        )
+
+        imagebox = offsetbox.AnnotationBbox(combined_box, pos, frameon=False)
+        plt.gca().add_artist(imagebox)
+
     plt.axis("off")  # 关闭坐标轴
+
+    plt.rcParams["font.sans-serif"] = "Source Han Sans CN"
+
     # 将图形保存为字节数据
     buf = io.BytesIO()
     plt.savefig(buf, format="png")
@@ -115,74 +121,80 @@ async def waifu_graph(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     waifu_mutex[chat_id] = True
 
-    relationships = (
-        (user_id, waifu_info["waifu"])
-        for user_id, waifu_info in today_waifu[chat_id].items()
-        if waifu_info.get("waifu", None)
-    )
-    users = set(
-        chain(
-            (
-                waifu_info["waifu"]
-                for waifu_info in today_waifu[chat_id].values()
-                if waifu_info.get("waifu", None)
-            ),
-            today_waifu[chat_id].keys(),
-        )
-    )
-
-    loaded_user = 0
-    status_msg = await context.bot.send_message(
-        chat_id, f"少女祈祷中... {loaded_user}/{len(users)}", reply_to_message_id=msg_id
-    )
-
-    user_info = {}
-    for user_id in users:
-        retry = 3
-        successed = False
-        for i in range(retry):
-            try:
-                user = await context.bot.get_chat(user_id)
-                successed = True
-            except Exception as err:
-                logger.error(f"获取waifu信息时出错: {err}")
-
-        if not successed:
-            logger.debug(f"cannot get chat for {user_id}")
-            continue
-
-        username = user.username or user.full_name
-        avatar = user.photo
-        if avatar:
-            avatar = await (await user.photo.get_small_file()).download_as_bytearray()
-            avatar = bytes(avatar)
-
-        user_info[user_id] = {
-            "username": username,
-            "avatar": avatar if successed else None,
-        }
-        loaded_user += 1
-        await status_msg.edit_text(f"少女祈祷中... {loaded_user}/{len(users)}")
-
     try:
-        await context.bot.send_chat_action(chat_id, ChatAction.TYPING)
-        image_bytes = render_waifu_graph(relationships, user_info)
-        logger.debug(f"image_size: {len(image_bytes)}")
-        await context.bot.send_photo(
-            chat_id,
-            image_bytes,
-            f"老婆关系图\nloaded {loaded_user} in {len(users)} users",
-            reply_to_message_id=update.effective_message.id,
-            allow_sending_without_reply=True,
+        relationships = (
+            (user_id, waifu_info["waifu"])
+            for user_id, waifu_info in today_waifu[chat_id].items()
+            if waifu_info.get("waifu", None)
         )
-    except Exception as e:
-        await context.bot.send_message(
-            chat_id, f"呜呜呜... kmua被 玩坏惹\n{e}", reply_to_message_id=msg_id
+        users = set(
+            chain(
+                (
+                    waifu_info["waifu"]
+                    for waifu_info in today_waifu[chat_id].values()
+                    if waifu_info.get("waifu", None)
+                ),
+                today_waifu[chat_id].keys(),
+            )
         )
-        logger.error(f"生成waifu图时出错: {e}")
 
-    await status_msg.delete()
-    waifu_mutex[chat_id] = False
+        loaded_user = 0
+        status_msg = await context.bot.send_message(
+            chat_id, f"少女祈祷中... {loaded_user}/{len(users)}", reply_to_message_id=msg_id
+        )
+
+        user_info = {}
+        for user_id in users:
+            retry = 3
+            successed = False
+            for i in range(retry):
+                try:
+                    user = await context.bot.get_chat(user_id)
+                    successed = True
+                except Exception as err:
+                    logger.error(f"获取waifu信息时出错: {err}")
+
+            if not successed:
+                logger.debug(f"cannot get chat for {user_id}")
+                continue
+
+            username = user.username or user.full_name
+            avatar = user.photo
+            if avatar:
+                avatar = await (
+                    await user.photo.get_small_file()
+                ).download_as_bytearray()
+                avatar = bytes(avatar)
+
+            user_info[user_id] = {
+                "username": username,
+                "avatar": avatar if successed else None,
+            }
+            loaded_user += 1
+            await status_msg.edit_text(f"少女祈祷中... {loaded_user}/{len(users)}")
+
+        try:
+            await context.bot.send_chat_action(chat_id, ChatAction.TYPING)
+            image_bytes = render_waifu_graph(relationships, user_info)
+            logger.debug(f"image_size: {len(image_bytes)}")
+            await context.bot.send_photo(
+                chat_id,
+                image_bytes,
+                f"老婆关系图\nloaded {loaded_user} in {len(users)} users",
+                reply_to_message_id=update.effective_message.id,
+                allow_sending_without_reply=True,
+            )
+        except Exception as e:
+            await context.bot.send_message(
+                chat_id, f"呜呜呜... kmua被 玩坏惹\n{e}", reply_to_message_id=msg_id
+            )
+            logger.error(f"生成waifu图时出错: {e}")
+
+        await status_msg.delete()
+    except Exception as err:
+        raise err
+    finally:
+        waifu_mutex[chat_id] = False
 
 
 async def today_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE):
