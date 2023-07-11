@@ -95,7 +95,8 @@ async def waifu_graph(update: Update, context: ContextTypes.DEFAULT_TYPE):
     logger.info(
         f"[{update.effective_chat.title}]({update.effective_user.name})"
         + f" {update.effective_message.text}"
-    )
+    
+    msg_id = update.effective_message.id
     chat_id = update.effective_chat.id
     today_waifu = context.bot_data["today_waifu"]
     if not today_waifu.get(chat_id, None):
@@ -105,31 +106,49 @@ async def waifu_graph(update: Update, context: ContextTypes.DEFAULT_TYPE):
         for user_id, waifu_info in today_waifu[chat_id].items()
         if waifu_info.get("waifu", None)
     )
-    user_info = {}
-    for user_id in chain(
-        (
-            waifu_info["waifu"]
-            for waifu_info in today_waifu[chat_id].values()
-            if waifu_info.get("waifu", None)
-        ),
-        today_waifu[chat_id].keys(),
-    ):
-        try:
-            user = await context.bot.get_chat(user_id)
-            username = user.username
-            avatar = user.photo
-            if avatar:
-                avatar = await (
-                    await user.photo.get_small_file()
-                ).download_as_bytearray()
-                avatar = bytes(avatar)
+    users = set(
+        chain(
+            (
+                waifu_info["waifu"]
+                for waifu_info in today_waifu[chat_id].values()
+                if waifu_info.get("waifu", None)
+            ),
+            today_waifu[chat_id].keys(),
+        )
+    )
 
-            user_info[user_id] = {
-                "username": username,
-                "avatar": avatar,
-            }
-        except Exception as e:
-            logger.error(f"获取waifu信息时出错: {e}")
+    loaded_user = 0
+    status_msg = await context.bot.send_message(
+        chat_id, f"少女祈祷中... {loaded_user}/{len(users)}", reply_to_message_id=msg_id
+    )
+
+    user_info = {}
+    for user_id in users:
+        retry = 3
+        successed = False
+        for i in range(retry):
+            try:
+                user = await context.bot.get_chat(user_id)
+                successed = True
+            except Exception as err:
+                logger.error(f"获取waifu信息时出错: {e}")
+
+        if not successed:
+            logger.debug(f"cannot get chat for {user_id}")
+            continue
+
+        username = user.username
+        avatar = user.photo
+        if avatar:
+            avatar = await (await user.photo.get_big_file()).download_as_bytearray()
+            avatar = bytes(avatar)
+
+        user_info[user_id] = {
+            "username": username,
+            "avatar": avatar if successed else None,
+        }
+        loaded_user += 1
+        status_msg.edit_caption(f"少女祈祷中... {loaded_user}/{len(users)}")
 
     try:
         image_bytes = render_waifu_graph(relationships, user_info)
