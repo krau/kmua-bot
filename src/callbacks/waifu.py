@@ -144,11 +144,6 @@ async def _waifu_graph(
 
     waifu_mutex = context.bot_data["waifu_mutex"]
     if waifu_mutex.get(chat_id, False):
-        message = await context.bot.send_message(
-            chat_id, "呜呜.. 不许看！等人家换好衣服啦", reply_to_message_id=msg_id
-        )
-        await asyncio.sleep(3)
-        await message.delete()
         return
 
     waifu_mutex[chat_id] = True
@@ -172,7 +167,7 @@ async def _waifu_graph(
 
         loaded_user = 0
         status_msg = await context.bot.send_message(
-            chat_id, f"少女祈祷中... {loaded_user}/{len(users)}", reply_to_message_id=msg_id
+            chat_id, "少女祈祷中...", reply_to_message_id=msg_id
         )
 
         user_info = {}
@@ -210,7 +205,6 @@ async def _waifu_graph(
                 "avatar": avatar if successed else None,
             }
             loaded_user += 1
-            await status_msg.edit_text(f"少女祈祷中... {loaded_user}/{len(users)}")
 
         try:
             await context.bot.send_chat_action(chat_id, ChatAction.TYPING)
@@ -226,11 +220,13 @@ async def _waifu_graph(
             )
         except Exception as e:
             await context.bot.send_message(
-                chat_id, f"呜呜呜... kmua被 玩坏惹\n{e}", reply_to_message_id=msg_id
+                chat_id,
+                f"呜呜呜... kmua被 玩坏惹\n{e.__class__.__name__}: {e}",
+                reply_to_message_id=msg_id,
             )
             logger.error(f"生成waifu图时出错: {e}")
-
-        await status_msg.delete()
+        finally:
+            await status_msg.delete()
     except Exception as err:
         raise err
     finally:
