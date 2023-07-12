@@ -304,12 +304,12 @@ async def today_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 if is_got_waifu:
                     text = f"你今天已经抽过老婆了! {waifu.mention_html()} 是你今天的老婆!"
                 else:
-                    text = f"你今天的群友老婆是 {waifu.mention_html()} !"
+                    text = f"你今天的群幼老婆是 {waifu.mention_html()} !"
             else:
                 if is_got_waifu:
                     text = f"你今天已经抽过老婆了! {waifu.full_name} 是你今天的老婆!"
                 else:
-                    text = f"你今天的群友老婆是 {waifu.full_name} !"
+                    text = f"你今天的群幼老婆是 {waifu.full_name} !"
         except TypeError as e:
             logger.error(
                 f"无法为 {update.effective_user.name} 获取id为 {waifu_id} 的waifu:\n{e.__class__.__name__}: {e}"
