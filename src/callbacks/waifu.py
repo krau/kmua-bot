@@ -14,7 +14,7 @@ from telegram.ext import ContextTypes
 
 from ..logger import logger
 from ..utils import message_recorder
-from ..config.config import settings
+from ..config.config import settings, waifu_fig_size
 
 
 async def migrate_waifu_shutdown(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -65,7 +65,7 @@ def render_waifu_graph(relationships, user_info) -> bytes:
 
     plt.figure(
         layout="constrained",
-        figsize=(1.2 * 1.414 * len(user_info), 1.2 * 1.414 * len(user_info)),
+        figsize=waifu_fig_size(len(user_info)),
     )
 
     # 绘制图形
