@@ -8,5 +8,4 @@ pilmoji
 python-telegram-bot[rate-limiter]
 python-telegram-bot[job-queue]
 zhconv
-networkx==3.1
-matplotlib==3.7.2
+graphviz==0.20.1
