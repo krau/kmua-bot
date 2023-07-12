@@ -158,28 +158,3 @@ def sort_topn_bykey(data: dict, n: int, key: str) -> list:
     :return: 排序后的列表
     """
     return sorted(data.values(), key=attrgetter(key), reverse=True)[:n]
-
-
-def escape(text: str) -> str:
-    return (
-        text.replace("/", "")
-        .replace("$", "")
-        .replace("_", "\_")
-        .replace("(", "\(")
-        .replace(")", "\)")
-        .replace("[", "\[")
-        .replace("]", "\]")
-        .replace("!", "\!")
-        .replace("*", "\*")
-        .replace("~", "\~")
-        .replace("`", "\`")
-        .replace(">", "\>")
-        .replace("#", "\#")
-        .replace("+", "\+")
-        .replace("-", "\-")
-        .replace("=", "\=")
-        .replace("|", "\|")
-        .replace("{", "\{")
-        .replace("}", "\}")
-        .replace(".", "\.")
-    )
