@@ -1,12 +1,12 @@
 import asyncio
-import io
 import random
 from itertools import chain
 
-import networkx as nx
-from matplotlib import offsetbox
-from matplotlib import pyplot as plt
-from PIL import Image
+import shutil
+import graphviz
+import tempfile
+import os
+
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.constants import ChatAction
 from telegram.error import BadRequest
@@ -43,81 +43,68 @@ async def migrate_waifu_shutdown(update: Update, context: ContextTypes.DEFAULT_T
 
 def render_waifu_graph(relationships, user_info) -> bytes:
     """
-    render waifu graph
-    :param relationships: a generator yields (int, int) for (user_id, waifu_id)
+    Render waifu graph and gives png bytes
+    :param relationships: a generator that yields (int, int) for (user_id, waifu_id)
     :param user_info: a dict, user_id -> {"avatar": Optional[bytes], "username": str}
-    :return: bytes
+    :return: str - path to the temporary image file
     """
-    G = nx.DiGraph()
+    graph = graphviz.Digraph()
 
-    G.add_edges_from(relationships)
-    # 创建节点标签和图像字典
-    labels = {}
-    img_dict = {}
-    for user_id, info in user_info.items():
-        username = info.get("username")
-        avatar = info.get("avatar")
+    temp_dir = (
+        tempfile.mkdtemp()
+    )  # Create a temporary directory to store the image file
 
-        labels[user_id] = username
+    try:
+        # Create nodes
+        for user_id, info in user_info.items():
+            username = info.get("username")
+            avatar = info.get("avatar")
 
-        if avatar is not None:
-            img_dict[user_id] = avatar
+            if avatar is not None:
+                # Save avatar to a temporary file
+                avatar_path = os.path.join(temp_dir, f"{user_id}_avatar.png")
+                with open(avatar_path, "wb") as avatar_file:
+                    avatar_file.write(avatar)
 
-    plt.figure(
-        layout="constrained",
-        figsize=(1.2 * 1.414 * len(user_info), 1.2 * 1.414 * len(user_info)),
-    )
+                # Create a subgraph for each node
+                with graph.subgraph(name=f"cluster_{user_id}") as subgraph:
+                    # Set the attributes for the subgraph
+                    subgraph.attr(label=username)
+                    subgraph.attr(shape="none")
+                    subgraph.attr(image=avatar_path)
+                    subgraph.attr(imagescale="true")
+                    subgraph.attr(fixedsize="true")
+                    subgraph.attr(width="1")
+                    subgraph.attr(height="1")
 
-    # 绘制图形
-    pos = nx.spring_layout(G, seed=random.randint(1, 10000), k=2.0)  # 设定节点位置
+                    # Create a node within the subgraph
+                    subgraph.node(
+                        str(user_id),
+                        label="",
+                        shape="none",
+                        image=avatar_path,
+                        imagescale="true",
+                        fixedsize="true",
+                        width="1",
+                        height="1",
+                    )
+            else:
+                # Create regular node without avatar image
+                graph.node(str(user_id), label=username)
 
-    nx.draw_networkx_edges(
-        G,
-        pos,
-        arrows=True,
-        arrowsize=18,
-        arrowstyle="fancy",
-        edge_color=(0.2, 0.5, 0.8, 0.5),
-    )
-    nx.draw_networkx_labels(
-        G,
-        pos,
-        labels=(
-            {user: waifu for user, waifu in labels.items() if user not in img_dict}
-        ),
-    )
+        # Create edges
+        for user_id, waifu_id in relationships:
+            graph.edge(str(user_id), str(waifu_id))
 
-    for node_id, pos in pos.items():
-        if node_id not in img_dict:
-            continue
+        return graph.pipe(format="png")
 
-        img_data = img_dict[node_id]
-        img = Image.open(io.BytesIO(img_data))
+    except Exception as e:
+        raise e
 
-        combined_box = offsetbox.VPacker(
-            children=[
-                offsetbox.OffsetImage(img, zoom=0.5),
-                offsetbox.TextArea(labels[node_id], {}),
-            ],
-            align="center",
-            pad=0,
-            sep=5,
-        )
-
-        imagebox = offsetbox.AnnotationBbox(combined_box, pos, frameon=False)
-        plt.gca().add_artist(imagebox)
-
-    plt.axis("off")  # 关闭坐标轴
-
-    # 将图形保存为字节数据
-    buf = io.BytesIO()
-    plt.savefig(buf, format="png")
-    plt.close()
-    # 获取字节数据并返回
-    buf.seek(0)
-    image_bytes = buf.read()
-    buf.close()
-    return image_bytes
+    finally:
+        # Clean up the temporary directory
+        if os.path.exists(temp_dir):
+            shutil.rmtree(temp_dir)
 
 
 async def waifu_graph(update: Update, context: ContextTypes.DEFAULT_TYPE):
