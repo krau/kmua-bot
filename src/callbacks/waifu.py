@@ -48,7 +48,7 @@ def render_waifu_graph(relationships, user_info) -> bytes:
     :param user_info: a dict, user_id -> {"avatar": Optional[bytes], "username": str}
     :return: bytes
     """
-    graph = graphviz.Digraph()
+    graph = graphviz.Digraph(graph_attr={"dpi": "200"})
 
     temp_dir = (
         tempfile.mkdtemp()
