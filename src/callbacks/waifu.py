@@ -134,22 +134,24 @@ async def _waifu_graph(
     if waifu_mutex.get(chat_id, False):
         return
 
+    today_waifu = today_waifu[chat_id].copy()
+
     waifu_mutex[chat_id] = True
 
     try:
         relationships = (
             (user_id, waifu_info["waifu"])
-            for user_id, waifu_info in today_waifu[chat_id].items()
+            for user_id, waifu_info in today_waifu.items()
             if waifu_info.get("waifu", None)
         )
         users = set(
             chain(
                 (
                     waifu_info["waifu"]
-                    for waifu_info in today_waifu[chat_id].values()
+                    for waifu_info in today_waifu.values()
                     if waifu_info.get("waifu", None)
                 ),
-                today_waifu[chat_id].keys(),
+                today_waifu.keys(),
             )
         )
 
@@ -229,9 +231,6 @@ async def today_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     user_id = update.effective_user.id
     chat_id = update.effective_chat.id
-
-    if context.bot_data["waifu_mutex"].get(chat_id, False):
-        return
 
     if not context.bot_data["today_waifu"].get(chat_id, None):
         context.bot_data["today_waifu"][chat_id] = {}
