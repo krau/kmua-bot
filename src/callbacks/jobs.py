@@ -17,7 +17,7 @@ async def refresh_data(context: ContextTypes.DEFAULT_TYPE):
         )
         raise err
     finally:
-        today_waifu = {}
+        context.bot_data["today_waifu"] = {}
         context.bot_data["waifu_mutex"] = {}
         await context.application.persistence.flush()
         logger.debug("数据已刷新: today_waifu")
