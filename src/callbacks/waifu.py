@@ -43,10 +43,10 @@ async def migrate_waifu_shutdown(update: Update, context: ContextTypes.DEFAULT_T
 
 def render_waifu_graph(relationships, user_info) -> bytes:
     """
-    Render waifu graph and gives png bytes
+    Render waifu graph and return the image bytes
     :param relationships: a generator that yields (int, int) for (user_id, waifu_id)
     :param user_info: a dict, user_id -> {"avatar": Optional[bytes], "username": str}
-    :return: str - path to the temporary image file
+    :return: bytes
     """
     graph = graphviz.Digraph()
 
@@ -76,6 +76,7 @@ def render_waifu_graph(relationships, user_info) -> bytes:
                     subgraph.attr(fixedsize="true")
                     subgraph.attr(width="1")
                     subgraph.attr(height="1")
+                    subgraph.attr(labelloc="b")  # Label position at the bottom
 
                     # Create a node within the subgraph
                     subgraph.node(
