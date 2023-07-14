@@ -102,14 +102,7 @@ def render_waifu_graph(relationships, user_info) -> bytes:
         for user_id, waifu_id in relationships:
             graph.edge(str(user_id), str(waifu_id))
 
-        img = graph.pipe(format="png")
-        img = PIL.Image.open(io.BytesIO(img))
-        img = img.convert("RGBA")
-        img = img.convert("RGB")
-        img_byte_arr = io.BytesIO()
-        img.save(img_byte_arr, format="JPEG", quality=95)
-        img_byte_arr = img_byte_arr.getvalue()
-        return img_byte_arr
+        return graph.pipe(format="png")
 
     except Exception as e:
         raise e
@@ -229,7 +222,7 @@ async def _waifu_graph(
                 chat_id,
                 document=image_bytes,
                 caption=f"老婆关系图\n {len(users)} users",
-                filename="waifu_graph.jpeg",
+                filename="waifu_graph.png",
                 reply_to_message_id=msg_id,
                 allow_sending_without_reply=True,
             )
