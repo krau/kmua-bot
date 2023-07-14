@@ -39,5 +39,9 @@
                 "waiting": "bool"
             }
         }
+    },
+    "waifu_mutex": {
+        "chat_id1": "bool",
+        "chat_id2": "bool"
     }
 }
