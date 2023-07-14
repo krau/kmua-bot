@@ -409,25 +409,28 @@ async def today_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         raise e
     finally:
         context.bot_data["today_waifu"][chat_id][user_id]["waiting"] = False
-        if waifu and not context.bot_data["user_info"].get(waifu_id, None):
-            if avatar is not None:
-                try:
-                    avatar = bytes(
-                        await (
-                            await waifu.photo.get_small_file()
-                        ).download_as_bytearray()
-                    )
-                except Exception as e:
-                    avatar = None
-                    logger.error(
-                        f"Can not get small avatar for {waifu.id}: {e.__class__.__name__}: {e}"
-                    )
-            context.bot_data["user_info"][waifu.id] = {
-                "username": username or f"id: {waifu_id}",
-                "avatar": avatar,
-                "avatar_big_id": avatar_big_id,
-                "chat": waifu,
-            }
+        if waifu:
+            if not context.bot_data["user_info"].get(waifu.id, None):
+                if avatar is not None:
+                    try:
+                        avatar = bytes(
+                            await (
+                                await waifu.photo.get_small_file()
+                            ).download_as_bytearray()
+                        )
+                    except Exception as e:
+                        avatar = None
+                        logger.error(
+                            f"Can not get small avatar for {waifu.id}: {e.__class__.__name__}: {e}"
+                        )
+                context.bot_data["user_info"][waifu.id] = {
+                    "username": username or f"id: {waifu_id}",
+                    "avatar": avatar,
+                    "avatar_big_id": avatar_big_id,
+                    "chat": waifu,
+                }
+            if not context.bot_data["user_info"][waifu.id].get("avatar_big_id", None):
+                context.bot_data["user_info"][waifu.id]["avatar_big_id"] = avatar_big_id
         await context.application.persistence.flush()
 
 
