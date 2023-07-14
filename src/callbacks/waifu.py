@@ -174,17 +174,17 @@ async def _waifu_graph(
             logger.debug(f"getting missing users: {missing_users}")
             for user_id in missing_users:
                 retry = 0
-                successed = False
+                is_success = False
                 user = None
-                while retry < 3 and not successed:
+                while retry < 3 and not is_success:
                     try:
                         user = await context.bot.get_chat(user_id)
-                        successed = True
+                        is_success = True
                     except Exception as err:
                         logger.error(f"获取waifu信息时出错: {err}")
                         retry += 1
                         await asyncio.sleep(1)
-                if not successed:
+                if not is_success:
                     logger.debug(f"cannot get chat for {user_id}")
                     user_info[user_id] = {
                         "username": f"id: {user_id}",
