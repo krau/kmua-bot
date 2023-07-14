@@ -12,6 +12,9 @@ from telegram.constants import ChatAction
 from telegram.error import BadRequest
 from telegram.ext import ContextTypes
 from telegram.helpers import escape_markdown
+from math import ceil, sqrt
+import PIL
+import io
 
 from ..logger import logger
 from ..utils import message_recorder
@@ -49,7 +52,8 @@ def render_waifu_graph(relationships, user_info) -> bytes:
     :param user_info: a dict, user_id -> {"avatar": Optional[bytes], "username": str}
     :return: bytes
     """
-    graph = graphviz.Digraph(graph_attr={"dpi": "200"})
+    dpi = max(200, ceil(5 * sqrt(len(user_info) / 3)) * 20)
+    graph = graphviz.Digraph(graph_attr={"dpi": str(dpi)})
 
     temp_dir = (
         tempfile.mkdtemp()
@@ -98,7 +102,14 @@ def render_waifu_graph(relationships, user_info) -> bytes:
         for user_id, waifu_id in relationships:
             graph.edge(str(user_id), str(waifu_id))
 
-        return graph.pipe(format="png")
+        img = graph.pipe(format="png")
+        img = PIL.Image.open(io.BytesIO(img))
+        img = img.convert("RGBA")
+        img = img.convert("RGB")
+        img_byte_arr = io.BytesIO()
+        img.save(img_byte_arr, format="JPEG", quality=95)
+        img_byte_arr = img_byte_arr.getvalue()
+        return img_byte_arr
 
     except Exception as e:
         raise e
@@ -218,7 +229,7 @@ async def _waifu_graph(
                 chat_id,
                 document=image_bytes,
                 caption=f"老婆关系图\n {len(users)} users",
-                filename="waifu_graph.png",
+                filename="waifu_graph.jpeg",
                 reply_to_message_id=msg_id,
                 allow_sending_without_reply=True,
             )
