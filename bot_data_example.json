@@ -43,5 +43,13 @@
     "waifu_mutex": {
         "chat_id1": "bool",
         "chat_id2": "bool"
+    },
+    "user_info": {
+        "user_id1": {
+            "username": "username",
+            "avatar": "avatar",
+            "avatar_big_id": "file_id",
+            "chat": "Chat"
+        }
     }
 }

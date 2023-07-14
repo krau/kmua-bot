@@ -19,6 +19,7 @@ async def refresh_data(context: ContextTypes.DEFAULT_TYPE):
     finally:
         context.bot_data["today_waifu"] = {}
         context.bot_data["waifu_mutex"] = {}
+        context.bot_data["user_info"] = {}
         await context.application.persistence.flush()
         logger.debug("数据已刷新: today_waifu")
 
