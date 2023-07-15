@@ -49,7 +49,7 @@ def render_waifu_graph(relationships, user_info) -> bytes:
     :param user_info: a dict, user_id -> {"avatar": Optional[bytes], "username": str}
     :return: bytes
     """
-    dpi = max(200, ceil(5 * sqrt(len(user_info) / 3)) * 20)
+    dpi = max(150, ceil(5 * sqrt(len(user_info) / 3)) * 20)
     graph = graphviz.Digraph(graph_attr={"dpi": str(dpi)})
 
     temp_dir = (
