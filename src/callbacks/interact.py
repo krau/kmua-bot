@@ -53,7 +53,9 @@ async def interact(update: Update, context: ContextTypes.DEFAULT_TYPE):
     is_one_cmd = True if len(message.text.split(" ")) == 1 else False
     cmd1 = escape_markdown(replace_special_char(message.text.split(" ")[0][1:]))
     if not is_one_cmd:
-        cmd2 = escape_markdown(replace_special_char(message.text.split(" ")[1]))
+        cmd2 = escape_markdown(
+            replace_special_char(" ".join(message.text.split(" ")[1:]))
+        )
         text = (
             (
                 f"{this_mention} 被 {replied_mention} {cmd1}{cmd2} !"
