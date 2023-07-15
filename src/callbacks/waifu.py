@@ -12,8 +12,7 @@ from telegram.constants import ChatAction
 from telegram.error import BadRequest
 from telegram.ext import ContextTypes
 from telegram.helpers import escape_markdown
-from PIL import Image
-import io
+
 from ..config.config import settings
 from ..logger import logger
 from ..utils import message_recorder
@@ -100,18 +99,7 @@ def render_waifu_graph(relationships, user_info) -> bytes:
         for user_id, waifu_id in relationships:
             graph.edge(str(user_id), str(waifu_id))
 
-        png_bytes = graph.pipe(format="png")
-        png_image = Image.open(io.BytesIO(png_bytes))
-        max_size = (16384, 16384)
-        if png_image.size[0] > max_size[0] or png_image.size[1] > max_size[1]:
-            # 调整图像大小
-            resized_image = png_image.resize(max_size, Image.ANTIALIAS)
-        else:
-            resized_image = png_image
-        webp_data = io.BytesIO()
-        resized_image.save(webp_data, "webp")
-        webp_data.seek(0)
-        return webp_data.read()
+        return graph.pipe(format="webp")
 
     except Exception:
         raise
