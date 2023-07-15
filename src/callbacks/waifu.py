@@ -1,24 +1,21 @@
 import asyncio
-import random
-from itertools import chain
-
-import shutil
-import graphviz
-import tempfile
 import os
+import random
+import shutil
+import tempfile
+from itertools import chain
+from math import ceil, sqrt
 
+import graphviz
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.constants import ChatAction
 from telegram.error import BadRequest
 from telegram.ext import ContextTypes
 from telegram.helpers import escape_markdown
-from math import ceil, sqrt
-import PIL
-import io
 
+from ..config.config import settings
 from ..logger import logger
 from ..utils import message_recorder
-from ..config.config import settings
 
 
 async def migrate_waifu_shutdown(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -104,8 +101,8 @@ def render_waifu_graph(relationships, user_info) -> bytes:
 
         return graph.pipe(format="webp")
 
-    except Exception as e:
-        raise e
+    except Exception:
+        raise
 
     finally:
         # Clean up the temporary directory
@@ -236,8 +233,8 @@ async def _waifu_graph(
             logger.error(f"生成waifu图时出错: {e}")
         finally:
             await status_msg.delete()
-    except Exception as err:
-        raise err
+    except Exception:
+        raise
     finally:
         waifu_mutex[chat_id] = False
         await context.application.persistence.flush()
