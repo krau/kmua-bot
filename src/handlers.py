@@ -67,7 +67,7 @@ from .logger import logger
 start_handler = CommandHandler("start", start, filters=mention_or_private_filter)
 chat_migration_handler = MessageHandler(filters.StatusUpdate.MIGRATE, chat_migration)
 title_handler = CommandHandler("t", title, filters=mention_or_private_filter)
-quote_handler = CommandHandler("q", quote)
+quote_handler = CommandHandler("q", quote, filters=mention_or_private_filter)
 set_quote_probability_handler = CommandHandler("setqp", set_quote_probability)
 del_quote_handler = CommandHandler("d", del_quote)
 clear_chat_quote_ask_handler = CommandHandler("clear_chat_quote", clear_chat_quote_ask)
