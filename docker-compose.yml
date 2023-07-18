@@ -3,7 +3,7 @@ services:
   kmua:
     image: ghcr.io/krau/kmua-bot:v2
     container_name: kmua-v2-main
-    init: true
+    restart: always
     volumes:
       - ./data:/kmua/data
       - ./logs:/kmua/logs
