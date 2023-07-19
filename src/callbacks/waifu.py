@@ -533,6 +533,10 @@ async def clear_waifu_data(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def clear_chat_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    logger.info(
+        f"[{update.effective_chat.title}]({update.effective_user.name})"
+        + f" {update.effective_message.text}"
+    )
     if len(context.args) == 0:
         if update.effective_chat.type == "private":
             await update.message.reply_text(text="请在群组中使用此命令")
