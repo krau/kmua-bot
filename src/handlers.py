@@ -53,6 +53,7 @@ from .callbacks.waifu import (
     set_mention,
     clear_waifu_data,
     migrate_waifu_shutdown,
+    clear_chat_waifu,
 )
 from .config.config import settings
 from .filters import (
@@ -92,6 +93,7 @@ clear_waifu_data_handler = CommandHandler("clear_waifu_data", clear_waifu_data)
 set_greet_handler = CommandHandler(
     "set_greet", set_greet, filters=filters.ChatType.GROUPS
 )
+clear_chat_waifu_handler = CommandHandler("clear_chat_waifu", clear_chat_waifu)
 
 # CallbackQueryHandlers
 start_callback_handler = CallbackQueryHandler(start, pattern="back_home")
@@ -160,6 +162,7 @@ handlers = [
     today_waifu_handler,
     waifu_graph_handler,
     clear_waifu_data_handler,
+    clear_chat_waifu_handler,
     set_greet_handler,
     start_callback_handler,
     clear_chat_quote_ask_handler,

@@ -530,3 +530,35 @@ async def clear_waifu_data(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.bot_data["waifu_mutex"] = {}
     await context.application.persistence.flush()
     await update.message.reply_text(text="已清除今日老婆数据")
+
+
+async def clear_chat_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if len(context.args) == 0:
+        try:
+            this_chat_member = await update.effective_chat.get_member(
+                update.effective_user.id
+            )
+        except BadRequest as e:
+            if e.message == "User not found":
+                await update.message.reply_text(
+                    text="无法获取信息, 如果群组开启了隐藏成员, 请赋予 bot 管理员权限",
+                )
+                return
+            else:
+                raise e
+        if this_chat_member.status != "creator":
+            await update.message.reply_text(text="你没有权限哦, 只有群主可以清空老婆数据")
+            return
+        context.bot_data["today_waifu"][update.effective_chat.id] = {}
+        await context.application.persistence.flush()
+        await update.message.reply_text(text="已清除本群今日老婆数据")
+    else:
+        if update.effective_user.id not in settings.owners:
+            return
+        chat_id = int(context.args[0])
+        if not context.bot_data["today_waifu"].get(chat_id, None):
+            await update.message.reply_text(text=f"群组 {chat_id} 还没有老婆数据")
+            return
+        context.bot_data["today_waifu"][chat_id] = {}
+        await context.application.persistence.flush()
+        await update.message.reply_text(text=f"已清除群组 {chat_id} 的今日老婆数据")
