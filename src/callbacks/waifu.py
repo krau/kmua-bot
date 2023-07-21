@@ -348,7 +348,7 @@ async def today_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 text = "你没能抽到老婆, 再试一次吧~"
             await update.message.reply_text(text=text)
             poped_value = context.chat_data["members_data"].pop(waifu_id, "群组数据中无该成员")
-            context.bot_data["today_waifu"][user_id][chat_id] = None
+            context.bot_data["today_waifu"][chat_id][user_id] = {}
             logger.debug(f"移除: {poped_value}")
             waifu = None
             if context.bot_data["user_info"].get(waifu_id, None):
