@@ -599,5 +599,5 @@ async def clear_members_data(update: Update, context: ContextTypes.DEFAULT_TYPE)
     context.chat_data["members_data"] = {}
     await context.application.persistence.flush()
     await update.message.reply_text(
-        text="已清除本群今日老婆数据", reply_to_message_id=update.effective_message.id
+        text="已清除本群成员数据", reply_to_message_id=update.effective_message.id
     )
