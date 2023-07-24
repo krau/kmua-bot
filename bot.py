@@ -24,6 +24,7 @@ async def init_data(app: Application):
             ("start", "一键猫叫"),
             ("t", "获取头衔"),
             ("waifu", "今日老婆!"),
+            ("waifu_graph", "老婆关系图！"),
             ("q", "载入史册"),
             ("clear_chat_quote", "清空史册"),
             ("setqp", "设置发名言概率"),

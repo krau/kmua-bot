@@ -46,6 +46,7 @@ from .callbacks.chatdata import (
     clear_chat_data_cancel,
 )
 from .callbacks.waifu import (
+    clear_members_data,
     today_waifu,
     remove_waifu,
     waifu_graph,
@@ -116,6 +117,9 @@ clear_user_text_quote_handler = CallbackQueryHandler(
 clear_chat_data_cancel_handler = CallbackQueryHandler(
     clear_chat_data_cancel, "cancel_clear_chat_data"
 )
+clear_members_data_handler = CallbackQueryHandler(
+    clear_members_data, "clear_members_data"
+)
 remove_waifu_handler = CallbackQueryHandler(remove_waifu, pattern=r"remove_waifu")
 user_data_manage_handler = CallbackQueryHandler(
     user_data_manage, pattern="user_data_manage"
@@ -163,6 +167,7 @@ handlers = [
     waifu_graph_handler,
     clear_waifu_data_handler,
     clear_chat_waifu_handler,
+    clear_members_data_handler,
     set_greet_handler,
     start_callback_handler,
     clear_chat_quote_ask_handler,
