@@ -245,7 +245,7 @@ async def today_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"[{update.effective_chat.title}]({update.effective_user.name})"
         + f" {update.effective_message.text}"
     )
-    if not context.chat_data.get("waifu_enable", False):
+    if not context.chat_data.get("waifu_enable", True):
         return
     user_id = update.effective_user.id
     chat_id = update.effective_chat.id
