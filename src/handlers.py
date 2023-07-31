@@ -54,6 +54,7 @@ from .callbacks.waifu import (
     clear_waifu_data,
     migrate_waifu_shutdown,
     clear_chat_waifu,
+    switch_waifu,
 )
 from .config.config import settings
 from .filters import (
@@ -94,6 +95,9 @@ set_greet_handler = CommandHandler(
     "set_greet", set_greet, filters=filters.ChatType.GROUPS
 )
 clear_chat_waifu_handler = CommandHandler("clear_chat_waifu", clear_chat_waifu)
+switch_waifu_handler = CommandHandler(
+    "switch_waifu", switch_waifu, filters=filters.ChatType.GROUPS
+)
 
 # CallbackQueryHandlers
 start_callback_handler = CallbackQueryHandler(start, pattern="back_home")

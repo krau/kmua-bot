@@ -245,6 +245,8 @@ async def today_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"[{update.effective_chat.title}]({update.effective_user.name})"
         + f" {update.effective_message.text}"
     )
+    if not context.chat_data.get("waifu_enable", False):
+        return
     user_id = update.effective_user.id
     chat_id = update.effective_chat.id
 
@@ -569,3 +571,27 @@ async def clear_chat_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         context.bot_data["today_waifu"][chat_id] = {}
         await context.application.persistence.flush()
         await update.message.reply_text(text=f"已清除群组 {chat_id} 的今日老婆数据")
+
+
+async def switch_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if update.effective_user.id not in settings.owners:
+        try:
+            this_chat_member = await update.effective_chat.get_member(
+                update.effective_user.id
+            )
+        except BadRequest as e:
+            if e.message == "User not found":
+                await update.message.reply_text(
+                    text="无法获取信息, 如果群组开启了隐藏成员, 请赋予 bot 管理员权限",
+                )
+                return
+            else:
+                raise e
+        if this_chat_member.status != "creator":
+            await update.message.reply_text(text="你没有权限哦")
+            return
+    context.chat_data["waifu_enable"] = (
+        False if context.chat_data["waifu_enable"] else True
+    )
+    text = "已启用本群今日老婆功能" if context.chat_data["waifu_enable"] else "已禁用本群今日老婆功能"
+    await update.message.reply_text(text=text)
