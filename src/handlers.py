@@ -171,6 +171,7 @@ handlers = [
     waifu_graph_handler,
     clear_waifu_data_handler,
     clear_chat_waifu_handler,
+    switch_waifu_handler,
     clear_members_data_handler,
     set_greet_handler,
     start_callback_handler,
