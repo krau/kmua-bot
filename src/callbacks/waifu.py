@@ -623,7 +623,7 @@ async def switch_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text(text="你没有权限哦")
             return
     context.chat_data["waifu_enable"] = (
-        False if context.chat_data["waifu_enable"] else True
+        False if context.chat_data.get("waifu_enable") else True
     )
-    text = "已启用本群今日老婆功能" if context.chat_data["waifu_enable"] else "已禁用本群今日老婆功能"
+    text = "已启用本群今日老婆功能" if context.chat_data.get("waifu_enable") else "已禁用本群今日老婆功能"
     await update.message.reply_text(text=text)
