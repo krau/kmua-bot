@@ -40,13 +40,20 @@ async def quote(update: Update, context: ContextTypes.DEFAULT_TYPE):
     quote_user = quote_message.from_user
     is_save_data = True
     forward_from_user = quote_message.forward_from
+    is_chat = False
     if forward_from_user:
         quote_user = forward_from_user
+    if quote_message.sender_chat:
+        quote_user = quote_message.sender_chat
+        is_chat = True
     if (
         not (forward_from_user and quote_message.forward_sender_name)
         and update.effective_chat.type != "private"
     ):
-        if not context.chat_data["members_data"].get(quote_user.id, None):
+        if (
+            not context.chat_data["members_data"].get(quote_user.id, None)
+            and not is_chat
+        ):
             member_data_obj = MemberData(
                 id=quote_user.id,
                 name=quote_user.full_name,
@@ -54,7 +61,7 @@ async def quote(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 quote_num=0,
             )
             context.chat_data["members_data"][quote_user.id] = member_data_obj
-        context.chat_data["members_data"][quote_user.id].quote_num += 1
+            context.chat_data["members_data"][quote_user.id].quote_num += 1
     if quote_message.forward_sender_name and forward_from_user is None:
         is_save_data = False
     try:
@@ -72,7 +79,7 @@ async def quote(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if quote_message.id not in context.chat_data["quote_messages"]:
         context.chat_data["quote_messages"].append(quote_message.id)
         logger.debug(
-            f"将{quote_message.id}([{update.effective_chat.title}]({quote_user.name}))"
+            f"将{quote_message.id}([{update.effective_chat.title}]({quote_user.title if is_chat else quote_user.name}))"
             + "加入chat quote"
         )
     sent_message = await context.bot.send_message(
@@ -123,7 +130,9 @@ async def quote(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         avatar = await (await avatar_photo.get_big_file()).download_as_bytearray()
         quote_img = await generate_quote_img(
-            avatar=avatar, text=quote_message.text, name=quote_user.name
+            avatar=avatar,
+            text=quote_message.text,
+            name=quote_user.title if is_chat else quote_user.name,
         )
         sent_photo = await context.bot.send_photo(
             chat_id=update.effective_chat.id, photo=quote_img
