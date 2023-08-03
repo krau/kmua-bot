@@ -33,6 +33,7 @@ async def init_data(app: Application):
             ("qrand", "随机名言"),
             ("d", "移出史册"),
             ("set_greet", "设置入群欢迎"),
+            ("id", "获取聊天ID"),
             ("clear_chat_data", "⚠清空聊天数据"),
         ]
     )

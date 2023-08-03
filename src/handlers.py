@@ -57,6 +57,7 @@ from .callbacks.waifu import (
     clear_chat_waifu,
     switch_waifu,
 )
+from .callbacks.chatinfo import getid
 from .config.config import settings
 from .filters import (
     bnhhsh_filter,
@@ -99,6 +100,7 @@ clear_chat_waifu_handler = CommandHandler("clear_chat_waifu", clear_chat_waifu)
 switch_waifu_handler = CommandHandler(
     "switch_waifu", switch_waifu, filters=filters.ChatType.GROUPS
 )
+getid_handler = CommandHandler("id", getid)
 
 # CallbackQueryHandlers
 start_callback_handler = CallbackQueryHandler(start, pattern="back_home")
@@ -178,6 +180,7 @@ handlers = [
     clear_chat_quote_ask_handler,
     clear_chat_data_ask_handler,
     help_handler,
+    getid_handler,
     error_notice_control_handler,
     clear_chat_quote_handler,
     clear_chat_data_handler,
