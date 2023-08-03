@@ -41,18 +41,22 @@ async def quote(update: Update, context: ContextTypes.DEFAULT_TYPE):
     is_save_data = True
     forward_from_user = quote_message.forward_from
     is_chat = False
+    is_bot = False
     if forward_from_user:
         quote_user = forward_from_user
     if quote_message.sender_chat:
         quote_user = quote_message.sender_chat
         is_chat = True
+    if quote_user.is_bot:
+        is_bot = True
+    not_user = is_chat or is_bot
     if (
         not (forward_from_user and quote_message.forward_sender_name)
         and update.effective_chat.type != "private"
     ):
         if (
             not context.chat_data["members_data"].get(quote_user.id, None)
-            and not is_chat
+            and not not_user
         ):
             member_data_obj = MemberData(
                 id=quote_user.id,
@@ -100,23 +104,19 @@ async def quote(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # 是文字消息
     if not is_save_data:
         return
-    if not context.bot_data["quotes"].get(quote_user.id, None):
+    if not context.bot_data["quotes"].get(quote_user.id, None) and not not_user:
         context.bot_data["quotes"][quote_user.id] = {}
         context.bot_data["quotes"][quote_user.id]["img"] = []
         context.bot_data["quotes"][quote_user.id]["text"] = []
-    for saved_quote_text_obj in context.bot_data["quotes"][quote_user.id]["text"]:
-        saved_quote_text_obj: TextQuote
-        if saved_quote_text_obj.content == quote_message.text:
-            # 如果已经存在相同的文字, 直接
-            return
-    uuid = uuid1()
-    quote_text_obj = TextQuote(
-        id=uuid, content=quote_message.text, created_at=datetime.now()
-    )
-    context.bot_data["quotes"][quote_user.id]["text"].append(quote_text_obj)
-    logger.debug(f"[{quote_text_obj.content}]({quote_text_obj.id})" + "已保存")
+    if not not_user:
+        uuid = uuid1()
+        quote_text_obj = TextQuote(
+            id=uuid, content=quote_message.text, created_at=datetime.now()
+        )
+        context.bot_data["quotes"][quote_user.id]["text"].append(quote_text_obj)
+        logger.debug(f"[{quote_text_obj.content}]({quote_text_obj.id})" + "已保存")
     if len(quote_message.text) > 70:
-        # 如果文字长度超过70, 则不生成图片, 直接
+        # 如果文字长度超过70, 则不生成图片
         await update.message.reply_text(text="字数太多了！不排了！")
         return
     avatar_photo = (await context.bot.get_chat(chat_id=quote_user.id)).photo
@@ -137,6 +137,8 @@ async def quote(update: Update, context: ContextTypes.DEFAULT_TYPE):
         sent_photo = await context.bot.send_photo(
             chat_id=update.effective_chat.id, photo=quote_img
         )
+        if not_user:
+            return
         photo_id = sent_photo.photo[0].file_id
         # 保存图像数据
         quote_img_obj = ImgQuote(
