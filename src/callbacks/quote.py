@@ -115,8 +115,8 @@ async def quote(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         context.bot_data["quotes"][quote_user.id]["text"].append(quote_text_obj)
         logger.debug(f"[{quote_text_obj.content}]({quote_text_obj.id})" + "已保存")
-    if len(quote_message.text) > 70:
-        # 如果文字长度超过70, 则不生成图片
+    if len(quote_message.text) > 200:
+        # 如果文字长度超过200, 则不生成图片
         await update.message.reply_text(text="字数太多了！不排了！")
         return
     avatar_photo = (await context.bot.get_chat(chat_id=quote_user.id)).photo
