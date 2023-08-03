@@ -137,9 +137,9 @@ async def generate_quote_img(avatar: bytearray, text: str, name: str) -> bytes:
                 fill=(255, 255, 252),
                 font=font,
                 align="center",
-                emoji_position_offset=(0, 20),
+                emoji_position_offset=(0, 12),
             )
-            
+
     name_font_size = 24
     name_font = ImageFont.truetype(font_path, name_font_size)
     name_width, name_height = name_font.getsize(name)
