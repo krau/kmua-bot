@@ -23,6 +23,10 @@ async def help(update: Update, context: ContextTypes.DEFAULT_TYPE):
 /setqp - 设置发名言概率
 /bnhhsh - 不能好好说话!
 /waifu - 今天的群友老婆!
+/switch_waifu - 开关本群今日老婆功能
+/clear_chat_quote - 清除本聊天名言
+/clear_chat_data - 清空本聊天数据
+/clear_chat_waifu - 清除本群老婆数据
 
 私聊:
 可查询自己的统计信息
