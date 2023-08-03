@@ -270,19 +270,8 @@ async def today_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if not waifu_id:
             is_got_waifu = False
             group_member: list[int] = list(context.chat_data["members_data"].keys())
-            to_remove = [
-                user_id,
-                5304501737,
-                1031952739,
-                609517172,
-                777000,
-                136817688,
-                1087968824,
-                context.bot.id,
-            ]
-            group_member = [
-                member for member in group_member if member not in to_remove
-            ]
+            to_remove = [user_id, context.bot.id]
+            group_member = [i for i in group_member if i not in to_remove]
             if not group_member:
                 await update.message.reply_text(text="你现在没有老婆, 因为咱的记录中找不到其他群友")
                 return
