@@ -1,15 +1,15 @@
 import io
+import os
 import random
 from operator import attrgetter
 from pathlib import Path
 
-from PIL import Image, ImageDraw, ImageFilter, ImageFont
+from PIL import Image, ImageFont
 from pilmoji import Pilmoji
 from telegram import (
     Update,
 )
 from telegram.ext import ContextTypes
-import os
 
 from .model import MemberData
 
@@ -165,7 +165,7 @@ async def message_recorder(update: Update, context: ContextTypes.DEFAULT_TYPE):
     this_chat = update.effective_chat
     if not this_user:
         return
-    if this_user and this_user.is_bot:
+    if this_user.is_bot or this_user.id == 777000:
         context.user_data.clear()
         if this_chat.type != "private" and context.chat_data.get("members_data"):
             if context.chat_data["members_data"].get(this_user.id):
