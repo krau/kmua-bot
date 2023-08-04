@@ -76,7 +76,7 @@ def run():
     app.add_handlers(handlers)
     app.add_error_handler(on_error)
     logger.info("Bot已启动")
-    app.run_polling(allowed_updates=Update.ALL_TYPES)
+    app.run_polling(allowed_updates=Update.ALL_TYPES, drop_pending_updates=True)
 
 
 if __name__ == "__main__":
