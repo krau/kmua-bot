@@ -55,7 +55,10 @@ def run():
         os.makedirs(Path(settings.pickle_path).parent)
     token = settings.token
     defaults = Defaults(tzinfo=pytz.timezone("Asia/Shanghai"))
-    persistence = PicklePersistence(filepath=settings.pickle_path)
+    persistence = PicklePersistence(
+        filepath=settings.pickle_path,
+        update_interval=settings.get("pickle_update_interval", 60),
+    )
     rate_limiter = AIORateLimiter()
     app = (
         ApplicationBuilder()
