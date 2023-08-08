@@ -93,7 +93,7 @@ async def quote(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     context.job_queue.run_once(
         del_message,
-        5,
+        3,
         data={"message_id": sent_message.message_id},
         chat_id=update.effective_chat.id,
         user_id=update.effective_user.id,
@@ -150,7 +150,8 @@ async def quote(update: Update, context: ContextTypes.DEFAULT_TYPE):
         context.bot_data["quotes"][quote_user.id]["img"].append(quote_img_obj)
     except Exception as e:
         await context.bot.send_message(
-            chat_id=update.effective_chat.id, text=f"{e.__class__.__name__}: {e}"
+            chat_id=update.effective_chat.id,
+            text=f"生成图像时出错: {e.__class__.__name__}: {e}",
         )
         logger.error(f"{e.__class__.__name__}: {e}")
 
