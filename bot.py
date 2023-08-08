@@ -23,7 +23,7 @@ async def init_data(app: Application):
         [
             ("start", "一键猫叫"),
             ("t", "获取头衔"),
-            ("sett","修改/t赋予权限")
+            ("sett", "修改/t赋予权限"),
             ("waifu", "今日老婆!"),
             ("waifu_graph", "老婆关系图！"),
             ("q", "载入史册"),
