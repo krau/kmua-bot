@@ -30,7 +30,11 @@ from .callbacks.rank import group_rank
 from .callbacks.remake import remake
 from .callbacks.start import start
 from .callbacks.suicide import suicide
-from .callbacks.title import title
+from .callbacks.title import (
+    title,
+    set_title_permissions,
+    set_title_permissions_callback,
+)
 from .callbacks.userdata import (
     clear_user_img_quote,
     clear_user_text_quote,
@@ -97,14 +101,13 @@ set_greet_handler = CommandHandler(
     "set_greet", set_greet, filters=filters.ChatType.GROUPS
 )
 
-clear_members_data_handler = CommandHandler(
-    "clear_members_data", clear_members_data
-)
+clear_members_data_handler = CommandHandler("clear_members_data", clear_members_data)
 clear_chat_waifu_handler = CommandHandler("clear_chat_waifu", clear_chat_waifu)
 switch_waifu_handler = CommandHandler(
     "switch_waifu", switch_waifu, filters=filters.ChatType.GROUPS
 )
 getid_handler = CommandHandler("id", getid)
+set_title_permissions_handler = CommandHandler("sett", set_title_permissions)
 
 # CallbackQueryHandlers
 start_callback_handler = CallbackQueryHandler(start, pattern="back_home")
@@ -141,6 +144,9 @@ user_waifu_manage_handler = CallbackQueryHandler(
     user_waifu_manage, pattern="user_waifu_manage"
 )
 set_mention_handler = CallbackQueryHandler(set_mention, pattern="set_mention")
+set_title_permissions_callback_handler = CallbackQueryHandler(
+    set_title_permissions_callback, pattern=r"set_title_permissions"
+)
 
 
 # others
@@ -177,6 +183,8 @@ handlers = [
     switch_waifu_handler,
     clear_members_data_handler,
     set_greet_handler,
+    set_title_permissions_handler,
+    set_title_permissions_callback_handler,
     start_callback_handler,
     clear_chat_quote_ask_handler,
     clear_chat_data_ask_handler,
