@@ -96,6 +96,10 @@ clear_waifu_data_handler = CommandHandler("clear_waifu_data", clear_waifu_data)
 set_greet_handler = CommandHandler(
     "set_greet", set_greet, filters=filters.ChatType.GROUPS
 )
+
+clear_members_data_handler = CommandHandler(
+    "clear_members_data", clear_members_data
+)
 clear_chat_waifu_handler = CommandHandler("clear_chat_waifu", clear_chat_waifu)
 switch_waifu_handler = CommandHandler(
     "switch_waifu", switch_waifu, filters=filters.ChatType.GROUPS
@@ -122,9 +126,6 @@ clear_user_text_quote_handler = CallbackQueryHandler(
 
 clear_chat_data_cancel_handler = CallbackQueryHandler(
     clear_chat_data_cancel, "cancel_clear_chat_data"
-)
-clear_members_data_handler = CallbackQueryHandler(
-    clear_members_data, "clear_members_data"
 )
 remove_waifu_handler = CallbackQueryHandler(remove_waifu, pattern=r"remove_waifu")
 user_data_manage_handler = CallbackQueryHandler(
