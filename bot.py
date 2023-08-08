@@ -29,7 +29,6 @@ async def init_data(app: Application):
             ("clear_chat_quote", "清空史册"),
             ("setqp", "设置发名言概率"),
             ("help", "帮助"),
-            ("bnhhsh", "不能好好说话!"),
             ("qrand", "随机名言"),
             ("d", "移出史册"),
             ("set_greet", "设置入群欢迎"),

@@ -21,7 +21,6 @@ async def help(update: Update, context: ContextTypes.DEFAULT_TYPE):
 /q - 载入史册
 /t - 获取头衔|互赠头衔
 /setqp - 设置发名言概率
-/bnhhsh - 不能好好说话!
 /waifu - 今天的群友老婆!
 /switch_waifu - 开关本群今日老婆功能
 /clear_chat_quote - 清除本聊天名言
@@ -39,6 +38,7 @@ async def help(update: Update, context: ContextTypes.DEFAULT_TYPE):
 A使用"/透"回复B的消息
 Bot: "A透了B!"
 使用反斜杠可主客互换
+用 "rua" 之类的命令时要用 "//" 或 "/$"
 """
     help_markup = InlineKeyboardMarkup(
         [
