@@ -3,7 +3,7 @@ import os
 from pathlib import Path
 
 import pytz
-from telegram import Update
+from telegram.constants import UpdateType
 from telegram.ext import (
     AIORateLimiter,
     Application,
@@ -11,7 +11,6 @@ from telegram.ext import (
     Defaults,
     PicklePersistence,
 )
-from telegram.constants import UpdateType
 
 from src.callbacks.jobs import refresh_data
 from src.config.config import settings
