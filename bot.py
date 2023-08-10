@@ -11,6 +11,7 @@ from telegram.ext import (
     Defaults,
     PicklePersistence,
 )
+from telegram.constants import UpdateType
 
 from src.callbacks.jobs import refresh_data
 from src.config.config import settings
@@ -79,7 +80,15 @@ def run():
     app.add_handlers(handlers)
     app.add_error_handler(on_error)
     logger.info("Bot已启动")
-    app.run_polling(allowed_updates=Update.ALL_TYPES, drop_pending_updates=True)
+    allowed_updates = [
+        UpdateType.MESSAGE,
+        UpdateType.CALLBACK_QUERY,
+        UpdateType.CHAT_MEMBER,
+        UpdateType.MY_CHAT_MEMBER,
+        UpdateType.CHOSEN_INLINE_RESULT,
+        UpdateType.INLINE_QUERY,
+    ]
+    app.run_polling(allowed_updates=allowed_updates, drop_pending_updates=True)
 
 
 if __name__ == "__main__":
