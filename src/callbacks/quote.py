@@ -15,6 +15,7 @@ from telegram import (
 from telegram.constants import ChatAction
 from telegram.error import BadRequest
 from telegram.ext import ContextTypes
+from telegram.helpers import escape_markdown
 
 from ..config.config import settings
 from ..logger import logger
@@ -446,7 +447,7 @@ async def inline_query_quote(update: Update, context: ContextTypes.DEFAULT_TYPE)
                         id=str(uuid4()),
                         title="没有找到相关名言",
                         input_message_content=InputTextMessageContent(
-                            message_text=f"我没有说过含有 *{query}* 的名言!",
+                            message_text=f"我没有说过有 *{escape_markdown(query)}* 的名言!",
                             parse_mode="Markdown",
                         ),
                         reply_markup=no_quote_inline_markup,
@@ -462,7 +463,6 @@ async def inline_query_quote(update: Update, context: ContextTypes.DEFAULT_TYPE)
                         title=text_quote.content,
                         input_message_content=InputTextMessageContent(
                             message_text=text_quote.content,
-                            parse_mode="Markdown",
                         ),
                         description=f"于{create_at_str}记",
                     )
