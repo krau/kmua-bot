@@ -1,8 +1,8 @@
 from telegram import Update
 from telegram.ext import ContextTypes
 
-from ..logger import logger
 from ..config.config import settings
+from ..logger import logger
 
 
 async def chat_migration(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -23,3 +23,11 @@ async def error_notice_control(update: Update, context: ContextTypes.DEFAULT_TYP
     text += "错误通知"
     context.bot_data["error_notice"] = not is_enabled
     await update.message.reply_text(text)
+
+
+async def clear_user_info(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if update.effective_user.id not in settings.owners:
+        return
+    context.bot_data["user_info"] = {}
+    await context.application.persistence.flush()
+    await update.message.reply_text("已清除用户信息缓存")

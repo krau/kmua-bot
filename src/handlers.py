@@ -11,11 +11,17 @@ from telegram.ext import (
 )
 
 from .callbacks.bnhhsh import bnhhsh
-from .callbacks.chatmember import on_member_join, on_member_left, track_chats, set_greet
+from .callbacks.chatdata import (
+    clear_chat_data,
+    clear_chat_data_ask,
+    clear_chat_data_cancel,
+)
+from .callbacks.chatinfo import getid
+from .callbacks.chatmember import on_member_join, on_member_left, set_greet, track_chats
 from .callbacks.help import help
 from .callbacks.interact import interact
 from .callbacks.keyword_reply import keyword_reply
-from .callbacks.others import chat_migration, error_notice_control
+from .callbacks.others import chat_migration, clear_user_info, error_notice_control
 from .callbacks.quote import (
     clear_chat_quote,
     clear_chat_quote_ask,
@@ -31,9 +37,9 @@ from .callbacks.remake import remake
 from .callbacks.start import start
 from .callbacks.suicide import suicide
 from .callbacks.title import (
-    title,
     set_title_permissions,
     set_title_permissions_callback,
+    title,
 )
 from .callbacks.userdata import (
     clear_user_img_quote,
@@ -44,24 +50,18 @@ from .callbacks.userdata import (
     user_data_manage,
     user_quote_manage,
 )
-from .callbacks.chatdata import (
-    clear_chat_data_ask,
-    clear_chat_data,
-    clear_chat_data_cancel,
-)
 from .callbacks.waifu import (
+    clear_chat_waifu,
     clear_members_data,
-    today_waifu,
-    remove_waifu,
-    waifu_graph,
-    user_waifu_manage,
-    set_mention,
     clear_waifu_data,
     migrate_waifu_shutdown,
-    clear_chat_waifu,
+    remove_waifu,
+    set_mention,
     switch_waifu,
+    today_waifu,
+    user_waifu_manage,
+    waifu_graph,
 )
-from .callbacks.chatinfo import getid
 from .config.config import settings
 from .filters import (
     bnhhsh_filter,
@@ -108,6 +108,7 @@ switch_waifu_handler = CommandHandler(
 )
 getid_handler = CommandHandler("id", getid)
 set_title_permissions_handler = CommandHandler("sett", set_title_permissions)
+clear_user_info_handler = CommandHandler("clear_user_info", clear_user_info)
 
 # CallbackQueryHandlers
 start_callback_handler = CallbackQueryHandler(start, pattern="back_home")
@@ -193,6 +194,7 @@ handlers = [
     error_notice_control_handler,
     clear_chat_quote_handler,
     clear_chat_data_handler,
+    clear_user_info_handler,
     group_rank_handler,
     bnhhsh_command_handler,
     clear_chat_quote_cancel_handler,

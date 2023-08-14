@@ -2,7 +2,6 @@ import random
 import time
 from datetime import datetime
 from uuid import uuid1, uuid4
-from .jobs import del_message
 
 from telegram import (
     InlineKeyboardButton,
@@ -21,6 +20,7 @@ from ..config.config import settings
 from ..logger import logger
 from ..model import ImgQuote, MemberData, TextQuote
 from ..utils import generate_quote_img, message_recorder, random_unit
+from .jobs import del_message
 
 
 async def quote(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -84,7 +84,7 @@ async def quote(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if quote_message.id not in context.chat_data["quote_messages"]:
         context.chat_data["quote_messages"].append(quote_message.id)
         logger.debug(
-            f"将{quote_message.id}([{update.effective_chat.title}]({quote_user.title if is_chat else quote_user.name}))"
+            f"将{quote_message.id}([{update.effective_chat.title}]({quote_user.title if is_chat else quote_user.name}))"  # noqa: E501
             + "加入chat quote"
         )
     sent_message = await context.bot.send_message(
@@ -274,7 +274,7 @@ async def del_quote(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
             logger.debug(
                 "Bot将"
-                + (f"{quote_message.text}" if quote_message.text else "<一条非文本消息>")
+                + (f"{quote_message.text}" if quote_message.text else "<一条非文本消息>")  # noqa: E501
                 + "取消置顶"
             )
         except Exception as e:
@@ -422,7 +422,7 @@ async def inline_query_quote(update: Update, context: ContextTypes.DEFAULT_TYPE)
         if query:
             for text_quote in text_quotes:
                 if query in text_quote.content:
-                    create_at_str = text_quote.created_at.strftime("%Y年%m月%d日%H时%M分%S秒")
+                    create_at_str = text_quote.created_at.strftime("%Y年%m月%d日%H时%M分%S秒")  # noqa: E501
                     results.append(
                         InlineQueryResultArticle(
                             id=str(uuid4()),
@@ -434,7 +434,7 @@ async def inline_query_quote(update: Update, context: ContextTypes.DEFAULT_TYPE)
                     )
             for img_quote in img_quotes:
                 if query in img_quote.text:
-                    create_at_str = img_quote.created_at.strftime("%Y年%m月%d日%H时%M分%S秒")
+                    create_at_str = img_quote.created_at.strftime("%Y年%m月%d日%H时%M分%S秒")  # noqa: E501
                     results.append(
                         InlineQueryResultCachedPhoto(
                             id=str(uuid4()),
@@ -447,7 +447,7 @@ async def inline_query_quote(update: Update, context: ContextTypes.DEFAULT_TYPE)
                         id=str(uuid4()),
                         title="没有找到相关名言",
                         input_message_content=InputTextMessageContent(
-                            message_text=f"我没有说过有 *{escape_markdown(query)}* 的名言!",
+                            message_text=f"我没有说过有 *{escape_markdown(query)}* 的名言!",  # noqa: E501
                             parse_mode="Markdown",
                         ),
                         reply_markup=no_quote_inline_markup,
@@ -456,7 +456,7 @@ async def inline_query_quote(update: Update, context: ContextTypes.DEFAULT_TYPE)
         else:
             results = []
             for text_quote in random.sample(text_quotes, min(len(text_quotes), 10)):
-                create_at_str = text_quote.created_at.strftime("%Y年%m月%d日%H时%M分%S秒")
+                create_at_str = text_quote.created_at.strftime("%Y年%m月%d日%H时%M分%S秒")  # noqa: E501
                 results.append(
                     InlineQueryResultArticle(
                         id=str(uuid4()),
@@ -469,7 +469,7 @@ async def inline_query_quote(update: Update, context: ContextTypes.DEFAULT_TYPE)
                 )
 
             for img_quote in random.sample(img_quotes, min(len(img_quotes), 10)):
-                create_at_str = img_quote.created_at.strftime("%Y年%m月%d日%H时%M分%S秒")
+                create_at_str = img_quote.created_at.strftime("%Y年%m月%d日%H时%M分%S秒")  # noqa: E501
                 results.append(
                     InlineQueryResultCachedPhoto(
                         id=str(uuid4()),

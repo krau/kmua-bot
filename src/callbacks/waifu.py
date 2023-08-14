@@ -129,7 +129,7 @@ async def _waifu_graph(
 ):
     today_waifu = context.bot_data["today_waifu"]
     if not today_waifu.get(chat_id, None):
-        await context.bot.send_message(chat_id, "群里还没有老婆！", reply_to_message_id=msg_id)
+        await context.bot.send_message(chat_id, "群里还没有老婆！", reply_to_message_id=msg_id)  # noqa: E501
         return
 
     waifu_mutex = context.bot_data["waifu_mutex"]
@@ -208,8 +208,8 @@ async def _waifu_graph(
                 context.bot_data["user_info"][user_id] = {
                     "username": username,
                     "avatar": avatar,
-                    "chat": user,
                     "avatar_big_id": None,
+                    "full_name": user.full_name,
                 }
         try:
             await context.bot.send_chat_action(chat_id, ChatAction.TYPING)
@@ -227,7 +227,7 @@ async def _waifu_graph(
         except Exception as e:
             await context.bot.send_message(
                 chat_id,
-                f"呜呜呜... kmua被 玩坏惹\n{e.__class__.__name__}: {e}",
+                f"呜呜呜... kmua 被玩坏惹\n{e.__class__.__name__}: {e}",
                 reply_to_message_id=msg_id,
             )
             logger.error(f"生成waifu图时出错: {e}")
@@ -261,24 +261,28 @@ async def today_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     avatar: bytes | None = None
     avatar_big_id: str | None = None
     username: str | None = None
+    full_name: str | None = None
     waifu = None
     try:
         await context.bot.send_chat_action(chat_id, ChatAction.TYPING)
         is_got_waifu = True
         is_success = False
-        waifu_id = context.bot_data["today_waifu"][chat_id][user_id].get("waifu", None)
+        waifu_id: int = context.bot_data["today_waifu"][chat_id][user_id].get(
+            "waifu", None
+        )
         if not waifu_id:
             is_got_waifu = False
-            group_member: list[int] = list(context.chat_data["members_data"].keys())
+            group_member: list[int] = list(
+                context.chat_data.get("members_data", {}).keys()
+            )  # noqa: E501
             to_remove = [user_id, context.bot.id]
             group_member = [i for i in group_member if i not in to_remove]
             if not group_member:
-                await update.message.reply_text(text="你现在没有老婆, 因为咱的记录中找不到其他群友")
+                await update.message.reply_text(text="你现在没有老婆, 因为咱的记录中找不到其他群友")  # noqa: E501
                 return
             waifu_id = random.choice(group_member)
 
         retry = 0
-        err = None
         while retry < 3 and not is_success:
             try:
                 if context.bot_data["user_info"].get(waifu_id, None):
@@ -287,13 +291,14 @@ async def today_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     avatar_big_id = context.bot_data["user_info"][waifu_id][
                         "avatar_big_id"
                     ]
-                    waifu = context.bot_data["user_info"][waifu_id]["chat"]
+                    full_name = context.bot_data["user_info"][waifu_id].get("full_name")
                     is_success = True
                     break
                 waifu = await context.bot.get_chat(waifu_id)
+                username = waifu.username
+                full_name = waifu.full_name
                 is_success = True
             except Exception as e:
-                err = e
                 logger.error(
                     f"Can not get chat for {waifu_id}: {e.__class__.__name__}: {e}"
                 )
@@ -303,12 +308,10 @@ async def today_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         if not is_success:
             await update.message.reply_text(text="你没能抽到老婆, 再试一次吧~")
-            poped_value = context.chat_data["members_data"].pop(waifu_id, "群组数据中无该成员")
+            poped_value = context.chat_data["members_data"].pop(waifu_id, "群组数据中无该成员")  # noqa: E501
             logger.debug(f"移除: {poped_value}")
-            raise err
         else:
             context.bot_data["today_waifu"][chat_id][user_id]["waifu"] = waifu_id
-            username = waifu.username
 
         is_mention_waifu = (
             (await context.application.persistence.get_user_data())
@@ -318,30 +321,31 @@ async def today_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         try:
             text = (
                 (
-                    f"你今天已经抽过老婆了! {waifu.mention_markdown()} 是你今天的老婆!"
+                    f"你今天已经抽过老婆了\! [{escape_markdown(full_name,2)}](tg://user?id={waifu_id}) 是你今天的老婆\!"  # noqa: E501
                     if is_got_waifu
-                    else f"你今天的群幼老婆是 {waifu.mention_markdown()} !"
+                    else f"你今天的群幼老婆是 [{escape_markdown(full_name,2)}](tg://user?id={waifu_id}) \!"  # noqa: E501
                 )
                 if is_mention_waifu
                 else (
-                    f"你今天已经抽过老婆了! {escape_markdown(waifu.full_name)} 是你今天的老婆!"
+                    f"你今天已经抽过老婆了\! {escape_markdown(waifu.full_name,2)} 是你今天的老婆\!"  # noqa: E501
                     if is_got_waifu
-                    else f"你今天的群幼老婆是 {escape_markdown(waifu.full_name)} !"
+                    else f"你今天的群幼老婆是 {escape_markdown(waifu.full_name,2)} \!"
                 )
             )
         except TypeError as e:
             logger.error(
-                f"无法为 {update.effective_user.name} 获取id为 {waifu_id} 的waifu:\n{e.__class__.__name__}: {e}"
+                f"无法为 {update.effective_user.name} 获取id为 {waifu_id} 的waifu:\n{e.__class__.__name__}: {e}"  # noqa: E501
             )
             if is_got_waifu:
                 text = f"你的老婆消失了...TA的id曾是: {waifu_id}"
             else:
                 text = "你没能抽到老婆, 再试一次吧~"
             await update.message.reply_text(text=text)
-            poped_value = context.chat_data["members_data"].pop(waifu_id, "群组数据中无该成员")
+            poped_value = context.chat_data["members_data"].pop(
+                waifu_id, "群组数据中无该成员"
+            )  # noqa: E501
             context.bot_data["today_waifu"][chat_id][user_id] = {}
             logger.debug(f"移除: {poped_value}")
-            waifu = None
             if context.bot_data["user_info"].get(waifu_id, None):
                 context.bot_data["user_info"].pop(waifu_id)
             return
@@ -371,7 +375,7 @@ async def today_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 )
                 photo_to_send = avatar
         if photo_to_send is None:
-            await update.message.reply_markdown(
+            await update.message.reply_markdown_v2(
                 text=text,
                 reply_markup=today_waifu_markup,
                 allow_sending_without_reply=True,
@@ -381,7 +385,7 @@ async def today_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE):
             sent_message = await update.message.reply_photo(
                 photo=photo_to_send,
                 caption=text,
-                parse_mode="Markdown",
+                parse_mode="MarkdownV2",
                 reply_markup=today_waifu_markup,
                 allow_sending_without_reply=True,
             )
@@ -395,11 +399,11 @@ async def today_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 )
             else:
                 raise e
-        except Exception as e:
-            raise e
+        except Exception:
+            raise
         logger.info(f"Bot: {text}")
-    except Exception as e:
-        raise e
+    except Exception:
+        raise
     finally:
         context.bot_data["today_waifu"][chat_id][user_id]["waiting"] = False
         if waifu:
@@ -414,13 +418,13 @@ async def today_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     except Exception as e:
                         avatar = None
                         logger.error(
-                            f"Can not get small avatar for {waifu.id}: {e.__class__.__name__}: {e}"
+                            f"Can not get small avatar for {waifu.id}: {e.__class__.__name__}: {e}"  # noqa: E501
                         )
                 context.bot_data["user_info"][waifu.id] = {
                     "username": username or f"id: {waifu_id}",
                     "avatar": avatar,
                     "avatar_big_id": avatar_big_id,
-                    "chat": waifu,
+                    "full_name": full_name,
                 }
             if not context.bot_data["user_info"][waifu.id].get("avatar_big_id", None):
                 context.bot_data["user_info"][waifu.id]["avatar_big_id"] = avatar_big_id
@@ -545,7 +549,7 @@ async def clear_chat_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE):
             else:
                 raise e
         if this_chat_member.status != "creator":
-            await update.message.reply_text(text="你没有权限哦, 只有群主可以清空老婆数据")
+            await update.message.reply_text(text="你没有权限哦, 只有群主可以清空老婆数据")  # noqa: E501
             return
         context.bot_data["today_waifu"][update.effective_chat.id] = {}
         await context.application.persistence.flush()
@@ -614,5 +618,5 @@ async def switch_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.chat_data["waifu_enable"] = (
         False if context.chat_data.get("waifu_enable") else True
     )
-    text = "已启用本群今日老婆功能" if context.chat_data.get("waifu_enable") else "已禁用本群今日老婆功能"
+    text = "已启用本群今日老婆功能" if context.chat_data.get("waifu_enable") else "已禁用本群今日老婆功能"  # noqa: E501
     await update.message.reply_text(text=text)

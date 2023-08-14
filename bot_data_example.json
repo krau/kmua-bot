@@ -49,7 +49,7 @@
             "username": "username",
             "avatar": "avatar",
             "avatar_big_id": "file_id",
-            "chat": "Chat"
+            "full_name": "full_name"
         }
     }
 }
