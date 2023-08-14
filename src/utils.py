@@ -176,17 +176,6 @@ async def message_recorder(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     if this_message.reply_to_message:
         return
-    if context.user_data.get("msg_num", None):
-        context.user_data.pop("msg_num", None)
-        context.user_data.pop("pm_kmua_num", None)
-        context.user_data.pop("group_msg_num", None)
-        context.chat_data.pop("msg_num", None)
-        context.user_data.pop("text_num", None)
-        context.user_data.pop("photo_num", None)
-        context.user_data.pop("sticker_num", None)
-        context.user_data.pop("voice_num", None)
-        context.user_data.pop("video_num", None)
-        context.user_data.pop("document_num", None)
     if this_chat.type != "private":
         if not context.chat_data.get("members_data", None):
             context.chat_data["members_data"] = {}
@@ -195,7 +184,6 @@ async def message_recorder(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 name=this_user.full_name, id=this_user.id, msg_num=0, quote_num=0
             )
             context.chat_data["members_data"][this_user.id] = member_data_obj
-        context.chat_data["members_data"][this_user.id].msg_num += 1
 
 
 def sort_topn_bykey(data: dict, n: int, key: str) -> list:
