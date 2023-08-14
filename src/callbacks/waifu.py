@@ -368,7 +368,7 @@ async def today_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if avatar_big_id is not None:
             photo_to_send = avatar_big_id
         else:
-            avatar = waifu.photo
+            avatar = (await context.bot.get_chat(waifu_id)).photo
             if avatar is not None:
                 avatar = bytes(
                     await (await waifu.photo.get_big_file()).download_as_bytearray()
