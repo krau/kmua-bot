@@ -48,8 +48,9 @@ async def quote(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if quote_message.sender_chat:
         quote_user = quote_message.sender_chat
         is_chat = True
-    if quote_user.is_bot:
-        is_bot = True
+    if not is_chat:
+        if quote_user.is_bot:
+            is_bot = True
     not_user = is_chat or is_bot
     if (
         not (forward_from_user and quote_message.forward_sender_name)
