@@ -258,7 +258,6 @@ async def today_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     context.bot_data["today_waifu"][chat_id][user_id]["waiting"] = True
     await message_recorder(update, context)
-    avatar: bytes | None = None
     avatar_big_id: str | None = None
     username: str | None = None
     full_name: str | None = None
@@ -287,7 +286,6 @@ async def today_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE):
             try:
                 if context.bot_data["user_info"].get(waifu_id, None):
                     username = context.bot_data["user_info"][waifu_id]["username"]
-                    avatar = context.bot_data["user_info"][waifu_id]["avatar"]
                     avatar_big_id = context.bot_data["user_info"][waifu_id][
                         "avatar_big_id"
                     ]
