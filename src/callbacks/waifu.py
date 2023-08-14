@@ -262,6 +262,7 @@ async def today_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     username: str | None = None
     full_name: str | None = None
     waifu = None
+    avatar = None
     try:
         await context.bot.send_chat_action(chat_id, ChatAction.TYPING)
         is_got_waifu = True
