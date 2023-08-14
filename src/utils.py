@@ -44,7 +44,7 @@ def random_unit(probability: float) -> bool:
 #     # 加载头像
 #     avatar = Image.open(io.BytesIO(avatar))
 #     avatar = avatar.resize((640, 640), Image.ANTIALIAS)
-#     font_path = str(Path(__file__).resolve().parent.parent / "resource" / "TsukuA.ttc")
+#     font_path = str(Path(__file__).resolve().parent.parent / "resource" / "TsukuA.ttc")  # noqa: E501
 #     font_size = 60
 #     font = ImageFont.truetype(font_path, font_size)
 #     text_width, text_height = font.getsize(text)
@@ -164,6 +164,8 @@ async def message_recorder(update: Update, context: ContextTypes.DEFAULT_TYPE):
     this_user = update.effective_user
     this_chat = update.effective_chat
     if not this_user:
+        return
+    if this_user.isinstance("Chat"):
         return
     if this_user.is_bot or this_user.id == 777000:
         context.user_data.clear()
