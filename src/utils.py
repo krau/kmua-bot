@@ -165,8 +165,6 @@ async def message_recorder(update: Update, context: ContextTypes.DEFAULT_TYPE):
     this_chat = update.effective_chat
     if not this_user:
         return
-    if this_user.isinstance("Chat"):
-        return
     if this_user.is_bot or this_user.id == 777000:
         context.user_data.clear()
         if this_chat.type != "private" and context.chat_data.get("members_data"):
