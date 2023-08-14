@@ -32,7 +32,6 @@ from .callbacks.quote import (
     random_quote,
     set_quote_probability,
 )
-from .callbacks.rank import group_rank
 from .callbacks.remake import remake
 from .callbacks.start import start
 from .callbacks.suicide import suicide
@@ -83,7 +82,6 @@ clear_chat_data_ask_handler = CommandHandler("clear_chat_data", clear_chat_data_
 bnhhsh_command_handler = CommandHandler("bnhhsh", bnhhsh)
 help_handler = CommandHandler("help", help, filters=mention_or_private_filter)
 error_notice_control_handler = CommandHandler("error_notice", error_notice_control)
-group_rank_handler = CommandHandler("rank", group_rank)
 qrand_handler = CommandHandler("qrand", random_quote)
 remake_handler = CommandHandler("remake", remake)
 suicide_handler = CommandHandler("suicide", suicide)
@@ -195,7 +193,6 @@ handlers = [
     clear_chat_quote_handler,
     clear_chat_data_handler,
     clear_user_info_handler,
-    group_rank_handler,
     bnhhsh_command_handler,
     clear_chat_quote_cancel_handler,
     clear_chat_data_cancel_handler,
