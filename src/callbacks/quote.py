@@ -477,11 +477,10 @@ async def inline_query_quote(update: Update, context: ContextTypes.DEFAULT_TYPE)
                         photo_file_id=img_quote.content,
                     )
                 )
-    await context.bot.answer_inline_query(
-        update.inline_query.id,
+    await update.inline_query.answer(
         results=results,
-        cache_time=cache_time,
-        is_personal=is_personal,
         switch_pm_text=switch_pm_text,
         switch_pm_parameter=switch_pm_parameter,
+        is_personal=is_personal,
+        cache_time=cache_time,
     )
