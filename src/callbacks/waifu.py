@@ -129,7 +129,9 @@ async def _waifu_graph(
 ):
     today_waifu = context.bot_data["today_waifu"]
     if not today_waifu.get(chat_id, None):
-        await context.bot.send_message(chat_id, "群里还没有老婆！", reply_to_message_id=msg_id)  # noqa: E501
+        await context.bot.send_message(
+            chat_id, "群里还没有老婆！", reply_to_message_id=msg_id
+        )  # noqa: E501
         return
 
     waifu_mutex = context.bot_data["waifu_mutex"]
@@ -278,7 +280,9 @@ async def today_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE):
             to_remove = [user_id, context.bot.id]
             group_member = [i for i in group_member if i not in to_remove]
             if not group_member:
-                await update.message.reply_text(text="你现在没有老婆, 因为咱的记录中找不到其他群友")  # noqa: E501
+                await update.message.reply_text(
+                    text="你现在没有老婆, 因为咱的记录中找不到其他群友"
+                )  # noqa: E501
                 return
             waifu_id = random.choice(group_member)
 
@@ -307,7 +311,9 @@ async def today_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         if not is_success:
             await update.message.reply_text(text="你没能抽到老婆, 再试一次吧~")
-            poped_value = context.chat_data["members_data"].pop(waifu_id, "群组数据中无该成员")  # noqa: E501
+            poped_value = context.chat_data["members_data"].pop(
+                waifu_id, "群组数据中无该成员"
+            )  # noqa: E501
             logger.debug(f"移除: {poped_value}")
         else:
             context.bot_data["today_waifu"][chat_id][user_id]["waifu"] = waifu_id
@@ -326,9 +332,9 @@ async def today_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 )
                 if is_mention_waifu
                 else (
-                    f"你今天已经抽过老婆了\! {escape_markdown(waifu.full_name,2)} 是你今天的老婆\!"  # noqa: E501
+                    f"你今天已经抽过老婆了\! {escape_markdown(full_name,2)} 是你今天的老婆\!"  # noqa: E501
                     if is_got_waifu
-                    else f"你今天的群幼老婆是 {escape_markdown(waifu.full_name,2)} \!"
+                    else f"你今天的群幼老婆是 {escape_markdown(full_name,2)} \!"
                 )
             )
         except TypeError as e:
@@ -617,5 +623,7 @@ async def switch_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.chat_data["waifu_enable"] = (
         False if context.chat_data.get("waifu_enable") else True
     )
-    text = "已启用本群今日老婆功能" if context.chat_data.get("waifu_enable") else "已禁用本群今日老婆功能"  # noqa: E501
+    text = (
+        "已启用本群今日老婆功能" if context.chat_data.get("waifu_enable") else "已禁用本群今日老婆功能"
+    )  # noqa: E501
     await update.message.reply_text(text=text)
