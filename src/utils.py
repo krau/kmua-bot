@@ -168,7 +168,10 @@ async def message_recorder(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not this_user:
         return
     if this_message.is_automatic_forward:
-        await context.bot.leave_chat(this_message.sender_chat.id)
+        try:
+            await context.bot.leave_chat(this_message.sender_chat.id)
+        except Exception:
+            pass
         return
     if this_user.is_bot or this_user.id == 777000:
         context.user_data.clear()
