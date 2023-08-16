@@ -79,8 +79,3 @@ interact_filter = InteractFilter() & TextLengthFilter(min_length=1, max_length=1
 keyword_reply_filter = (
     TextLengthFilter(min_length=1, max_length=200) & ~interact_filter
 ) & (ReplyBotFilter() | MentionBotFilter() | filters.ChatType.PRIVATE)
-bnhhsh_filter = (
-    filters.Regex("[a-zA-Z]")
-    & TextLengthFilter(min_length=2, max_length=256)
-    & ~keyword_reply_filter
-) & (MentionBotFilter() | RandomFilter())

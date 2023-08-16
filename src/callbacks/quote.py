@@ -275,7 +275,9 @@ async def del_quote(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
             logger.debug(
                 "Bot将"
-                + (f"{quote_message.text}" if quote_message.text else "<一条非文本消息>")  # noqa: E501
+                + (
+                    f"{quote_message.text}" if quote_message.text else "<一条非文本消息>"
+                )  # noqa: E501
                 + "取消置顶"
             )
         except Exception as e:
@@ -423,7 +425,9 @@ async def inline_query_quote(update: Update, context: ContextTypes.DEFAULT_TYPE)
         if query:
             for text_quote in text_quotes:
                 if query in text_quote.content:
-                    create_at_str = text_quote.created_at.strftime("%Y年%m月%d日%H时%M分%S秒")  # noqa: E501
+                    create_at_str = text_quote.created_at.strftime(
+                        "%Y年%m月%d日%H时%M分%S秒"
+                    )  # noqa: E501
                     results.append(
                         InlineQueryResultArticle(
                             id=str(uuid4()),
@@ -435,7 +439,9 @@ async def inline_query_quote(update: Update, context: ContextTypes.DEFAULT_TYPE)
                     )
             for img_quote in img_quotes:
                 if query in img_quote.text:
-                    create_at_str = img_quote.created_at.strftime("%Y年%m月%d日%H时%M分%S秒")  # noqa: E501
+                    create_at_str = img_quote.created_at.strftime(
+                        "%Y年%m月%d日%H时%M分%S秒"
+                    )  # noqa: E501
                     results.append(
                         InlineQueryResultCachedPhoto(
                             id=str(uuid4()),
@@ -457,7 +463,9 @@ async def inline_query_quote(update: Update, context: ContextTypes.DEFAULT_TYPE)
         else:
             results = []
             for text_quote in random.sample(text_quotes, min(len(text_quotes), 10)):
-                create_at_str = text_quote.created_at.strftime("%Y年%m月%d日%H时%M分%S秒")  # noqa: E501
+                create_at_str = text_quote.created_at.strftime(
+                    "%Y年%m月%d日%H时%M分%S秒"
+                )  # noqa: E501
                 results.append(
                     InlineQueryResultArticle(
                         id=str(uuid4()),
@@ -470,7 +478,9 @@ async def inline_query_quote(update: Update, context: ContextTypes.DEFAULT_TYPE)
                 )
 
             for img_quote in random.sample(img_quotes, min(len(img_quotes), 10)):
-                create_at_str = img_quote.created_at.strftime("%Y年%m月%d日%H时%M分%S秒")  # noqa: E501
+                create_at_str = img_quote.created_at.strftime(
+                    "%Y年%m月%d日%H时%M分%S秒"
+                )  # noqa: E501
                 results.append(
                     InlineQueryResultCachedPhoto(
                         id=str(uuid4()),
@@ -484,3 +494,27 @@ async def inline_query_quote(update: Update, context: ContextTypes.DEFAULT_TYPE)
         is_personal=is_personal,
         cache_time=cache_time,
     )
+
+
+async def clear_user_quote(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    logger.info(
+        f"[{update.effective_chat.title}]({update.effective_user.name})"
+        + f" {update.effective_message.text}"
+    )
+    user_id = update.effective_user.id
+    if user_id not in settings.owners:
+        return
+    try:
+        to_clear_id = int(context.args[0])
+    except ValueError:
+        await update.effective_message.reply_text("请输入数字")
+        return
+    except IndexError:
+        await update.effective_message.reply_text("请输入要清除的用户id")
+        return
+    if to_clear_id not in context.bot_data["quotes"].keys():
+        await update.effective_message.reply_text("该用户没有名言")
+        return
+    context.bot_data["quotes"].pop(to_clear_id)
+    await context.application.persistence.flush()
+    await update.effective_message.reply_text("已清除该用户的名言")

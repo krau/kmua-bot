@@ -31,6 +31,7 @@ from .callbacks.quote import (
     quote,
     random_quote,
     set_quote_probability,
+    clear_user_quote,
 )
 from .callbacks.remake import remake
 from .callbacks.start import start
@@ -63,7 +64,6 @@ from .callbacks.waifu import (
 )
 from .config.config import settings
 from .filters import (
-    bnhhsh_filter,
     interact_filter,
     keyword_reply_filter,
     mention_or_private_filter,
@@ -107,6 +107,7 @@ switch_waifu_handler = CommandHandler(
 getid_handler = CommandHandler("id", getid)
 set_title_permissions_handler = CommandHandler("sett", set_title_permissions)
 clear_user_info_handler = CommandHandler("clear_user_info", clear_user_info)
+clear_user_quote_handler = CommandHandler("clear_user_quote", clear_user_quote)
 
 # CallbackQueryHandlers
 start_callback_handler = CallbackQueryHandler(start, pattern="back_home")
@@ -152,7 +153,6 @@ set_title_permissions_callback_handler = CallbackQueryHandler(
 interact_handler = MessageHandler(filters=interact_filter, callback=interact)
 inline_query_handler = InlineQueryHandler(inline_query_quote)
 random_quote_handler = MessageHandler(~filters.COMMAND, random_quote)
-bnhhsh_handler = MessageHandler(bnhhsh_filter, bnhhsh)
 keyword_reply_handler = MessageHandler(keyword_reply_filter, keyword_reply)
 track_chats_handler = ChatMemberHandler(track_chats, ChatMemberHandler.MY_CHAT_MEMBER)
 member_left_handler = MessageHandler(
@@ -168,21 +168,22 @@ handlers = [
     member_left_handler,
     member_join_handler,
     chat_migration_handler,
-    title_handler,
+    today_waifu_handler,
+    waifu_graph_handler,
     quote_handler,
+    title_handler,
     set_quote_probability_handler,
     del_quote_handler,
     qrand_handler,
     remake_handler,
-    suicide_handler,
-    today_waifu_handler,
-    waifu_graph_handler,
     clear_waifu_data_handler,
     clear_chat_waifu_handler,
     switch_waifu_handler,
     clear_members_data_handler,
+    suicide_handler,
     set_greet_handler,
     set_title_permissions_handler,
+    clear_user_quote_handler,
     set_title_permissions_callback_handler,
     start_callback_handler,
     clear_chat_quote_ask_handler,
@@ -199,7 +200,6 @@ handlers = [
     interact_handler,
     remove_waifu_handler,
     keyword_reply_handler,
-    bnhhsh_handler,
     inline_query_handler,
     user_data_manage_handler,
     user_quote_manage_handler,
