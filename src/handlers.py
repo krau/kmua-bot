@@ -26,16 +26,16 @@ from .callbacks.quote import (
     clear_chat_quote,
     clear_chat_quote_ask,
     clear_chat_quote_cancel,
+    clear_user_quote,
     del_quote,
     inline_query_quote,
     quote,
     random_quote,
     set_quote_probability,
-    clear_user_quote,
 )
 from .callbacks.remake import remake
 from .callbacks.start import start
-from .callbacks.suicide import suicide
+from .callbacks.suicide import add_music, clear_music, suicide
 from .callbacks.title import (
     set_title_permissions,
     set_title_permissions_callback,
@@ -108,6 +108,8 @@ getid_handler = CommandHandler("id", getid)
 set_title_permissions_handler = CommandHandler("sett", set_title_permissions)
 clear_user_info_handler = CommandHandler("clear_user_info", clear_user_info)
 clear_user_quote_handler = CommandHandler("clear_user_quote", clear_user_quote)
+add_music_handler = CommandHandler("add_music", add_music)
+clear_music_handler = CommandHandler("clear_music", clear_music)
 
 # CallbackQueryHandlers
 start_callback_handler = CallbackQueryHandler(start, pattern="back_home")
@@ -184,6 +186,8 @@ handlers = [
     set_greet_handler,
     set_title_permissions_handler,
     clear_user_quote_handler,
+    add_music_handler,
+    clear_music_handler,
     set_title_permissions_callback_handler,
     start_callback_handler,
     clear_chat_quote_ask_handler,

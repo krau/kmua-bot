@@ -1,6 +1,7 @@
 import io
 import os
 import random
+import re
 from operator import attrgetter
 from pathlib import Path
 
@@ -196,3 +197,11 @@ def sort_topn_bykey(data: dict, n: int, key: str) -> list:
     :return: 排序后的列表
     """
     return sorted(data.values(), key=attrgetter(key), reverse=True)[:n]
+
+
+def parse_arguments(text: str) -> list[str]:
+    pattern = r'"([^"]*)"|([^ ]+)'
+    arguments = re.findall(pattern, text)
+    parsed_arguments = [group[0] or group[1] for group in arguments]
+
+    return parsed_arguments

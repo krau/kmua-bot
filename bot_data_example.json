@@ -51,5 +51,12 @@
             "avatar_big_id": "file_id",
             "full_name": "full_name"
         }
-    }
+    },
+    "music": [
+        {
+            "title": "str",
+            "lrc": "str",
+            "url": "str"
+        }
+    ]
 }

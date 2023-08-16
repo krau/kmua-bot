@@ -48,6 +48,8 @@ async def init_data(app: Application):
     app.bot_data["waifu_mutex"] = {}
     if not app.bot_data.get("user_info"):
         app.bot_data["user_info"] = {}
+    if not app.bot_data.get("music"):
+        app.bot_data["music"] = []
 
 
 def run():
