@@ -39,9 +39,9 @@ async def add_music(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = " ".join(context.args)
     args = parse_arguments(text)
     match len(args):
-        case 2:
+        case 1:
             await _add_music_without_url(update, context, args)
-        case 3:
+        case 2:
             await _add_music_with_url(update, context, args)
         case _:
             await update.effective_message.reply_text(
@@ -53,8 +53,7 @@ async def _add_music_without_url(
     update: Update, context: ContextTypes.DEFAULT_TYPE, args: list[str]
 ):
     new_music = {
-        "title": args[0],
-        "lrc": args[1],
+        "lrc": args[0],
         "url": None,
     }
     context.bot_data["music"].append(new_music)
@@ -67,9 +66,8 @@ async def _add_music_with_url(
     update: Update, context: ContextTypes.DEFAULT_TYPE, args: list[str]
 ):
     new_music = {
-        "title": args[0],
-        "lrc": args[1],
-        "url": args[2],
+        "lrc": args[0],
+        "url": args[1],
     }
     context.bot_data["music"].append(new_music)
     await update.effective_message.reply_text(

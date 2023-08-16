@@ -54,7 +54,6 @@
     },
     "music": [
         {
-            "title": "str",
             "lrc": "str",
             "url": "str"
         }
