@@ -164,16 +164,17 @@ async def generate_quote_img(avatar: bytearray, text: str, name: str) -> bytes:
 async def message_recorder(update: Update, context: ContextTypes.DEFAULT_TYPE):
     this_user = update.effective_user
     this_chat = update.effective_chat
+    this_message = update.effective_message
     if not this_user:
+        return
+    if this_message.is_automatic_forward:
+        await context.bot.leave_chat(this_message.sender_chat.id)
         return
     if this_user.is_bot or this_user.id == 777000:
         context.user_data.clear()
         if this_chat.type != "private" and context.chat_data.get("members_data"):
             if context.chat_data["members_data"].get(this_user.id):
                 del context.chat_data["members_data"][this_user.id]
-        return
-    this_message = update.effective_message
-    if this_message.is_automatic_forward:
         return
     if this_message.reply_to_message:
         return
