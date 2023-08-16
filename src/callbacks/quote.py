@@ -11,7 +11,7 @@ from telegram import (
     InputTextMessageContent,
     Update,
 )
-from telegram.constants import ChatAction
+from telegram.constants import ChatAction, ChatID
 from telegram.error import BadRequest
 from telegram.ext import ContextTypes
 from telegram.helpers import escape_markdown
@@ -51,7 +51,16 @@ async def quote(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not is_chat:
         if quote_user.is_bot:
             is_bot = True
-    not_user = is_chat or is_bot
+    not_user = (
+        is_chat
+        or is_bot
+        or quote_user.id
+        in [
+            ChatID.ANONYMOUS_ADMIN,
+            ChatID.FAKE_CHANNEL,
+            ChatID.SERVICE_CHAT,
+        ]
+    )
     if (
         not (forward_from_user and quote_message.forward_sender_name)
         and update.effective_chat.type != "private"
