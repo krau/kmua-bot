@@ -300,6 +300,12 @@ async def today_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 waifu = await context.bot.get_chat(waifu_id)
                 username = waifu.username
                 full_name = waifu.full_name
+                if full_name is None:
+                    poped_value = context.chat_data.get("members_data", {}).pop(
+                        waifu_id, "群组数据中无该成员"
+                    )  # noqa: E501
+                    logger.debug(f"移除: {poped_value}")
+                    raise TypeError("full_name is None")
                 is_success = True
             except Exception as e:
                 logger.error(
