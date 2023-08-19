@@ -15,9 +15,15 @@ from .callbacks.chatdata import (
     clear_chat_data,
     clear_chat_data_ask,
     clear_chat_data_cancel,
+    clear_members_data,
 )
 from .callbacks.chatinfo import getid
-from .callbacks.chatmember import on_member_join, on_member_left, set_greet, track_chats
+from .callbacks.chatmember import (
+    on_member_join,
+    on_member_left,
+    set_greet,
+    track_chats,
+)
 from .callbacks.help import help
 from .callbacks.interact import interact
 from .callbacks.keyword_reply import keyword_reply
@@ -52,7 +58,6 @@ from .callbacks.userdata import (
 )
 from .callbacks.waifu import (
     clear_chat_waifu,
-    clear_members_data,
     clear_waifu_data,
     migrate_waifu_shutdown,
     remove_waifu,

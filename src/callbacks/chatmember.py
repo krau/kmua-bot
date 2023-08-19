@@ -1,7 +1,5 @@
 from telegram import Chat, ChatMember, ChatMemberUpdated, Update
-from telegram.ext import (
-    ContextTypes,
-)
+from telegram.ext import ContextTypes
 
 from ..logger import logger
 
@@ -70,7 +68,9 @@ async def on_member_left(update: Update, context: ContextTypes.DEFAULT_TYPE):
     logger.debug(f"{left_user.full_name} 退出了群聊 {update.effective_chat.title} ")
     try:
         del context.chat_data["members_data"][left_user.id]
-        logger.debug(f"将 {left_user.full_name} 从 {update.effective_chat.title} 数据中移除")
+        logger.debug(
+            f"将 {left_user.full_name} 从 {update.effective_chat.title} 数据中移除"
+        )  # noqa: E501
     except KeyError:
         logger.debug(f"{left_user.full_name} 未在 {update.effective_chat.title} 数据中")
 
