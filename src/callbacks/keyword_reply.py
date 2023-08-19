@@ -9,6 +9,7 @@ from zhconv import convert
 from ..logger import logger
 from ..data import word_dict
 from ..utils import message_recorder
+from .friendship import ohayo, oyasumi
 
 
 async def keyword_reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -26,8 +27,11 @@ async def keyword_reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
     for keyword, resplist in word_dict.items():
         if keyword in message_text:
             text = random.choice(resplist)
-            text.replace("@name", update.effective_user.name)
-            sent_message = await update.effective_message.reply_text(text, quote=True)
+            sent_message = await update.effective_message.reply_text(text)
             logger.info(f"Bot: {sent_message.text}")
+            if keyword == "早":
+                await ohayo(update, context)
+            if keyword == "晚安":
+                await oyasumi(update, context)
             break
     await message_recorder(update, context)
