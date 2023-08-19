@@ -307,7 +307,7 @@ async def today_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 )
                 retry += 1
                 waifu_id = random.choice(group_member)
-                await asyncio.sleep(1)
+                await asyncio.sleep(2)
 
         if not is_success:
             await update.message.reply_text(text="你没能抽到老婆, 再试一次吧~")
@@ -373,7 +373,8 @@ async def today_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if avatar_big_id is not None:
             photo_to_send = avatar_big_id
         else:
-            avatar = (await context.bot.get_chat(waifu_id)).photo
+            waifu = await context.bot.get_chat(waifu_id)
+            avatar = waifu.photo
             if avatar is not None:
                 avatar = bytes(
                     await (await avatar.get_big_file()).download_as_bytearray()
@@ -395,6 +396,7 @@ async def today_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 allow_sending_without_reply=True,
             )
             avatar_big_id = sent_message.photo[0].file_id
+            logger.info(f"Bot: {text}")
         except BadRequest as e:
             if e.message == "Not enough rights to send photos to the chat":
                 await update.message.reply_markdown(
@@ -402,12 +404,23 @@ async def today_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     reply_markup=today_waifu_markup,
                     allow_sending_without_reply=True,
                 )
+                logger.info(f"Bot: {text}")
             else:
+                await update.message.reply_text(
+                    text="你没能抽到老婆, 再试一次吧~",
+                    allow_sending_without_reply=True,
+                )
+                logger.info("Bot: 你没能抽到老婆, 再试一次吧~")
                 raise e
         except Exception:
+            await update.message.reply_text(
+                text="你没能抽到老婆, 再试一次吧~",
+                allow_sending_without_reply=True,
+            )
+            logger.info("Bot: 你没能抽到老婆, 再试一次吧~")
             raise
-        logger.info(f"Bot: {text}")
     except Exception:
+        context.bot_data["today_waifu"][chat_id][user_id] = {}
         raise
     finally:
         context.bot_data["today_waifu"][chat_id][user_id]["waiting"] = False
