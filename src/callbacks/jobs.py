@@ -1,7 +1,9 @@
+import asyncio
+
 from telegram.ext import ContextTypes
+
 from ..logger import logger
 from .waifu import _waifu_graph
-import asyncio
 
 
 async def refresh_data(context: ContextTypes.DEFAULT_TYPE):

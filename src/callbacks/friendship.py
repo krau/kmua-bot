@@ -1,9 +1,11 @@
+import random
+
 from telegram import Update
 from telegram.ext import ContextTypes
+
+from ..data import ohayo_word, oyasumi_word
 from ..logger import logger
 from .jobs import send_message
-import random
-from ..data import ohayo_word, oyasumi_word
 
 
 async def ohayo(update: Update, context: ContextTypes.DEFAULT_TYPE):
