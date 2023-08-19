@@ -1,8 +1,6 @@
 import asyncio
-import os
+import pathlib
 import random
-import shutil
-import tempfile
 from itertools import chain
 from math import ceil, sqrt
 
@@ -42,6 +40,11 @@ async def migrate_waifu_shutdown(update: Update, context: ContextTypes.DEFAULT_T
     await context.bot.shutdown()
 
 
+_avatars_dir = pathlib.Path(
+    f"{pathlib.Path(__file__).resolve().parent.parent.parent}/data/avatars"  # noqa: E501
+)
+
+
 def render_waifu_graph(relationships, user_info) -> bytes:
     """
     Render waifu graph and return the image bytes
@@ -52,10 +55,6 @@ def render_waifu_graph(relationships, user_info) -> bytes:
     dpi = max(150, ceil(5 * sqrt(len(user_info) / 3)) * 20)
     graph = graphviz.Digraph(graph_attr={"dpi": str(dpi)})
 
-    temp_dir = (
-        tempfile.mkdtemp()
-    )  # Create a temporary directory to store the image file
-
     try:
         # Create nodes
         for user_id, info in user_info.items():
@@ -63,17 +62,14 @@ def render_waifu_graph(relationships, user_info) -> bytes:
             avatar = info.get("avatar")
 
             if avatar is not None:
-                # Save avatar to a temporary file
-                avatar_path = os.path.join(temp_dir, f"{user_id}_avatar.png")
-                with open(avatar_path, "wb") as avatar_file:
-                    avatar_file.write(avatar)
+                avatar_path = avatar
 
                 # Create a subgraph for each node
                 with graph.subgraph(name=f"cluster_{user_id}") as subgraph:
                     # Set the attributes for the subgraph
                     subgraph.attr(label=username)
                     subgraph.attr(shape="none")
-                    subgraph.attr(image=avatar_path)
+                    subgraph.attr(image=str(avatar_path))
                     subgraph.attr(imagescale="true")
                     subgraph.attr(fixedsize="true")
                     subgraph.attr(width="1")
@@ -85,7 +81,7 @@ def render_waifu_graph(relationships, user_info) -> bytes:
                         str(user_id),
                         label="",
                         shape="none",
-                        image=avatar_path,
+                        image=str(avatar_path),
                         imagescale="true",
                         fixedsize="true",
                         width="1",
@@ -103,11 +99,6 @@ def render_waifu_graph(relationships, user_info) -> bytes:
 
     except Exception:
         raise
-
-    finally:
-        # Clean up the temporary directory
-        if os.path.exists(temp_dir):
-            shutil.rmtree(temp_dir)
 
 
 async def waifu_graph(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -199,8 +190,7 @@ async def _waifu_graph(
                 if avatar:
                     avatar = await (
                         await user.photo.get_small_file()
-                    ).download_as_bytearray()
-                    avatar = bytes(avatar)
+                    ).download_to_drive(f"{_avatars_dir}/{user_id}.png")
 
                 user_info[user_id] = {
                     "username": username,
@@ -434,10 +424,12 @@ async def today_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE):
             if not context.bot_data["user_info"].get(waifu.id, None):
                 if avatar is not None:
                     try:
-                        avatar = bytes(
-                            await (
-                                await waifu.photo.get_small_file()
-                            ).download_as_bytearray()
+                        if not _avatars_dir.exists():
+                            _avatars_dir.mkdir()
+                        avatar = await (
+                            await waifu.photo.get_small_file()
+                        ).download_to_drive(
+                            custom_path=f"{_avatars_dir}/{waifu.id}.png",
                         )
                     except Exception as e:
                         avatar = None

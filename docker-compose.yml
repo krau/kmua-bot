@@ -5,13 +5,13 @@ services:
     container_name: kmua-v2-main
     restart: always
     volumes:
-      - ./data:/kmua/data
+      - ./data:/kmua/data # 不要修改此挂载
       - ./logs:/kmua/logs
     environment:
       - TZ=Asia/Shanghai
       - KMUA_TOKEN="你的token"
       - KMUA_OWNERS=[]
-      - KMUA_PICKLE_PATH="./data/data.pickle"
+      - KMUA_PICKLE_PATH="./data/data.pickle" # 不要修改此路径
       - KMUA_LOG_LEVEL="INFO"
       - KMUA_RANDOM_FILTER=0.1
       - KMUA_PICKLE_UPDATE_INTERVAL=60

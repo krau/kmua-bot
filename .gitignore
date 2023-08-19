@@ -10,3 +10,4 @@ logs/
 settings.dev*
 data.dev*
 data/data.pickle
+data/avatars/*
