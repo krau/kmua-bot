@@ -81,7 +81,9 @@ async def quote(update: Update, context: ContextTypes.DEFAULT_TYPE):
         is_save_data = False
     try:
         await context.bot.pin_chat_message(
-            chat_id=update.effective_chat.id, message_id=quote_message.id
+            chat_id=update.effective_chat.id,
+            message_id=quote_message.id,
+            disable_notification=True,
         )
         logger.debug(f"Bot将 {quote_message.text} 置顶")
     except BadRequest as e:
