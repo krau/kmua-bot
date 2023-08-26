@@ -28,6 +28,7 @@ async def keyword_reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
     for keyword, resplist in word_dict.items():
         if keyword in message_text:
             text = random.choice(resplist)
+            text = text.replace("name", update.effective_user.name)
             sent_message = await update.effective_message.reply_text(text)
             logger.info(f"Bot: {sent_message.text}")
             if keyword == "早":
