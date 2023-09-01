@@ -319,41 +319,22 @@ async def today_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE):
             .get(waifu_id, {})
             .get("waifu_is_mention", True)
         )
-        try:
-            text = (
-                (
-                    f"你今天已经抽过老婆了\! [{escape_markdown(full_name,2)}](tg://user?id={waifu_id}) 是你今天的老婆\!"  # noqa: E501
-                    if is_got_waifu
-                    else f"你今天的群幼老婆是 [{escape_markdown(full_name,2)}](tg://user?id={waifu_id}) \!"  # noqa: E501
-                )
-                if is_mention_waifu
-                else (
-                    f"你今天已经抽过老婆了\! {escape_markdown(full_name,2)} 是你今天的老婆\!"  # noqa: E501
-                    if is_got_waifu
-                    else f"你今天的群幼老婆是 {escape_markdown(full_name,2)} \!"
-                )
+        text = (
+            (
+                f"你今天已经抽过老婆了\! [{escape_markdown(full_name,2)}](tg://user?id={waifu_id}) 是你今天的老婆\!"  # noqa: E501
+                if is_got_waifu
+                else f"你今天的群幼老婆是 [{escape_markdown(full_name,2)}](tg://user?id={waifu_id}) \!"  # noqa: E501
             )
-        except TypeError as e:
-            logger.error(
-                f"无法为 {update.effective_user.name} 获取id为 {waifu_id} 的waifu:\n{e.__class__.__name__}: {e}"  # noqa: E501
+            if is_mention_waifu
+            else (
+                f"你今天已经抽过老婆了\! {escape_markdown(full_name,2)} 是你今天的老婆\!"  # noqa: E501
+                if is_got_waifu
+                else f"你今天的群幼老婆是 {escape_markdown(full_name,2)} \!"
             )
-            if is_got_waifu:
-                text = f"你的老婆消失了...TA的id曾是: {waifu_id}"
-            else:
-                text = "你没能抽到老婆, 再试一次吧~"
-            await update.message.reply_text(text=text)
-            poped_value = context.chat_data["members_data"].pop(
-                waifu_id, "群组数据中无该成员"
-            )  # noqa: E501
-            context.bot_data["today_waifu"][chat_id][user_id] = {}
-            logger.debug(f"移除: {poped_value}")
-            if context.bot_data["user_info"].get(waifu_id, None):
-                context.bot_data["user_info"].pop(waifu_id)
-            return
-
+        )
+        
         if not update.message:
             return
-
         today_waifu_markup = InlineKeyboardMarkup(
             [
                 [
@@ -402,18 +383,8 @@ async def today_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 )
                 logger.info(f"Bot: {text}")
             else:
-                await update.message.reply_text(
-                    text="你没能抽到老婆, 再试一次吧~",
-                    allow_sending_without_reply=True,
-                )
-                logger.info("Bot: 你没能抽到老婆, 再试一次吧~")
                 raise e
         except Exception:
-            await update.message.reply_text(
-                text="你没能抽到老婆, 再试一次吧~",
-                allow_sending_without_reply=True,
-            )
-            logger.info("Bot: 你没能抽到老婆, 再试一次吧~")
             raise
     except Exception:
         context.bot_data["today_waifu"][chat_id][user_id] = {}
