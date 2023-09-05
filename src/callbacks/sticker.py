@@ -13,18 +13,22 @@ async def sticker2img(update: Update, context: ContextTypes.DEFAULT_TYPE):
         chat_id=update.effective_chat.id, action=ChatAction.UPLOAD_DOCUMENT
     )
     sticker = update.message.sticker
-    if sticker.is_animated or sticker.is_video:
-        return
+
     file = None
+    ext_name = "png"
     if sticker.file_unique_id in context.bot_data["sticker2img"]:
         file = context.bot_data["sticker2img"][sticker.file_unique_id]
     if not file:
         file = await sticker.get_file()
         file = await file.download_as_bytearray()
         file = bytes(file)
+    if sticker.is_animated:
+        return
+    if sticker.is_video:
+        ext_name = "mp4"
     sent_message = await update.message.reply_document(
         document=file,
-        filename=f"{sticker.file_size}.png",
+        filename=f"{sticker.file_size}.{ext_name}",
         disable_content_type_detection=True,
         allow_sending_without_reply=True,
         caption=f"file_id: {sticker.file_id}",
