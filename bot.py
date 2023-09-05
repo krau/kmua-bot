@@ -50,6 +50,8 @@ async def init_data(app: Application):
         app.bot_data["user_info"] = {}
     if not app.bot_data.get("music"):
         app.bot_data["music"] = []
+    if not app.bot_data.get("sticker2img"):
+        app.bot_data["sticker2img"] = {}
 
 
 def run():

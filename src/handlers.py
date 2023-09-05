@@ -67,6 +67,7 @@ from .callbacks.waifu import (
     user_waifu_manage,
     waifu_graph,
 )
+from .callbacks.sticker import sticker2img, clear_sticker_cache
 from .config.config import settings
 from .filters import (
     interact_filter,
@@ -115,6 +116,9 @@ clear_user_info_handler = CommandHandler("clear_user_info", clear_user_info)
 clear_user_quote_handler = CommandHandler("clear_user_quote", clear_user_quote)
 add_music_handler = CommandHandler("add_music", add_music)
 clear_music_handler = CommandHandler("clear_music", clear_music)
+clear_sticker_cache_handler = CommandHandler(
+    "clear_sticker_cache", clear_sticker_cache
+)
 
 # CallbackQueryHandlers
 start_callback_handler = CallbackQueryHandler(start, pattern="back_home")
@@ -168,6 +172,7 @@ member_left_handler = MessageHandler(
 member_join_handler = MessageHandler(
     filters.StatusUpdate.NEW_CHAT_MEMBERS, on_member_join
 )
+sticker2img_handler = MessageHandler(filters.Sticker.ALL, sticker2img)
 
 handlers = [
     start_handler,
@@ -193,6 +198,7 @@ handlers = [
     clear_user_quote_handler,
     add_music_handler,
     clear_music_handler,
+    clear_sticker_cache_handler,
     set_title_permissions_callback_handler,
     start_callback_handler,
     clear_chat_quote_ask_handler,
@@ -219,6 +225,7 @@ handlers = [
     clear_user_text_quote_handler,
     user_waifu_manage_handler,
     set_mention_handler,
+    sticker2img_handler,
     random_quote_handler,
 ]
 
