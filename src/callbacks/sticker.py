@@ -1,14 +1,17 @@
 from telegram import Update
 from telegram.ext import ContextTypes
-
+from telegram.constants import ChatAction
 from ..config.config import settings
 from ..logger import logger
 
 
-async def sticker2img(update: Update, context: ContextTypes):
+async def sticker2img(update: Update, context: ContextTypes.DEFAULT_TYPE):
     logger.info(f"sticker2img {update.effective_user.name}")
     if update.message.sticker is None:
         return
+    await context.bot.send_chat_action(
+        chat_id=update.effective_chat.id, action=ChatAction.UPLOAD_DOCUMENT
+    )
     sticker = update.message.sticker
     if sticker.is_animated or sticker.is_video:
         return
