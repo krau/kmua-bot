@@ -29,6 +29,8 @@ async def quote(update: Update, context: ContextTypes.DEFAULT_TYPE):
         + f" {update.effective_message.text}"
     )
     await message_recorder(update, context)
+    if context.args:
+        return
     if not update.effective_message.reply_to_message:
         sent_message = await context.bot.send_message(
             chat_id=update.effective_chat.id,
