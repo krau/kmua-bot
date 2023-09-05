@@ -116,9 +116,7 @@ clear_user_info_handler = CommandHandler("clear_user_info", clear_user_info)
 clear_user_quote_handler = CommandHandler("clear_user_quote", clear_user_quote)
 add_music_handler = CommandHandler("add_music", add_music)
 clear_music_handler = CommandHandler("clear_music", clear_music)
-clear_sticker_cache_handler = CommandHandler(
-    "clear_sticker_cache", clear_sticker_cache
-)
+clear_sticker_cache_handler = CommandHandler("clear_sticker_cache", clear_sticker_cache)
 
 # CallbackQueryHandlers
 start_callback_handler = CallbackQueryHandler(start, pattern="back_home")
@@ -172,7 +170,9 @@ member_left_handler = MessageHandler(
 member_join_handler = MessageHandler(
     filters.StatusUpdate.NEW_CHAT_MEMBERS, on_member_join
 )
-sticker2img_handler = MessageHandler(filters.Sticker.ALL, sticker2img)
+sticker2img_handler = MessageHandler(
+    (filters.Sticker.ALL & filters.ChatType.PRIVATE), sticker2img
+)
 
 handlers = [
     start_handler,
