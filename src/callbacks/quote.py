@@ -264,17 +264,95 @@ async def del_quote(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     await message_recorder(update, context)
     if not context.chat_data.get("quote_messages", None):
-        sent_message = await context.bot.send_message(
-            chat_id=update.effective_chat.id, text="该聊天没有名言呢"
+        sent_message = await update.effective_message.reply_text("该聊天没有名言呢")
+        logger.info(f"Bot: {sent_message.text}")
+        return
+    if update.effective_message.reply_to_message:
+        await _del_a_quote(update, context)
+        return
+    all_quote_messages = context.chat_data["quote_messages"]
+    chat_id = update.effective_chat.id
+    chat_id = str(chat_id).removeprefix("-100")
+    prefix = f"https://t.me/c/{chat_id}/"
+    all_quote_messages_link = [
+        prefix + str(message_id) for message_id in all_quote_messages
+    ]
+    total = len(all_quote_messages_link)
+    if total <= 10:
+        text = "\n\n".join(all_quote_messages_link)
+        sent_message = await update.effective_message.reply_text(
+            text=text, disable_web_page_preview=True, allow_sending_without_reply=True
         )
         logger.info(f"Bot: {sent_message.text}")
         return
-    if not update.effective_message.reply_to_message:
-        sent_message = await context.bot.send_message(
-            chat_id=update.effective_chat.id, text="请回复要移出语录的消息"
-        )
-        logger.info(f"Bot: {sent_message.text}")
-        return
+    current_page = 1
+    max_page = total // 10 + 1
+    text = f"共记录 {total} 条; 当前页: {current_page}/{max_page}\n\n" + "\n\n".join(
+        all_quote_messages_link[:10]
+    )
+    sent_message = await update.effective_message.reply_text(
+        text=text,
+        disable_web_page_preview=True,
+        allow_sending_without_reply=True,
+        reply_markup=InlineKeyboardMarkup(
+            [
+                [
+                    InlineKeyboardButton(
+                        "上一页",
+                        callback_data=f"del_quote_page {current_page - 1}",
+                    ),
+                    InlineKeyboardButton(
+                        "下一页",
+                        callback_data=f"del_quote_page {current_page + 1}",
+                    ),
+                ]
+            ]
+        ),
+    )
+    logger.info(f"Bot: {sent_message.text}")
+
+
+async def del_quote_page(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    current_page = int(update.callback_query.data.split(" ")[-1])
+    all_quote_messages = context.chat_data["quote_messages"]
+    chat_id = update.effective_chat.id
+    chat_id = str(chat_id).removeprefix("-100")
+    prefix = f"https://t.me/c/{chat_id}/"
+    all_quote_messages_link = [
+        prefix + str(message_id) for message_id in all_quote_messages
+    ]
+    total = len(all_quote_messages_link)
+    max_page = total // 10 + 1
+    if current_page < 1:
+        current_page = 1
+    if current_page > max_page:
+        current_page = max_page
+    text = f"共记录 {total} 条; 当前页: {current_page}/{max_page}\n\n" + "\n\n".join(
+        all_quote_messages_link[(current_page - 1) * 10 : current_page * 10]
+    )
+    await context.bot.edit_message_text(
+        chat_id=update.effective_chat.id,
+        text=text,
+        message_id=update.callback_query.message.id,
+        disable_web_page_preview=True,
+        reply_markup=InlineKeyboardMarkup(
+            [
+                [
+                    InlineKeyboardButton(
+                        "上一页",
+                        callback_data=f"del_quote_page {current_page - 1}",
+                    ),
+                    InlineKeyboardButton(
+                        "下一页",
+                        callback_data=f"del_quote_page {current_page + 1}",
+                    ),
+                ]
+            ]
+        ),
+    )
+
+
+async def _del_a_quote(update: Update, context: ContextTypes.DEFAULT_TYPE):
     quote_message = update.effective_message.reply_to_message
     if quote_message.id in context.chat_data["quote_messages"]:
         context.chat_data["quote_messages"].remove(quote_message.id)
@@ -304,7 +382,7 @@ async def del_quote(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         sent_message = await context.bot.send_message(
             chat_id=update.effective_chat.id,
-            text="该消息不在语录中;请对原始的名言消息使用",
+            text="该消息不在语录中;请对原始的名言消息使用\n或直接使用 /d 管理本群语录",
             reply_to_message_id=quote_message.id,
         )
         logger.info(f"Bot: {sent_message.text}")

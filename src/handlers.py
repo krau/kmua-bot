@@ -34,6 +34,7 @@ from .callbacks.quote import (
     clear_chat_quote_cancel,
     clear_user_quote,
     del_quote,
+    del_quote_page,
     inline_query_quote,
     quote,
     random_quote,
@@ -156,7 +157,9 @@ set_mention_handler = CallbackQueryHandler(set_mention, pattern="set_mention")
 set_title_permissions_callback_handler = CallbackQueryHandler(
     set_title_permissions_callback, pattern=r"set_title_permissions"
 )
-
+del_quote_page_handler = CallbackQueryHandler(
+    del_quote_page, pattern=r"del_quote_page"
+)
 
 # others
 interact_handler = MessageHandler(filters=interact_filter, callback=interact)
@@ -186,6 +189,7 @@ handlers = [
     title_handler,
     set_quote_probability_handler,
     del_quote_handler,
+    del_quote_page_handler,
     qrand_handler,
     remake_handler,
     clear_waifu_data_handler,
