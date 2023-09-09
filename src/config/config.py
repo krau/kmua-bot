@@ -4,6 +4,8 @@ from dynaconf import Dynaconf
 
 _BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
+avatars_dir = Path(f"{Path(__file__).resolve().parent.parent.parent}/data/avatars")
+
 settings_files = [
     "settings.toml",
     "settings.dev.toml",

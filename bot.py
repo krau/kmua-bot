@@ -1,5 +1,4 @@
 import datetime
-import os
 from pathlib import Path
 
 import pytz
@@ -13,7 +12,7 @@ from telegram.ext import (
 )
 
 from src.callbacks.jobs import refresh_data
-from src.config.config import settings
+from src.config.config import settings,avatars_dir
 from src.handlers import handlers, on_error
 from src.logger import logger
 
@@ -55,8 +54,10 @@ async def init_data(app: Application):
 
 
 def run():
-    if not os.path.exists(Path(settings.pickle_path).parent):
-        os.makedirs(Path(settings.pickle_path).parent)
+    if not Path(settings.pickle_path).parent.exists():
+        Path(settings.pickle_path).parent.mkdir()
+    if not avatars_dir.exists():
+        avatars_dir.mkdir()
     token = settings.token
     defaults = Defaults(tzinfo=pytz.timezone("Asia/Shanghai"))
     persistence = PicklePersistence(

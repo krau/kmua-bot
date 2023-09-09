@@ -1,7 +1,9 @@
+import shutil
+
 from telegram import Update
 from telegram.ext import ContextTypes
 
-from ..config.config import settings
+from ..config.config import avatars_dir, settings
 from ..logger import logger
 
 
@@ -30,4 +32,6 @@ async def clear_user_info(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     context.bot_data["user_info"] = {}
     await context.application.persistence.flush()
+    shutil.rmtree(avatars_dir)
+    avatars_dir.mkdir()
     await update.message.reply_text("已清除用户信息缓存")

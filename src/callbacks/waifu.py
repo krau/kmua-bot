@@ -1,5 +1,4 @@
 import asyncio
-import pathlib
 import random
 from itertools import chain
 from math import ceil, sqrt
@@ -11,7 +10,7 @@ from telegram.error import BadRequest
 from telegram.ext import ContextTypes
 from telegram.helpers import escape_markdown
 
-from ..config.config import settings
+from ..config.config import avatars_dir, settings
 from ..logger import logger
 from ..utils import message_recorder
 
@@ -38,11 +37,6 @@ async def migrate_waifu_shutdown(update: Update, context: ContextTypes.DEFAULT_T
 
     logger.info("migration finished!")
     await context.bot.shutdown()
-
-
-_avatars_dir = pathlib.Path(
-    f"{pathlib.Path(__file__).resolve().parent.parent.parent}/data/avatars"  # noqa: E501
-)
 
 
 def render_waifu_graph(relationships, user_info) -> bytes:
@@ -190,7 +184,7 @@ async def _waifu_graph(
                 if avatar:
                     avatar = await (
                         await user.photo.get_small_file()
-                    ).download_to_drive(f"{_avatars_dir}/{user_id}.png")
+                    ).download_to_drive(f"{avatars_dir}/{user_id}.png")
 
                 user_info[user_id] = {
                     "username": username,
@@ -395,12 +389,12 @@ async def today_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE):
             if not context.bot_data["user_info"].get(waifu.id, None):
                 if avatar is not None:
                     try:
-                        if not _avatars_dir.exists():
-                            _avatars_dir.mkdir()
+                        if not avatars_dir.exists():
+                            avatars_dir.mkdir()
                         avatar = await (
                             await waifu.photo.get_small_file()
                         ).download_to_drive(
-                            custom_path=f"{_avatars_dir}/{waifu.id}.png",
+                            custom_path=f"{avatars_dir}/{waifu.id}.png",
                         )
                     except Exception as e:
                         avatar = None
