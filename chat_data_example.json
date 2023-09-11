@@ -7,7 +7,10 @@
         "quote_probability": 0.01,
         "msg_num": 33179,
         "members_data": {
-            "userid": "<MemberData Object>"
+            "userid": {
+                "name":"fullname",
+                "quote_count": 0
+            }
         }
     }
 }

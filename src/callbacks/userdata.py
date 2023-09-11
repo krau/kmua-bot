@@ -97,7 +97,7 @@ async def user_quote_manage(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         logger.info(f"Bot: {sent_message.text}")
         return
-    quotes_content = [quote.content for quote in quotes]
+    quotes_content = [quote['content'] for quote in quotes]
     is_short = False
     if len(quotes) <= 5:
         is_short = True
@@ -108,13 +108,13 @@ async def user_quote_manage(update: Update, context: ContextTypes.DEFAULT_TYPE):
         for i, quote in enumerate(quotes):
             line.append(
                 InlineKeyboardButton(
-                    i + 1, callback_data=f"delete_quote_{str(quote.id)}"
+                    i + 1, callback_data=f"delete_quote_{str(quote['id'])}"
                 )
             )
         keyboard.append(line)
     if not is_short:
         for i, quote in enumerate(quotes[(current_page - 1) * 5 : current_page * 5]):
-            line.append(InlineKeyboardButton(i + 1, callback_data=str(quote.id)))
+            line.append(InlineKeyboardButton(i + 1, callback_data=str(quote['id'])))
         keyboard.append(line)
         navigation_buttons = [
             InlineKeyboardButton("上一页", callback_data=f"prev_page_{current_page}"),
@@ -150,7 +150,7 @@ async def prev_page(update: Update, context: ContextTypes.DEFAULT_TYPE):
     end_index = current_page * 5
     text = f"你的名言(第{current_page}/{pages}页):\n点击序号对应的按钮删除名言\n\n"
     for i, quote in enumerate(quotes[start_index:end_index]):
-        text += f"{i + 1 + start_index} - {quote.content}\n"
+        text += f"{i + 1 + start_index} - {quote['content']}\n"
     navigation_buttons = [
         InlineKeyboardButton("上一页", callback_data=f"prev_page_{current_page}"),
         InlineKeyboardButton(f"第{current_page}/{pages}页", callback_data="noop"),
@@ -160,7 +160,7 @@ async def prev_page(update: Update, context: ContextTypes.DEFAULT_TYPE):
     for i, quote in enumerate(quotes[start_index:end_index]):
         line.append(
             InlineKeyboardButton(
-                i + 1 + start_index, callback_data=f"delete_quote_{str(quote.id)}"
+                i + 1 + start_index, callback_data=f"delete_quote_{str(quote['id'])}"
             )
         )
     keyboard.append(line)
@@ -188,7 +188,7 @@ async def next_page(update: Update, context: ContextTypes.DEFAULT_TYPE):
     end_index = current_page * 5
     text = f"你的名言(第{current_page}/{pages}页):\n点击序号对应的按钮删除名言\n\n"
     for i, quote in enumerate(quotes[start_index:end_index]):
-        text += f"{i + 1 + start_index} - {quote.content}\n"
+        text += f"{i + 1 + start_index} - {quote['content']}\n"
     navigation_buttons = [
         InlineKeyboardButton("上一页", callback_data=f"prev_page_{current_page}"),
         InlineKeyboardButton(f"第{current_page}/{pages}页", callback_data="noop"),
@@ -198,7 +198,7 @@ async def next_page(update: Update, context: ContextTypes.DEFAULT_TYPE):
     for i, quote in enumerate(quotes[start_index:end_index]):
         line.append(
             InlineKeyboardButton(
-                i + 1 + start_index, callback_data=f"delete_quote_{str(quote.id)}"
+                i + 1 + start_index, callback_data=f"delete_quote_{str(quote['id'])}"
             )
         )
     keyboard.append(line)
@@ -220,9 +220,9 @@ async def delete_quote(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text_quotes = context.bot_data["quotes"].get(user_id, {}).get("text", [])
     img_quotes = context.bot_data["quotes"].get(user_id, {}).get("img", [])
     for i, quote in enumerate(text_quotes):
-        if str(quote.id) == quote_id:
+        if str(quote['id']) == quote_id:
             for j, img_quote in enumerate(img_quotes):
-                if img_quote.id == quote_id:
+                if img_quote['id'] == quote_id:
                     img_quotes.pop(j)
                     break
             text_quotes.pop(i)

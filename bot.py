@@ -12,7 +12,7 @@ from telegram.ext import (
 )
 
 from src.callbacks.jobs import refresh_data
-from src.config.config import settings,avatars_dir
+from src.config.config import settings, avatars_dir
 from src.handlers import handlers, on_error
 from src.logger import logger
 
@@ -36,10 +36,6 @@ async def init_data(app: Application):
             ("clear_chat_data", "⚠清空聊天数据"),
         ]
     )
-    bot_user = await app.bot.get_me()
-    global bot_username
-    bot_username = bot_user.username
-    app.bot_data["bot_username"] = bot_username
     if not app.bot_data.get("quotes", None):
         app.bot_data["quotes"] = {}
     if not app.bot_data.get("today_waifu", None):

@@ -10,6 +10,7 @@ from telegram import (
     InlineQueryResultCachedPhoto,
     InputTextMessageContent,
     Update,
+    InlineQueryResultsButton,
 )
 from telegram.constants import ChatAction, ChatID
 from telegram.error import BadRequest
@@ -18,7 +19,6 @@ from telegram.helpers import escape_markdown
 
 from ..config.config import settings
 from ..logger import logger
-from ..model import ImgQuote, MemberData, TextQuote
 from ..utils import generate_quote_img, message_recorder, random_unit
 from .jobs import del_message
 
@@ -71,14 +71,10 @@ async def quote(update: Update, context: ContextTypes.DEFAULT_TYPE):
             not context.chat_data["members_data"].get(quote_user.id, None)
             and not not_user
         ):
-            member_data_obj = MemberData(
-                id=quote_user.id,
-                name=quote_user.full_name,
-                msg_num=0,
-                quote_num=0,
-            )
-            context.chat_data["members_data"][quote_user.id] = member_data_obj
-            context.chat_data["members_data"][quote_user.id].quote_num += 1
+            context.chat_data["members_data"][quote_user.id] = {
+                "name": quote_user.full_name,
+                "quote_count": 1,
+            }
     if quote_message.forward_sender_name and forward_from_user is None:
         is_save_data = False
     try:
@@ -123,13 +119,21 @@ async def quote(update: Update, context: ContextTypes.DEFAULT_TYPE):
         context.bot_data["quotes"][quote_user.id] = {}
         context.bot_data["quotes"][quote_user.id]["img"] = []
         context.bot_data["quotes"][quote_user.id]["text"] = []
+
+    uuid = uuid1()
     if not not_user:
-        uuid = uuid1()
-        quote_text_obj = TextQuote(
-            id=uuid, content=quote_message.text, created_at=datetime.now()
-        )
+        # quote_text_obj = TextQuote(
+        #     id=uuid, content=quote_message.text, created_at=datetime.now()
+        # )
+        quote_text_obj = {
+            "id": uuid,
+            "content": quote_message.text,
+            "created_at": datetime.now(),
+        }
         context.bot_data["quotes"][quote_user.id]["text"].append(quote_text_obj)
-        logger.debug(f"[{quote_text_obj.content}]({quote_text_obj.id})" + "已保存")
+        logger.debug(
+            f"[{quote_text_obj['content']}]({quote_text_obj['id']})" + "已保存"
+        )  # noqa: E501
     if len(quote_message.text) > 200:
         # 如果文字长度超过200, 则不生成图片
         await update.message.reply_text(text="字数太多了！不排了！")
@@ -156,12 +160,18 @@ async def quote(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
         photo_id = sent_photo.photo[0].file_id
         # 保存图像数据
-        quote_img_obj = ImgQuote(
-            id=uuid,
-            content=photo_id,
-            created_at=datetime.now(),
-            text=quote_message.text,
-        )
+        # quote_img_obj = ImgQuote(
+        #     id=uuid,
+        #     content=photo_id,
+        #     created_at=datetime.now(),
+        #     text=quote_message.text,
+        # )
+        quote_img_obj = {
+            "id": uuid,
+            "content": photo_id,
+            "created_at": datetime.now(),
+            "text": quote_message.text,
+        }
         context.bot_data["quotes"][quote_user.id]["img"].append(quote_img_obj)
     except Exception as e:
         await context.bot.send_message(
@@ -367,7 +377,9 @@ async def _del_a_quote(update: Update, context: ContextTypes.DEFAULT_TYPE):
             logger.debug(
                 "Bot将"
                 + (
-                    f"{quote_message.text}" if quote_message.text else "<一条非文本消息>"
+                    f"{quote_message.text}"
+                    if quote_message.text
+                    else "<一条非文本消息>"  # noqa: E501
                 )  # noqa: E501
                 + "取消置顶"
             )
@@ -483,14 +495,15 @@ async def clear_chat_quote_cancel(update: Update, context: ContextTypes.DEFAULT_
     await update.callback_query.message.delete()
 
 
+_result_button = InlineQueryResultsButton(text="名言管理", start_parameter="start")
+
+
 async def inline_query_quote(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.inline_query.query
     user_id = update.inline_query.from_user.id
     quotes_data = context.bot_data["quotes"].get(user_id, {})
-    text_quotes: list[TextQuote] = quotes_data.get("text", [])
-    img_quotes: list[ImgQuote] = quotes_data.get("img", [])
-    switch_pm_text = "名言管理"
-    switch_pm_parameter = "start"
+    text_quotes = quotes_data.get("text", [])
+    img_quotes = quotes_data.get("img", [])
     is_personal = True
     cache_time = 10
     results = []
@@ -515,28 +528,28 @@ async def inline_query_quote(update: Update, context: ContextTypes.DEFAULT_TYPE)
     else:
         if query:
             for text_quote in text_quotes:
-                if query in text_quote.content:
-                    create_at_str = text_quote.created_at.strftime(
+                if query in text_quote["content"]:
+                    create_at_str = text_quote["created_at"].strftime(
                         "%Y年%m月%d日%H时%M分%S秒"
                     )  # noqa: E501
                     results.append(
                         InlineQueryResultArticle(
                             id=str(uuid4()),
-                            title=text_quote.content,
+                            title=text_quote["content"],
                             input_message_content=InputTextMessageContent(
-                                text_quote.content
+                                text_quote["content"]
                             ),
                         )
                     )
             for img_quote in img_quotes:
-                if query in img_quote.text:
-                    create_at_str = img_quote.created_at.strftime(
+                if query in img_quote["text"]:
+                    create_at_str = img_quote["created_at"].strftime(
                         "%Y年%m月%d日%H时%M分%S秒"
                     )  # noqa: E501
                     results.append(
                         InlineQueryResultCachedPhoto(
                             id=str(uuid4()),
-                            photo_file_id=img_quote.content,
+                            photo_file_id=img_quote["content"],
                         )
                     )
             if len(results) == 0:
@@ -554,34 +567,33 @@ async def inline_query_quote(update: Update, context: ContextTypes.DEFAULT_TYPE)
         else:
             results = []
             for text_quote in random.sample(text_quotes, min(len(text_quotes), 10)):
-                create_at_str = text_quote.created_at.strftime(
+                create_at_str = text_quote["created_at"].strftime(
                     "%Y年%m月%d日%H时%M分%S秒"
                 )  # noqa: E501
                 results.append(
                     InlineQueryResultArticle(
                         id=str(uuid4()),
-                        title=text_quote.content,
+                        title=text_quote["content"],
                         input_message_content=InputTextMessageContent(
-                            message_text=text_quote.content,
+                            message_text=text_quote["content"],
                         ),
                         description=f"于{create_at_str}记",
                     )
                 )
 
             for img_quote in random.sample(img_quotes, min(len(img_quotes), 10)):
-                create_at_str = img_quote.created_at.strftime(
+                create_at_str = img_quote["created_at"].strftime(
                     "%Y年%m月%d日%H时%M分%S秒"
                 )  # noqa: E501
                 results.append(
                     InlineQueryResultCachedPhoto(
                         id=str(uuid4()),
-                        photo_file_id=img_quote.content,
+                        photo_file_id=img_quote["content"],
                     )
                 )
     await update.inline_query.answer(
+        button=_result_button,
         results=results,
-        switch_pm_text=switch_pm_text,
-        switch_pm_parameter=switch_pm_parameter,
         is_personal=is_personal,
         cache_time=cache_time,
     )
