@@ -1,16 +1,18 @@
 import random
 import time
-from datetime import datetime
-from uuid import uuid1, uuid4
+from uuid import uuid4
 
 from telegram import (
+    Chat,
     InlineKeyboardButton,
     InlineKeyboardMarkup,
     InlineQueryResultArticle,
     InlineQueryResultCachedPhoto,
-    InputTextMessageContent,
-    Update,
     InlineQueryResultsButton,
+    InputTextMessageContent,
+    Message,
+    Update,
+    User,
 )
 from telegram.constants import ChatAction, ChatID
 from telegram.error import BadRequest
@@ -18,9 +20,14 @@ from telegram.ext import ContextTypes
 from telegram.helpers import escape_markdown
 
 from ..config.config import settings
+from ..database import dao
 from ..logger import logger
-from ..utils import generate_quote_img, message_recorder, random_unit
-from .jobs import del_message
+from ..utils import (
+    generate_quote_img,
+    get_big_avatar_bytes,
+    message_recorder,
+    random_unit,
+)
 
 
 async def quote(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -41,7 +48,6 @@ async def quote(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     quote_message = update.effective_message.reply_to_message
     quote_user = quote_message.from_user
-    is_save_data = True
     forward_from_user = quote_message.forward_from
     is_chat = False
     is_bot = False
@@ -63,122 +69,61 @@ async def quote(update: Update, context: ContextTypes.DEFAULT_TYPE):
             ChatID.SERVICE_CHAT,
         ]
     )
-    if (
-        not (forward_from_user and quote_message.forward_sender_name)
-        and update.effective_chat.type != "private"
-    ):
-        if (
-            not context.chat_data["members_data"].get(quote_user.id, None)
-            and not not_user
-        ):
-            context.chat_data["members_data"][quote_user.id] = {
-                "name": quote_user.full_name,
-                "quote_count": 1,
-            }
-    if quote_message.forward_sender_name and forward_from_user is None:
-        is_save_data = False
-    try:
-        await context.bot.pin_chat_message(
-            chat_id=update.effective_chat.id,
-            message_id=quote_message.id,
-            disable_notification=True,
-        )
-        logger.debug(f"Bot将 {quote_message.text} 置顶")
-    except BadRequest as e:
-        if e.message == "Not enough rights to manage pinned messages in the chat":
-            pass
-        else:
-            raise e
-    if not context.chat_data.get("quote_messages", None):
-        context.chat_data["quote_messages"] = []
-    if quote_message.id not in context.chat_data["quote_messages"]:
-        context.chat_data["quote_messages"].append(quote_message.id)
-        logger.debug(
-            f"将{quote_message.id}([{update.effective_chat.title}]({quote_user.title if is_chat else quote_user.name}))"  # noqa: E501
-            + "加入chat quote"
-        )
-    sent_message = await context.bot.send_message(
-        chat_id=update.effective_chat.id,
-        text="已记录名言",
-        reply_to_message_id=quote_message.id,
-    )
-    context.job_queue.run_once(
-        del_message,
-        3,
-        data={"message_id": sent_message.message_id},
-        chat_id=update.effective_chat.id,
-        user_id=update.effective_user.id,
-    )
-    if not quote_message.text:
-        # 如果不是文字消息, 在此处return
-        return
-    # 是文字消息
-    if not is_save_data:
-        return
-    if not context.bot_data["quotes"].get(quote_user.id, None) and not not_user:
-        context.bot_data["quotes"][quote_user.id] = {}
-        context.bot_data["quotes"][quote_user.id]["img"] = []
-        context.bot_data["quotes"][quote_user.id]["text"] = []
+    await _pin_quote_message(quote_message)
 
-    uuid = uuid1()
-    if not not_user:
-        # quote_text_obj = TextQuote(
-        #     id=uuid, content=quote_message.text, created_at=datetime.now()
-        # )
-        quote_text_obj = {
-            "id": uuid,
-            "content": quote_message.text,
-            "created_at": datetime.now(),
-        }
-        context.bot_data["quotes"][quote_user.id]["text"].append(quote_text_obj)
-        logger.debug(
-            f"[{quote_text_obj['content']}]({quote_text_obj['id']})" + "已保存"
-        )  # noqa: E501
-    if len(quote_message.text) > 200:
-        # 如果文字长度超过200, 则不生成图片
-        await update.message.reply_text(text="字数太多了！不排了！")
+    await quote_message.reply_text(text="好!")
+
+    quote_img_file_id = await _generate_and_sned_quote_img(
+        update, context, quote_message, quote_user
+    )
+    if not_user:
         return
-    avatar_photo = (await context.bot.get_chat(chat_id=quote_user.id)).photo
-    if not avatar_photo:
-        # 如果没有头像, 或因为权限设置无法获取到头像, 直接
-        return
-    # 尝试生成图片
+    await _save_quote_data(update, quote_message, quote_user, quote_img_file_id)
+
+
+async def _pin_quote_message(quote_message: Message):
     try:
-        await context.bot.send_chat_action(
-            chat_id=update.effective_chat.id, action=ChatAction.UPLOAD_PHOTO
-        )
-        avatar = await (await avatar_photo.get_big_file()).download_as_bytearray()
-        quote_img = await generate_quote_img(
-            avatar=avatar,
-            text=quote_message.text,
-            name=quote_user.title if is_chat else quote_user.name,
-        )
-        sent_photo = await context.bot.send_photo(
-            chat_id=update.effective_chat.id, photo=quote_img
-        )
-        if not_user:
-            return
-        photo_id = sent_photo.photo[0].file_id
-        # 保存图像数据
-        # quote_img_obj = ImgQuote(
-        #     id=uuid,
-        #     content=photo_id,
-        #     created_at=datetime.now(),
-        #     text=quote_message.text,
-        # )
-        quote_img_obj = {
-            "id": uuid,
-            "content": photo_id,
-            "created_at": datetime.now(),
-            "text": quote_message.text,
-        }
-        context.bot_data["quotes"][quote_user.id]["img"].append(quote_img_obj)
-    except Exception as e:
-        await context.bot.send_message(
-            chat_id=update.effective_chat.id,
-            text=f"生成图像时出错: {e.__class__.__name__}: {e}",
-        )
-        logger.error(f"{e.__class__.__name__}: {e}")
+        await quote_message.pin(disable_notification=True)
+    except Exception:
+        pass
+
+
+async def _generate_and_sned_quote_img(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE,
+    quote_message: Message,
+    quote_user: User | Chat,
+) -> str | None:
+    if not quote_message.text:
+        return None
+    if len(quote_message.text) > 200:
+        return None
+    avatar = await get_big_avatar_bytes(quote_user.id, context)
+    if not avatar:
+        return None
+    await update.effective_chat.send_action(ChatAction.UPLOAD_PHOTO)
+    quote_img = await generate_quote_img(
+        avatar=avatar,
+        text=quote_message.text,
+        name=quote_user.title if isinstance(quote_user, Chat) else quote_user.name,
+    )
+    sent_photo = await update.effective_chat.send_photo(photo=quote_img)
+    return sent_photo.photo[0].file_id
+
+
+async def _save_quote_data(
+    update: Update,
+    quote_message: Message,
+    quote_user: User | Chat,
+    quote_img: str | None,
+):
+    dao.add_quote(
+        chat=update.effective_chat,
+        user=quote_user,
+        message_id=quote_message.id,
+        text=quote_message.text,
+        img=quote_img,
+    )
 
 
 async def set_quote_probability(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -519,7 +464,7 @@ async def inline_query_quote(update: Update, context: ContextTypes.DEFAULT_TYPE)
     if not text_quotes and not img_quotes:
         results.append(
             InlineQueryResultArticle(
-                id=uuid4(),
+                id=str(uuid4()),
                 title="你还没有保存任何名言",
                 input_message_content=InputTextMessageContent("我还没有任何名言"),
                 reply_markup=no_quote_inline_markup,

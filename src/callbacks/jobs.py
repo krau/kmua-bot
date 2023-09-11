@@ -1,9 +1,7 @@
 import asyncio
-import shutil
 
 from telegram.ext import ContextTypes
 
-from ..config.config import avatars_dir
 from ..logger import logger
 from .waifu import _waifu_graph
 
@@ -25,8 +23,6 @@ async def refresh_data(context: ContextTypes.DEFAULT_TYPE):
         context.bot_data["waifu_mutex"] = {}
         context.bot_data["user_info"] = {}
         await context.application.persistence.flush()
-        shutil.rmtree(avatars_dir)
-        avatars_dir.mkdir()
         logger.debug("数据已刷新: today_waifu")
 
 

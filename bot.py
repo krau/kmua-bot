@@ -1,5 +1,5 @@
 import datetime
-from pathlib import Path
+from src.database.db import db
 
 import pytz
 from telegram.constants import UpdateType
@@ -8,11 +8,10 @@ from telegram.ext import (
     Application,
     ApplicationBuilder,
     Defaults,
-    PicklePersistence,
 )
 
 from src.callbacks.jobs import refresh_data
-from src.config.config import settings, avatars_dir
+from src.config.config import settings
 from src.handlers import handlers, on_error
 from src.logger import logger
 
@@ -49,25 +48,22 @@ async def init_data(app: Application):
         app.bot_data["sticker2img"] = {}
 
 
+async def stop(app: Application):
+    db.close()
+    logger.info("Bot已停止")
+
+
 def run():
-    if not Path(settings.pickle_path).parent.exists():
-        Path(settings.pickle_path).parent.mkdir()
-    if not avatars_dir.exists():
-        avatars_dir.mkdir()
     token = settings.token
     defaults = Defaults(tzinfo=pytz.timezone("Asia/Shanghai"))
-    persistence = PicklePersistence(
-        filepath=settings.pickle_path,
-        update_interval=settings.get("pickle_update_interval", 60),
-    )
     rate_limiter = AIORateLimiter()
     app = (
         ApplicationBuilder()
         .token(token)
-        .persistence(persistence)
         .defaults(defaults)
         .concurrent_updates(True)
         .post_init(init_data)
+        .post_stop(stop)
         .rate_limiter(rate_limiter)
         .build()
     )
