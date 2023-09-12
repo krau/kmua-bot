@@ -3,16 +3,17 @@ import asyncio
 from telegram.ext import ContextTypes
 
 from ..logger import logger
-from .waifu import _waifu_graph
+# from .waifu import _waifu_graph
 
 
 async def refresh_data(context: ContextTypes.DEFAULT_TYPE):
     today_waifu: dict = context.bot_data["today_waifu"]
 
     try:
-        await asyncio.gather(
-            *(_waifu_graph(chat_id, context) for chat_id in today_waifu.keys())
-        )
+        pass
+        # await asyncio.gather(
+        #     *(_waifu_graph(chat_id, context) for chat_id in today_waifu.keys())
+        # )
     except Exception as err:
         logger.error(
             f"{err.__class__.__name__}: {err} happend when performing waifu graph tasks"

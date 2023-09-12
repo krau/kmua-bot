@@ -60,13 +60,11 @@ from .callbacks.userdata import (
 from .callbacks.waifu import (
     clear_chat_waifu,
     clear_waifu_data,
-    migrate_waifu_shutdown,
     remove_waifu,
     set_mention,
-    switch_waifu,
     today_waifu,
     user_waifu_manage,
-    waifu_graph,
+    # waifu_graph,
 )
 from .callbacks.sticker import sticker2img, clear_sticker_cache
 from .config.config import settings
@@ -95,12 +93,10 @@ suicide_handler = CommandHandler("suicide", suicide)
 today_waifu_handler = CommandHandler(
     "waifu", today_waifu, filters=filters.ChatType.GROUPS
 )
-waifu_graph_handler = CommandHandler(
-    "waifu_graph", waifu_graph, filters=filters.ChatType.GROUPS
-)
-migrate_waifu_shutdown_handler = CommandHandler(
-    "migrate_waifu_shutdown", migrate_waifu_shutdown
-)
+# waifu_graph_handler = CommandHandler(
+#     "waifu_graph", waifu_graph, filters=filters.ChatType.GROUPS
+# )
+
 clear_waifu_data_handler = CommandHandler("clear_waifu_data", clear_waifu_data)
 set_greet_handler = CommandHandler(
     "set_greet", set_greet, filters=filters.ChatType.GROUPS
@@ -108,9 +104,9 @@ set_greet_handler = CommandHandler(
 
 clear_members_data_handler = CommandHandler("clear_members_data", clear_members_data)
 clear_chat_waifu_handler = CommandHandler("clear_chat_waifu", clear_chat_waifu)
-switch_waifu_handler = CommandHandler(
-    "switch_waifu", switch_waifu, filters=filters.ChatType.GROUPS
-)
+# switch_waifu_handler = CommandHandler(
+#     "switch_waifu", switch_waifu, filters=filters.ChatType.GROUPS
+# )
 getid_handler = CommandHandler("id", getid)
 set_title_permissions_handler = CommandHandler("sett", set_title_permissions)
 clear_user_info_handler = CommandHandler("clear_user_info", clear_user_info)
@@ -184,7 +180,7 @@ handlers = [
     member_join_handler,
     chat_migration_handler,
     today_waifu_handler,
-    waifu_graph_handler,
+    # waifu_graph_handler,
     quote_handler,
     title_handler,
     set_quote_probability_handler,
@@ -194,7 +190,6 @@ handlers = [
     remake_handler,
     clear_waifu_data_handler,
     clear_chat_waifu_handler,
-    switch_waifu_handler,
     clear_members_data_handler,
     suicide_handler,
     set_greet_handler,
