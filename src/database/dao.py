@@ -1,6 +1,7 @@
 from .db import db
 from .model import UserData, ChatData, Quote, UserChatAssociation
 from telegram import User, Chat
+from itertools import chain
 
 
 def commit():
@@ -19,12 +20,25 @@ def get_quote_by_id(quote_id: int) -> Quote | None:
     return db.query(Quote).filter(Quote.quote_id == quote_id).first()
 
 
-def get_chat_members_id(chat: Chat) -> list[int]:
+def get_chat_members(chat: Chat | ChatData) -> list[UserData]:
     db_chat = get_chat_by_id(chat.id)
     if db_chat is None:
         add_chat(chat)
         return []
-    return [user.id for user in db_chat.members]
+    return db_chat.members
+
+
+def get_chat_members_id(chat: Chat | ChatData) -> list[int]:
+    members = get_chat_members(chat)
+    return [member.id for member in members]
+
+
+def get_chat_association(chat: Chat | ChatData) -> ChatData | None:
+    return (
+        db.query(UserChatAssociation)
+        .filter(UserChatAssociation.chat_id == chat.id)
+        .all()
+    )
 
 
 def add_user(user: User | UserData) -> UserData:
@@ -141,7 +155,7 @@ def remove_user_from_chat(user: User | UserData, chat: Chat | ChatData):
         db.commit()
 
 
-def get_user_chat_association(
+def get_user_association_in_chat(
     user: User | UserData, chat: Chat | ChatData
 ) -> UserChatAssociation | None:
     db_user = get_user_by_id(user.id)
@@ -171,10 +185,41 @@ def get_user_waifu_in_chat(
     if db_chat is None:
         add_chat(chat)
         return None
-    association = get_user_chat_association(user, chat)
+    association = get_user_association_in_chat(user, chat)
     if association is None:
         return None
     return get_user_by_id(association.waifu_id)
+
+
+def get_user_waifu_of_in_chat(
+    user: User | UserData, chat: Chat | ChatData
+) -> list[UserData] | None:
+    """
+    获取 user 被 chat 中的哪些人选为了 waifu
+
+    :param user: User or UserData object
+    :param chat: Chat or ChatData object
+    :return: list of UserData object
+    """
+    db_user = get_user_by_id(user.id)
+    if db_user is None:
+        add_user(user)
+        return None
+    db_chat = get_chat_by_id(chat.id)
+    if db_chat is None:
+        add_chat(chat)
+        return None
+    associations = (
+        db.query(UserChatAssociation)
+        .filter(
+            UserChatAssociation.waifu_id == user.id,
+            UserChatAssociation.chat_id == chat.id,
+        )
+        .all()
+    )
+    if associations is None:
+        return None
+    return [get_user_by_id(association.user_id) for association in associations]
 
 
 def get_married_users_in_chat(chat: Chat | ChatData) -> list[UserData]:
@@ -211,7 +256,7 @@ def put_user_waifu_in_chat(
         return False
     if get_user_by_id(waifu.id) is None:
         add_user(waifu)
-    if association := get_user_chat_association(user, chat):
+    if association := get_user_association_in_chat(user, chat):
         if association.waifu_id is None:
             association.waifu_id = waifu.id
             db.commit()
@@ -231,8 +276,50 @@ def put_user_waifu_in_chat(
 
 
 def refresh_user_waifu_in_chat(user: User | UserData, chat: Chat | ChatData):
-    association = get_user_chat_association(user, chat)
+    association = get_user_association_in_chat(user, chat)
     if association is None:
         return
     association.waifu_id = None
     db.commit()
+
+
+def get_chat_users_has_waifu(chat: Chat | ChatData) -> list[UserData]:
+    """
+    获取 chat 中有 waifu 的人
+
+    :param chat: Chat or ChatData object
+    :return: list of UserData object
+    """
+    db_chat = add_chat(chat)
+    return [
+        user
+        for user in db_chat.members
+        if get_user_waifu_in_chat(user, chat) is not None
+    ]
+
+
+def get_chat_users_was_waifu(chat: Chat | ChatData) -> list[UserData]:
+    """
+    获取 chat 中被选为 waifu 的人
+
+    :param chat: Chat or ChatData object
+    :return: list of UserData object
+    """
+    db_chat = add_chat(chat)
+    return [
+        user
+        for user in db_chat.members
+        if get_user_waifu_of_in_chat(user, chat) is not None
+    ]
+
+
+def get_chat_user_participated_waifu(chat: Chat | ChatData) -> list[UserData]:
+    """
+    获取 chat 中参与了抽老婆活动的人
+
+    :param chat: Chat or ChatData object
+    :return: list of UserData object
+    """
+    user_has_waifu = get_chat_users_has_waifu(chat)
+    user_was_waifu = get_chat_users_was_waifu(chat)
+    return set(chain(user_has_waifu, user_was_waifu))

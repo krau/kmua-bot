@@ -2,21 +2,26 @@ import io
 import os
 import random
 import re
+from itertools import chain
 from operator import attrgetter
 from pathlib import Path
+from typing import Generator
 
 from PIL import Image, ImageFont
 from pilmoji import Pilmoji
 from telegram import (
     Update,
 )
+from telegram import Chat
 from telegram.constants import ChatType
 from telegram.ext import ContextTypes
 from telegram.constants import ChatID
 
 from .database import dao
-from .database.db import db
+from .database.model import ChatData
 from .logger import logger
+
+fake_users_id = [ChatID.FAKE_CHANNEL, ChatID.ANONYMOUS_ADMIN, ChatID.SERVICE_CHAT]
 
 
 def random_unit(probability: float) -> bool:
@@ -79,9 +84,6 @@ async def generate_quote_img(avatar: bytes, text: str, name: str) -> bytes:
     return img_byte_arr
 
 
-fake_users_id = [ChatID.FAKE_CHANNEL, ChatID.ANONYMOUS_ADMIN, ChatID.SERVICE_CHAT]
-
-
 async def message_recorder(update: Update, context: ContextTypes.DEFAULT_TYPE):
     this_user = update.effective_user
     this_chat = update.effective_chat
@@ -97,7 +99,7 @@ async def message_recorder(update: Update, context: ContextTypes.DEFAULT_TYPE):
         db_chat = dao.add_chat(this_chat)
         if db_user not in db_chat.members:
             db_chat.members.append(db_user)
-            db.commit()
+            dao.commit()
 
 
 def sort_topn_bykey(data: dict, n: int, key: str) -> list:
@@ -128,16 +130,16 @@ async def get_big_avatar_bytes(
         if db_user.avatar_big_blob:
             return db_user.avatar_big_blob
         else:
-            avatar = await _download_big_avatar(chat_id, context)
+            avatar = await download_big_avatar(chat_id, context)
             if avatar:
                 db_user.avatar_big_blob = avatar
-                db.commit()
+                dao.commit()
             return avatar
     else:
-        return await _download_big_avatar(chat_id, context)
+        return await download_big_avatar(chat_id, context)
 
 
-async def _download_big_avatar(
+async def download_big_avatar(
     chat_id: int, context: ContextTypes.DEFAULT_TYPE
 ) -> bytes | None:
     try:
@@ -150,3 +152,58 @@ async def _download_big_avatar(
     except Exception as err:
         logger.error(f"{err.__class__.__name__}: {err} happend when getting big avatar")
         return None
+
+
+async def get_small_avatar_bytes(
+    chat_id: int, context: ContextTypes.DEFAULT_TYPE
+) -> bytes | None:
+    db_user = dao.get_user_by_id(chat_id)
+    if db_user:
+        if db_user.avatar_small_blob:
+            return db_user.avatar_small_blob
+        else:
+            avatar = await download_small_avatar(chat_id, context)
+            if avatar:
+                db_user.avatar_small_blob = avatar
+                dao.commit()
+            return avatar
+    else:
+        return await download_small_avatar(chat_id, context)
+
+
+async def download_small_avatar(
+    chat_id: int, context: ContextTypes.DEFAULT_TYPE
+) -> bytes | None:
+    try:
+        avatar_photo = (await context.bot.get_chat(chat_id=chat_id)).photo
+        if not avatar_photo:
+            return None
+        avatar = await (await avatar_photo.get_small_file()).download_as_bytearray()
+        avatar = bytes(avatar)
+        return avatar
+    except Exception as err:
+        logger.error(
+            f"{err.__class__.__name__}: {err} happend when getting small avatar"
+        )
+        return None
+
+
+def get_chat_waifu_relationships(
+    chat: Chat | ChatData,
+) -> Generator[tuple[int, int], None, None]:
+    # relationships: a generator that yields (int, int) for (user_id, waifu_id)
+    members = dao.get_chat_members(chat)
+    for member in members:
+        waifu = dao.get_user_waifu_in_chat(member, chat)
+        if waifu:
+            yield (member.id, waifu.id)
+
+
+def get_chat_waifu_info_dict(
+    chat: Chat | ChatData,
+) -> dict[int, int]:
+    # waifu_info_dict: a dict that maps user_id to waifu_id
+    waifu_info_dict = {}
+    for user_id, waifu_id in get_chat_waifu_relationships(chat):
+        waifu_info_dict[user_id] = waifu_id
+    return waifu_info_dict

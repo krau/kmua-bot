@@ -58,13 +58,13 @@ from .callbacks.userdata import (
     user_quote_manage,
 )
 from .callbacks.waifu import (
-    clear_chat_waifu,
-    clear_waifu_data,
+    # clear_chat_waifu,
+    # clear_waifu_data,
     remove_waifu,
     set_mention,
     today_waifu,
     user_waifu_manage,
-    # waifu_graph,
+    waifu_graph,
 )
 from .callbacks.sticker import sticker2img, clear_sticker_cache
 from .config.config import settings
@@ -93,17 +93,17 @@ suicide_handler = CommandHandler("suicide", suicide)
 today_waifu_handler = CommandHandler(
     "waifu", today_waifu, filters=filters.ChatType.GROUPS
 )
-# waifu_graph_handler = CommandHandler(
-#     "waifu_graph", waifu_graph, filters=filters.ChatType.GROUPS
-# )
+waifu_graph_handler = CommandHandler(
+    "waifu_graph", waifu_graph, filters=filters.ChatType.GROUPS
+)
 
-clear_waifu_data_handler = CommandHandler("clear_waifu_data", clear_waifu_data)
+# clear_waifu_data_handler = CommandHandler("clear_waifu_data", clear_waifu_data)
 set_greet_handler = CommandHandler(
     "set_greet", set_greet, filters=filters.ChatType.GROUPS
 )
 
 clear_members_data_handler = CommandHandler("clear_members_data", clear_members_data)
-clear_chat_waifu_handler = CommandHandler("clear_chat_waifu", clear_chat_waifu)
+# clear_chat_waifu_handler = CommandHandler("clear_chat_waifu", clear_chat_waifu)
 # switch_waifu_handler = CommandHandler(
 #     "switch_waifu", switch_waifu, filters=filters.ChatType.GROUPS
 # )
@@ -153,9 +153,7 @@ set_mention_handler = CallbackQueryHandler(set_mention, pattern="set_mention")
 set_title_permissions_callback_handler = CallbackQueryHandler(
     set_title_permissions_callback, pattern=r"set_title_permissions"
 )
-del_quote_page_handler = CallbackQueryHandler(
-    del_quote_page, pattern=r"del_quote_page"
-)
+del_quote_page_handler = CallbackQueryHandler(del_quote_page, pattern=r"del_quote_page")
 
 # others
 interact_handler = MessageHandler(filters=interact_filter, callback=interact)
@@ -180,7 +178,7 @@ handlers = [
     member_join_handler,
     chat_migration_handler,
     today_waifu_handler,
-    # waifu_graph_handler,
+    waifu_graph_handler,
     quote_handler,
     title_handler,
     set_quote_probability_handler,
@@ -188,8 +186,8 @@ handlers = [
     del_quote_page_handler,
     qrand_handler,
     remake_handler,
-    clear_waifu_data_handler,
-    clear_chat_waifu_handler,
+    # clear_waifu_data_handler,
+    # clear_chat_waifu_handler,
     clear_members_data_handler,
     suicide_handler,
     set_greet_handler,
