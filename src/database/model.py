@@ -8,7 +8,6 @@ from sqlalchemy import (
     Boolean,
     DateTime,
     ForeignKey,
-    Table,
 )
 from sqlalchemy.orm import relationship
 from sqlalchemy import CheckConstraint
@@ -46,7 +45,7 @@ class UserData(Base):
 
     is_married = Column(Boolean, default=False)
     married_waifu_id = Column(Integer, default=None)
-    waifu_mention = Column(Boolean, default=True)
+    waifu_mention = Column(Boolean, default=False)
 
     created_at = Column(DateTime, default=func.now())
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now())

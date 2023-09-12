@@ -12,6 +12,7 @@ from telegram import (
 )
 from telegram.constants import ChatType
 from telegram.ext import ContextTypes
+from telegram.constants import ChatID
 
 from .database import dao
 from .database.db import db
@@ -78,22 +79,24 @@ async def generate_quote_img(avatar: bytes, text: str, name: str) -> bytes:
     return img_byte_arr
 
 
+fake_users_id = [ChatID.FAKE_CHANNEL, ChatID.ANONYMOUS_ADMIN, ChatID.SERVICE_CHAT]
+
+
 async def message_recorder(update: Update, context: ContextTypes.DEFAULT_TYPE):
     this_user = update.effective_user
     this_chat = update.effective_chat
     this_message = update.effective_message
     if not this_user or not this_chat:
         return
-    if this_user.is_bot or this_user.id == 777000:
+    if this_user.is_bot or this_user.id in fake_users_id:
         return
     if this_message.reply_to_message:
         return
-    dao.add_user(this_user)
+    db_user = dao.add_user(this_user)
     if this_chat.type == ChatType.GROUP or this_chat.type == ChatType.SUPERGROUP:
-        dao.add_chat(this_chat)
-        db_chat = dao.get_chat_by_id(this_chat.id)
-        if this_user.id not in dao.get_chat_members_id(this_chat):
-            db_chat.members.append(dao.get_user_by_id(this_user.id))
+        db_chat = dao.add_chat(this_chat)
+        if db_user not in db_chat.members:
+            db_chat.members.append(db_user)
             db.commit()
 
 

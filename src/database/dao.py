@@ -70,6 +70,12 @@ def add_user_with_avatar(
 
 
 def add_chat(chat: Chat | ChatData) -> ChatData:
+    """
+    add chat if not exists
+
+    :param chat: Chat or ChatData object
+    :return: ChatData object
+    """
     if chatdata := get_chat_by_id(chat.id):
         return chatdata
     db.add(
@@ -117,11 +123,21 @@ def set_chat_quote_probability(chat: Chat | ChatData, probability: float):
     db.commit()
 
 
-def add_user_to_chat(user: User, chat: Chat):
+def add_user_to_chat(user: User | UserData, chat: Chat | ChatData):
     db_user = add_user(user)
     db_chat = add_chat(chat)
     if db_user not in db_chat.members:
         db_chat.members.append(db_user)
+        db.commit()
+
+
+def remove_user_from_chat(user: User | UserData, chat: Chat | ChatData):
+    db_user = get_user_by_id(user.id)
+    db_chat = get_chat_by_id(chat.id)
+    if db_user is None or db_chat is None:
+        return
+    if db_user in db_chat.members:
+        db_chat.members.remove(db_user)
         db.commit()
 
 
@@ -212,3 +228,11 @@ def put_user_waifu_in_chat(
         )
         db.commit()
         return True
+
+
+def refresh_user_waifu_in_chat(user: User | UserData, chat: Chat | ChatData):
+    association = get_user_chat_association(user, chat)
+    if association is None:
+        return
+    association.waifu_id = None
+    db.commit()

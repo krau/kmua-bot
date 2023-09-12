@@ -13,7 +13,7 @@ from telegram.helpers import escape_markdown
 
 from ..config.config import settings
 from ..logger import logger
-from ..utils import message_recorder
+from ..utils import message_recorder, fake_users_id
 from ..database import dao
 from ..database.model import UserData
 
@@ -212,7 +212,6 @@ async def today_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if context.user_data.get("waifu_waiting", False):
         return
-
     context.user_data["waifu_waiting"] = True
 
     waifu: UserData = None
@@ -253,8 +252,6 @@ async def today_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 reply_markup=waifu_markup,
                 allow_sending_without_reply=True,
             )
-    except Exception:
-        raise
     finally:
         context.user_data["waifu_waiting"] = False
         dao.commit()
@@ -299,14 +296,7 @@ async def _get_chat_members_id_to_get_waifu(
 ) -> list[int]:
     group_member: list[int] = dao.get_chat_members_id(chat)
     married = dao.get_married_users_id_in_chat(chat)
-    must_remove = [
-        user.id,
-        context.bot.id,
-        ChatID.FAKE_CHANNEL,
-        ChatID.ANONYMOUS_ADMIN,
-        ChatID.SERVICE_CHAT,
-    ]
-    to_remove = set(married + must_remove)
+    to_remove = set(married + fake_users_id + [user.id])
     group_member = [i for i in group_member if i not in to_remove]
     if not group_member:
         await update.message.reply_text(text="你现在没有老婆, 因为咱的记录中找不到其他群友")
@@ -361,57 +351,26 @@ async def _get_photo_to_send(
 
 
 async def remove_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    try:
-        this_chat_member = await update.effective_chat.get_member(
-            update.effective_user.id
-        )
-    except BadRequest as e:
-        if e.message == "User not found":
-            await update.callback_query.answer(
-                text="无法获取信息, 如果群组开启了隐藏成员, 请赋予 bot 管理员权限",
-                show_alert=True,
-            )
-            return
-        else:
-            raise e
-
-    if this_chat_member.status != "creator":
-        await context.bot.answer_callback_query(
-            callback_query_id=update.callback_query.id,
-            text="你没有权限哦, 只有群主可以移除卡池",
-        )
-        return
-    data = update.callback_query.data.split(" ")
-    waifu_id = int(data[1])
-    user_id = int(data[2])
+    query_data = update.callback_query.data.split(" ")
+    waifu_id = int(query_data[1])
+    user_id = int(query_data[2])
     message = update.callback_query.message
-    waifuname = None
-    for entity in message.caption_entities:
-        if entity.type == "text_mention":
-            waifuname = entity.user.name
-            break
-    if not waifuname:
-        waifuname = waifu_id
-    try:
-        user = await context.bot.get_chat(user_id)
-        username = user.username or user.full_name
-    except Exception:
-        username = user_id
-    poped_value = context.chat_data["members_data"].pop(waifu_id, "群组数据中无该成员")
-    logger.debug(f"移除: {poped_value}")
-
-    chat_id = update.effective_chat.id
-    if context.bot_data["today_waifu"][chat_id]:
-        context.bot_data["today_waifu"][chat_id].pop(user_id, None)
-    await update.callback_query.message.delete()
-    await update.effective_chat.send_message(
-        text=f"已从本群数据中移除 {waifuname}, {username} 可以重新抽取",
+    user = dao.get_user_by_id(user_id)
+    waifu = dao.get_user_by_id(waifu_id)
+    if not user or not waifu:
+        await update.callback_query.answer(text="数据错误")
+        return
+    dao.remove_user_from_chat(waifu, message.chat)
+    dao.refresh_user_waifu_in_chat(user, message.chat)
+    await message.edit_caption(
+        caption=f"_已移除该用户:_ {waifu.id}\n ta 曾是 {user.id} 的老婆",
+        parse_mode="MarkdownV2",
     )
 
 
 async def user_waifu_manage(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    is_mention = context.user_data.get("waifu_is_mention", True)
-    set_mention_text = "别@你" if is_mention else "抽到你时@你"
+    db_user = dao.add_user(update.effective_user)
+    set_mention_text = "别@你" if db_user.waifu_mention else "抽到你时@你"
     waifu_manage_markup = InlineKeyboardMarkup(
         [
             [InlineKeyboardButton(text=set_mention_text, callback_data="set_mention")],
@@ -420,18 +379,17 @@ async def user_waifu_manage(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     text = f"""
 当前设置:
-是否@你: {is_mention}"""
+是否@你: {db_user.waifu_mention}"""
     await update.callback_query.message.edit_text(
         text=text, reply_markup=waifu_manage_markup
     )
-    await context.application.persistence.flush()
+    dao.commit()
 
 
 async def set_mention(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    is_mention = context.user_data.get("waifu_is_mention", True)
-    context.user_data["waifu_is_mention"] = not is_mention
-    is_mention = context.user_data["waifu_is_mention"]
-    set_mention_text = "别@你" if is_mention else "抽到你时@你"
+    db_user = dao.add_user(update.effective_user)
+    context.user_data["waifu_is_mention"] = not db_user.waifu_mention
+    set_mention_text = "别@你" if db_user.waifu_mention else "抽到你时@你"
     waifu_manage_markup = InlineKeyboardMarkup(
         [
             [InlineKeyboardButton(text=set_mention_text, callback_data="set_mention")],
@@ -440,56 +398,8 @@ async def set_mention(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     text = f"""
 当前设置:
-是否@你: {is_mention}"""
+是否@你: {db_user.waifu_mention}"""
     await update.callback_query.message.edit_text(
         text=text, reply_markup=waifu_manage_markup
     )
-    await context.application.persistence.flush()
-
-
-async def clear_waifu_data(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if update.effective_user.id not in settings.owners:
-        return
-    context.bot_data["today_waifu"] = {}
-    context.bot_data["waifu_mutex"] = {}
-    await context.application.persistence.flush()
-    await update.message.reply_text(text="已清除今日老婆数据")
-
-
-async def clear_chat_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    logger.info(
-        f"[{update.effective_chat.title}]({update.effective_user.name})"
-        + f" {update.effective_message.text}"
-    )
-    if len(context.args) == 0:
-        if update.effective_chat.type == "private":
-            await update.message.reply_text(text="请在群组中使用此命令")
-            return
-        try:
-            this_chat_member = await update.effective_chat.get_member(
-                update.effective_user.id
-            )
-        except BadRequest as e:
-            if e.message == "User not found":
-                await update.message.reply_text(
-                    text="无法获取信息, 如果群组开启了隐藏成员, 请赋予 bot 管理员权限",
-                )
-                return
-            else:
-                raise e
-        if this_chat_member.status != "creator":
-            await update.message.reply_text(text="你没有权限哦, 只有群主可以清空老婆数据")  # noqa: E501
-            return
-        context.bot_data["today_waifu"][update.effective_chat.id] = {}
-        await context.application.persistence.flush()
-        await update.message.reply_text(text="已清除本群今日老婆数据")
-    else:
-        if update.effective_user.id not in settings.owners:
-            return
-        chat_id = int(context.args[0])
-        if not context.bot_data["today_waifu"].get(chat_id, None):
-            await update.message.reply_text(text=f"群组 {chat_id} 还没有老婆数据")
-            return
-        context.bot_data["today_waifu"][chat_id] = {}
-        await context.application.persistence.flush()
-        await update.message.reply_text(text=f"已清除群组 {chat_id} 的今日老婆数据")
+    dao.commit()

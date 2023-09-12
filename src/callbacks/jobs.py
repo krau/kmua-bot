@@ -3,12 +3,11 @@ import asyncio
 from telegram.ext import ContextTypes
 
 from ..logger import logger
+from ..database import dao
 # from .waifu import _waifu_graph
 
 
 async def refresh_data(context: ContextTypes.DEFAULT_TYPE):
-    today_waifu: dict = context.bot_data["today_waifu"]
-
     try:
         pass
         # await asyncio.gather(
@@ -20,10 +19,6 @@ async def refresh_data(context: ContextTypes.DEFAULT_TYPE):
         )
         raise err
     finally:
-        context.bot_data["today_waifu"] = {}
-        context.bot_data["waifu_mutex"] = {}
-        context.bot_data["user_info"] = {}
-        await context.application.persistence.flush()
         logger.debug("数据已刷新: today_waifu")
 
 
