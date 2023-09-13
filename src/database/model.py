@@ -26,7 +26,7 @@ class UserChatAssociation(Base):
 
 class UserData(Base):
     __tablename__ = "user_data"
-    id = Column(Integer, primary_key=True)
+    id = Column(Integer, primary_key=True, index=True)
     username = Column(String)
     full_name = Column(String, nullable=False)
     avatar_small_blob = Column(BLOB, default=None)
@@ -47,7 +47,7 @@ class UserData(Base):
     married_waifu_id = Column(Integer, default=None)
     waifu_mention = Column(Boolean, default=False)
 
-    is_real_user = Column(Boolean, default=True) # 以频道身份加入的用户不是真实用户
+    is_real_user = Column(Boolean, default=True)  # 以频道身份加入的用户不是真实用户
 
     created_at = Column(DateTime, default=func.now())
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
@@ -61,7 +61,7 @@ class UserData(Base):
 
 class ChatData(Base):
     __tablename__ = "chat_data"
-    id = Column(Integer, primary_key=True)
+    id = Column(Integer, primary_key=True, index=True)
     quote_probability = Column(Float, default=0.001)
     members = relationship(
         "UserData",
@@ -76,14 +76,12 @@ class ChatData(Base):
 
 class Quote(Base):
     __tablename__ = "quotes"
-    quote_id = Column(Integer, primary_key=True, autoincrement=True)
-    chat_id = Column(Integer, ForeignKey("chat_data.id"))
+    chat_id = Column(Integer, ForeignKey("chat_data.id"), primary_key=True)
+    message_id = Column(Integer, nullable=False, primary_key=True)
     user_id = Column(Integer, ForeignKey("user_data.id"))
     qer_id = Column(Integer)  # 使用 q 的人
-    message_id = Column(Integer, nullable=False)
     text = Column(String, nullable=True, default=None)
     img = Column(String, nullable=True, default=None, comment="图片的 file id")
-    is_deleted = Column(Boolean, default=False)
     created_at = Column(DateTime, default=func.now())
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
 
