@@ -89,9 +89,9 @@ async def message_recorder(update: Update, context: ContextTypes.DEFAULT_TYPE):
     message = update.effective_message
     if not user or not chat:
         return
-    # if user.is_bot or user.id in fake_users_id:
-    #     return
     if message.reply_to_message:
+        return
+    if chat.type == ChatType.CHANNEL:
         return
     if message.sender_chat:
         user = message.sender_chat

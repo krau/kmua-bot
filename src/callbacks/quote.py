@@ -27,7 +27,6 @@ from ..utils import (
     get_big_avatar_bytes,
     message_recorder,
     random_unit,
-    fake_users_id,
 )
 
 
@@ -166,19 +165,19 @@ async def set_quote_probability(update: Update, context: ContextTypes.DEFAULT_TY
 
 
 async def random_quote(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    this_chat = update.effective_chat
-    this_user = update.effective_user
-    this_message = update.effective_message
+    chat = update.effective_chat
+    user = update.effective_user
+    message = update.effective_message
     logger.info(
-        f"[{this_chat.title}]({this_user.name if this_user else None})"
-        + (f" {this_message.text}" if this_message.text else "<非文本消息>")
+        f"[{chat.title}({chat.id})]<{user.name}({user.id})>"
+        + (f" {message.text}" if message.text else "<非文本消息>")
     )
     await message_recorder(update, context)
-    probability = context.chat_data.get("quote_probability", 0.001)
-    probability = float(probability)
-    flag = random_unit(probability)
-    if update.effective_message.text is not None:
-        if update.effective_message.text.startswith("/qrand"):
+
+    pb = dao.get_chat_quote_probability(chat.id)
+    flag = random_unit(pb)
+    if message.text is not None:
+        if message.text.startswith("/qrand"):
             flag = True
     if not flag:
         return
