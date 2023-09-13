@@ -11,7 +11,7 @@ from pilmoji import Pilmoji
 from telegram import (
     Update,
 )
-from telegram import Chat
+from telegram import Chat, User
 from telegram.constants import ChatType
 from telegram.ext import ContextTypes
 from telegram.constants import ChatID
@@ -89,18 +89,13 @@ async def message_recorder(update: Update, context: ContextTypes.DEFAULT_TYPE):
     message = update.effective_message
     if not user or not chat:
         return
-    if message.reply_to_message:
-        return
-    if chat.type == ChatType.CHANNEL:
+    if user.is_bot or message.reply_to_message or chat.type == ChatType.CHANNEL:
         return
     if message.sender_chat:
         user = message.sender_chat
     db_user = dao.add_user(user)
     if chat.type == ChatType.GROUP or chat.type == ChatType.SUPERGROUP:
-        db_chat = dao.add_chat(chat)
-        if db_user not in db_chat.members:
-            db_chat.members.append(db_user)
-            dao.commit()
+        dao.add_user_to_chat(db_user, chat)
 
 
 def sort_topn_bykey(data: dict, n: int, key: str) -> list:
@@ -208,3 +203,25 @@ def get_chat_waifu_info_dict(
     for user_id, waifu_id in get_chat_waifu_relationships(chat):
         waifu_info_dict[user_id] = waifu_id
     return waifu_info_dict
+
+
+async def verify_user_is_chat_admin(
+    user: User, chat: Chat, context: ContextTypes.DEFAULT_TYPE
+) -> bool:
+    admins = await context.bot.get_chat_administrators(chat_id=chat.id)
+    if user.id not in [admin.user.id for admin in admins]:
+        sent_message = await context.bot.send_message(
+            chat_id=chat.id,
+            text="你没有权限哦",
+        )
+        logger.info(f"Bot: {sent_message.text}")
+        return False
+    return True
+
+
+async def verify_user_can_manage_bot(
+    user: User, chat: Chat, update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> bool:
+    # who can manage: chat owner (and anonymous admins), bot global admins, and
+    # bot admins in chat who promoted by chat owner
+    pass

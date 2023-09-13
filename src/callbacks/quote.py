@@ -14,7 +14,7 @@ from telegram import (
     Update,
     User,
 )
-from telegram.constants import ChatAction
+from telegram.constants import ChatAction, ChatType
 from telegram.error import BadRequest
 from telegram.ext import ContextTypes
 from telegram.helpers import escape_markdown
@@ -27,36 +27,36 @@ from ..utils import (
     get_big_avatar_bytes,
     message_recorder,
     random_unit,
+    verify_user_is_chat_admin,
 )
 
 
 async def quote(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    logger.info(
-        f"[{update.effective_chat.title}]({update.effective_user.name})"
-        + f" {update.effective_message.text}"
-    )
+    user = update.effective_user
+    chat = update.effective_chat
+    message = update.effective_message
+    logger.info(f"[{chat.title}]({user.name})" + f" {message.text}")
+
     await message_recorder(update, context)
+
+    if chat.type == ChatType.PRIVATE:
+        return
     if context.args:
         return
-    if not update.effective_message.reply_to_message:
-        sent_message = await context.bot.send_message(
-            chat_id=update.effective_chat.id,
-            reply_to_message_id=update.effective_message.id,
-            text="请回复一条消息",
-        )
+    if not message.reply_to_message:
+        sent_message = await message.reply_text("请回复一条消息")
         logger.info(f"Bot: {sent_message.text}")
         return
-    quote_message = update.effective_message.reply_to_message
+    quote_message = message.reply_to_message
     quote_user = quote_message.from_user
-    forward_from_user = quote_message.forward_from
-
+    forward_from_user = quote_message.forward_from or quote_message.forward_from_chat
     if forward_from_user:
         quote_user = forward_from_user
     if quote_message.sender_chat:
         quote_user = quote_message.sender_chat
-    qer_user = update.effective_user
-    if update.effective_message.sender_chat:
-        qer_user = update.effective_message.sender_chat
+    qer_user = user
+    if message.sender_chat:
+        qer_user = message.sender_chat
 
     await _pin_quote_message(quote_message)
 
@@ -118,53 +118,54 @@ async def _save_quote_data(
 
 
 async def set_quote_probability(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    logger.info(
-        f"[{update.effective_chat.title}]({update.effective_user.name})"
-        + f" {update.effective_message.text}"
-    )
+    """
+    设置本群的 random quote 的概率
+    此功能不会在私聊中被调用, 已由 filters 过滤
+    """
+    user = update.effective_user
+    chat = update.effective_chat
+    message = update.effective_message
+    logger.info(f"[{chat.title}]({user.name})" + f" {message.text}")
     await message_recorder(update, context)
-    if update.effective_chat.type != "private":
-        admins = await context.bot.get_chat_administrators(
-            chat_id=update.effective_chat.id
-        )
-        if (
-            update.effective_user.id not in [admin.user.id for admin in admins]
-            and update.effective_user.id not in settings["owners"]
-        ):
-            sent_message = await context.bot.send_message(
-                chat_id=update.effective_chat.id, text="你没有权限哦"
-            )
-            logger.info(f"Bot: {sent_message.text}")
-            return
-    try:
-        probability = float(update.effective_message.text.split(" ")[1])
-    except ValueError:
-        sent_message = await context.bot.send_message(
-            chat_id=update.effective_chat.id, text="概率是在[0,1]之间的浮点数,请检查输入"  # noqa: E501
-        )
-        logger.info(f"Bot: {sent_message.text}")
+
+    if not await verify_user_is_chat_admin(user, chat, context):
         return
-    except IndexError:
-        sent_message = await context.bot.send_message(
-            chat_id=update.effective_chat.id, text="请指定概率"
-        )
+    except_text = "概率是在[0,1]之间的浮点数,请检查输入"
+    try:
+        probability = float(context.args[0])
+    except Exception:
+        sent_message = await message.reply_text(except_text)
         logger.info(f"Bot: {sent_message.text}")
         return
     if probability < 0 or probability > 1:
-        sent_message = await context.bot.send_message(
-            chat_id=update.effective_chat.id, text="概率是在[0,1]之间的浮点数,请检查输入"  # noqa: E501
-        )
+        sent_message = await message.reply_text(except_text)
         logger.info(f"Bot: {sent_message.text}")
         return
-    context.chat_data["quote_probability"] = probability
-    sent_message = await context.bot.send_message(
-        chat_id=update.effective_chat.id,
-        text=f"将本聊天的名言提醒设置概率为{probability}啦",
+    dao.set_chat_quote_probability(chat, probability)
+    sent_message = await message.reply_text(
+        text=f"将本聊天的 random quote 的概率设为{probability}啦",
     )
     logger.info(f"Bot: {sent_message.text}")
 
 
+async def _unpin_messsage(
+    message_id: int, chat_id: int, context: ContextTypes.DEFAULT_TYPE
+):
+    try:
+        await context.bot.unpin_chat_message(
+            chat_id=chat_id,
+            message_id=message_id,
+        )
+    except Exception as e:
+        logger.warning(f"{e.__class__.__name__}: {e}")
+
+
 async def random_quote(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """
+    随机发送一条语录
+    此功能不会在私聊中被调用, 已由 filters 过滤
+    私聊中的消息将直接由 keyword_reply_handler 处理
+    """
     chat = update.effective_chat
     user = update.effective_user
     message = update.effective_message
@@ -174,36 +175,35 @@ async def random_quote(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     await message_recorder(update, context)
 
-    pb = dao.get_chat_quote_probability(chat.id)
+    pb = dao.get_chat_quote_probability(chat)
     flag = random_unit(pb)
     if message.text is not None:
         if message.text.startswith("/qrand"):
             flag = True
     if not flag:
         return
-    if not context.chat_data.get("quote_messages", None):
+    quotes = dao.get_chat_quotes(chat)
+    if not quotes:
         return
+    quote = random.choice(quotes)
+    message_id = quote.message_id
     try:
-        to_forward_message_id: int = random.choice(context.chat_data["quote_messages"])
-        sent_message = await context.bot.forward_message(
-            chat_id=update.effective_chat.id,
-            from_chat_id=update.effective_chat.id,
-            message_id=to_forward_message_id,
+        sent_message = await chat.forward_to(
+            chat_id=chat.id,
+            message_id=message_id,
         )
-        logger.info(
-            "Bot: " + (f"{sent_message.text}" if sent_message.text else "<非文本消息>")
-        )
-    except BadRequest:
-        logger.error(f"{to_forward_message_id} 未找到,从chat quote中移除")
-        context.chat_data["quote_messages"].remove(to_forward_message_id)
+        logger.info(f"Bot: {sent_message.text}")
     except Exception as e:
-        logger.error(f"{e.__class__.__name__}: {e}")
-        await context.bot.send_message(
-            chat_id=update.effective_chat.id, text=f"{e.__class__.__name__}: {e}"
-        )
+        logger.warning(f"{e.__class__.__name__}: {e}")
+        dao.delete_quote(quote)
+        await _unpin_messsage(message_id, chat.id, context)
 
 
 async def del_quote(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """
+    删除语录
+    此功能不会在私聊中被调用, 已由 filters 过滤
+    """
     logger.info(
         f"[{update.effective_chat.title}]({update.effective_user.name})"
         + f" {update.effective_message.text}"

@@ -3,6 +3,7 @@ from .model import UserData, ChatData, Quote, UserChatAssociation
 from telegram import User, Chat
 from itertools import chain
 from ..logger import logger
+
 # from sqlalchemy import text
 
 
@@ -24,10 +25,6 @@ def get_user_by_id(user_id: int) -> UserData | None:
 
 def get_chat_by_id(chat_id: int) -> ChatData | None:
     return db.query(ChatData).filter(ChatData.id == chat_id).first()
-
-
-def get_quote_by_id(quote_id: int) -> Quote | None:
-    return db.query(Quote).filter(Quote.quote_id == quote_id).first()
 
 
 def get_chat_members(chat: Chat | ChatData) -> list[UserData]:
@@ -75,7 +72,7 @@ def add_user(user: User | UserData | Chat | ChatData) -> UserData:
             full_name=user.full_name,
         )
     db.add(userdata)
-    db.commit()
+    commit()
     return get_user_by_id(user.id)
 
 
@@ -86,7 +83,7 @@ def add_user_with_avatar(
         userdata.avatar_small_blob = small_avatar
         userdata.avatar_big_blob = big_avatar
         userdata.avatar_big_id = big_avatar_id
-        db.commit()
+        commit()
         return True
     db.add(
         UserData(
@@ -98,7 +95,7 @@ def add_user_with_avatar(
             avatar_big_id=big_avatar_id,
         )
     )
-    db.commit()
+    commit()
     return True
 
 
@@ -116,7 +113,7 @@ def add_chat(chat: Chat | ChatData) -> ChatData:
             id=chat.id,
         )
     )
-    db.commit()
+    commit()
     return get_chat_by_id(chat.id)
 
 
@@ -138,11 +135,12 @@ def add_quote(
             img=img,
         )
     )
-    db.commit()
+    commit()
 
 
 def delete_quote(quote: Quote):
-    pass
+    db.delete(quote)
+    commit()
 
 
 def get_chat_quote_probability(chat: Chat | ChatData) -> float:
@@ -159,7 +157,20 @@ def set_chat_quote_probability(chat: Chat | ChatData, probability: float):
         add_chat(chat)
         db_chat = get_chat_by_id(chat.id)
     db_chat.quote_probability = probability
-    db.commit()
+    commit()
+
+
+def get_chat_quotes(chat: Chat | ChatData) -> list[Quote]:
+    db_chat = get_chat_by_id(chat.id)
+    if db_chat is None:
+        add_chat(chat)
+        return []
+    return db_chat.quotes
+
+
+def get_chat_quotes_message_id(chat: Chat | ChatData) -> list[int]:
+    quotes = get_chat_quotes(chat)
+    return [quote.message_id for quote in quotes]
 
 
 def add_user_to_chat(user: User | UserData, chat: Chat | ChatData):
@@ -167,7 +178,7 @@ def add_user_to_chat(user: User | UserData, chat: Chat | ChatData):
     db_chat = add_chat(chat)
     if db_user not in db_chat.members:
         db_chat.members.append(db_user)
-        db.commit()
+        commit()
 
 
 def remove_user_from_chat(user: User | UserData, chat: Chat | ChatData):
@@ -177,7 +188,7 @@ def remove_user_from_chat(user: User | UserData, chat: Chat | ChatData):
         return
     if db_user in db_chat.members:
         db_chat.members.remove(db_user)
-        db.commit()
+        commit()
 
 
 def get_user_association_in_chat(
@@ -290,7 +301,7 @@ def put_user_waifu_in_chat(
     if association := get_user_association_in_chat(user, chat):
         if association.waifu_id is None:
             association.waifu_id = waifu.id
-            db.commit()
+            commit()
             return True
         else:
             return False
@@ -302,7 +313,7 @@ def put_user_waifu_in_chat(
                 waifu_id=waifu.id,
             )
         )
-        db.commit()
+        commit()
         return True
 
 
@@ -311,7 +322,7 @@ def refresh_user_waifu_in_chat(user: User | UserData, chat: Chat | ChatData):
     if association is None:
         return
     association.waifu_id = None
-    db.commit()
+    commit()
 
 
 def get_chat_users_has_waifu(chat: Chat | ChatData) -> list[UserData]:
@@ -372,4 +383,4 @@ def refresh_all_waifu_in_chat(chat: Chat | ChatData):
 
 def refresh_all_waifu_data():
     db.query(UserChatAssociation).update({UserChatAssociation.waifu_id: None})
-    db.commit()
+    commit()

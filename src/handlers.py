@@ -79,17 +79,24 @@ from .logger import logger
 start_handler = CommandHandler("start", start, filters=mention_or_private_filter)
 chat_migration_handler = MessageHandler(filters.StatusUpdate.MIGRATE, chat_migration)
 title_handler = CommandHandler("t", title, filters=mention_or_private_filter)
-quote_handler = CommandHandler("q", quote)
-set_quote_probability_handler = CommandHandler("setqp", set_quote_probability)
-del_quote_handler = CommandHandler("d", del_quote)
-clear_chat_quote_ask_handler = CommandHandler("clear_chat_quote", clear_chat_quote_ask)
+
+quote_handler = CommandHandler("q", quote, filters=filters.ChatType.GROUPS)
+set_quote_probability_handler = CommandHandler(
+    "setqp", set_quote_probability, filters=filters.ChatType.GROUPS
+)
+del_quote_handler = CommandHandler("d", del_quote, filters=filters.ChatType.GROUPS)
+clear_chat_quote_ask_handler = CommandHandler(
+    "clear_chat_quote", clear_chat_quote_ask, filters=filters.ChatType.GROUPS
+)
+qrand_handler = CommandHandler("qrand", random_quote, filters=filters.ChatType.GROUPS)
+
 clear_chat_data_ask_handler = CommandHandler("clear_chat_data", clear_chat_data_ask)
 bnhhsh_command_handler = CommandHandler("bnhhsh", bnhhsh)
 help_handler = CommandHandler("help", help, filters=mention_or_private_filter)
 error_notice_control_handler = CommandHandler("error_notice", error_notice_control)
-qrand_handler = CommandHandler("qrand", random_quote)
 remake_handler = CommandHandler("remake", remake)
 suicide_handler = CommandHandler("suicide", suicide)
+
 today_waifu_handler = CommandHandler(
     "waifu", today_waifu, filters=filters.ChatType.GROUPS
 )
