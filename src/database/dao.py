@@ -112,7 +112,8 @@ def add_chat(chat: Chat | ChatData) -> ChatData:
 
 def add_quote(
     chat: Chat | ChatData,
-    user: User | UserData,
+    user: User | UserData | Chat,
+    qer: User | UserData | Chat,
     message_id: int,
     text: str = None,
     img: str = None,
@@ -122,6 +123,7 @@ def add_quote(
             chat_id=chat.id,
             user_id=user.id,
             message_id=message_id,
+            qer_id=qer.id,
             text=text,
             img=img,
         )

@@ -50,17 +50,15 @@ async def quote(update: Update, context: ContextTypes.DEFAULT_TYPE):
     quote_message = update.effective_message.reply_to_message
     quote_user = quote_message.from_user
     forward_from_user = quote_message.forward_from
-    # is_chat = False
-    # is_bot = False
+
     if forward_from_user:
         quote_user = forward_from_user
     if quote_message.sender_chat:
         quote_user = quote_message.sender_chat
-        # is_chat = True
-    # if not is_chat:
-    #     if quote_user.is_bot:
-    #         is_bot = True
-    # not_user = is_chat or is_bot or quote_user.id in [fake_users_id]
+    qer_user = update.effective_user
+    if update.effective_message.sender_chat:
+        qer_user = update.effective_message.sender_chat
+
     await _pin_quote_message(quote_message)
 
     await quote_message.reply_text(text="好!")
@@ -68,7 +66,9 @@ async def quote(update: Update, context: ContextTypes.DEFAULT_TYPE):
     quote_img_file_id = await _generate_and_sned_quote_img(
         update, context, quote_message, quote_user
     )
-    await _save_quote_data(update, quote_message, quote_user, quote_img_file_id)
+    await _save_quote_data(
+        update, qer_user, quote_message, quote_user, quote_img_file_id
+    )
 
 
 async def _pin_quote_message(quote_message: Message):
@@ -103,6 +103,7 @@ async def _generate_and_sned_quote_img(
 
 async def _save_quote_data(
     update: Update,
+    qer: User | Chat,
     quote_message: Message,
     quote_user: User | Chat,
     quote_img: str | None,
@@ -110,6 +111,7 @@ async def _save_quote_data(
     dao.add_quote(
         chat=update.effective_chat,
         user=quote_user,
+        qer=qer,
         message_id=quote_message.id,
         text=quote_message.text,
         img=quote_img,
