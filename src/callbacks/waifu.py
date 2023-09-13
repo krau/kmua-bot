@@ -13,7 +13,7 @@ from telegram.ext import ContextTypes
 from telegram.helpers import escape_markdown
 
 from ..database import dao
-from ..database.model import UserData
+from ..database.model import UserData, ChatData
 from ..logger import logger
 from ..utils import (
     download_small_avatar,
@@ -42,37 +42,36 @@ def render_waifu_graph(
         # Create nodes
         for user_id, info in user_info.items():
             username = info.get("username")
-            if avatar := info.get("avatar"):
-                avatar_path = os.path.join(tempdir, f"{user_id}_avatar.png")
-                with open(avatar_path, "wb") as avatar_file:
-                    avatar_file.write(avatar)
-                # Create a subgraph for each node
-                with graph.subgraph(name=f"cluster_{user_id}") as subgraph:
-                    # Set the attributes for the subgraph
-                    subgraph.attr(label=username)
-                    subgraph.attr(shape="none")
-                    subgraph.attr(image=avatar_path)
-                    subgraph.attr(imagescale="true")
-                    subgraph.attr(fixedsize="true")
-                    subgraph.attr(width="1")
-                    subgraph.attr(height="1")
-                    subgraph.attr(labelloc="b")  # Label position at the bottom
-
-                    # Create a node within the subgraph
-                    subgraph.node(
-                        str(user_id),
-                        label="",
-                        shape="none",
-                        image=avatar_path,
-                        imagescale="true",
-                        fixedsize="true",
-                        width="1",
-                        height="1",
-                    )
-            else:
-                # Create regular node without avatar image
+            if not info.get("avatar"):
                 graph.node(str(user_id), label=username)
+                continue
+            avatar = info["avatar"]
+            avatar_path = os.path.join(tempdir, f"{user_id}_avatar.png")
+            with open(avatar_path, "wb") as avatar_file:
+                avatar_file.write(avatar)
+            # Create a subgraph for each node
+            with graph.subgraph(name=f"cluster_{user_id}") as subgraph:
+                # Set the attributes for the subgraph
+                subgraph.attr(label=username)
+                subgraph.attr(shape="none")
+                subgraph.attr(image=avatar_path)
+                subgraph.attr(imagescale="true")
+                subgraph.attr(fixedsize="true")
+                subgraph.attr(width="1")
+                subgraph.attr(height="1")
+                subgraph.attr(labelloc="b")  # Label position at the bottom
 
+                # Create a node within the subgraph
+                subgraph.node(
+                    str(user_id),
+                    label="",
+                    shape="none",
+                    image=avatar_path,
+                    imagescale="true",
+                    fixedsize="true",
+                    width="1",
+                    height="1",
+                )
         # Create edges
         for user_id, waifu_id in relationships:
             graph.edge(str(user_id), str(waifu_id))
@@ -110,7 +109,7 @@ async def waifu_graph(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def _waifu_graph(
-    chat: Chat,
+    chat: Chat | ChatData,
     context: ContextTypes.DEFAULT_TYPE,
     msg_id: int | None = None,
 ):
@@ -128,21 +127,19 @@ async def _waifu_graph(
         }
         for user in participate_users
     }
-    try:
-        await context.bot.send_chat_action(chat.id, ChatAction.TYPING)
-        image_bytes = render_waifu_graph(relationships, user_info)
-        logger.debug(f"image_size: {len(image_bytes)}")
-        await context.bot.send_document(
-            chat.id,
-            document=image_bytes,
-            caption=f"老婆关系图\n: {len(participate_users)} users",
-            filename="waifu_graph.webp",
-            disable_content_type_detection=True,
-            reply_to_message_id=msg_id,
-            allow_sending_without_reply=True,
-        )
-    finally:
-        await status_msg.delete()
+    await context.bot.send_chat_action(chat.id, ChatAction.TYPING)
+    image_bytes = render_waifu_graph(relationships, user_info)
+    logger.debug(f"image_size: {len(image_bytes)}")
+    await status_msg.delete()
+    await context.bot.send_document(
+        chat.id,
+        document=image_bytes,
+        caption=f"老婆关系图:\n {len(participate_users)} users",
+        filename="waifu_graph.webp",
+        disable_content_type_detection=True,
+        reply_to_message_id=msg_id,
+        allow_sending_without_reply=True,
+    )
 
 
 async def today_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -194,9 +191,10 @@ async def today_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
     finally:
         context.user_data["waifu_waiting"] = False
-        if not waifu.avatar_small_blob:
-            logger.debug(f"Downloading small avatar for {waifu.full_name}")
-            waifu.avatar_small_blob = await download_small_avatar(waifu.id, context)
+        if waifu:
+            if not waifu.avatar_small_blob:
+                logger.debug(f"Downloading small avatar for {waifu.full_name}")
+                waifu.avatar_small_blob = await download_small_avatar(waifu.id, context)
         db_user = dao.add_user(user)
         if not db_user.avatar_small_blob:
             logger.debug(f"Downloading small avatar for {db_user.full_name}")
@@ -335,7 +333,7 @@ async def user_waifu_manage(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def set_mention(update: Update, context: ContextTypes.DEFAULT_TYPE):
     db_user = dao.add_user(update.effective_user)
-    context.user_data["waifu_is_mention"] = not db_user.waifu_mention
+    db_user.waifu_mention = not db_user.waifu_mention
     set_mention_text = "别@你" if db_user.waifu_mention else "抽到你时@你"
     waifu_manage_markup = InlineKeyboardMarkup(
         [

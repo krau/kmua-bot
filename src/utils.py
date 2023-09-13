@@ -2,7 +2,6 @@ import io
 import os
 import random
 import re
-from itertools import chain
 from operator import attrgetter
 from pathlib import Path
 from typing import Generator

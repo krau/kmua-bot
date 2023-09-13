@@ -323,3 +323,22 @@ def get_chat_user_participated_waifu(chat: Chat | ChatData) -> list[UserData]:
     user_has_waifu = get_chat_users_has_waifu(chat)
     user_was_waifu = get_chat_users_was_waifu(chat)
     return set(chain(user_has_waifu, user_was_waifu))
+
+
+def get_all_chats() -> list[ChatData]:
+    return db.query(ChatData).all()
+
+
+def get_all_chats_id() -> list[int]:
+    return [chat.id for chat in get_all_chats()]
+
+
+def refresh_all_waifu_in_chat(chat: Chat | ChatData):
+    db_chat = add_chat(chat)
+    for user in db_chat.members:
+        refresh_user_waifu_in_chat(user, chat)
+
+
+def refresh_all_waifu_data():
+    db.query(UserChatAssociation).update({UserChatAssociation.waifu_id: None})
+    db.commit()
