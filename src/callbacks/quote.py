@@ -27,6 +27,7 @@ from ..utils import (
     get_big_avatar_bytes,
     message_recorder,
     random_unit,
+    fake_users_id,
 )
 
 
@@ -49,26 +50,17 @@ async def quote(update: Update, context: ContextTypes.DEFAULT_TYPE):
     quote_message = update.effective_message.reply_to_message
     quote_user = quote_message.from_user
     forward_from_user = quote_message.forward_from
-    is_chat = False
-    is_bot = False
+    # is_chat = False
+    # is_bot = False
     if forward_from_user:
         quote_user = forward_from_user
     if quote_message.sender_chat:
         quote_user = quote_message.sender_chat
-        is_chat = True
-    if not is_chat:
-        if quote_user.is_bot:
-            is_bot = True
-    not_user = (
-        is_chat
-        or is_bot
-        or quote_user.id
-        in [
-            ChatID.ANONYMOUS_ADMIN,
-            ChatID.FAKE_CHANNEL,
-            ChatID.SERVICE_CHAT,
-        ]
-    )
+        # is_chat = True
+    # if not is_chat:
+    #     if quote_user.is_bot:
+    #         is_bot = True
+    # not_user = is_chat or is_bot or quote_user.id in [fake_users_id]
     await _pin_quote_message(quote_message)
 
     await quote_message.reply_text(text="好!")
@@ -76,8 +68,6 @@ async def quote(update: Update, context: ContextTypes.DEFAULT_TYPE):
     quote_img_file_id = await _generate_and_sned_quote_img(
         update, context, quote_message, quote_user
     )
-    if not_user:
-        return
     await _save_quote_data(update, quote_message, quote_user, quote_img_file_id)
 
 

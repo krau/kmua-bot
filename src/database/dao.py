@@ -41,21 +41,30 @@ def get_chat_association(chat: Chat | ChatData) -> ChatData | None:
     )
 
 
-def add_user(user: User | UserData) -> UserData:
+def add_user(user: User | UserData | Chat | ChatData) -> UserData:
     """
-    add user if not exists
+    添加用户，如果用户已存在则返回已存在的用户
+    如果传递的是 Chat 或 ChatData 对象，full_name 为 chat.title
 
     :return: UserData object
     """
     if userdata := get_user_by_id(user.id):
         return userdata
-    db.add(
-        UserData(
+    userdata = None
+    if isinstance(user, Chat) or isinstance(user, ChatData):
+        userdata = UserData(
+            id=user.id,
+            username=user.username,
+            full_name=user.title,
+            is_real_user=False,
+        )
+    else:
+        userdata = UserData(
             id=user.id,
             username=user.username,
             full_name=user.full_name,
         )
-    )
+    db.add(userdata)
     db.commit()
     return get_user_by_id(user.id)
 
@@ -102,7 +111,11 @@ def add_chat(chat: Chat | ChatData) -> ChatData:
 
 
 def add_quote(
-    chat: Chat, user: User, message_id: int, text: str = None, img: str = None
+    chat: Chat | ChatData,
+    user: User | UserData,
+    message_id: int,
+    text: str = None,
+    img: str = None,
 ):
     db.add(
         Quote(
@@ -188,6 +201,8 @@ def get_user_waifu_in_chat(
     association = get_user_association_in_chat(user, chat)
     if association is None:
         return None
+    if association.waifu_id is None:
+        return None
     return get_user_by_id(association.waifu_id)
 
 
@@ -219,7 +234,11 @@ def get_user_waifu_of_in_chat(
     )
     if associations is None:
         return None
-    return [get_user_by_id(association.user_id) for association in associations]
+    return [
+        get_user_by_id(association.user_id)
+        for association in associations
+        if association.user_id is not None
+    ]
 
 
 def get_married_users_in_chat(chat: Chat | ChatData) -> list[UserData]:

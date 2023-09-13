@@ -47,6 +47,8 @@ class UserData(Base):
     married_waifu_id = Column(Integer, default=None)
     waifu_mention = Column(Boolean, default=False)
 
+    is_real_user = Column(Boolean, default=True) # 以频道身份加入的用户不是真实用户
+
     created_at = Column(DateTime, default=func.now())
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
 
@@ -77,6 +79,7 @@ class Quote(Base):
     quote_id = Column(Integer, primary_key=True, autoincrement=True)
     chat_id = Column(Integer, ForeignKey("chat_data.id"))
     user_id = Column(Integer, ForeignKey("user_data.id"))
+    qer_id = Column(Integer)  # 使用 q 的人
     message_id = Column(Integer, nullable=False)
     text = Column(String, nullable=True, default=None)
     img = Column(String, nullable=True, default=None, comment="图片的 file id")

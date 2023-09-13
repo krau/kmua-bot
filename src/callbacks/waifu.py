@@ -145,7 +145,10 @@ async def _waifu_graph(
 async def today_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     chat = update.effective_chat
-    logger.info(f"[{chat.title}]({user.name})" + f" {update.effective_message.text}")
+    message = update.effective_message
+    if message.sender_chat:
+        user = message.sender_chat
+    # logger.info(f"[{chat.title}]({user.name})" + f" {message.text}")
 
     if context.user_data.get("waifu_waiting", False):
         return
@@ -193,11 +196,9 @@ async def today_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         context.user_data["waifu_waiting"] = False
         if waifu:
             if not waifu.avatar_small_blob:
-                logger.debug(f"Downloading small avatar for {waifu.full_name}")
                 waifu.avatar_small_blob = await download_small_avatar(waifu.id, context)
-        db_user = dao.add_user(user)
+        db_user = dao.get_user_by_id(user.id)
         if not db_user.avatar_small_blob:
-            logger.debug(f"Downloading small avatar for {db_user.full_name}")
             db_user.avatar_small_blob = await download_small_avatar(user.id, context)
         dao.commit()
 
@@ -272,9 +273,13 @@ def _get_waifu_markup(
         [
             [
                 InlineKeyboardButton(
-                    text="从卡池中移除",
+                    text="remove",
                     callback_data=f"remove_waifu {waifu.id} {user.id}",
-                )
+                ),
+                InlineKeyboardButton(
+                    text="marry",
+                    callback_data=f"marry_waifu {waifu.id} {user.id}",
+                ),
             ]
         ]
     )
@@ -303,12 +308,13 @@ async def remove_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = dao.get_user_by_id(user_id)
     waifu = dao.get_user_by_id(waifu_id)
     if not user or not waifu:
-        await update.callback_query.answer(text="数据错误")
+        await update.callback_query.answer(text="查无此人,可能已经被移除了")
         return
     dao.remove_user_from_chat(waifu, message.chat)
     dao.refresh_user_waifu_in_chat(user, message.chat)
     await message.edit_caption(
-        caption=f"_已移除该用户:_ {waifu.id}\n ta 曾是 {user.id} 的老婆",
+        caption=f"_已移除该用户:_ {escape_markdown(waifu.full_name,2)}\n"
+        + f" ta 曾是 {escape_markdown(user.full_name,2)} 的老婆",
         parse_mode="MarkdownV2",
     )
 

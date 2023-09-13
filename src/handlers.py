@@ -97,16 +97,11 @@ waifu_graph_handler = CommandHandler(
     "waifu_graph", waifu_graph, filters=filters.ChatType.GROUPS
 )
 
-# clear_waifu_data_handler = CommandHandler("clear_waifu_data", clear_waifu_data)
 set_greet_handler = CommandHandler(
     "set_greet", set_greet, filters=filters.ChatType.GROUPS
 )
 
 clear_members_data_handler = CommandHandler("clear_members_data", clear_members_data)
-# clear_chat_waifu_handler = CommandHandler("clear_chat_waifu", clear_chat_waifu)
-# switch_waifu_handler = CommandHandler(
-#     "switch_waifu", switch_waifu, filters=filters.ChatType.GROUPS
-# )
 getid_handler = CommandHandler("id", getid)
 set_title_permissions_handler = CommandHandler("sett", set_title_permissions)
 clear_user_info_handler = CommandHandler("clear_user_info", clear_user_info)
