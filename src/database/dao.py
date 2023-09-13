@@ -2,10 +2,20 @@ from .db import db
 from .model import UserData, ChatData, Quote, UserChatAssociation
 from telegram import User, Chat
 from itertools import chain
+from ..logger import logger
+# from sqlalchemy import text
+
+
+# def init_db():
+#     db.execute(text("PRAGMA synchronous = OFF"))
 
 
 def commit():
-    db.commit()
+    try:
+        db.commit()
+    except Exception as e:
+        logger.exception(e)
+        db.rollback()
 
 
 def get_user_by_id(user_id: int) -> UserData | None:

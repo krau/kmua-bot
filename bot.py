@@ -1,5 +1,5 @@
 import datetime
-from src.database.db import db
+from src.database import dao
 
 import pytz
 from telegram.constants import UpdateType
@@ -17,6 +17,7 @@ from src.logger import logger
 
 
 async def init_data(app: Application):
+    logger.info("initing...")
     await app.bot.set_my_commands(
         [
             ("start", "一键猫叫"),
@@ -35,22 +36,15 @@ async def init_data(app: Application):
             ("clear_chat_data", "⚠清空聊天数据"),
         ]
     )
-    if not app.bot_data.get("quotes", None):
-        app.bot_data["quotes"] = {}
-    if not app.bot_data.get("today_waifu", None):
-        app.bot_data["today_waifu"] = {}
-    app.bot_data["waifu_mutex"] = {}
-    if not app.bot_data.get("user_info"):
-        app.bot_data["user_info"] = {}
-    if not app.bot_data.get("music"):
-        app.bot_data["music"] = []
-    if not app.bot_data.get("sticker2img"):
-        app.bot_data["sticker2img"] = {}
+    # dao.init_db()
+    logger.info("started")
 
 
 async def stop(app: Application):
-    db.close()
-    logger.info("Bot已停止")
+    logger.debug("close database connection...")
+    dao.commit()
+    dao.db.close()
+    logger.info("stopped")
 
 
 def run():
@@ -75,7 +69,6 @@ def run():
     )
     app.add_handlers(handlers)
     app.add_error_handler(on_error)
-    logger.info("Bot已启动")
     allowed_updates = [
         UpdateType.MESSAGE,
         UpdateType.CALLBACK_QUERY,

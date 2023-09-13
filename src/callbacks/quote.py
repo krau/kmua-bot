@@ -14,7 +14,7 @@ from telegram import (
     Update,
     User,
 )
-from telegram.constants import ChatAction, ChatID
+from telegram.constants import ChatAction
 from telegram.error import BadRequest
 from telegram.ext import ContextTypes
 from telegram.helpers import escape_markdown
