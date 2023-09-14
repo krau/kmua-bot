@@ -9,7 +9,7 @@ from zhconv import convert
 import asyncio
 from ..data import word_dict
 from ..logger import logger
-from ..utils import message_recorder
+from ..common.message import message_recorder
 from .friendship import ohayo, oyasumi
 from telegram.error import BadRequest
 

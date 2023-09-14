@@ -4,9 +4,10 @@ from telegram import Update
 from telegram.ext import ContextTypes
 from telegram.helpers import escape_markdown
 
-from ..config.config import settings
+from ..config import settings
 from ..logger import logger
-from ..utils import message_recorder, parse_arguments
+from ..common.message import message_recorder
+from ..common.utils import parse_arguments
 
 
 async def suicide(update: Update, context: ContextTypes.DEFAULT_TYPE):

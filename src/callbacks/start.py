@@ -2,14 +2,29 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import ContextTypes
 
 from ..logger import logger
-from ..utils import message_recorder
+from ..common.message import message_recorder
+
+
+_start_bot_markup = InlineKeyboardMarkup(
+    [
+        [
+            InlineKeyboardButton("Open source", url="https://github.com/krau/kmua-bot"),
+            InlineKeyboardButton("Detail help", url="https://krau.github.io/kmua-bot/"),
+        ],
+        [
+            InlineKeyboardButton("Your data", callback_data="user_data_manage"),
+            InlineKeyboardButton("Quote manage", callback_data="user_quote_manage"),
+        ],
+        [
+            InlineKeyboardButton("Waifu manage", callback_data="user_waifu_manage"),
+            InlineKeyboardButton("Nya~", callback_data="noop"),
+        ],
+    ]
+)
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    logger.info(
-        f"[{update.effective_chat.title}]({update.effective_user.name})"
-        + f" {update.effective_message.text}"
-    )
+    logger.info(f"[{update.effective_user.name}] <start>")
     await message_recorder(update, context)
     if update.effective_chat.type != "private":
         if update.effective_message.text == "/start":
@@ -17,60 +32,47 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
         await _start_in_group(update, context)
         return
-    start_bot_markup = InlineKeyboardMarkup(
-        [
-            [
-                InlineKeyboardButton(
-                    "拉我进群", url=f"https://t.me/{context.bot.username}?startgroup=new"
-                ),
-                InlineKeyboardButton("开源主页", url="https://github.com/krau/kmua-bot"),
-                InlineKeyboardButton("详细帮助", url="https://krau.github.io/kmua-bot/"),
-            ],
-            [
-                InlineKeyboardButton("你的数据", callback_data="user_data_manage"),
-                InlineKeyboardButton("名言管理", callback_data="user_quote_manage"),
-            ],
-            [
-                InlineKeyboardButton("老婆管理", callback_data="user_waifu_manage"),
-            ]
-        ]
-    )
+
     if update.callback_query:
-        await context.bot.edit_message_text(
-            chat_id=update.effective_chat.id,
-            message_id=update.callback_query.message.id,
-            text="喵喵喵喵喵?",
-            reply_markup=start_bot_markup,
+        if update.callback_query.message.photo:
+            await update.callback_query.edit_message_caption(
+                caption="Nya~",
+                reply_markup=_start_bot_markup,
+            )
+            return
+        await update.callback_query.edit_message_text(
+            text="Nya~",
+            reply_markup=_start_bot_markup,
         )
-        return
-    await context.bot.send_message(
-        chat_id=update.effective_chat.id,
-        text="喵喵喵喵喵?",
-        reply_markup=start_bot_markup,
+    await update.effective_message.reply_photo(
+        photo="AgACAgUAAx0EbmoR9QACFC5lAsNStCDvOHRLSZePZ_Uv9_eVZQACCbcxG_sWCFTfYtr8PTohXwEAAwIAA3MAAzAE",
+        caption="Nya~",
+        reply_markup=_start_bot_markup,
     )
 
 
 async def _start_in_group(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    logger.info(
-        f"[{update.effective_chat.title}]({update.effective_user.name})"
-        + f" {update.effective_message.text}"
-    )
+    logger.info(f"[{update.effective_user.name}] <start in group>")
     start_bot_markup = InlineKeyboardMarkup(
         [
             [
                 InlineKeyboardButton(
-                    "私聊咱", url=f"https://t.me/{context.bot.username}?start=start"
+                    "PM me nya~", url=f"https://t.me/{context.bot.username}?start=start"
                 )
-            ]
+            ],
+            [
+                InlineKeyboardButton(
+                    "Open source", url="https://github.com/krau/kmua-bot"
+                ),
+                InlineKeyboardButton(
+                    "Detail help", url="https://krau.github.io/kmua-bot/"
+                ),
+            ],
         ]
     )
     sent_message = await context.bot.send_message(
         chat_id=update.effective_chat.id,
-        text="喵喵喵?",
+        text="Nya!",
         reply_markup=start_bot_markup,
     )
     logger.info(f"Bot:{sent_message.text}")
-    await context.bot.send_sticker(
-        chat_id=update.effective_chat.id,
-        sticker="CAACAgEAAxkBAAIKWGREi3q4O_H40T66DbTZGyNAf0CbAALPAAN92oBFKGj8op00zJ8vBA",
-    )

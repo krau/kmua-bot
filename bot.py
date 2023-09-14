@@ -10,8 +10,8 @@ from telegram.ext import (
     Defaults,
 )
 
-from src.callbacks.jobs import refresh_data
-from src.config.config import settings
+from src.callbacks.jobs import refresh_waifu_data
+from src.config import settings
 from src.handlers import handlers, on_error
 from src.logger import logger
 
@@ -63,9 +63,9 @@ def run():
     )
     job_queue = app.job_queue
     job_queue.run_daily(
-        refresh_data,
+        refresh_waifu_data,
         time=datetime.time(4, 0, 0, 0, tzinfo=pytz.timezone("Asia/Shanghai")),
-        name="refresh_data",
+        name="refresh_waifu_data",
     )
     app.add_handlers(handlers)
     app.add_error_handler(on_error)

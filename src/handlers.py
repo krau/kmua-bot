@@ -26,7 +26,7 @@ from .callbacks.chatmember import (
 from .callbacks.help import help
 from .callbacks.interact import interact
 from .callbacks.keyword_reply import keyword_reply
-from .callbacks.others import chat_migration, clear_user_info, error_notice_control
+from .callbacks.others import chat_migration, error_notice_control
 from .callbacks.quote import (
     delete_quote_in_chat,
     inline_query_quote,
@@ -43,15 +43,18 @@ from .callbacks.title import (
     set_title_permissions_callback,
     title,
 )
-
+from .callbacks.userdata import (
+    set_waifu_mention,
+    user_data_manage,
+    user_data_refresh,
+    user_waifu_manage,
+)
 from .callbacks.waifu import (
     remove_waifu,
-    set_mention,
     today_waifu,
-    user_waifu_manage,
     waifu_graph,
 )
-from .config.config import settings
+from .config import settings
 from .filters import (
     interact_filter,
     keyword_reply_filter,
@@ -93,7 +96,6 @@ set_greet_handler = CommandHandler(
 clear_members_data_handler = CommandHandler("clear_members_data", clear_members_data)
 getid_handler = CommandHandler("id", getid)
 set_title_permissions_handler = CommandHandler("sett", set_title_permissions)
-clear_user_info_handler = CommandHandler("clear_user_info", clear_user_info)
 add_music_handler = CommandHandler("add_music", add_music)
 clear_music_handler = CommandHandler("clear_music", clear_music)
 clear_sticker_cache_handler = CommandHandler("clear_sticker_cache", clear_sticker_cache)
@@ -111,12 +113,20 @@ remove_waifu_handler = CallbackQueryHandler(remove_waifu, pattern="remove_waifu"
 user_waifu_manage_handler = CallbackQueryHandler(
     user_waifu_manage, pattern="user_waifu_manage"
 )
-set_mention_handler = CallbackQueryHandler(set_mention, pattern="set_mention")
+set_waifu_mention_handler = CallbackQueryHandler(
+    set_waifu_mention, pattern="set_waifu_mention"
+)
 set_title_permissions_callback_handler = CallbackQueryHandler(
     set_title_permissions_callback, pattern="set_title_permissions"
 )
 chat_quote_manage_handler = CallbackQueryHandler(
     delete_quote_in_chat, pattern="chat_quote_manage|delete_quote_in_chat"
+)
+user_data_manage_handler = CallbackQueryHandler(
+    user_data_manage, pattern="user_data_manage"
+)
+user_data_refresh_handler = CallbackQueryHandler(
+    user_data_refresh, pattern="user_data_refresh"
 )
 
 # others
@@ -144,6 +154,8 @@ handlers = [
     today_waifu_handler,
     waifu_graph_handler,
     quote_handler,
+    user_data_manage_handler,
+    user_data_refresh_handler,
     title_handler,
     set_quote_probability_handler,
     qrand_handler,
@@ -164,14 +176,13 @@ handlers = [
     getid_handler,
     error_notice_control_handler,
     clear_chat_data_handler,
-    clear_user_info_handler,
     clear_chat_data_cancel_handler,
     interact_handler,
     remove_waifu_handler,
     keyword_reply_handler,
     inline_query_handler,
     user_waifu_manage_handler,
-    set_mention_handler,
+    set_waifu_mention_handler,
     sticker2img_handler,
     random_quote_handler,
 ]

@@ -6,7 +6,7 @@ from telegram import (
 from telegram.ext import ContextTypes
 
 from ..logger import logger
-from ..utils import message_recorder
+from ..common.message import message_recorder
 
 
 async def help(update: Update, context: ContextTypes.DEFAULT_TYPE):

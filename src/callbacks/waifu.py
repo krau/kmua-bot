@@ -12,15 +12,13 @@ from telegram.constants import ChatAction
 from telegram.ext import ContextTypes
 from telegram.helpers import escape_markdown
 
+from ..common.message import message_recorder
+from ..common.user import download_small_avatar, verify_user_can_manage_bot
+from ..common.utils import fake_users_id
+from ..common.waifu import get_chat_waifu_relationships
 from ..database import dao
-from ..database.model import UserData, ChatData
+from ..database.model import ChatData, UserData
 from ..logger import logger
-from ..utils import (
-    download_small_avatar,
-    fake_users_id,
-    get_chat_waifu_relationships,
-    message_recorder,
-)
 
 
 def render_waifu_graph(
@@ -148,7 +146,10 @@ async def today_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     message = update.effective_message
     if message.sender_chat:
         user = message.sender_chat
-    # logger.info(f"[{chat.title}]({user.name})" + f" {message.text}")
+    logger.info(
+        f"[{chat.title}]({user.name if not message.sender_chat else user.title})"
+        + f" {message.text}"
+    )
 
     if context.user_data.get("waifu_waiting", False):
         return
@@ -301,6 +302,10 @@ async def _get_photo_to_send(
 
 
 async def remove_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not await verify_user_can_manage_bot(
+        update.effective_user, update.effective_chat, update, context
+    ):
+        return
     query_data = update.callback_query.data.split(" ")
     waifu_id = int(query_data[1])
     user_id = int(query_data[2])
@@ -312,45 +317,14 @@ async def remove_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     dao.remove_user_from_chat(waifu, message.chat)
     dao.refresh_user_waifu_in_chat(user, message.chat)
-    await message.edit_caption(
-        caption=f"_已移除该用户:_ {escape_markdown(waifu.full_name,2)}\n"
-        + f" ta 曾是 {escape_markdown(user.full_name,2)} 的老婆",
-        parse_mode="MarkdownV2",
+    text = (
+        f"_已移除该用户:_ {escape_markdown(waifu.full_name,2)}\n"
+        + f"ta 曾是 {escape_markdown(user.full_name,2)} 的老婆"
     )
-
-
-async def user_waifu_manage(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    db_user = dao.add_user(update.effective_user)
-    set_mention_text = "别@你" if db_user.waifu_mention else "抽到你时@你"
-    waifu_manage_markup = InlineKeyboardMarkup(
-        [
-            [InlineKeyboardButton(text=set_mention_text, callback_data="set_mention")],
-            [InlineKeyboardButton(text="返回", callback_data="back_home")],
-        ]
-    )
-    text = f"""
-当前设置:
-是否@你: {db_user.waifu_mention}"""
-    await update.callback_query.message.edit_text(
-        text=text, reply_markup=waifu_manage_markup
-    )
-    dao.commit()
-
-
-async def set_mention(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    db_user = dao.add_user(update.effective_user)
-    db_user.waifu_mention = not db_user.waifu_mention
-    set_mention_text = "别@你" if db_user.waifu_mention else "抽到你时@你"
-    waifu_manage_markup = InlineKeyboardMarkup(
-        [
-            [InlineKeyboardButton(text=set_mention_text, callback_data="set_mention")],
-            [InlineKeyboardButton(text="返回", callback_data="back_home")],
-        ]
-    )
-    text = f"""
-当前设置:
-是否@你: {db_user.waifu_mention}"""
-    await update.callback_query.message.edit_text(
-        text=text, reply_markup=waifu_manage_markup
-    )
-    dao.commit()
+    if message.photo:
+        await message.edit_caption(
+            caption=text,
+            parse_mode="MarkdownV2",
+        )
+        return
+    await message.edit_text(text=text, parse_mode="MarkdownV2")

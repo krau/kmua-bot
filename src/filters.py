@@ -4,8 +4,6 @@ from telegram.ext.filters import (
     MessageFilter,
 )
 from telegram.ext import filters
-from .utils import random_unit
-from .config.config import settings
 
 
 class InteractFilter(MessageFilter):
@@ -52,14 +50,6 @@ class MentionBotFilter(MessageFilter):
         if f"@{message.get_bot().username}" not in message.text:
             return False
         return True
-
-
-class RandomFilter(MessageFilter):
-    def filter(self, message: Message) -> bool | FilterDataDict | None:
-        pr = float(settings.get("random_filter", 0))
-        if random_unit(pr):
-            return True
-        return False
 
 
 class ReplyBotFilter(MessageFilter):

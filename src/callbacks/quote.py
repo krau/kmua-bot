@@ -1,15 +1,16 @@
+import io
+import os
 import random
 from math import ceil
-from uuid import uuid4
+from pathlib import Path
 
+from PIL import Image, ImageFont
+from pilmoji import Pilmoji
 from telegram import (
     Chat,
     InlineKeyboardButton,
     InlineKeyboardMarkup,
-    InlineQueryResultArticle,
-    InlineQueryResultCachedPhoto,
     InlineQueryResultsButton,
-    InputTextMessageContent,
     Message,
     Update,
     User,
@@ -18,18 +19,19 @@ from telegram.constants import ChatAction, ChatType
 from telegram.ext import ContextTypes
 from telegram.helpers import escape_markdown
 
-from ..database import dao
-from ..logger import logger
-from ..utils import (
-    generate_quote_img,
-    get_big_avatar_bytes,
+from ..common.message import (
     get_message_common_link,
     message_recorder,
     parse_message_link,
-    random_unit,
+)
+from ..common.user import (
+    get_big_avatar_bytes,
     verify_user_can_manage_bot,
     verify_user_is_chat_admin,
 )
+from ..common.utils import random_unit
+from ..database import dao
+from ..logger import logger
 from .jobs import delete_message
 
 
@@ -396,101 +398,53 @@ _result_button = InlineQueryResultsButton(text="名言管理", start_parameter="
 
 
 async def inline_query_quote(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.inline_query.query
-    user_id = update.inline_query.from_user.id
-    quotes_data = context.bot_data["quotes"].get(user_id, {})
-    text_quotes = quotes_data.get("text", [])
-    img_quotes = quotes_data.get("img", [])
-    is_personal = True
-    cache_time = 10
-    results = []
-    no_quote_inline_markup = InlineKeyboardMarkup(
-        [
-            [
-                InlineKeyboardButton(
-                    "看看我的", url=f"https://t.me/{context.bot.username}?start=start"
-                )
-            ]
-        ]
-    )
-    if not text_quotes and not img_quotes:
-        results.append(
-            InlineQueryResultArticle(
-                id=str(uuid4()),
-                title="你还没有保存任何名言",
-                input_message_content=InputTextMessageContent("我还没有任何名言"),
-                reply_markup=no_quote_inline_markup,
-            )
-        )
-    else:
-        if query:
-            for text_quote in text_quotes:
-                if query in text_quote["content"]:
-                    create_at_str = text_quote["created_at"].strftime(
-                        "%Y年%m月%d日%H时%M分%S秒"
-                    )  # noqa: E501
-                    results.append(
-                        InlineQueryResultArticle(
-                            id=str(uuid4()),
-                            title=text_quote["content"],
-                            input_message_content=InputTextMessageContent(
-                                text_quote["content"]
-                            ),
-                        )
-                    )
-            for img_quote in img_quotes:
-                if query in img_quote["text"]:
-                    create_at_str = img_quote["created_at"].strftime(
-                        "%Y年%m月%d日%H时%M分%S秒"
-                    )  # noqa: E501
-                    results.append(
-                        InlineQueryResultCachedPhoto(
-                            id=str(uuid4()),
-                            photo_file_id=img_quote["content"],
-                        )
-                    )
-            if len(results) == 0:
-                results.append(
-                    InlineQueryResultArticle(
-                        id=str(uuid4()),
-                        title="没有找到相关名言",
-                        input_message_content=InputTextMessageContent(
-                            message_text=f"我没有说过有 *{escape_markdown(query)}* 的名言!",  # noqa: E501
-                            parse_mode="Markdown",
-                        ),
-                        reply_markup=no_quote_inline_markup,
-                    )
-                )
-        else:
-            results = []
-            for text_quote in random.sample(text_quotes, min(len(text_quotes), 10)):
-                create_at_str = text_quote["created_at"].strftime(
-                    "%Y年%m月%d日%H时%M分%S秒"
-                )  # noqa: E501
-                results.append(
-                    InlineQueryResultArticle(
-                        id=str(uuid4()),
-                        title=text_quote["content"],
-                        input_message_content=InputTextMessageContent(
-                            message_text=text_quote["content"],
-                        ),
-                        description=f"于{create_at_str}记",
-                    )
-                )
+    pass
 
-            for img_quote in random.sample(img_quotes, min(len(img_quotes), 10)):
-                create_at_str = img_quote["created_at"].strftime(
-                    "%Y年%m月%d日%H时%M分%S秒"
-                )  # noqa: E501
-                results.append(
-                    InlineQueryResultCachedPhoto(
-                        id=str(uuid4()),
-                        photo_file_id=img_quote["content"],
-                    )
-                )
-    await update.inline_query.answer(
-        button=_result_button,
-        results=results,
-        is_personal=is_personal,
-        cache_time=cache_time,
+
+async def generate_quote_img(avatar: bytes, text: str, name: str) -> bytes:
+    text = text.replace("\n", " ")
+    font_path = str(Path(__file__).resolve().parent.parent / "resource" / "TsukuA.ttc")
+    font_size = 42
+    font = ImageFont.truetype(font_path, font_size)
+    base_img = Image.open(
+        os.path.join(Path(os.path.dirname(__file__)).parent, "resource", "base.png")
     )
+    img = Image.new("RGBA", (1200, 630), (255, 255, 255, 0))
+    avatar = Image.open(io.BytesIO(avatar))
+    img.paste(avatar, (0, 0))
+    img.paste(base_img, (0, 0), base_img)
+
+    text_list = [text[i : i + 18] for i in range(0, len(text), 18)]
+    new_text_height = font_size * len(text_list)
+    new_text_width = max([font.getsize(x)[0] for x in text_list])
+    text_x = 540 + int((560 - new_text_width) / 2)
+    text_y = int((630 - new_text_height) / 2)
+    with Pilmoji(img) as pilmoji:
+        for i in range(len(text_list)):
+            pilmoji.text(
+                (text_x, text_y + i * font_size),
+                text=text_list[i],
+                fill=(255, 255, 252),
+                font=font,
+                align="center",
+                emoji_position_offset=(0, 12),
+            )
+
+    name_font_size = 24
+    name_font = ImageFont.truetype(font_path, name_font_size)
+    name_width, name_height = name_font.getsize(name)
+    name_x = 600 + int((560 - name_width) / 2)
+    name_y = 630 - name_height - 20
+    with Pilmoji(img) as pilmoji:
+        pilmoji.text(
+            (name_x, name_y),
+            text=f"{name}",
+            font=name_font,
+            fill=(255, 255, 252),
+            align="center",
+        )
+    img_byte_arr = io.BytesIO()
+    img = img.convert("RGB")
+    img.save(img_byte_arr, format="png")
+    img_byte_arr = img_byte_arr.getvalue()
+    return img_byte_arr

@@ -5,7 +5,8 @@ from telegram.ext import ContextTypes
 
 from ..data import birthplace, country, role
 from ..logger import logger
-from ..utils import message_recorder, random_unit
+from ..common.message import message_recorder
+from ..common.utils import random_unit
 
 
 async def remake(update: Update, context: ContextTypes.DEFAULT_TYPE):

@@ -6,7 +6,7 @@ from .model import (
     UserChatAssociation,  # noqa: F401
 )
 
-from ..config.config import data_dir
+from ..config import data_dir
 
 if not data_dir.exists():
     data_dir.mkdir()

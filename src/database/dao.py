@@ -63,6 +63,7 @@ def add_user(user: User | UserData | Chat | ChatData) -> UserData:
             id=user.id,
             username=user.username,
             full_name=user.title,
+            waifu_mention=True,
             is_real_user=False,
         )
     elif isinstance(user, User) and user.is_bot:
@@ -72,6 +73,7 @@ def add_user(user: User | UserData | Chat | ChatData) -> UserData:
             full_name=user.full_name,
             is_real_user=False,
             is_bot=True,
+            waifu_mention=True,
         )
     elif isinstance(user, User):
         userdata = UserData(
@@ -129,17 +131,17 @@ def get_user_is_bot_global_admin(user: User | UserData) -> bool:
     return add_user(user).is_bot_global_admin
 
 
+def set_user_is_bot_global_admin(user: User | UserData, is_admin: bool):
+    db_user = add_user(user)
+    db_user.is_bot_global_admin = is_admin
+    commit()
+
+
 def get_user_is_bot_admin_in_chat(user: User | UserData, chat: Chat | ChatData) -> bool:
     association = get_user_association_in_chat(user, chat)
     if association is None:
         return False
     return association.is_bot_admin
-
-
-def set_user_is_bot_global_admin(user: User | UserData, is_admin: bool):
-    db_user = add_user(user)
-    db_user.is_bot_global_admin = is_admin
-    commit()
 
 
 def set_user_is_bot_admin_in_chat(
