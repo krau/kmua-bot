@@ -10,7 +10,6 @@ from telegram.ext import (
     filters,
 )
 
-from .callbacks.bnhhsh import bnhhsh
 from .callbacks.chatdata import (
     clear_chat_data,
     clear_chat_data_ask,
@@ -44,10 +43,7 @@ from .callbacks.title import (
     set_title_permissions_callback,
     title,
 )
-from .callbacks.userdata import (
-    clear_user_img_quote,
-    clear_user_text_quote,
-)
+
 from .callbacks.waifu import (
     remove_waifu,
     set_mention,
@@ -78,7 +74,6 @@ delete_quote_handler = CommandHandler(
 qrand_handler = CommandHandler("qrand", random_quote, filters=filters.ChatType.GROUPS)
 
 clear_chat_data_ask_handler = CommandHandler("clear_chat_data", clear_chat_data_ask)
-bnhhsh_command_handler = CommandHandler("bnhhsh", bnhhsh)
 help_handler = CommandHandler("help", help, filters=mention_or_private_filter)
 error_notice_control_handler = CommandHandler("error_notice", error_notice_control)
 remake_handler = CommandHandler("remake", remake)
@@ -107,13 +102,6 @@ clear_sticker_cache_handler = CommandHandler("clear_sticker_cache", clear_sticke
 start_callback_handler = CallbackQueryHandler(start, pattern="back_home")
 clear_chat_data_handler = CallbackQueryHandler(
     clear_chat_data, pattern="clear_chat_data"
-)
-
-clear_user_img_quote_handler = CallbackQueryHandler(
-    clear_user_img_quote, pattern="clear_user_img_quote"
-)
-clear_user_text_quote_handler = CallbackQueryHandler(
-    clear_user_text_quote, pattern="clear_user_text_quote"
 )
 
 clear_chat_data_cancel_handler = CallbackQueryHandler(
@@ -177,14 +165,11 @@ handlers = [
     error_notice_control_handler,
     clear_chat_data_handler,
     clear_user_info_handler,
-    bnhhsh_command_handler,
     clear_chat_data_cancel_handler,
     interact_handler,
     remove_waifu_handler,
     keyword_reply_handler,
     inline_query_handler,
-    clear_user_img_quote_handler,
-    clear_user_text_quote_handler,
     user_waifu_manage_handler,
     set_mention_handler,
     sticker2img_handler,
