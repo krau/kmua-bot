@@ -26,14 +26,12 @@ async def init_data(app: Application):
             ("waifu", "今日老婆!"),
             ("waifu_graph", "老婆关系图！"),
             ("q", "载入史册"),
-            ("clear_chat_quote", "清空史册"),
             ("setqp", "设置发名言概率"),
             ("help", "帮助"),
             ("qrand", "随机名言"),
             ("d", "移出史册"),
             ("set_greet", "设置入群欢迎"),
             ("id", "获取聊天ID"),
-            ("clear_chat_data", "⚠清空聊天数据"),
         ]
     )
     # dao.init_db()

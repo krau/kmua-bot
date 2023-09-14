@@ -22,10 +22,6 @@ async def help(update: Update, context: ContextTypes.DEFAULT_TYPE):
 /t - 获取头衔|互赠头衔
 /setqp - 设置发名言概率
 /waifu - 今天的群友老婆!
-/switch_waifu - 开关本群今日老婆功能
-/clear_chat_quote - 清除本聊天名言
-/clear_chat_data - 清空本聊天数据
-/clear_chat_waifu - 清除本群老婆数据
 
 私聊可详细管理个人数据
 
@@ -40,8 +36,12 @@ Bot: "A透了B!"
     help_markup = InlineKeyboardMarkup(
         [
             [
-                InlineKeyboardButton("Detail help", url="https://krau.github.io/kmua-bot/"),
-                InlineKeyboardButton("Open source", url="https://github.com/krau/kmua-bot"),
+                InlineKeyboardButton(
+                    "Detail help", url="https://krau.github.io/kmua-bot/"
+                ),
+                InlineKeyboardButton(
+                    "Open source", url="https://github.com/krau/kmua-bot"
+                ),
             ]
         ]
     )
