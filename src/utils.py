@@ -12,13 +12,14 @@ from telegram import (
     Update,
 )
 from telegram import Chat, User
-from telegram.constants import ChatType
+from telegram.constants import ChatType, ChatMemberStatus
 from telegram.ext import ContextTypes
 from telegram.constants import ChatID
 
 from .database import dao
 from .database.model import ChatData, UserData
 from .logger import logger
+from .config.config import settings
 
 fake_users_id = [ChatID.FAKE_CHANNEL, ChatID.ANONYMOUS_ADMIN, ChatID.SERVICE_CHAT]
 
@@ -208,13 +209,15 @@ def get_chat_waifu_info_dict(
 async def verify_user_is_chat_admin(
     user: User, chat: Chat, context: ContextTypes.DEFAULT_TYPE
 ) -> bool:
+    """
+    验证用户是否是群管理员
+
+    :return: bool
+    """
+    if chat.type == ChatType.PRIVATE:
+        return False
     admins = await context.bot.get_chat_administrators(chat_id=chat.id)
     if user.id not in [admin.user.id for admin in admins]:
-        sent_message = await context.bot.send_message(
-            chat_id=chat.id,
-            text="你没有权限哦",
-        )
-        logger.info(f"Bot: {sent_message.text}")
         return False
     return True
 
@@ -222,6 +225,41 @@ async def verify_user_is_chat_admin(
 async def verify_user_can_manage_bot(
     user: User, chat: Chat, update: Update, context: ContextTypes.DEFAULT_TYPE
 ) -> bool:
-    # who can manage: chat owner (and anonymous admins), bot global admins, and
-    # bot admins in chat who promoted by chat owner
-    pass
+    """
+    验证用户是否有在该聊天中管理bot的权限
+    可以管理bot的人包括：群主（和匿名管理员）、bot的全局管理员、在群中被群主授权的bot管理员
+
+    :return: bool
+    """
+    if chat.type == ChatType.PRIVATE:
+        return False
+    if (
+        user.id in settings.owners
+        or user.id == ChatID.ANONYMOUS_ADMIN
+        or dao.get_user_is_bot_global_admin(user)
+        or dao.get_user_is_bot_admin_in_chat(user, chat)
+    ):
+        return True
+    try:
+        chat_member = await context.bot.get_chat_member(
+            chat_id=chat.id, user_id=user.id
+        )
+        if chat_member.status == ChatMemberStatus.OWNER:
+            return True
+        if update.callback_query:
+            await update.callback_query.answer(
+                "你没有执行此操作的权限", show_alert=False, cache_time=10
+            )
+    except Exception as err:
+        logger.warning(f"{err.__class__.__name__}: {err}")
+        if update.callback_query:
+            await update.callback_query.answer(
+                (
+                    "无法获取成员信息, 如果开启了隐藏群成员, 请赋予 bot 管理员权限\n"
+                    f"错误信息: {err.__class__.__name__}: {err}"
+                ),
+                show_alert=True,
+                cache_time=5,
+            )
+        return False
+    return False

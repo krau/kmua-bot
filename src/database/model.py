@@ -19,6 +19,7 @@ class UserChatAssociation(Base):
     user_id = Column(Integer, ForeignKey("user_data.id"), primary_key=True)
     chat_id = Column(Integer, ForeignKey("chat_data.id"), primary_key=True)
     waifu_id = Column(Integer, ForeignKey("user_data.id"), default=None)
+    is_bot_admin = Column(Boolean, default=False)
 
     created_at = Column(DateTime, default=func.now())
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
@@ -48,6 +49,8 @@ class UserData(Base):
     waifu_mention = Column(Boolean, default=False)
 
     is_real_user = Column(Boolean, default=True)  # 以频道身份加入的用户不是真实用户
+
+    is_bot_global_admin = Column(Boolean, default=False)
 
     created_at = Column(DateTime, default=func.now())
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now())

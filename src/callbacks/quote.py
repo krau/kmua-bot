@@ -28,10 +28,16 @@ from ..utils import (
     message_recorder,
     random_unit,
     verify_user_is_chat_admin,
+    verify_user_can_manage_bot,
 )
+from .jobs import delete_message
 
 
 async def quote(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """
+    响应 /q 命令
+    此功能不会在私聊中被调用, 已由 filters 过滤
+    """
     user = update.effective_user
     chat = update.effective_chat
     message = update.effective_message
@@ -58,6 +64,19 @@ async def quote(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if message.sender_chat:
         qer_user = message.sender_chat
 
+    if dao.get_quote(chat, quote_message.id):
+        sent_message = await message.reply_markdown_v2(
+            "这条消息已经在语录中了哦" "\n_This message will be deleted in 10s_"
+        )
+        logger.info(f"Bot: {sent_message.text}")
+        context.job_queue.run_once(
+            delete_message,
+            10,
+            data={"message_id": sent_message.id},
+            chat_id=chat.id,
+        )
+        return
+
     await _pin_quote_message(quote_message)
 
     await quote_message.reply_text(text="好!")
@@ -70,11 +89,17 @@ async def quote(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 
-async def _pin_quote_message(quote_message: Message):
+async def _pin_quote_message(quote_message: Message) -> bool:
+    """
+    将消息置顶, 忽略异常
+
+    :param quote_message: 要置顶的消息
+    :return: 是否置顶成功
+    """
     try:
-        await quote_message.pin(disable_notification=True)
+        return await quote_message.pin(disable_notification=True)
     except Exception:
-        pass
+        return False
 
 
 async def _generate_and_sned_quote_img(
@@ -83,6 +108,15 @@ async def _generate_and_sned_quote_img(
     quote_message: Message,
     quote_user: User | Chat,
 ) -> str | None:
+    """
+    生成并发送语录图片
+
+    :param update: Update
+    :param context: Context
+    :param quote_message: 消息
+    :param quote_user: 消息发送者
+    :return: 若生成成功, 返回图片的 file_id, 否则返回 None
+    """
     if not quote_message.text:
         return None
     if len(quote_message.text) > 200:
@@ -106,7 +140,16 @@ async def _save_quote_data(
     quote_message: Message,
     quote_user: User | Chat,
     quote_img: str | None,
-):
+) -> None:
+    """
+    保存语录数据
+
+    :param update: Update
+    :param qer: 语录的记录者
+    :param quote_message: 语录消息
+    :param quote_user: 语录消息的发送者
+    :param quote_img: 语录图片的 file_id
+    """
     dao.add_quote(
         chat=update.effective_chat,
         user=quote_user,
@@ -150,14 +193,22 @@ async def set_quote_probability(update: Update, context: ContextTypes.DEFAULT_TY
 
 async def _unpin_messsage(
     message_id: int, chat_id: int, context: ContextTypes.DEFAULT_TYPE
-):
+) -> bool:
+    """
+    取消置顶消息, 忽略异常
+
+    :param message_id: 消息 id
+    :param chat_id: 聊天 id
+    :param context: Context
+    """
     try:
-        await context.bot.unpin_chat_message(
+        return await context.bot.unpin_chat_message(
             chat_id=chat_id,
             message_id=message_id,
         )
     except Exception as e:
         logger.warning(f"{e.__class__.__name__}: {e}")
+        return False
 
 
 async def random_quote(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -199,63 +250,56 @@ async def random_quote(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await _unpin_messsage(message_id, chat.id, context)
 
 
-async def del_quote(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def delete_quote(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """
-    删除语录
+    响应 /d 命令
     此功能不会在私聊中被调用, 已由 filters 过滤
     """
-    logger.info(
-        f"[{update.effective_chat.title}]({update.effective_user.name})"
-        + f" {update.effective_message.text}"
-    )
+    user = update.effective_user
+    chat = update.effective_chat
+    message = update.effective_message
+    logger.info(f"[{chat.title}]({user.name})" + f" {message.text}")
     await message_recorder(update, context)
-    if not context.chat_data.get("quote_messages", None):
-        sent_message = await update.effective_message.reply_text("该聊天没有名言呢")
-        logger.info(f"Bot: {sent_message.text}")
+
+    user_can_manage_bot = await verify_user_can_manage_bot(user, chat, update, context)
+    if not message.reply_to_message and user_can_manage_bot:
+        await chat_quote_manage(update, context)
         return
-    if update.effective_message.reply_to_message:
-        await _del_a_quote(update, context)
-        return
-    all_quote_messages = context.chat_data["quote_messages"]
-    chat_id = update.effective_chat.id
-    chat_id = str(chat_id).removeprefix("-100")
-    prefix = f"https://t.me/c/{chat_id}/"
-    all_quote_messages_link = [
-        prefix + str(message_id) for message_id in all_quote_messages
-    ]
-    total = len(all_quote_messages_link)
-    if total <= 10:
-        text = "\n\n".join(all_quote_messages_link)
-        sent_message = await update.effective_message.reply_text(
-            text=text, disable_web_page_preview=True, allow_sending_without_reply=True
+    quote_message = message.reply_to_message
+    quote_user = quote_message.sender_chat or quote_message.from_user
+
+    user = message.sender_chat if message.sender_chat else user
+    if user.id != quote_user.id and not user_can_manage_bot:
+        sent_message = await message.reply_markdown_v2(
+            "你只能删除自己的语录哦\n_This message will be deleted in 10s_"
         )
         logger.info(f"Bot: {sent_message.text}")
+        context.job_queue.run_once(
+            delete_message,
+            10,
+            data={"message_id": sent_message.id},
+            chat_id=chat.id,
+        )
         return
-    current_page = 1
-    max_page = total // 10 + 1
-    text = f"共记录 {total} 条; 当前页: {current_page}/{max_page}\n\n" + "\n\n".join(
-        all_quote_messages_link[:10]
-    )
-    sent_message = await update.effective_message.reply_text(
-        text=text,
-        disable_web_page_preview=True,
-        allow_sending_without_reply=True,
-        reply_markup=InlineKeyboardMarkup(
-            [
-                [
-                    InlineKeyboardButton(
-                        "上一页",
-                        callback_data=f"del_quote_page {current_page - 1}",
-                    ),
-                    InlineKeyboardButton(
-                        "下一页",
-                        callback_data=f"del_quote_page {current_page + 1}",
-                    ),
-                ]
-            ]
-        ),
-    )
-    logger.info(f"Bot: {sent_message.text}")
+    await _unpin_messsage(quote_message.id, chat.id, context)
+    if dao.delete_chat_quote_by_message_id(chat, quote_message.id):
+        sent_message = await quote_message.reply_text("已删除该语录")
+        logger.info(f"Bot: {sent_message.text}")
+    else:
+        sent_message = await quote_message.reply_markdown_v2(
+            "这条消息不在语录中哦\n_This message will be deleted in 10s_"
+        )
+        logger.info(f"Bot: {sent_message.text}")
+        context.job_queue.run_once(
+            delete_message,
+            10,
+            data={"message_id": sent_message.id},
+            chat_id=chat.id,
+        )
+
+
+async def chat_quote_manage(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    pass
 
 
 async def del_quote_page(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -296,44 +340,6 @@ async def del_quote_page(update: Update, context: ContextTypes.DEFAULT_TYPE):
             ]
         ),
     )
-
-
-async def _del_a_quote(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    quote_message = update.effective_message.reply_to_message
-    if quote_message.id in context.chat_data["quote_messages"]:
-        context.chat_data["quote_messages"].remove(quote_message.id)
-        logger.debug(
-            f"将{quote_message.id}([{update.effective_chat.title}]({update.effective_user.name}))"
-            + "移出chat quote"
-        )
-        try:
-            await context.bot.unpin_chat_message(
-                chat_id=update.effective_chat.id, message_id=quote_message.id
-            )
-            logger.debug(
-                "Bot将"
-                + (
-                    f"{quote_message.text}"
-                    if quote_message.text
-                    else "<一条非文本消息>"  # noqa: E501
-                )  # noqa: E501
-                + "取消置顶"
-            )
-        except Exception as e:
-            logger.error(f"{e.__class__.__name__}: {e}")
-        sent_message = await context.bot.send_message(
-            chat_id=update.effective_chat.id,
-            text="已移出语录",
-            reply_to_message_id=quote_message.id,
-        )
-        logger.info(f"Bot: {sent_message.text}")
-    else:
-        sent_message = await context.bot.send_message(
-            chat_id=update.effective_chat.id,
-            text="该消息不在语录中;请对原始的名言消息使用\n或直接使用 /d 管理本群语录",
-            reply_to_message_id=quote_message.id,
-        )
-        logger.info(f"Bot: {sent_message.text}")
 
 
 _clear_chat_quote_markup = InlineKeyboardMarkup(

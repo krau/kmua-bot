@@ -33,7 +33,7 @@ from .callbacks.quote import (
     clear_chat_quote_ask,
     clear_chat_quote_cancel,
     clear_user_quote,
-    del_quote,
+    delete_quote,
     del_quote_page,
     inline_query_quote,
     quote,
@@ -51,7 +51,7 @@ from .callbacks.title import (
 from .callbacks.userdata import (
     clear_user_img_quote,
     clear_user_text_quote,
-    delete_quote,
+    # delete_quote,
     next_page,
     prev_page,
     user_data_manage,
@@ -84,7 +84,7 @@ quote_handler = CommandHandler("q", quote, filters=filters.ChatType.GROUPS)
 set_quote_probability_handler = CommandHandler(
     "setqp", set_quote_probability, filters=filters.ChatType.GROUPS
 )
-del_quote_handler = CommandHandler("d", del_quote, filters=filters.ChatType.GROUPS)
+del_quote_handler = CommandHandler("d", delete_quote, filters=filters.ChatType.GROUPS)
 clear_chat_quote_ask_handler = CommandHandler(
     "clear_chat_quote", clear_chat_quote_ask, filters=filters.ChatType.GROUPS
 )

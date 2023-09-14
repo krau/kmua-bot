@@ -117,6 +117,58 @@ def add_chat(chat: Chat | ChatData) -> ChatData:
     return get_chat_by_id(chat.id)
 
 
+def get_user_is_bot_global_admin(user: User | UserData) -> bool:
+    return add_user(user).is_bot_global_admin
+
+
+def get_user_is_bot_admin_in_chat(user: User | UserData, chat: Chat | ChatData) -> bool:
+    association = get_user_association_in_chat(user, chat)
+    if association is None:
+        return False
+    return association.is_bot_admin
+
+
+def set_user_is_bot_global_admin(user: User | UserData, is_admin: bool):
+    db_user = add_user(user)
+    db_user.is_bot_global_admin = is_admin
+    commit()
+
+
+def set_user_is_bot_admin_in_chat(
+    user: User | UserData, chat: Chat | ChatData, is_admin: bool
+):
+    association = get_user_association_in_chat(user, chat)
+    if association is None:
+        add_user_to_chat(user, chat)
+        association = get_user_association_in_chat(user, chat)
+        association.is_bot_admin = is_admin
+        commit()
+        return
+    association.is_bot_admin = is_admin
+    commit()
+
+
+def delete_quote(quote: Quote):
+    db.delete(quote)
+    commit()
+
+
+def get_quote(chat: Chat | ChatData, message_id: int) -> Quote | None:
+    return (
+        db.query(Quote)
+        .filter(Quote.chat_id == chat.id, Quote.message_id == message_id)
+        .first()
+    )
+
+
+def delete_chat_quote_by_message_id(chat: Chat | ChatData, message_id: int) -> bool:
+    quote = get_quote(chat, message_id)
+    if quote is None:
+        return False
+    delete_quote(quote)
+    return True
+
+
 def add_quote(
     chat: Chat | ChatData,
     user: User | UserData | Chat,
@@ -124,7 +176,19 @@ def add_quote(
     message_id: int,
     text: str = None,
     img: str = None,
-):
+) -> Quote:
+    """
+    add quote if not exists
+
+    :param chat: Chat or ChatData object
+    :param user: 被 q 的人 User or UserData object
+    :param qer: 使用 q 的人
+    :param message_id: 消息在 chat 中的 message_id
+    :param text: 消息的文字内容, defaults to None
+    :param img: str, 图片的 file_id, defaults to None
+    """
+    if quote := get_quote(chat, message_id):
+        return quote
     db.add(
         Quote(
             chat_id=chat.id,
@@ -136,11 +200,7 @@ def add_quote(
         )
     )
     commit()
-
-
-def delete_quote(quote: Quote):
-    db.delete(quote)
-    commit()
+    return get_quote(chat, message_id)
 
 
 def get_chat_quote_probability(chat: Chat | ChatData) -> float:
