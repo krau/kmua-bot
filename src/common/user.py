@@ -5,10 +5,11 @@ from telegram import (
 )
 from telegram.constants import ChatID, ChatMemberStatus, ChatType
 from telegram.ext import ContextTypes
+from telegram.helpers import escape_markdown
 
 from ..config import settings
 from ..database import dao
-from ..database.model import UserData
+from ..database.model import UserData, ChatData
 from ..logger import logger
 
 
@@ -32,12 +33,14 @@ async def get_big_avatar_bytes(
 async def download_big_avatar(
     chat_id: int, context: ContextTypes.DEFAULT_TYPE
 ) -> bytes | None:
+    logger.debug(f"downloading big avatar for {chat_id}")
     try:
         avatar_photo = (await context.bot.get_chat(chat_id=chat_id)).photo
         if not avatar_photo:
             return None
         avatar = await (await avatar_photo.get_big_file()).download_as_bytearray()
         avatar = bytes(avatar)
+        logger.debug(f"downloaded big avatar for {chat_id}")
         return avatar
     except Exception as err:
         logger.error(f"{err.__class__.__name__}: {err} happend when getting big avatar")
@@ -64,12 +67,14 @@ async def get_small_avatar_bytes(
 async def download_small_avatar(
     chat_id: int, context: ContextTypes.DEFAULT_TYPE
 ) -> bytes | None:
+    logger.debug(f"downloading small avatar for {chat_id}")
     try:
         avatar_photo = (await context.bot.get_chat(chat_id=chat_id)).photo
         if not avatar_photo:
             return None
         avatar = await (await avatar_photo.get_small_file()).download_as_bytearray()
         avatar = bytes(avatar)
+        logger.debug(f"downloaded small avatar for {chat_id}")
         return avatar
     except Exception as err:
         logger.error(
@@ -120,7 +125,7 @@ async def verify_user_can_manage_bot(
             return True
         if update.callback_query:
             await update.callback_query.answer(
-                "你没有执行此操作的权限", show_alert=False, cache_time=10
+                "你没有执行此操作的权限", show_alert=False, cache_time=15
             )
     except Exception as err:
         logger.warning(f"{err.__class__.__name__}: {err}")
@@ -131,7 +136,7 @@ async def verify_user_can_manage_bot(
                     f"错误信息: {err.__class__.__name__}: {err}"
                 ),
                 show_alert=True,
-                cache_time=5,
+                cache_time=15,
             )
         return False
     return False
@@ -153,3 +158,8 @@ created_at: {db_user.created_at.strftime("%Y-%m-%d %H:%M:%S")}
 updated_at: {db_user.updated_at.strftime("%Y-%m-%d %H:%M:%S")}
 """
     return info
+
+
+def mention_markdown_v2(user: User | UserData | Chat | ChatData) -> str:
+    db_user = dao.add_user(user)
+    return f"[{escape_markdown(db_user.full_name,2)}](tg://user?id={db_user.id})"

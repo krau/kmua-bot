@@ -1,9 +1,9 @@
 from typing import Generator
 
-from telegram import Chat
+from telegram import Chat, User
 
 from ..database import dao
-from ..database.model import ChatData
+from ..database.model import ChatData, UserData
 
 
 def get_chat_waifu_relationships(
@@ -25,3 +25,31 @@ def get_chat_waifu_info_dict(
     for user_id, waifu_id in get_chat_waifu_relationships(chat):
         waifu_info_dict[user_id] = waifu_id
     return waifu_info_dict
+
+
+def get_user_waifu_info(user: User | UserData) -> str:
+    db_user = dao.add_user(user)
+    text = f"""
+是否@你: {db_user.waifu_mention}
+已婚: {db_user.is_married}
+已婚老婆id: {db_user.married_waifu_id}
+"""
+    waifus_with_chat = dao.get_user_waifus_with_chat(user)
+    if not waifus_with_chat:
+        text += "\n你今天还没有老婆哦"
+    else:
+        if len(waifus_with_chat) > 233:
+            waifus_with_chat = waifus_with_chat[:233]
+        text += "\n你今天的老婆们(最多显示233条):\n"
+        for waifu, chat in waifus_with_chat:
+            text += f"{waifu.full_name} ({chat.title})\n"
+    waifus_of_with_chat = dao.get_user_waifus_of_with_chat(user)
+    if not waifus_of_with_chat:
+        text += "\n今天还没有人把你当老婆哦"
+    else:
+        if len(waifus_of_with_chat) > 233:
+            waifus_of_with_chat = waifus_of_with_chat[:233]
+        text += "\n你今天是以下人的老婆(最多显示233条):\n"
+        for waifu_of, chat in waifus_of_with_chat:
+            text += f"{waifu_of.full_name} ({chat.title})\n"
+    return text

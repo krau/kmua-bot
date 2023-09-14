@@ -66,6 +66,7 @@ class ChatData(Base):
     __tablename__ = "chat_data"
     id = Column(Integer, primary_key=True, index=True)
     quote_probability = Column(Float, default=0.001)
+    title = Column(String, nullable=False)
     members = relationship(
         "UserData",
         secondary=UserChatAssociation.__tablename__,

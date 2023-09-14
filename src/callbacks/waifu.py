@@ -13,7 +13,11 @@ from telegram.ext import ContextTypes
 from telegram.helpers import escape_markdown
 
 from ..common.message import message_recorder
-from ..common.user import download_small_avatar, verify_user_can_manage_bot
+from ..common.user import (
+    download_small_avatar,
+    verify_user_can_manage_bot,
+    mention_markdown_v2,
+)
 from ..common.utils import fake_users_id
 from ..common.waifu import get_chat_waifu_relationships
 from ..database import dao
@@ -21,7 +25,64 @@ from ..database.model import ChatData, UserData
 from ..logger import logger
 
 
-def render_waifu_graph(
+async def waifu_graph(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    logger.info(
+        f"[{update.effective_chat.title}]({update.effective_user.name})"
+        + f" {update.effective_message.text}"
+    )
+    if context.chat_data.get("waifu_graph_waiting", False):
+        return
+
+    msg_id = update.effective_message.id
+    chat = update.effective_chat
+    try:
+        await _waifu_graph(chat, context, msg_id)
+    except Exception as e:
+        logger.error(f"生成waifu图时出错: {e}")
+        await context.bot.send_message(
+            chat.id,
+            f"呜呜呜... kmua 被玩坏惹\n{e.__class__.__name__}: {e}",
+            reply_to_message_id=msg_id,
+        )
+    finally:
+        context.chat_data["waifu_graph_waiting"] = False
+
+
+async def _waifu_graph(
+    chat: Chat | ChatData,
+    context: ContextTypes.DEFAULT_TYPE,
+    msg_id: int | None = None,
+):
+    relationships = get_chat_waifu_relationships(chat)
+    participate_users = dao.get_chat_user_participated_waifu(chat)
+
+    status_msg = await context.bot.send_message(
+        chat.id, "少女祈祷中...", reply_to_message_id=msg_id
+    )
+
+    user_info = {
+        user.id: {
+            "username": user.username or f"id: {user.id}",
+            "avatar": user.avatar_small_blob,
+        }
+        for user in participate_users
+    }
+    await context.bot.send_chat_action(chat.id, ChatAction.TYPING)
+    image_bytes = _render_waifu_graph(relationships, user_info)
+    logger.debug(f"image_size: {len(image_bytes)}")
+    await status_msg.delete()
+    await context.bot.send_document(
+        chat.id,
+        document=image_bytes,
+        caption=f"老婆关系图:\n {len(participate_users)} users",
+        filename="waifu_graph.webp",
+        disable_content_type_detection=True,
+        reply_to_message_id=msg_id,
+        allow_sending_without_reply=True,
+    )
+
+
+def _render_waifu_graph(
     relationships: Generator[tuple[int, int], None, None],
     user_info: dict,
 ) -> bytes:
@@ -83,63 +144,6 @@ def render_waifu_graph(
             shutil.rmtree(tempdir)
 
 
-async def waifu_graph(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    logger.info(
-        f"[{update.effective_chat.title}]({update.effective_user.name})"
-        + f" {update.effective_message.text}"
-    )
-    if context.chat_data.get("waifu_graph_waiting", False):
-        return
-
-    msg_id = update.effective_message.id
-    chat = update.effective_chat
-    try:
-        await _waifu_graph(chat, context, msg_id)
-    except Exception as e:
-        logger.error(f"生成waifu图时出错: {e}")
-        await context.bot.send_message(
-            chat.id,
-            f"呜呜呜... kmua 被玩坏惹\n{e.__class__.__name__}: {e}",
-            reply_to_message_id=msg_id,
-        )
-    finally:
-        context.chat_data["waifu_graph_waiting"] = False
-
-
-async def _waifu_graph(
-    chat: Chat | ChatData,
-    context: ContextTypes.DEFAULT_TYPE,
-    msg_id: int | None = None,
-):
-    relationships = get_chat_waifu_relationships(chat)
-    participate_users = dao.get_chat_user_participated_waifu(chat)
-
-    status_msg = await context.bot.send_message(
-        chat.id, "少女祈祷中...", reply_to_message_id=msg_id
-    )
-
-    user_info = {
-        user.id: {
-            "username": user.username or f"id: {user.id}",
-            "avatar": user.avatar_small_blob,
-        }
-        for user in participate_users
-    }
-    await context.bot.send_chat_action(chat.id, ChatAction.TYPING)
-    image_bytes = render_waifu_graph(relationships, user_info)
-    logger.debug(f"image_size: {len(image_bytes)}")
-    await status_msg.delete()
-    await context.bot.send_document(
-        chat.id,
-        document=image_bytes,
-        caption=f"老婆关系图:\n {len(participate_users)} users",
-        filename="waifu_graph.webp",
-        disable_content_type_detection=True,
-        reply_to_message_id=msg_id,
-        allow_sending_without_reply=True,
-    )
-
-
 async def today_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     chat = update.effective_chat
@@ -163,9 +167,11 @@ async def today_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if not waifu:
             return
         dao.put_user_waifu_in_chat(user, chat, waifu)
-        text = _get_waifu_text(waifu, is_got_waifu)
-        waifu_markup = _get_waifu_markup(waifu, user)
-
+        text = f"你和 {escape_markdown(waifu.full_name,2)} 已经结婚了哦, 还想娶第二遍嘛?"  # noqa: E501
+        waifu_markup = None
+        if not waifu.is_married:
+            waifu_markup = _get_waifu_markup(waifu, user)
+            text = _get_waifu_text(waifu, is_got_waifu)
         photo_to_send = await _get_photo_to_send(waifu, context)
 
         if photo_to_send is None:
@@ -328,3 +334,136 @@ async def remove_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
     await message.edit_text(text=text, parse_mode="MarkdownV2")
+
+
+def _get_marry_markup(waifu_id: int, user_id: int) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        [
+            [
+                InlineKeyboardButton(
+                    text="好耶",
+                    callback_data=f"agree_marry_waifu {waifu_id} {user_id}",
+                ),
+                InlineKeyboardButton(
+                    text="婉拒",
+                    callback_data=f"refuse_marry_waifu {waifu_id} {user_id}",
+                ),
+            ]
+        ]
+    )
+
+
+async def marry_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    if "agree" in query.data:
+        await _agree_marry_waifu(update, context)
+        return
+    if "refuse" in query.data:
+        await _refuse_marry_waifu(update, context)
+        return
+    now_user = update.effective_user
+    query_data = query.data.split(" ")
+    waifu_id = int(query_data[1])
+    user_id = int(query_data[2])
+    db_waifu = dao.get_user_by_id(waifu_id)
+    db_user = dao.get_user_by_id(user_id)
+    if not db_waifu.is_real_user:
+        await query.answer(
+            text="＞﹏＜ Ta 不是真实用户哦.(不支持与匿名管理, 频道身份等结婚)",
+            show_alert=True,
+            cache_time=60,
+        )
+        return
+    message = query.message
+    if now_user.id == waifu_id:
+        await query.answer(
+            text="(。・ω・。) 总会有人不远万里为你而来",
+            show_alert=True,
+            cache_time=60,
+        )
+        return
+    if now_user.id != user_id:
+        await query.answer(
+            text="(￣ε(#￣) 别人的事情咱不要打扰呢", show_alert=True, cache_time=15
+        )  # noqa: E501
+        return
+    waifu_mention = mention_markdown_v2(db_waifu)
+    user_mention = mention_markdown_v2(db_user)
+    text = f"{waifu_mention}, 你愿意和 {user_mention} 结婚吗qwq?"
+    reply_markup = _get_marry_markup(waifu_id, user_id)
+    if message.photo:
+        await message.edit_caption(
+            caption=text,
+            reply_markup=reply_markup,
+            parse_mode="MarkdownV2",
+        )
+        return
+    await message.edit_text(
+        text=text,
+        reply_markup=reply_markup,
+        parse_mode="MarkdownV2",
+    )
+
+
+async def _agree_marry_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    now_user = update.effective_user
+    query = update.callback_query
+    query_data = query.data.split(" ")
+    waifu_id = int(query_data[1])
+    user_id = int(query_data[2])
+    db_waifu = dao.get_user_by_id(waifu_id)
+    db_user = dao.get_user_by_id(user_id)
+    message = query.message
+    if now_user.id != waifu_id:
+        await query.answer(
+            text="(￣ε(#￣) 别人的事情咱不要打扰呢", show_alert=True, cache_time=60
+        )  # noqa: E501
+        return
+    db_user.married_waifu_id = waifu_id
+    db_user.is_married = True
+    db_waifu.married_waifu_id = user_id
+    db_waifu.is_married = True
+    dao.commit()
+    waifu_mention = mention_markdown_v2(db_waifu)
+    user_mention = mention_markdown_v2(db_user)
+    text = f"恭喜 {waifu_mention} 和 {user_mention} 结婚啦\~"
+    if message.photo:
+        await message.edit_caption(
+            caption=text,
+            parse_mode="MarkdownV2",
+        )
+        return
+    await message.edit_text(
+        text=text,
+        parse_mode="MarkdownV2",
+    )
+
+
+async def _refuse_marry_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    now_user = update.effective_user
+    query = update.callback_query
+    query_data = query.data.split(" ")
+    waifu_id = int(query_data[1])
+    db_waifu = dao.get_user_by_id(waifu_id)
+    message = query.message
+    if now_user.id != waifu_id:
+        await query.answer(
+            text="(￣ε(#￣) 别人的事情咱不要打扰呢", show_alert=True, cache_time=60
+        )  # noqa: E501
+        return
+    text = _get_waifu_text(db_waifu, False)
+    await query.answer(
+        text="(´。＿。｀) 你拒绝了 ta 的求婚呢. 有些人一旦错过就不再...",
+        show_alert=True,
+        cache_time=60,
+    )
+    if message.photo:
+        await message.edit_caption(
+            caption=text,
+            parse_mode="MarkdownV2",
+        )
+        return
+    await message.edit_text(
+        text=text,
+        parse_mode="MarkdownV2",
+    )

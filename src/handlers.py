@@ -44,16 +44,11 @@ from .callbacks.title import (
     title,
 )
 from .callbacks.userdata import (
-    set_waifu_mention,
     user_data_manage,
     user_data_refresh,
     user_waifu_manage,
 )
-from .callbacks.waifu import (
-    remove_waifu,
-    today_waifu,
-    waifu_graph,
-)
+from .callbacks.waifu import marry_waifu, remove_waifu, today_waifu, waifu_graph
 from .config import settings
 from .filters import (
     interact_filter,
@@ -111,10 +106,7 @@ clear_chat_data_cancel_handler = CallbackQueryHandler(
 )
 remove_waifu_handler = CallbackQueryHandler(remove_waifu, pattern="remove_waifu")
 user_waifu_manage_handler = CallbackQueryHandler(
-    user_waifu_manage, pattern="user_waifu_manage"
-)
-set_waifu_mention_handler = CallbackQueryHandler(
-    set_waifu_mention, pattern="set_waifu_mention"
+    user_waifu_manage, pattern="user_waifu_manage|set_waifu_mention|divorce"
 )
 set_title_permissions_callback_handler = CallbackQueryHandler(
     set_title_permissions_callback, pattern="set_title_permissions"
@@ -128,6 +120,7 @@ user_data_manage_handler = CallbackQueryHandler(
 user_data_refresh_handler = CallbackQueryHandler(
     user_data_refresh, pattern="user_data_refresh"
 )
+marry_waifu_handler = CallbackQueryHandler(marry_waifu, pattern=r".*marry_waifu.*")
 
 # others
 interact_handler = MessageHandler(filters=interact_filter, callback=interact)
@@ -156,6 +149,7 @@ handlers = [
     quote_handler,
     user_data_manage_handler,
     user_data_refresh_handler,
+    marry_waifu_handler,
     title_handler,
     set_quote_probability_handler,
     qrand_handler,
@@ -182,7 +176,6 @@ handlers = [
     keyword_reply_handler,
     inline_query_handler,
     user_waifu_manage_handler,
-    set_waifu_mention_handler,
     sticker2img_handler,
     random_quote_handler,
 ]

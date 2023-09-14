@@ -40,7 +40,7 @@ def get_chat_members_id(chat: Chat | ChatData) -> list[int]:
     return [member.id for member in members]
 
 
-def get_chat_association(chat: Chat | ChatData) -> ChatData | None:
+def get_chat_association(chat: Chat | ChatData) -> UserChatAssociation | None:
     return (
         db.query(UserChatAssociation)
         .filter(UserChatAssociation.chat_id == chat.id)
@@ -121,6 +121,7 @@ def add_chat(chat: Chat | ChatData) -> ChatData:
     db.add(
         ChatData(
             id=chat.id,
+            title=chat.title,
         )
     )
     commit()
@@ -295,7 +296,7 @@ def get_user_waifu_in_chat(
         add_user(user)
         return None
     if married_waifu_id := db_user.married_waifu_id:
-        return add_user(married_waifu_id)
+        return get_user_by_id(married_waifu_id)
     db_chat = get_chat_by_id(chat.id)
     if db_chat is None:
         add_chat(chat)
@@ -486,3 +487,69 @@ def refresh_all_waifu_in_chat(chat: Chat | ChatData):
 def refresh_all_waifu_data():
     db.query(UserChatAssociation).update({UserChatAssociation.waifu_id: None})
     commit()
+
+
+def refresh_user_all_waifu(user: User | UserData):
+    db_user = add_user(user)
+    for association in get_user_associations(db_user):
+        association.waifu_id = None
+    commit()
+
+
+def get_user_associations(user: User | UserData) -> list[UserChatAssociation]:
+    return (
+        db.query(UserChatAssociation)
+        .filter(UserChatAssociation.user_id == user.id)
+        .all()
+    )
+
+
+def get_user_waifu_of_associations(user: User | UserData) -> list[UserChatAssociation]:
+    return (
+        db.query(UserChatAssociation)
+        .filter(UserChatAssociation.waifu_id == user.id)
+        .all()
+    )
+
+
+def get_user_waifus(user: User | UserData) -> list[UserData]:
+    db_user = add_user(user)
+    associations = get_user_associations(db_user)
+    return [
+        get_user_by_id(association.waifu_id)
+        for association in associations
+        if association.waifu_id is not None
+    ]
+
+
+def get_user_waifus_with_chat(user: User | UserData) -> list[tuple[UserData, ChatData]]:
+    db_user = add_user(user)
+    associations = get_user_associations(db_user)
+    return [
+        (
+            get_user_by_id(association.waifu_id),
+            get_chat_by_id(association.chat_id),
+        )
+        for association in associations
+        if association.waifu_id is not None
+    ]
+
+
+def get_user_waifus_of(user: User | UserData) -> list[UserData]:
+    db_user = add_user(user)
+    associations = get_user_waifu_of_associations(db_user)
+    return [get_user_by_id(association.user_id) for association in associations]
+
+
+def get_user_waifus_of_with_chat(
+    user: User | UserData,
+) -> list[tuple[UserData, ChatData]]:
+    db_user = add_user(user)
+    associations = get_user_waifu_of_associations(db_user)
+    return [
+        (
+            get_user_by_id(association.user_id),
+            get_chat_by_id(association.chat_id),
+        )
+        for association in associations
+    ]
