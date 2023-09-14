@@ -48,8 +48,8 @@ class UserData(Base):
     married_waifu_id = Column(Integer, default=None)
     waifu_mention = Column(Boolean, default=False)
 
-    is_real_user = Column(Boolean, default=True)  # 以频道身份加入的用户不是真实用户
-
+    is_bot = Column(Boolean, default=False)
+    is_real_user = Column(Boolean, default=True)  # 频道身份, bot, 匿名用户等 为 False
     is_bot_global_admin = Column(Boolean, default=False)
 
     created_at = Column(DateTime, default=func.now())

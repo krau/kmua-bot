@@ -65,7 +65,15 @@ def add_user(user: User | UserData | Chat | ChatData) -> UserData:
             full_name=user.title,
             is_real_user=False,
         )
-    else:
+    elif isinstance(user, User) and user.is_bot:
+        userdata = UserData(
+            id=user.id,
+            username=user.username,
+            full_name=user.full_name,
+            is_real_user=False,
+            is_bot=True,
+        )
+    elif isinstance(user, User):
         userdata = UserData(
             id=user.id,
             username=user.username,
@@ -333,7 +341,7 @@ def get_user_waifu_of_in_chat(
     ]
 
 
-def get_married_users_in_chat(chat: Chat | ChatData) -> list[UserData]:
+def get_chat_married_users(chat: Chat | ChatData) -> list[UserData]:
     db_chat = get_chat_by_id(chat.id)
     if db_chat is None:
         add_chat(chat)
@@ -345,8 +353,8 @@ def get_married_users_in_chat(chat: Chat | ChatData) -> list[UserData]:
     ]
 
 
-def get_married_users_id_in_chat(chat: Chat) -> list[int]:
-    married_user = get_married_users_in_chat(chat)
+def get_chat_married_users_id(chat: Chat) -> list[int]:
+    married_user = get_chat_married_users(chat)
     return [user.id for user in married_user]
 
 
@@ -434,6 +442,29 @@ def get_chat_user_participated_waifu(chat: Chat | ChatData) -> list[UserData]:
     user_has_waifu = get_chat_users_has_waifu(chat)
     user_was_waifu = get_chat_users_was_waifu(chat)
     return set(chain(user_has_waifu, user_was_waifu))
+
+
+def get_chat_bots(chat: Chat | ChatData) -> list[UserData]:
+    """
+    获取 chat 中的 bot
+    """
+    db_chat = add_chat(chat)
+    return [user for user in db_chat.members if user.is_bot]
+
+
+def get_chat_bots_id(chat: Chat | ChatData) -> list[int]:
+    bots = get_chat_bots(chat)
+    return [bot.id for bot in bots]
+
+
+def get_chat_users_without_bots(chat: Chat | ChatData) -> list[UserData]:
+    db_chat = add_chat(chat)
+    return [user for user in db_chat.members if not user.is_bot]
+
+
+def get_chat_users_without_bots_id(chat: Chat | ChatData) -> list[int]:
+    users = get_chat_users_without_bots(chat)
+    return [user.id for user in users]
 
 
 def get_all_chats() -> list[ChatData]:
