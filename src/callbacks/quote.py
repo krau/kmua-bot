@@ -30,8 +30,10 @@ from ..utils import (
     verify_user_can_manage_bot,
     verify_user_is_chat_admin,
     get_message_common_link,
+    parse_message_link,
 )
 from .jobs import delete_message
+from math import ceil
 
 
 async def quote(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -250,7 +252,7 @@ async def random_quote(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await _unpin_messsage(message_id, chat.id, context)
 
 
-async def delete_quote(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def delete_quote_in_chat(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """
     响应 /d 命令
     此功能不会在私聊中被调用, 已由 filters 过滤
@@ -258,11 +260,16 @@ async def delete_quote(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     chat = update.effective_chat
     message = update.effective_message
-    logger.info(f"[{chat.title}]({user.name})" + f" {message.text}")
+    if not update.callback_query:
+        logger.info(f"[{chat.title}]({user.name})" + f" {message.text}")
     await message_recorder(update, context)
-
+    query_data = ""
+    if update.callback_query:
+        query_data = update.callback_query.data
     user_can_manage_bot = await verify_user_can_manage_bot(user, chat, update, context)
-    if not message.reply_to_message and user_can_manage_bot:
+    if (not message.reply_to_message and user_can_manage_bot) or (
+        "chat_quote_manage" in query_data and user_can_manage_bot
+    ):
         await _chat_quote_manage(update, context)
         return
     quote_message = message.reply_to_message
@@ -281,10 +288,22 @@ async def delete_quote(update: Update, context: ContextTypes.DEFAULT_TYPE):
             chat_id=chat.id,
         )
         return
-    await _unpin_messsage(quote_message.id, chat.id, context)
-    if dao.delete_chat_quote_by_message_id(chat, quote_message.id):
-        sent_message = await quote_message.reply_text("已删除该语录")
-        logger.info(f"Bot: {sent_message.text}")
+
+    message_id = quote_message.id
+    chat_id = chat.id
+    link = get_message_common_link(quote_message)
+    if "delete_quote_in_chat" in query_data:
+        link = query_data.split(" ")[1]
+        chat_id, message_id = parse_message_link(link)
+
+    await _unpin_messsage(message_id, chat_id, context)
+    if dao.delete_quote_by_link(link):
+        if not update.callback_query:
+            sent_message = await quote_message.reply_text("已删除该语录")
+            logger.info(f"Bot: {sent_message.text}")
+        else:
+            await update.callback_query.answer("已删除该语录", show_alert=False)
+            await _chat_quote_manage(update, context)
     else:
         sent_message = await quote_message.reply_markdown_v2(
             "这条消息不在语录中哦\n_This message will be deleted in 10s_"
@@ -303,62 +322,74 @@ async def _chat_quote_manage(update: Update, context: ContextTypes.DEFAULT_TYPE)
     分页管理本群的语录
     此功能只应该在 verify_user_can_manage_bot 通过时被调用
     """
-    user = update.effective_user
     chat = update.effective_chat
     message = update.effective_message
-    page = 1
-    page_size = 10
+    page = (
+        int(update.callback_query.data.split(" ")[-1]) if update.callback_query else 1
+    )
+    page_size = 5
     quotes = dao.get_chat_quotes_page(
         chat=update.effective_chat, page=page, page_size=page_size
     )
-    if not quotes:
-        sent_message = await message.reply_text("本群没有语录哦")
+    quotes_count = dao.get_chat_quotes_count(chat)
+    max_page = ceil(quotes_count / page_size)
+    if quotes_count == 0 and not update.callback_query:
+        sent_message = await message.reply_text("本群还没有语录哦")
         logger.info(f"Bot: {sent_message.text}")
         return
-    quotes_count = dao.get_chat_quotes_count(chat)
-    max_page = quotes_count // page_size + 1
+    if quotes_count == 0 and update.callback_query:
+        await update.callback_query.edit_message_text(
+            text="已经没有语录啦",
+        )
+        return
+    if (page > max_page or page < 1) and update.callback_query:
+        await update.callback_query.answer("已经没有啦", show_alert=False, cache_time=5)
+        return
     text = f"共有 {quotes_count} 条语录; 当前页: {page}/{max_page}\n\n"
-    for quote in quotes:
-        text += f"{quote.message_id} {quote.text}\n"
-
-
-async def del_quote_page(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    current_page = int(update.callback_query.data.split(" ")[-1])
-    all_quote_messages = context.chat_data["quote_messages"]
-    chat_id = update.effective_chat.id
-    chat_id = str(chat_id).removeprefix("-100")
-    prefix = f"https://t.me/c/{chat_id}/"
-    all_quote_messages_link = [
-        prefix + str(message_id) for message_id in all_quote_messages
-    ]
-    total = len(all_quote_messages_link)
-    max_page = total // 10 + 1
-    if current_page < 1:
-        current_page = 1
-    if current_page > max_page:
-        current_page = max_page
-    text = f"共记录 {total} 条; 当前页: {current_page}/{max_page}\n\n" + "\n\n".join(
-        all_quote_messages_link[(current_page - 1) * 10 : current_page * 10]
-    )
-    await context.bot.edit_message_text(
-        chat_id=update.effective_chat.id,
-        text=text,
-        message_id=update.callback_query.message.id,
-        disable_web_page_preview=True,
-        reply_markup=InlineKeyboardMarkup(
-            [
-                [
-                    InlineKeyboardButton(
-                        "上一页",
-                        callback_data=f"del_quote_page {current_page - 1}",
-                    ),
-                    InlineKeyboardButton(
-                        "下一页",
-                        callback_data=f"del_quote_page {current_page + 1}",
-                    ),
-                ]
-            ]
+    keyboard, line = [], []
+    for index, quote in enumerate(quotes):
+        quote_content = (
+            escape_markdown(quote.text[:100], 2)
+            if quote.text
+            else f"A non\-text message sent by {escape_markdown(quote.user.full_name,2)}"  # noqa: E501
+        )
+        text += f"{index+1}\. [{quote_content}]({escape_markdown(quote.link,2)})\n\n"
+        # 每行5个按钮
+        line.append(
+            InlineKeyboardButton(
+                index + 1,
+                callback_data=f"delete_quote_in_chat {str(quote.link)} {page}",
+            )
+        )
+    keyboard.append(line)
+    navigation_buttons = [
+        InlineKeyboardButton(
+            "上一页",
+            callback_data=f"chat_quote_manage {page - 1}",
         ),
+        InlineKeyboardButton(
+            f"第{page}/{max_page}页",
+            callback_data="noop",
+        ),
+        InlineKeyboardButton(
+            "下一页",
+            callback_data=f"chat_quote_manage {page + 1}",
+        ),
+    ]
+    keyboard.append(navigation_buttons)
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    if not update.callback_query:
+        await message.reply_markdown_v2(
+            text=text,
+            reply_markup=reply_markup,
+            disable_web_page_preview=True,
+        )
+        return
+    await update.callback_query.edit_message_text(
+        text=text,
+        reply_markup=reply_markup,
+        disable_web_page_preview=True,
+        parse_mode="MarkdownV2",
     )
 
 

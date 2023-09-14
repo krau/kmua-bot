@@ -36,6 +36,21 @@ def random_unit(probability: float) -> bool:
     return random.uniform(0, 1) < probability
 
 
+async def message_recorder(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.effective_user
+    chat = update.effective_chat
+    message = update.effective_message
+    if not user or not chat:
+        return
+    if message.reply_to_message or chat.type == ChatType.CHANNEL:
+        return
+    if message.sender_chat:
+        user = message.sender_chat
+    db_user = dao.add_user(user)
+    if chat.type == ChatType.GROUP or chat.type == ChatType.SUPERGROUP:
+        dao.add_user_to_chat(db_user, chat)
+
+
 async def generate_quote_img(avatar: bytes, text: str, name: str) -> bytes:
     text = text.replace("\n", " ")
     font_path = str(Path(__file__).resolve().parent.parent / "resource" / "TsukuA.ttc")
@@ -83,21 +98,6 @@ async def generate_quote_img(avatar: bytes, text: str, name: str) -> bytes:
     img.save(img_byte_arr, format="png")
     img_byte_arr = img_byte_arr.getvalue()
     return img_byte_arr
-
-
-async def message_recorder(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user = update.effective_user
-    chat = update.effective_chat
-    message = update.effective_message
-    if not user or not chat:
-        return
-    if user.is_bot or message.reply_to_message or chat.type == ChatType.CHANNEL:
-        return
-    if message.sender_chat:
-        user = message.sender_chat
-    db_user = dao.add_user(user)
-    if chat.type == ChatType.GROUP or chat.type == ChatType.SUPERGROUP:
-        dao.add_user_to_chat(db_user, chat)
 
 
 def sort_topn_bykey(data: dict, n: int, key: str) -> list:
@@ -273,3 +273,14 @@ def get_message_common_link(message: Message) -> str:
     else:
         link = message.link
     return link
+
+
+def parse_message_link(link: str) -> tuple[int, int]:
+    split_link = link.split("/")
+    try:
+        chat_id = int("-100" + split_link[-2])
+        message_id = int(split_link[-1])
+    except ValueError:
+        logger.error(f"无法解析链接: {link}")
+        return None, None
+    return chat_id, message_id

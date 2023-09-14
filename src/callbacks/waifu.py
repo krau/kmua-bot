@@ -240,8 +240,8 @@ async def _get_waifu_for_user(
 async def _get_chat_members_id_to_get_waifu(
     update: Update, context: ContextTypes.DEFAULT_TYPE, user: User, chat: Chat
 ) -> list[int]:
-    group_member: list[int] = dao.get_chat_members_id(chat)
-    married = dao.get_married_users_id_in_chat(chat)
+    group_member = dao.get_chat_users_without_bots_id(chat)
+    married = dao.get_chat_married_users_id(chat)
     to_remove = set(married + fake_users_id + [user.id])
     group_member = [i for i in group_member if i not in to_remove]
     if not group_member:

@@ -33,8 +33,7 @@ from .callbacks.quote import (
     clear_chat_quote_ask,
     clear_chat_quote_cancel,
     clear_user_quote,
-    delete_quote,
-    del_quote_page,
+    delete_quote_in_chat,
     inline_query_quote,
     quote,
     random_quote,
@@ -51,15 +50,8 @@ from .callbacks.title import (
 from .callbacks.userdata import (
     clear_user_img_quote,
     clear_user_text_quote,
-    # delete_quote,
-    next_page,
-    prev_page,
-    user_data_manage,
-    user_quote_manage,
 )
 from .callbacks.waifu import (
-    # clear_chat_waifu,
-    # clear_waifu_data,
     remove_waifu,
     set_mention,
     today_waifu,
@@ -84,7 +76,9 @@ quote_handler = CommandHandler("q", quote, filters=filters.ChatType.GROUPS)
 set_quote_probability_handler = CommandHandler(
     "setqp", set_quote_probability, filters=filters.ChatType.GROUPS
 )
-del_quote_handler = CommandHandler("d", delete_quote, filters=filters.ChatType.GROUPS)
+delete_quote_handler = CommandHandler(
+    "d", delete_quote_in_chat, filters=filters.ChatType.GROUPS
+)
 clear_chat_quote_ask_handler = CommandHandler(
     "clear_chat_quote", clear_chat_quote_ask, filters=filters.ChatType.GROUPS
 )
@@ -139,23 +133,25 @@ clear_chat_data_cancel_handler = CallbackQueryHandler(
     clear_chat_data_cancel, "cancel_clear_chat_data"
 )
 remove_waifu_handler = CallbackQueryHandler(remove_waifu, pattern=r"remove_waifu")
-user_data_manage_handler = CallbackQueryHandler(
-    user_data_manage, pattern="user_data_manage"
-)
-user_quote_manage_handler = CallbackQueryHandler(
-    user_quote_manage, pattern="user_quote_manage"
-)
-prev_page_handler = CallbackQueryHandler(prev_page, pattern=r"prev_page")
-next_page_handler = CallbackQueryHandler(next_page, pattern=r"next_page")
-delete_quote_handler = CallbackQueryHandler(delete_quote, pattern=r"delete_quote")
+# user_data_manage_handler = CallbackQueryHandler(
+#     user_data_manage, pattern="user_data_manage"
+# )
+# user_quote_manage_handler = CallbackQueryHandler(
+#     user_quote_manage, pattern="user_quote_manage"
+# )
+# prev_page_handler = CallbackQueryHandler(prev_page, pattern=r"prev_page")
+# next_page_handler = CallbackQueryHandler(next_page, pattern=r"next_page")
+# delete_quote_handler = CallbackQueryHandler(delete_quote, pattern=r"delete_quote")
 user_waifu_manage_handler = CallbackQueryHandler(
     user_waifu_manage, pattern="user_waifu_manage"
 )
 set_mention_handler = CallbackQueryHandler(set_mention, pattern="set_mention")
 set_title_permissions_callback_handler = CallbackQueryHandler(
-    set_title_permissions_callback, pattern=r"set_title_permissions"
+    set_title_permissions_callback, pattern="set_title_permissions"
 )
-del_quote_page_handler = CallbackQueryHandler(del_quote_page, pattern=r"del_quote_page")
+chat_quote_manage_handler = CallbackQueryHandler(
+    delete_quote_in_chat, pattern="chat_quote_manage|delete_quote_in_chat"
+)
 
 # others
 interact_handler = MessageHandler(filters=interact_filter, callback=interact)
@@ -184,10 +180,10 @@ handlers = [
     quote_handler,
     title_handler,
     set_quote_probability_handler,
-    del_quote_handler,
-    del_quote_page_handler,
     qrand_handler,
     remake_handler,
+    delete_quote_handler,
+    chat_quote_manage_handler,
     # clear_waifu_data_handler,
     # clear_chat_waifu_handler,
     clear_members_data_handler,
@@ -215,11 +211,10 @@ handlers = [
     remove_waifu_handler,
     keyword_reply_handler,
     inline_query_handler,
-    user_data_manage_handler,
-    user_quote_manage_handler,
-    prev_page_handler,
-    next_page_handler,
-    delete_quote_handler,
+    # user_data_manage_handler,
+    # user_quote_manage_handler,
+    # prev_page_handler,
+    # next_page_handler,
     clear_user_img_quote_handler,
     clear_user_text_quote_handler,
     user_waifu_manage_handler,
