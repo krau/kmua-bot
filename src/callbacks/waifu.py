@@ -15,8 +15,8 @@ from telegram.helpers import escape_markdown
 from ..common.message import message_recorder
 from ..common.user import (
     download_small_avatar,
-    verify_user_can_manage_bot,
     mention_markdown_v2,
+    verify_user_can_manage_bot,
 )
 from ..common.utils import fake_users_id
 from ..common.waifu import get_chat_waifu_relationships

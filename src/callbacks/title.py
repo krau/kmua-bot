@@ -231,7 +231,6 @@ async def set_title_permissions_callback(
     else:
         title_permissions[permission] = True
     context.chat_data["title_permissions"] = title_permissions
-    await context.application.persistence.flush()
     await update.callback_query.message.edit_text(
         text=f"""点击按钮修改 /t 命令所赋予的权限, 默认不赋予任何权限
 当前设置:

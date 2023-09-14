@@ -27,10 +27,7 @@ async def help(update: Update, context: ContextTypes.DEFAULT_TYPE):
 /clear_chat_data - 清空本聊天数据
 /clear_chat_waifu - 清除本群老婆数据
 
-私聊:
-可查询自己的统计信息
-可删除自己的名言
-可以和我聊天
+私聊可详细管理个人数据
 
 互动:
 对其他人使用 "/"命令 即可对其施法
@@ -43,8 +40,8 @@ Bot: "A透了B!"
     help_markup = InlineKeyboardMarkup(
         [
             [
-                InlineKeyboardButton("详细帮助", url="https://krau.github.io/kmua-bot/"),
-                InlineKeyboardButton("源码", url="https://github.com/krau/kmua-bot"),
+                InlineKeyboardButton("Detail help", url="https://krau.github.io/kmua-bot/"),
+                InlineKeyboardButton("Open source", url="https://github.com/krau/kmua-bot"),
             ]
         ]
     )

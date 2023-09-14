@@ -10,12 +10,6 @@ from telegram.ext import (
     filters,
 )
 
-from .callbacks.chatdata import (
-    clear_chat_data,
-    clear_chat_data_ask,
-    clear_chat_data_cancel,
-    clear_members_data,
-)
 from .callbacks.chatinfo import getid
 from .callbacks.chatmember import (
     on_member_join,
@@ -37,7 +31,6 @@ from .callbacks.quote import (
 from .callbacks.remake import remake
 from .callbacks.start import start
 from .callbacks.sticker import clear_sticker_cache, sticker2img
-from .callbacks.suicide import add_music, clear_music, suicide
 from .callbacks.title import (
     set_title_permissions,
     set_title_permissions_callback,
@@ -71,11 +64,9 @@ delete_quote_handler = CommandHandler(
 )
 qrand_handler = CommandHandler("qrand", random_quote, filters=filters.ChatType.GROUPS)
 
-clear_chat_data_ask_handler = CommandHandler("clear_chat_data", clear_chat_data_ask)
 help_handler = CommandHandler("help", help, filters=mention_or_private_filter)
 error_notice_control_handler = CommandHandler("error_notice", error_notice_control)
 remake_handler = CommandHandler("remake", remake)
-suicide_handler = CommandHandler("suicide", suicide)
 
 today_waifu_handler = CommandHandler(
     "waifu", today_waifu, filters=filters.ChatType.GROUPS
@@ -88,22 +79,13 @@ set_greet_handler = CommandHandler(
     "set_greet", set_greet, filters=filters.ChatType.GROUPS
 )
 
-clear_members_data_handler = CommandHandler("clear_members_data", clear_members_data)
 getid_handler = CommandHandler("id", getid)
 set_title_permissions_handler = CommandHandler("sett", set_title_permissions)
-add_music_handler = CommandHandler("add_music", add_music)
-clear_music_handler = CommandHandler("clear_music", clear_music)
 clear_sticker_cache_handler = CommandHandler("clear_sticker_cache", clear_sticker_cache)
 
 # CallbackQueryHandlers
 start_callback_handler = CallbackQueryHandler(start, pattern="back_home")
-clear_chat_data_handler = CallbackQueryHandler(
-    clear_chat_data, pattern="clear_chat_data"
-)
 
-clear_chat_data_cancel_handler = CallbackQueryHandler(
-    clear_chat_data_cancel, "cancel_clear_chat_data"
-)
 remove_waifu_handler = CallbackQueryHandler(remove_waifu, pattern="remove_waifu")
 user_waifu_manage_handler = CallbackQueryHandler(
     user_waifu_manage, pattern="user_waifu_manage|set_waifu_mention|divorce"
@@ -156,21 +138,14 @@ handlers = [
     remake_handler,
     delete_quote_handler,
     chat_quote_manage_handler,
-    clear_members_data_handler,
-    suicide_handler,
     set_greet_handler,
     set_title_permissions_handler,
-    add_music_handler,
-    clear_music_handler,
     clear_sticker_cache_handler,
     set_title_permissions_callback_handler,
     start_callback_handler,
-    clear_chat_data_ask_handler,
     help_handler,
     getid_handler,
     error_notice_control_handler,
-    clear_chat_data_handler,
-    clear_chat_data_cancel_handler,
     interact_handler,
     remove_waifu_handler,
     keyword_reply_handler,

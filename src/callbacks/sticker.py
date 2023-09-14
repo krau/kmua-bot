@@ -16,7 +16,7 @@ async def sticker2img(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     file = None
     ext_name = "png"
-    if sticker.file_unique_id in context.bot_data["sticker2img"]:
+    if sticker.file_unique_id in context.bot_data.get("sticker2img", {}):
         file = context.bot_data["sticker2img"][sticker.file_unique_id]
     if not file:
         file = await sticker.get_file()
@@ -34,6 +34,8 @@ async def sticker2img(update: Update, context: ContextTypes.DEFAULT_TYPE):
         caption=f"file_id: {sticker.file_id}",
     )
     doc_file_id = sent_message.document.file_id
+    if not context.bot_data.get("sticker2img", {}):
+        context.bot_data["sticker2img"] = {}
     context.bot_data["sticker2img"][sticker.file_unique_id] = doc_file_id
 
 

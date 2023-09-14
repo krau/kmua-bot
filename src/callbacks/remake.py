@@ -10,6 +10,9 @@ from ..common.utils import random_unit
 
 
 async def remake(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if context.user_data.get("remake_cd", False):
+        return
+    context.user_data["remake_cd"] = True
     logger.info(
         f"[{update.effective_chat.title}]({update.effective_user.name})"
         + f" {update.effective_message.text}"
@@ -23,3 +26,4 @@ async def remake(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     await message_recorder(update, context)
     logger.info(f"Bot: {sent_message.text}")
+    context.user_data["remake_cd"] = False
