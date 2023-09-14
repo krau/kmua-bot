@@ -9,6 +9,7 @@ from typing import Generator
 from PIL import Image, ImageFont
 from pilmoji import Pilmoji
 from telegram import (
+    Message,
     Update,
 )
 from telegram import Chat, User
@@ -263,3 +264,12 @@ async def verify_user_can_manage_bot(
             )
         return False
     return False
+
+
+def get_message_common_link(message: Message) -> str:
+    chat = message.chat
+    if chat.username:
+        link = f"https://t.me/c/{str(chat.id).removeprefix('-100')}/{message.id}"
+    else:
+        link = message.link
+    return link

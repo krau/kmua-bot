@@ -79,8 +79,9 @@ class ChatData(Base):
 
 class Quote(Base):
     __tablename__ = "quotes"
-    chat_id = Column(Integer, ForeignKey("chat_data.id"), primary_key=True)
-    message_id = Column(Integer, nullable=False, primary_key=True)
+    chat_id = Column(Integer, ForeignKey("chat_data.id"))
+    message_id = Column(Integer, nullable=False)
+    link = Column(String, nullable=False, primary_key=True)
     user_id = Column(Integer, ForeignKey("user_data.id"))
     qer_id = Column(Integer)  # 使用 q 的人
     text = Column(String, nullable=True, default=None)

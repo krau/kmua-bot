@@ -1,6 +1,6 @@
 from .db import db
 from .model import UserData, ChatData, Quote, UserChatAssociation
-from telegram import User, Chat
+from telegram import Message, User, Chat
 from itertools import chain
 from ..logger import logger
 
@@ -153,16 +153,12 @@ def delete_quote(quote: Quote):
     commit()
 
 
-def get_quote(chat: Chat | ChatData, message_id: int) -> Quote | None:
-    return (
-        db.query(Quote)
-        .filter(Quote.chat_id == chat.id, Quote.message_id == message_id)
-        .first()
-    )
+def get_quote_by_link(link: str) -> Quote | None:
+    return db.query(Quote).filter(Quote.link == link).first()
 
 
-def delete_chat_quote_by_message_id(chat: Chat | ChatData, message_id: int) -> bool:
-    quote = get_quote(chat, message_id)
+def delete_quote_by_link(link: str) -> bool:
+    quote = get_quote_by_link(link)
     if quote is None:
         return False
     delete_quote(quote)
@@ -173,8 +169,7 @@ def add_quote(
     chat: Chat | ChatData,
     user: User | UserData | Chat,
     qer: User | UserData | Chat,
-    message_id: int,
-    text: str = None,
+    message: Message,
     img: str = None,
 ) -> Quote:
     """
@@ -183,24 +178,28 @@ def add_quote(
     :param chat: Chat or ChatData object
     :param user: 被 q 的人 User or UserData object
     :param qer: 使用 q 的人
-    :param message_id: 消息在 chat 中的 message_id
-    :param text: 消息的文字内容, defaults to None
+    :param message: Message object
     :param img: str, 图片的 file_id, defaults to None
     """
-    if quote := get_quote(chat, message_id):
+    link = message.link
+    # 如果群组为公开群组, 将其转换为与私有群组相同的格式
+    if chat.username is not None:
+        link = f"https://t.me/c/{str(chat.id).removeprefix('-100')}/{message.id}"
+    if quote := get_quote_by_link(link):
         return quote
     db.add(
         Quote(
             chat_id=chat.id,
             user_id=user.id,
-            message_id=message_id,
+            message_id=message.message_id,
+            link=link,
             qer_id=qer.id,
-            text=text,
+            text=message.text,
             img=img,
         )
     )
     commit()
-    return get_quote(chat, message_id)
+    return get_quote_by_link(message.link)
 
 
 def get_chat_quote_probability(chat: Chat | ChatData) -> float:
@@ -226,6 +225,16 @@ def get_chat_quotes(chat: Chat | ChatData) -> list[Quote]:
         add_chat(chat)
         return []
     return db_chat.quotes
+
+
+def get_chat_quotes_count(chat: Chat | ChatData) -> int:
+    return len(get_chat_quotes(chat))
+
+
+def get_chat_quotes_page(
+    chat: Chat | ChatData, page: int, page_size: int
+) -> list[Quote]:
+    return get_chat_quotes(chat)[(page - 1) * page_size : page * page_size]
 
 
 def get_chat_quotes_message_id(chat: Chat | ChatData) -> list[int]:

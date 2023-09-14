@@ -27,8 +27,9 @@ from ..utils import (
     get_big_avatar_bytes,
     message_recorder,
     random_unit,
-    verify_user_is_chat_admin,
     verify_user_can_manage_bot,
+    verify_user_is_chat_admin,
+    get_message_common_link,
 )
 from .jobs import delete_message
 
@@ -63,8 +64,8 @@ async def quote(update: Update, context: ContextTypes.DEFAULT_TYPE):
     qer_user = user
     if message.sender_chat:
         qer_user = message.sender_chat
-
-    if dao.get_quote(chat, quote_message.id):
+    quote_message_link = get_message_common_link(quote_message)
+    if dao.get_quote_by_link(quote_message_link):
         sent_message = await message.reply_markdown_v2(
             "这条消息已经在语录中了哦" "\n_This message will be deleted in 10s_"
         )
@@ -154,8 +155,7 @@ async def _save_quote_data(
         chat=update.effective_chat,
         user=quote_user,
         qer=qer,
-        message_id=quote_message.id,
-        text=quote_message.text,
+        message=quote_message,
         img=quote_img,
     )
 
@@ -263,7 +263,7 @@ async def delete_quote(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     user_can_manage_bot = await verify_user_can_manage_bot(user, chat, update, context)
     if not message.reply_to_message and user_can_manage_bot:
-        await chat_quote_manage(update, context)
+        await _chat_quote_manage(update, context)
         return
     quote_message = message.reply_to_message
     quote_user = quote_message.sender_chat or quote_message.from_user
@@ -298,8 +298,28 @@ async def delete_quote(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
 
-async def chat_quote_manage(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    pass
+async def _chat_quote_manage(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """
+    分页管理本群的语录
+    此功能只应该在 verify_user_can_manage_bot 通过时被调用
+    """
+    user = update.effective_user
+    chat = update.effective_chat
+    message = update.effective_message
+    page = 1
+    page_size = 10
+    quotes = dao.get_chat_quotes_page(
+        chat=update.effective_chat, page=page, page_size=page_size
+    )
+    if not quotes:
+        sent_message = await message.reply_text("本群没有语录哦")
+        logger.info(f"Bot: {sent_message.text}")
+        return
+    quotes_count = dao.get_chat_quotes_count(chat)
+    max_page = quotes_count // page_size + 1
+    text = f"共有 {quotes_count} 条语录; 当前页: {page}/{max_page}\n\n"
+    for quote in quotes:
+        text += f"{quote.message_id} {quote.text}\n"
 
 
 async def del_quote_page(update: Update, context: ContextTypes.DEFAULT_TYPE):
