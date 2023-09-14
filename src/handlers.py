@@ -29,10 +29,6 @@ from .callbacks.interact import interact
 from .callbacks.keyword_reply import keyword_reply
 from .callbacks.others import chat_migration, clear_user_info, error_notice_control
 from .callbacks.quote import (
-    clear_chat_quote,
-    clear_chat_quote_ask,
-    clear_chat_quote_cancel,
-    clear_user_quote,
     delete_quote_in_chat,
     inline_query_quote,
     quote,
@@ -41,6 +37,7 @@ from .callbacks.quote import (
 )
 from .callbacks.remake import remake
 from .callbacks.start import start
+from .callbacks.sticker import clear_sticker_cache, sticker2img
 from .callbacks.suicide import add_music, clear_music, suicide
 from .callbacks.title import (
     set_title_permissions,
@@ -58,7 +55,6 @@ from .callbacks.waifu import (
     user_waifu_manage,
     waifu_graph,
 )
-from .callbacks.sticker import sticker2img, clear_sticker_cache
 from .config.config import settings
 from .filters import (
     interact_filter,
@@ -78,9 +74,6 @@ set_quote_probability_handler = CommandHandler(
 )
 delete_quote_handler = CommandHandler(
     "d", delete_quote_in_chat, filters=filters.ChatType.GROUPS
-)
-clear_chat_quote_ask_handler = CommandHandler(
-    "clear_chat_quote", clear_chat_quote_ask, filters=filters.ChatType.GROUPS
 )
 qrand_handler = CommandHandler("qrand", random_quote, filters=filters.ChatType.GROUPS)
 
@@ -106,7 +99,6 @@ clear_members_data_handler = CommandHandler("clear_members_data", clear_members_
 getid_handler = CommandHandler("id", getid)
 set_title_permissions_handler = CommandHandler("sett", set_title_permissions)
 clear_user_info_handler = CommandHandler("clear_user_info", clear_user_info)
-clear_user_quote_handler = CommandHandler("clear_user_quote", clear_user_quote)
 add_music_handler = CommandHandler("add_music", add_music)
 clear_music_handler = CommandHandler("clear_music", clear_music)
 clear_sticker_cache_handler = CommandHandler("clear_sticker_cache", clear_sticker_cache)
@@ -116,12 +108,7 @@ start_callback_handler = CallbackQueryHandler(start, pattern="back_home")
 clear_chat_data_handler = CallbackQueryHandler(
     clear_chat_data, pattern="clear_chat_data"
 )
-clear_chat_quote_handler = CallbackQueryHandler(
-    clear_chat_quote, pattern="clear_chat_quote"
-)
-clear_chat_quote_cancel_handler = CallbackQueryHandler(
-    clear_chat_quote_cancel, pattern="cancel_clear_chat_quote"
-)
+
 clear_user_img_quote_handler = CallbackQueryHandler(
     clear_user_img_quote, pattern="clear_user_img_quote"
 )
@@ -132,16 +119,7 @@ clear_user_text_quote_handler = CallbackQueryHandler(
 clear_chat_data_cancel_handler = CallbackQueryHandler(
     clear_chat_data_cancel, "cancel_clear_chat_data"
 )
-remove_waifu_handler = CallbackQueryHandler(remove_waifu, pattern=r"remove_waifu")
-# user_data_manage_handler = CallbackQueryHandler(
-#     user_data_manage, pattern="user_data_manage"
-# )
-# user_quote_manage_handler = CallbackQueryHandler(
-#     user_quote_manage, pattern="user_quote_manage"
-# )
-# prev_page_handler = CallbackQueryHandler(prev_page, pattern=r"prev_page")
-# next_page_handler = CallbackQueryHandler(next_page, pattern=r"next_page")
-# delete_quote_handler = CallbackQueryHandler(delete_quote, pattern=r"delete_quote")
+remove_waifu_handler = CallbackQueryHandler(remove_waifu, pattern="remove_waifu")
 user_waifu_manage_handler = CallbackQueryHandler(
     user_waifu_manage, pattern="user_waifu_manage"
 )
@@ -184,37 +162,27 @@ handlers = [
     remake_handler,
     delete_quote_handler,
     chat_quote_manage_handler,
-    # clear_waifu_data_handler,
-    # clear_chat_waifu_handler,
     clear_members_data_handler,
     suicide_handler,
     set_greet_handler,
     set_title_permissions_handler,
-    clear_user_quote_handler,
     add_music_handler,
     clear_music_handler,
     clear_sticker_cache_handler,
     set_title_permissions_callback_handler,
     start_callback_handler,
-    clear_chat_quote_ask_handler,
     clear_chat_data_ask_handler,
     help_handler,
     getid_handler,
     error_notice_control_handler,
-    clear_chat_quote_handler,
     clear_chat_data_handler,
     clear_user_info_handler,
     bnhhsh_command_handler,
-    clear_chat_quote_cancel_handler,
     clear_chat_data_cancel_handler,
     interact_handler,
     remove_waifu_handler,
     keyword_reply_handler,
     inline_query_handler,
-    # user_data_manage_handler,
-    # user_quote_manage_handler,
-    # prev_page_handler,
-    # next_page_handler,
     clear_user_img_quote_handler,
     clear_user_text_quote_handler,
     user_waifu_manage_handler,

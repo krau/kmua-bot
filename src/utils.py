@@ -9,18 +9,18 @@ from typing import Generator
 from PIL import Image, ImageFont
 from pilmoji import Pilmoji
 from telegram import (
+    Chat,
     Message,
     Update,
+    User,
 )
-from telegram import Chat, User
-from telegram.constants import ChatType, ChatMemberStatus
+from telegram.constants import ChatID, ChatMemberStatus, ChatType
 from telegram.ext import ContextTypes
-from telegram.constants import ChatID
 
-from .database import dao
-from .database.model import ChatData, UserData
-from .logger import logger
 from .config.config import settings
+from .database import dao
+from .database.model import ChatData
+from .logger import logger
 
 fake_users_id = [ChatID.FAKE_CHANNEL, ChatID.ANONYMOUS_ADMIN, ChatID.SERVICE_CHAT]
 

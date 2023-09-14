@@ -1,5 +1,5 @@
 import random
-import time
+from math import ceil
 from uuid import uuid4
 
 from telegram import (
@@ -15,25 +15,22 @@ from telegram import (
     User,
 )
 from telegram.constants import ChatAction, ChatType
-from telegram.error import BadRequest
 from telegram.ext import ContextTypes
 from telegram.helpers import escape_markdown
 
-from ..config.config import settings
 from ..database import dao
 from ..logger import logger
 from ..utils import (
     generate_quote_img,
     get_big_avatar_bytes,
+    get_message_common_link,
     message_recorder,
+    parse_message_link,
     random_unit,
     verify_user_can_manage_bot,
     verify_user_is_chat_admin,
-    get_message_common_link,
-    parse_message_link,
 )
 from .jobs import delete_message
-from math import ceil
 
 
 async def quote(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -174,6 +171,8 @@ async def set_quote_probability(update: Update, context: ContextTypes.DEFAULT_TY
     await message_recorder(update, context)
 
     if not await verify_user_is_chat_admin(user, chat, context):
+        sent_message = await message.reply_text("你没有权限哦")
+        logger.info(f"Bot: {sent_message.text}")
         return
     except_text = "概率是在[0,1]之间的浮点数,请检查输入"
     try:
@@ -393,101 +392,6 @@ async def _chat_quote_manage(update: Update, context: ContextTypes.DEFAULT_TYPE)
     )
 
 
-_clear_chat_quote_markup = InlineKeyboardMarkup(
-    [
-        [
-            InlineKeyboardButton("算了", callback_data="cancel_clear_chat_quote"),
-            InlineKeyboardButton("确认清空", callback_data="clear_chat_quote"),
-        ]
-    ]
-)
-
-
-async def clear_chat_quote_ask(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    logger.info(
-        f"[{update.effective_chat.title}]({update.effective_user.name})"
-        + f" {update.effective_message.text}"
-    )
-    await message_recorder(update, context)
-    if not context.chat_data.get("quote_messages", None):
-        sent_message = await context.bot.send_message(
-            chat_id=update.effective_chat.id, text="该聊天没有名言呢"
-        )
-        logger.info(f"Bot: {sent_message.text}")
-        return
-    if update.effective_chat.type != "private":
-        this_chat_member = await update.effective_chat.get_member(
-            update.effective_user.id
-        )
-        if this_chat_member.status != "creator":
-            await update.effective_message.reply_text("你没有权限哦")
-            return
-    sent_message = await update.message.reply_text(
-        text="真的要清空该聊天的语录吗?\n\n用户个人数据不会被此操作清除",
-        reply_markup=_clear_chat_quote_markup,
-    )
-    logger.info(f"Bot: {sent_message.text}")
-
-
-async def clear_chat_quote(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if update.effective_chat.type != "private":
-        if (
-            update.effective_user.id
-            != update.callback_query.message.reply_to_message.from_user.id
-        ):
-            await context.bot.answer_callback_query(
-                callback_query_id=update.callback_query.id,
-                text="你没有权限哦",
-                show_alert=True,
-            )
-            return
-    if not context.chat_data.get("quote_messages", None):
-        return
-    edited_message = await context.bot.edit_message_text(
-        chat_id=update.effective_chat.id,
-        text="正在清空...",
-        message_id=update.callback_query.message.id,
-    )
-    for message_id in context.chat_data["quote_messages"]:
-        try:
-            unpin_ok = await context.bot.unpin_chat_message(
-                chat_id=update.effective_chat.id, message_id=message_id
-            )
-            if unpin_ok:
-                logger.debug(f"Bot将{message_id}取消置顶")
-        except BadRequest:
-            continue
-        except Exception as e:
-            logger.error(e)
-            await context.bot.send_message(
-                chat_id=update.effective_chat.id, text=f"{e.__class__.__name__}: {e}"
-            )
-            time.sleep(0.5)
-            continue
-    context.chat_data["quote_messages"] = []
-    sent_message = await context.bot.edit_message_text(
-        chat_id=update.effective_chat.id,
-        text="已清空该聊天的语录",
-        message_id=edited_message.id,
-    )
-    logger.info(f"Bot: {sent_message.text}")
-
-
-async def clear_chat_quote_cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if update.effective_chat.type != "private":
-        if (
-            update.effective_user.id
-            != update.callback_query.message.reply_to_message.from_user.id
-        ):
-            await context.bot.answer_callback_query(
-                callback_query_id=update.callback_query.id,
-                text="你没有权限哦",
-                show_alert=True,
-            )
-            return
-    await update.callback_query.message.delete()
-
-
 _result_button = InlineQueryResultsButton(text="名言管理", start_parameter="start")
 
 
@@ -590,27 +494,3 @@ async def inline_query_quote(update: Update, context: ContextTypes.DEFAULT_TYPE)
         is_personal=is_personal,
         cache_time=cache_time,
     )
-
-
-async def clear_user_quote(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    logger.info(
-        f"[{update.effective_chat.title}]({update.effective_user.name})"
-        + f" {update.effective_message.text}"
-    )
-    user_id = update.effective_user.id
-    if user_id not in settings.owners:
-        return
-    try:
-        to_clear_id = int(context.args[0])
-    except ValueError:
-        await update.effective_message.reply_text("请输入数字")
-        return
-    except IndexError:
-        await update.effective_message.reply_text("请输入要清除的用户id")
-        return
-    if to_clear_id not in context.bot_data["quotes"].keys():
-        await update.effective_message.reply_text("该用户没有名言")
-        return
-    context.bot_data["quotes"].pop(to_clear_id)
-    await context.application.persistence.flush()
-    await update.effective_message.reply_text("已清除该用户的名言")
