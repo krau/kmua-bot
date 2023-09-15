@@ -253,6 +253,21 @@ def get_chat_quotes_message_id(chat: Chat | ChatData) -> list[int]:
     return [quote.message_id for quote in quotes]
 
 
+def get_user_quotes(user: User | UserData) -> list[Quote]:
+    db_user = add_user(user)
+    return db_user.quotes
+
+
+def get_user_quotes_count(user: User | UserData) -> int:
+    return len(get_user_quotes(user))
+
+
+def get_user_quotes_page(
+    user: User | UserData, page: int, page_size: int
+) -> list[Quote]:
+    return get_user_quotes(user)[(page - 1) * page_size : page * page_size]
+
+
 def add_user_to_chat(user: User | UserData, chat: Chat | ChatData):
     db_user = add_user(user)
     db_chat = add_chat(chat)

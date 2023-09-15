@@ -40,6 +40,7 @@ from .callbacks.userdata import (
     user_data_manage,
     user_data_refresh,
     user_waifu_manage,
+    delete_user_quote,
 )
 from .callbacks.waifu import marry_waifu, remove_waifu, today_waifu, waifu_graph
 from .config import settings
@@ -103,6 +104,10 @@ user_data_refresh_handler = CallbackQueryHandler(
     user_data_refresh, pattern="user_data_refresh"
 )
 marry_waifu_handler = CallbackQueryHandler(marry_waifu, pattern=r".*marry_waifu.*")
+user_quote_manage_handler = CallbackQueryHandler(
+    delete_user_quote, pattern="user_quote_manage|delete_user_quote"
+)
+
 
 # others
 interact_handler = MessageHandler(filters=interact_filter, callback=interact)
@@ -131,6 +136,7 @@ handlers = [
     quote_handler,
     user_data_manage_handler,
     user_data_refresh_handler,
+    user_quote_manage_handler,
     marry_waifu_handler,
     title_handler,
     set_quote_probability_handler,

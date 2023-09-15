@@ -1,11 +1,6 @@
-import io
-import os
 import random
 from math import ceil
-from pathlib import Path
 
-from PIL import Image, ImageFont
-from pilmoji import Pilmoji
 from telegram import (
     Chat,
     InlineKeyboardButton,
@@ -30,6 +25,7 @@ from ..common.user import (
     verify_user_is_chat_admin,
 )
 from ..common.utils import random_unit
+from ..common.quote import generate_quote_img
 from ..database import dao
 from ..logger import logger
 from .jobs import delete_message
@@ -347,7 +343,8 @@ async def _chat_quote_manage(update: Update, context: ContextTypes.DEFAULT_TYPE)
     if (page > max_page or page < 1) and update.callback_query:
         await update.callback_query.answer("已经没有啦", show_alert=False, cache_time=5)
         return
-    text = f"共有 {quotes_count} 条语录; 当前页: {page}/{max_page}\n\n"
+    text = f"共有 {quotes_count} 条语录; 当前页: {page}/{max_page}\n"
+    text += "点击序号删除语录\n\n"
     keyboard, line = [], []
     for index, quote in enumerate(quotes):
         quote_content = (
@@ -360,7 +357,7 @@ async def _chat_quote_manage(update: Update, context: ContextTypes.DEFAULT_TYPE)
         line.append(
             InlineKeyboardButton(
                 index + 1,
-                callback_data=f"delete_quote_in_chat {str(quote.link)} {page}",
+                callback_data=f"delete_quote_in_chat {quote.link} {str(page)}",
             )
         )
     keyboard.append(line)
@@ -400,56 +397,3 @@ _result_button = InlineQueryResultsButton(text="名言管理", start_parameter="
 
 async def inline_query_quote(update: Update, context: ContextTypes.DEFAULT_TYPE):
     pass
-
-
-async def generate_quote_img(avatar: bytes, text: str, name: str) -> bytes:
-    text = text.replace("\n", " ")
-    font_path = str(
-        Path(__file__).resolve().parent.parent.parent / "resource" / "TsukuA.ttc"
-    )
-    font_size = 42
-    font = ImageFont.truetype(font_path, font_size)
-    base_img = Image.open(
-        os.path.join(
-            Path(os.path.dirname(__file__)).parent.parent, "resource", "base.png"
-        )
-    )
-    img = Image.new("RGBA", (1200, 630), (255, 255, 255, 0))
-    avatar = Image.open(io.BytesIO(avatar))
-    img.paste(avatar, (0, 0))
-    img.paste(base_img, (0, 0), base_img)
-
-    text_list = [text[i : i + 18] for i in range(0, len(text), 18)]
-    new_text_height = font_size * len(text_list)
-    new_text_width = max([font.getsize(x)[0] for x in text_list])
-    text_x = 540 + int((560 - new_text_width) / 2)
-    text_y = int((630 - new_text_height) / 2)
-    with Pilmoji(img) as pilmoji:
-        for i in range(len(text_list)):
-            pilmoji.text(
-                (text_x, text_y + i * font_size),
-                text=text_list[i],
-                fill=(255, 255, 252),
-                font=font,
-                align="center",
-                emoji_position_offset=(0, 12),
-            )
-
-    name_font_size = 24
-    name_font = ImageFont.truetype(font_path, name_font_size)
-    name_width, name_height = name_font.getsize(name)
-    name_x = 600 + int((560 - name_width) / 2)
-    name_y = 630 - name_height - 20
-    with Pilmoji(img) as pilmoji:
-        pilmoji.text(
-            (name_x, name_y),
-            text=f"{name}",
-            font=name_font,
-            fill=(255, 255, 252),
-            align="center",
-        )
-    img_byte_arr = io.BytesIO()
-    img = img.convert("RGB")
-    img.save(img_byte_arr, format="png")
-    img_byte_arr = img_byte_arr.getvalue()
-    return img_byte_arr

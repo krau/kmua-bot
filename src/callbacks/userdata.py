@@ -7,6 +7,8 @@ from ..common.user import get_big_avatar_bytes, get_small_avatar_bytes, get_user
 from ..common.waifu import get_user_waifu_info
 from ..common.utils import back_home_markup
 from .jobs import reset_user_cd
+from math import ceil
+from telegram.helpers import escape_markdown
 
 _user_data_manage_markup = InlineKeyboardMarkup(
     [
@@ -181,4 +183,77 @@ async def _divorce_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     logger.debug(
         f"{db_user.full_name}<{db_user.id}> divorced {married_waifu.full_name}<{married_waifu.id}>"  # noqa: E501
+    )
+
+
+async def delete_user_quote(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    if "user_quote_manage" in query.data:
+        await _user_quote_manage(update, context)
+        return
+    quote_link = query.data.split(" ")[1]
+    dao.delete_quote_by_link(quote_link)
+    await query.answer("已删除", show_alert=False, cache_time=5)
+    await _user_quote_manage(update, context)
+
+
+async def _user_quote_manage(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.effective_user
+    query = update.callback_query
+    logger.info(f"({user.name}) <user quote manage>")
+    page = int(query.data.split(" ")[-1]) if len(query.data.split(" ")) > 1 else 1
+    page_size = 5
+    quotes_count = dao.get_user_quotes_count(user)
+    max_page = ceil(quotes_count / page_size)
+    if quotes_count == 0:
+        caption = (
+            "已经没有语录啦" if "delete_user_quote" in query.data else "你没有语录呢"
+        )  # noqa: E501
+        await query.edit_message_caption(
+            caption=caption,
+            reply_markup=back_home_markup,
+        )
+        return
+    if page > max_page or page < 1:
+        await update.callback_query.answer("已经没有啦", show_alert=False, cache_time=5)
+        return
+    text = f"你的语录: 共{quotes_count}条; 第{page}/{max_page}页\n"
+    text += "点击序号删除语录\n\n"
+    quotes = dao.get_user_quotes_page(user, page, page_size)
+    keyboard, line = [], []
+    for index, quote in enumerate(quotes):
+        quote_content = (
+            escape_markdown(quote.text[:100], 2)
+            if quote.text
+            else "A non\-text message"
+        )
+        text += f"{index + 1}\. [{quote_content}]({escape_markdown(quote.link,2)})\n\n"
+
+        line.append(
+            InlineKeyboardButton(
+                text=f"{index + 1}",
+                callback_data=f"delete_user_quote {quote.link} {str(page)}",
+            )
+        )
+    keyboard.append(line)
+    navigation_buttons = [
+        InlineKeyboardButton(
+            "上一页",
+            callback_data=f"user_quote_manage {page - 1}",
+        ),
+        InlineKeyboardButton(
+            "返回",
+            callback_data="back_home",
+        ),
+        InlineKeyboardButton(
+            "下一页",
+            callback_data=f"user_quote_manage {page + 1}",
+        ),
+    ]
+    keyboard.append(navigation_buttons)
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    await query.edit_message_caption(
+        caption=text,
+        parse_mode="MarkdownV2",
+        reply_markup=reply_markup,
     )

@@ -1,5 +1,4 @@
 token = ''
 owners = []
 log_level = 'INFO'
-random_filter = 0.1
-db_url = 'sqlite:///./kmua.db'
+db_url = 'sqlite:///./data/kmua.db'
