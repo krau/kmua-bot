@@ -80,7 +80,7 @@ async def _waifu_graph(
     if not participate_users:
         await context.bot.send_message(
             chat.id,
-            "本群没有人抽过老婆哦",
+            "本群今日没有人抽过老婆哦",
             reply_to_message_id=msg_id,
         )
         return
@@ -184,7 +184,6 @@ async def today_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"[{chat.title}]({user.name if not message.sender_chat else user.title})"
         + f" {message.text}"
     )
-
     if context.user_data.get("waifu_waiting", False):
         return
     context.user_data["waifu_waiting"] = True
@@ -273,7 +272,6 @@ async def _get_waifu_for_user(
             retry += 1
             waifu_id = random.choice(group_member)
             await asyncio.sleep(3)
-
     await update.message.reply_text(text="你没能抽到老婆, 稍后再试一次吧~")
     return None, False
 
@@ -382,7 +380,13 @@ def _get_marry_markup(waifu_id: int, user_id: int) -> InlineKeyboardMarkup:
                     text="婉拒",
                     callback_data=f"refuse_marry_waifu {waifu_id} {user_id}",
                 ),
-            ]
+            ],
+            [
+                InlineKeyboardButton(
+                    text="取消",
+                    callback_data=f"cancel_marry_waifu {waifu_id} {user_id}",
+                ),
+            ],
         ]
     )
 
@@ -394,6 +398,9 @@ async def marry_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     if "refuse" in query.data:
         await _refuse_marry_waifu(update, context)
+        return
+    if "cancel" in query.data:
+        await _cancel_marry_waifu(update, context)
         return
     now_user = update.effective_user
     query_data = query.data.split(" ")
@@ -520,4 +527,37 @@ async def _refuse_marry_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE
     await message.edit_text(
         text=text,
         parse_mode="MarkdownV2",
+    )
+
+
+async def _cancel_marry_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    now_user = update.effective_user
+    query = update.callback_query
+    query_data = query.data.split(" ")
+    waifu_id = int(query_data[1])
+    user_id = int(query_data[2])
+    message = query.message
+    if now_user.id != user_id and now_user.id != waifu_id:
+        await query.answer(
+            text="(￣ε(#￣) 别人的事情咱不要打扰呢", show_alert=True, cache_time=60
+        )  # noqa: E501
+        return
+    db_waifu = get_user_by_id(waifu_id)
+    db_user = get_user_by_id(user_id)
+    text = _get_waifu_text(db_waifu, False)
+    await query.answer(
+        text="o((>ω< ))o 你取消了这个求婚请求",
+        cache_time=5,
+    )
+    if message.photo:
+        await message.edit_caption(
+            caption=text,
+            parse_mode="MarkdownV2",
+            reply_markup=_get_waifu_markup(db_waifu, db_user),
+        )
+        return
+    await message.edit_text(
+        text=text,
+        parse_mode="MarkdownV2",
+        reply_markup=_get_waifu_markup(db_waifu, db_user),
     )
