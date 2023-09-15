@@ -4,7 +4,7 @@ from telegram import (
 from telegram.ext import ContextTypes
 from telegram.helpers import escape_markdown
 from ..logger import logger
-from ..utils import message_recorder
+from ..common.message import message_recorder
 import re
 
 

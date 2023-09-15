@@ -6,7 +6,7 @@ from telegram import (
 from telegram.ext import ContextTypes
 
 from ..logger import logger
-from ..utils import message_recorder
+from ..common.message import message_recorder
 
 
 async def help(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -16,35 +16,29 @@ async def help(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     help_text = """
 命令:
+/start - 开始使用|打开菜单
 /help - 显示此帮助信息
-/start - 开始使用
-/q - 载入史册
+/q - 记录语录
 /t - 获取头衔|互赠头衔
 /setqp - 设置发名言概率
 /waifu - 今天的群友老婆!
-/switch_waifu - 开关本群今日老婆功能
-/clear_chat_quote - 清除本聊天名言
-/clear_chat_data - 清空本聊天数据
-/clear_chat_waifu - 清除本群老婆数据
+/waifu_graph - 老婆关系图!
 
-私聊:
-可查询自己的统计信息
-可删除自己的名言
-可以和我聊天
+私聊可详细管理个人数据
 
-互动:
 对其他人使用 "/"命令 即可对其施法
-例子:
-A使用"/透"回复B的消息
-Bot: "A透了B!"
-使用反斜杠可主客互换
+使用反斜杠可攻受互换
 用 "rua" 之类的命令时要用 "//" 或 "/$"
 """
     help_markup = InlineKeyboardMarkup(
         [
             [
-                InlineKeyboardButton("详细帮助", url="https://krau.github.io/kmua-bot/"),
-                InlineKeyboardButton("源码", url="https://github.com/krau/kmua-bot"),
+                InlineKeyboardButton(
+                    "Detail help", url="https://krau.github.io/kmua-bot/"
+                ),
+                InlineKeyboardButton(
+                    "Open source", url="https://github.com/krau/kmua-bot"
+                ),
             ]
         ]
     )

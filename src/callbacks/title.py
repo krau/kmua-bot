@@ -4,36 +4,25 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.error import BadRequest
 from telegram.ext import ContextTypes
 from telegram.helpers import escape_markdown
-from telegram.constants import ChatID
+from ..common.user import verify_user_can_manage_bot_in_chat
 
 from ..logger import logger
 
 
 async def title(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    logger.info(
-        f"[{update.effective_chat.title}]({update.effective_user.name})"
-        + f" {update.effective_message.text}"
-    )
-    if update.effective_chat.type == "private":
-        sent_message = await context.bot.send_message(
-            chat_id=update.effective_chat.id, text="请在群聊中使用哦"
-        )
-        logger.info(f"Bot: {sent_message.text}")
-        return
+    user = update.effective_user
+    chat = update.effective_chat
+    logger.info(f"[{chat.title}]({user.name}) <title>")
     message = update.effective_message
-    this_user = this_user = (
-        message.sender_chat if message.sender_chat else message.from_user
-    )
+    user = message.sender_chat if message.sender_chat else user
+    user_mention = ""
     try:
-        this_user_mention = this_user.mention_markdown()
+        user_mention = user.mention_markdown_v2()
     except TypeError:
-        this_user_mention = (
-            f"[{escape_markdown(this_user.title)}](tg://user?id={this_user.id})"
-        )
+        user_mention = f"[{escape_markdown(user.title,2)}](tg://user?id={user.id})"
     replied_user = None
     replied_message = None
     custom_title = " ".join(context.args) if context.args else None
-    user_id = this_user.id
     if message.reply_to_message:
         replied_message = message.reply_to_message
         replied_user = replied_message.from_user
@@ -45,8 +34,7 @@ async def title(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 else replied_user.full_name
             )
     if not custom_title:
-        custom_title = this_user.username if this_user.username else this_user.full_name
-
+        custom_title = user.username if user.username else user.full_name
     title_permissions: dict = context.chat_data.get("title_permissions", {})
     try:
         await context.bot.promote_chat_member(
@@ -68,11 +56,13 @@ async def title(update: Update, context: ContextTypes.DEFAULT_TYPE):
             custom_title=custom_title,
         )
         if replied_message:
-            text_when_have_replied_message = f"""
-{this_user_mention} 把 {replied_user.mention_markdown()} 变成{custom_title} !
-            """
+            text_when_have_replied_message = (
+                f"{user_mention}"
+                + f" 把 {replied_user.mention_markdown_v2()}"
+                + f" 变成{escape_markdown(custom_title,2)} \!"
+            )
         text = (
-            f"好, 你现在是{custom_title}啦"
+            f"好, 你现在是{escape_markdown(custom_title,2)}啦"
             if not replied_message
             else text_when_have_replied_message
         )
@@ -80,11 +70,10 @@ async def title(update: Update, context: ContextTypes.DEFAULT_TYPE):
         text = re.sub(r"([a-zA-Z])([\u4e00-\u9fa5])", r"\1 \2", text)
         text = re.sub(r"([\u4e00-\u9fa5])([a-zA-Z])", r"\1 \2", text)
 
-        sent_message = await context.bot.send_message(
-            chat_id=update.effective_chat.id,
-            reply_to_message_id=update.effective_message.id,
+        sent_message = await chat.send_message(
             text=text,
-            parse_mode="Markdown",
+            parse_mode="MarkdownV2",
+            reply_to_message_id=message.id,
         )
         logger.info(f"Bot: {sent_message.text}")
     except BadRequest as e:
@@ -99,8 +88,9 @@ async def title(update: Update, context: ContextTypes.DEFAULT_TYPE):
         else:
             text = f"失败了喵: {e.message}"
             logger.error(f"{e.message}")
-        sent_message = await context.bot.send_message(
-            chat_id=update.effective_chat.id, text=text
+        sent_message = await chat.send_message(
+            text=text,
+            reply_to_message_id=message.id,
         )
         logger.info(f"Bot: {sent_message.text}")
     except Exception as e:
@@ -147,35 +137,13 @@ _title_permissions_markup = InlineKeyboardMarkup(
 
 
 async def set_title_permissions(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    logger.info(
-        f"[{update.effective_chat.title}]({update.effective_user.name})"
-        + f" {update.effective_message.text}"
-    )
-    if update.effective_chat.type == "private":
-        sent_message = await context.bot.send_message(
-            chat_id=update.effective_chat.id, text="请在群聊中使用哦"
-        )
-        logger.info(f"Bot: {sent_message.text}")
+    user = update.effective_user
+    chat = update.effective_chat
+    logger.info(f"[{chat.title}]({user.name}) <set_title_permissions>")
+    message = update.effective_message
+    if not await verify_user_can_manage_bot_in_chat(user, chat, update, context):
+        await message.reply_text("你没有权限哦")
         return
-    user_id = update.effective_user.id
-    if user_id != ChatID.ANONYMOUS_ADMIN and user_id != context.chat_data.get(
-        "owner_id", None
-    ):
-        try:
-            this_chat_member = await update.effective_chat.get_member(user_id)
-        except BadRequest as e:
-            if e.message == "User not found":
-                await update.message.reply_text(
-                    text="无法获取信息, 如果群组开启了隐藏成员, 请赋予 bot 管理员权限",
-                )
-                return
-            else:
-                raise e
-        if this_chat_member.status != "creator":
-            await update.message.reply_text("你没有权限哦")
-            return
-        else:
-            context.chat_data["owner_id"] = user_id
     title_permissions = context.chat_data.get("title_permissions", {})
     text = f"""点击按钮修改 /t 命令所赋予的权限, 默认不赋予任何额外权限.
 当前设置:
@@ -198,32 +166,11 @@ async def set_title_permissions(update: Update, context: ContextTypes.DEFAULT_TY
 async def set_title_permissions_callback(
     update: Update, context: ContextTypes.DEFAULT_TYPE
 ):
-    user_id = update.effective_user.id
-    if (
-        user_id != update.callback_query.message.reply_to_message.from_user.id
-        and user_id != context.chat_data.get("owner_id", None)
-    ):
-        try:
-            this_chat_member = await update.effective_chat.get_member(user_id)
-        except BadRequest as e:
-            if e.message == "User not found":
-                await update.message.answer_callback_query(
-                    callback_query_id=update.callback_query.id,
-                    text="无法获取信息, 如果群组开启了隐藏成员, 请赋予 bot 管理员权限",
-                    show_alert=True,
-                )
-                return
-            else:
-                raise e
-        if this_chat_member.status != "creator":
-            await context.bot.answer_callback_query(
-                callback_query_id=update.callback_query.id,
-                text="你没有权限哦",
-                show_alert=True,
-            )
-            return
-        else:
-            context.chat_data["owner_id"] = user_id
+    user = update.effective_user
+    chat = update.effective_chat
+    logger.info(f"[{chat.title}]({user.name}) <set_title_permissions_callback>")
+    if not await verify_user_can_manage_bot_in_chat(user, chat, update, context):
+        return
     permission = update.callback_query.data.split(" ")[1]
     title_permissions = context.chat_data.get("title_permissions", {})
     if permission in title_permissions:
@@ -231,7 +178,6 @@ async def set_title_permissions_callback(
     else:
         title_permissions[permission] = True
     context.chat_data["title_permissions"] = title_permissions
-    await context.application.persistence.flush()
     await update.callback_query.message.edit_text(
         text=f"""点击按钮修改 /t 命令所赋予的权限, 默认不赋予任何权限
 当前设置:

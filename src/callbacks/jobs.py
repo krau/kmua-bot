@@ -1,36 +1,28 @@
 import asyncio
-import shutil
 
 from telegram.ext import ContextTypes
 
-from ..config.config import avatars_dir
+from ..dao.chat import get_all_chats
 from ..logger import logger
+from ..service.waifu import refresh_all_waifu_data
 from .waifu import _waifu_graph
 
 
-async def refresh_data(context: ContextTypes.DEFAULT_TYPE):
-    today_waifu: dict = context.bot_data["today_waifu"]
-
+async def refresh_waifu_data(context: ContextTypes.DEFAULT_TYPE):
+    logger.debug("Start refreshing waifu data")
     try:
-        await asyncio.gather(
-            *(_waifu_graph(chat_id, context) for chat_id in today_waifu.keys())
-        )
+        await asyncio.gather(*(_waifu_graph(chat, context) for chat in get_all_chats()))
     except Exception as err:
         logger.error(
             f"{err.__class__.__name__}: {err} happend when performing waifu graph tasks"
         )
         raise err
     finally:
-        context.bot_data["today_waifu"] = {}
-        context.bot_data["waifu_mutex"] = {}
-        context.bot_data["user_info"] = {}
-        await context.application.persistence.flush()
-        shutil.rmtree(avatars_dir)
-        avatars_dir.mkdir()
-        logger.debug("数据已刷新: today_waifu")
+        refresh_all_waifu_data()
+        logger.success("数据已刷新: waifu_data")
 
 
-async def del_message(context: ContextTypes.DEFAULT_TYPE):
+async def delete_message(context: ContextTypes.DEFAULT_TYPE):
     await context.bot.delete_message(
         chat_id=context.job.chat_id,
         message_id=context.job.data["message_id"],
@@ -40,11 +32,17 @@ async def del_message(context: ContextTypes.DEFAULT_TYPE):
 async def send_message(context: ContextTypes.DEFAULT_TYPE):
     try:
         await context.bot.send_message(
-        chat_id=context.job.data["chat_id"],
-        text=context.job.data["text"],
-        reply_to_message_id=context.job.data.get("reply_to_message_id", None),
-    )
-    except Exception as err:
-        logger.error(
-            f"{err.__class__.__name__}: {err} happend when sending message"
+            chat_id=context.job.data["chat_id"],
+            text=context.job.data["text"],
+            reply_to_message_id=context.job.data.get("reply_to_message_id", None),
         )
+    except Exception as err:
+        logger.error(f"{err.__class__.__name__}: {err} happend when sending message")
+
+
+async def reset_user_cd(context: ContextTypes.DEFAULT_TYPE):
+    cd_name = context.job.data.get("cd_name", None)
+    if not cd_name or not context.user_data:
+        return
+    context.user_data[cd_name] = False
+    logger.debug(f"user [{context.job.user_id}] {cd_name} has been reset")

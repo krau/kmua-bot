@@ -1,8 +1,56 @@
-import json
-import pathlib
-import glob
 import os
+import pathlib
+import random
+import re
+from operator import attrgetter
+import glob
 from ..logger import logger
+import json
+
+from telegram import (
+    InlineKeyboardButton,
+    InlineKeyboardMarkup,
+)
+
+
+back_home_markup = InlineKeyboardMarkup(
+    [
+        [
+            InlineKeyboardButton("Back", callback_data="back_home"),
+        ]
+    ]
+)
+
+
+def random_unit(probability: float) -> bool:
+    """
+    以probability的概率返回True
+
+    :param probability: 概率
+    :return: bool
+    """
+    assert 0 <= probability <= 1, "参数probability应该在[0,1]之间"
+    return random.uniform(0, 1) < probability
+
+
+def sort_topn_bykey(data: dict, n: int, key: str) -> list:
+    """
+    将字典按照指定的key排序，取前n个
+
+    :param data: 字典
+    :param n: 取前n个
+    :param key: 指定的key
+    :return: 排序后的列表
+    """
+    return sorted(data.values(), key=attrgetter(key), reverse=True)[:n]
+
+
+def parse_arguments(text: str) -> list[str]:
+    pattern = r'"([^"]*)"|([^ ]+)'
+    arguments = re.findall(pattern, text)
+    parsed_arguments = [group[0] or group[1] for group in arguments]
+
+    return parsed_arguments
 
 
 def _load_word_dict():
@@ -45,36 +93,3 @@ def _load_word_dict():
 word_dict = _load_word_dict()
 ohayo_word = word_dict.get("早", ["早安", "早上好", "早上好呀", "早上好哦"])
 oyasumi_word = word_dict.get("晚安", ["晚安", "晚安呀", "晚安哦", "晚安喵"])
-country = [
-    "中国",
-    "日本",
-    "韩国",
-    "朝鲜",
-    "缅甸",
-    "美国",
-    "加拿大",
-    "英国",
-    "法国",
-    "德国",
-    "阿根廷",
-    "印度",
-]
-role = ["男孩子", "女孩子", "薯条", "xyn", "猫猫", "狗狗", "鼠鼠"]
-birthplace = ["首都", "省会", "直辖市", "市区", "县城", "自治区", "农村", "大学"]
-suicide_fail_msg = [
-    "楼层太低了, 没死透",
-    "药的剂量不够",
-    "药效不够强",
-    "上吊的绳子不结实断了",
-    "被晶哥救下并批评教育",
-    "被学校提前发现并劝退",
-    "被爹妈拦下, 骂你是个没良心的东西",
-    "被同学提前发现, 并报告给了老师",
-    "割腕到一半被送去医院了",
-    "被杨院长发现, 绑在椅子上治疗了15天",
-    "突然被群友叫去干饭了",
-    "被老板发现, 辞退并罚款",
-    "被人发现并送进急救, 然后被查看手机",
-    "你现在不能睡觉, 周围有怪物在游荡",
-    "你想起来自己电脑数据没销毁",
-]
