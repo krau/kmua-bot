@@ -50,6 +50,7 @@ from .filters import (
     keyword_reply_filter,
     mention_or_private_filter,
 )
+from .callbacks.manage import manage, set_bot_admin_in_chat, set_bot_admin_globally
 from .logger import logger
 
 # CommandHandlers
@@ -88,6 +89,14 @@ set_title_permissions_handler = CommandHandler(
 chat_data_manage_handler = CommandHandler(
     "manage", chat_data_manage, filters=filters.ChatType.GROUPS
 )
+bot_manage_handler = CommandHandler("manage", manage, filters=filters.ChatType.PRIVATE)
+set_bot_admin_in_chat_handler = CommandHandler(
+    "set_bot_admin", set_bot_admin_in_chat, filters=filters.ChatType.GROUPS
+)
+set_bot_admin_globally_handler = CommandHandler(
+    "set_bot_admin", set_bot_admin_globally, filters=filters.ChatType.PRIVATE
+)
+
 # CallbackQueryHandlers
 start_callback_handler = CallbackQueryHandler(start, pattern="back_home")
 
@@ -151,6 +160,9 @@ handlers = [
     help_handler,
     getid_handler,
     error_notice_control_handler,
+    bot_manage_handler,
+    set_bot_admin_in_chat_handler,
+    set_bot_admin_globally_handler,
     # callback handlers
     user_data_manage_handler,
     user_data_refresh_handler,

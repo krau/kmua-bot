@@ -4,7 +4,7 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.error import BadRequest
 from telegram.ext import ContextTypes
 from telegram.helpers import escape_markdown
-from ..common.user import verify_user_can_manage_bot
+from ..common.user import verify_user_can_manage_bot_in_chat
 
 from ..logger import logger
 
@@ -141,7 +141,7 @@ async def set_title_permissions(update: Update, context: ContextTypes.DEFAULT_TY
     chat = update.effective_chat
     logger.info(f"[{chat.title}]({user.name}) <set_title_permissions>")
     message = update.effective_message
-    if not await verify_user_can_manage_bot(user, chat, update, context):
+    if not await verify_user_can_manage_bot_in_chat(user, chat, update, context):
         await message.reply_text("你没有权限哦")
         return
     title_permissions = context.chat_data.get("title_permissions", {})
@@ -169,7 +169,7 @@ async def set_title_permissions_callback(
     user = update.effective_user
     chat = update.effective_chat
     logger.info(f"[{chat.title}]({user.name}) <set_title_permissions_callback>")
-    if not await verify_user_can_manage_bot(user, chat, update, context):
+    if not await verify_user_can_manage_bot_in_chat(user, chat, update, context):
         return
     permission = update.callback_query.data.split(" ")[1]
     title_permissions = context.chat_data.get("title_permissions", {})

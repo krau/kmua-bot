@@ -102,27 +102,14 @@ async def verify_user_is_chat_admin(
     return True
 
 
-async def verify_user_can_manage_bot(
+async def verify_user_is_chat_owner(
     user: User, chat: Chat, update: Update, context: ContextTypes.DEFAULT_TYPE
 ) -> bool:
     """
-    验证用户是否有在该聊天中管理bot的权限
-    可以管理bot的人包括：群主（和匿名管理员）、bot的全局管理员、在群中被群主授权的bot管理员
+    验证用户是否是群主,
     已在内部做 answer callback query 处理
     :return: bool
     """
-    logger.debug(
-        f"Verify user {user.full_name}<{user.id}> can manage bot in {chat.title}<{chat.id}>"  # noqa: E501
-    )
-    if chat.type == ChatType.PRIVATE:
-        return False
-    if (
-        user.id in settings.owners
-        or user.id == ChatID.ANONYMOUS_ADMIN
-        or dao.get_user_is_bot_global_admin(user)
-        or dao.get_user_is_bot_admin_in_chat(user, chat)
-    ):
-        return True
     try:
         chat_member = await context.bot.get_chat_member(
             chat_id=chat.id, user_id=user.id
@@ -145,6 +132,41 @@ async def verify_user_can_manage_bot(
                 cache_time=15,
             )
         return False
+
+
+def verify_user_can_manage_bot(user: User | UserData) -> bool:
+    """
+    校验用户是否有管理bot的权限(全局)
+    """
+    if user.id in settings.owners:
+        return True
+    if db_user := dao.get_user_by_id(user.id):
+        return db_user.is_bot_global_admin
+    return False
+
+
+async def verify_user_can_manage_bot_in_chat(
+    user: User, chat: Chat, update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> bool:
+    """
+    验证用户是否有在该聊天中管理bot的权限
+    可以管理bot的人包括：群主（和匿名管理员）、bot的全局管理员、在群中被群主授权的bot管理员
+    已在内部做 answer callback query 处理
+    :return: bool
+    """
+    logger.debug(
+        f"Verify user {user.full_name}<{user.id}> can manage bot in {chat.title}<{chat.id}>"  # noqa: E501
+    )
+    if chat.type == ChatType.PRIVATE:
+        return False
+    if (
+        verify_user_can_manage_bot(user)
+        or user.id == ChatID.ANONYMOUS_ADMIN
+        or dao.get_user_is_bot_admin_in_chat(user, chat)
+    ):
+        return True
+    if await verify_user_is_chat_owner(user, chat, update, context):
+        return True
     return False
 
 

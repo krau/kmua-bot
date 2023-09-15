@@ -16,7 +16,7 @@ from ..common.message import message_recorder
 from ..common.user import (
     download_small_avatar,
     mention_markdown_v2,
-    verify_user_can_manage_bot,
+    verify_user_can_manage_bot_in_chat,
 )
 from ..common.utils import fake_users_id
 from ..common.waifu import get_chat_waifu_relationships
@@ -321,7 +321,7 @@ async def _get_photo_to_send(
 
 
 async def remove_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not await verify_user_can_manage_bot(
+    if not await verify_user_can_manage_bot_in_chat(
         update.effective_user, update.effective_chat, update, context
     ):
         return

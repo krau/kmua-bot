@@ -21,7 +21,7 @@ from ..common.message import (
 )
 from ..common.user import (
     get_big_avatar_bytes,
-    verify_user_can_manage_bot,
+    verify_user_can_manage_bot_in_chat,
     verify_user_is_chat_admin,
 )
 from ..common.utils import random_unit
@@ -264,7 +264,9 @@ async def delete_quote_in_chat(update: Update, context: ContextTypes.DEFAULT_TYP
     query_data = ""
     if update.callback_query:
         query_data = update.callback_query.data
-    user_can_manage_bot = await verify_user_can_manage_bot(user, chat, update, context)
+    user_can_manage_bot = await verify_user_can_manage_bot_in_chat(
+        user, chat, update, context
+    )
     if (not message.reply_to_message and user_can_manage_bot) or (
         "chat_quote_manage" in query_data and user_can_manage_bot
     ):
@@ -318,7 +320,7 @@ async def delete_quote_in_chat(update: Update, context: ContextTypes.DEFAULT_TYP
 async def _chat_quote_manage(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """
     分页管理本群的语录
-    此功能只应该在 verify_user_can_manage_bot 通过时被调用
+    此功能只应该在 verify_user_can_manage_bot_in_chat 通过时被调用
     """
     chat = update.effective_chat
     message = update.effective_message
