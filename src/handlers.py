@@ -30,7 +30,7 @@ from .callbacks.quote import (
 )
 from .callbacks.remake import remake
 from .callbacks.start import start
-from .callbacks.sticker import clear_sticker_cache, sticker2img
+from .callbacks.sticker import sticker2img
 from .callbacks.title import (
     set_title_permissions,
     set_title_permissions_callback,
@@ -54,7 +54,7 @@ from .logger import logger
 # CommandHandlers
 start_handler = CommandHandler("start", start, filters=mention_or_private_filter)
 chat_migration_handler = MessageHandler(filters.StatusUpdate.MIGRATE, chat_migration)
-title_handler = CommandHandler("t", title, filters=mention_or_private_filter)
+title_handler = CommandHandler("t", title, filters=filters.ChatType.GROUPS)
 
 quote_handler = CommandHandler("q", quote, filters=filters.ChatType.GROUPS)
 set_quote_probability_handler = CommandHandler(
@@ -81,9 +81,9 @@ set_greet_handler = CommandHandler(
 )
 
 getid_handler = CommandHandler("id", getid)
-set_title_permissions_handler = CommandHandler("sett", set_title_permissions)
-clear_sticker_cache_handler = CommandHandler("clear_sticker_cache", clear_sticker_cache)
-
+set_title_permissions_handler = CommandHandler(
+    "sett", set_title_permissions, filters=filters.ChatType.GROUPS
+)
 # CallbackQueryHandlers
 start_callback_handler = CallbackQueryHandler(start, pattern="back_home")
 
@@ -146,7 +146,6 @@ handlers = [
     chat_quote_manage_handler,
     set_greet_handler,
     set_title_permissions_handler,
-    clear_sticker_cache_handler,
     set_title_permissions_callback_handler,
     start_callback_handler,
     help_handler,
