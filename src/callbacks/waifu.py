@@ -56,6 +56,13 @@ async def _waifu_graph(
     logger.debug(f"Generating waifu graph for {chat.title}<{chat.id}>")
     relationships = get_chat_waifu_relationships(chat)
     participate_users = dao.get_chat_user_participated_waifu(chat)
+    if not participate_users:
+        await context.bot.send_message(
+            chat.id,
+            "本群没有人抽过老婆哦",
+            reply_to_message_id=msg_id,
+        )
+        return
 
     status_msg = await context.bot.send_message(
         chat.id, "少女祈祷中...", reply_to_message_id=msg_id
@@ -168,12 +175,16 @@ async def today_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         waifu, is_got_waifu = await _get_waifu_for_user(update, context, user, chat)
         if not waifu:
             return
-        dao.put_user_waifu_in_chat(user, chat, waifu)
-        text = f"你和 {escape_markdown(waifu.full_name,2)} 已经结婚了哦, 还想娶第二遍嘛?"  # noqa: E501
-        waifu_markup = None
-        if not waifu.is_married:
-            waifu_markup = _get_waifu_markup(waifu, user)
-            text = _get_waifu_text(waifu, is_got_waifu)
+        is_waifu_in_chat = dao.check_user_in_chat(waifu, chat)
+        if is_waifu_in_chat:
+            dao.put_user_waifu_in_chat(user, chat, waifu)
+        waifu_markup = _get_waifu_markup(waifu, user)
+        text = _get_waifu_text(waifu, is_got_waifu)
+        if waifu.is_married:
+            text = f"你和 {escape_markdown(waifu.full_name,2)} 已经结婚了哦, 还想娶第二遍嘛?"  # noqa: E501
+            waifu_markup = None
+            if is_waifu_in_chat:
+                dao.put_user_waifu_in_chat(waifu, chat, user)
         photo_to_send = await _get_photo_to_send(waifu, context)
 
         if photo_to_send is None:
@@ -440,6 +451,12 @@ async def _agree_marry_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE)
     db_waifu.married_waifu_id = user_id
     db_waifu.is_married = True
     dao.commit()
+    db_user = dao.get_user_by_id(user_id)
+    db_waifu = dao.get_user_by_id(waifu_id)
+    dao.refresh_user_all_waifu(db_user)
+    dao.refresh_user_all_waifu(db_waifu)
+    dao.put_user_waifu_in_chat(db_user, message.chat, db_waifu)
+    dao.put_user_waifu_in_chat(db_waifu, message.chat, db_user)
     waifu_mention = mention_markdown_v2(db_waifu)
     user_mention = mention_markdown_v2(db_user)
     text = f"恭喜 {waifu_mention} 和 {user_mention} 结婚啦\~"

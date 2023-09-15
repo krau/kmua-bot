@@ -17,6 +17,7 @@ from .callbacks.chatmember import (
     set_greet,
     track_chats,
 )
+from .callbacks.chatdata import chat_data_manage
 from .callbacks.help import help
 from .callbacks.interact import interact
 from .callbacks.keyword_reply import keyword_reply
@@ -84,6 +85,9 @@ getid_handler = CommandHandler("id", getid)
 set_title_permissions_handler = CommandHandler(
     "sett", set_title_permissions, filters=filters.ChatType.GROUPS
 )
+chat_data_manage_handler = CommandHandler(
+    "manage", chat_data_manage, filters=filters.ChatType.GROUPS
+)
 # CallbackQueryHandlers
 start_callback_handler = CallbackQueryHandler(start, pattern="back_home")
 
@@ -126,31 +130,35 @@ sticker2img_handler = MessageHandler(
 )
 
 handlers = [
+    # pin handlers
     start_handler,
     track_chats_handler,
     member_left_handler,
     member_join_handler,
     chat_migration_handler,
+    # command handlers
     today_waifu_handler,
     waifu_graph_handler,
     quote_handler,
-    user_data_manage_handler,
-    user_data_refresh_handler,
-    user_quote_manage_handler,
-    marry_waifu_handler,
+    chat_data_manage_handler,
     title_handler,
     set_quote_probability_handler,
     qrand_handler,
     remake_handler,
     delete_quote_handler,
-    chat_quote_manage_handler,
     set_greet_handler,
     set_title_permissions_handler,
-    set_title_permissions_callback_handler,
-    start_callback_handler,
     help_handler,
     getid_handler,
     error_notice_control_handler,
+    # callback handlers
+    user_data_manage_handler,
+    user_data_refresh_handler,
+    user_quote_manage_handler,
+    marry_waifu_handler,
+    chat_quote_manage_handler,
+    set_title_permissions_callback_handler,
+    start_callback_handler,
     interact_handler,
     remove_waifu_handler,
     keyword_reply_handler,

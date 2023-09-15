@@ -268,10 +268,18 @@ def get_user_quotes_page(
     return get_user_quotes(user)[(page - 1) * page_size : page * page_size]
 
 
+def check_user_in_chat(user: User | UserData, chat: Chat | ChatData) -> bool:
+    db_user = get_user_by_id(user.id)
+    db_chat = get_chat_by_id(chat.id)
+    if db_user is None or db_chat is None:
+        return False
+    return db_user in db_chat.members
+
+
 def add_user_to_chat(user: User | UserData, chat: Chat | ChatData):
-    db_user = add_user(user)
-    db_chat = add_chat(chat)
-    if db_user not in db_chat.members:
+    if not check_user_in_chat(user, chat):
+        db_user = add_user(user)
+        db_chat = add_chat(chat)
         db_chat.members.append(db_user)
         commit()
 
@@ -303,15 +311,13 @@ def get_user_association_in_chat(
     )
 
 
-def get_user_waifu_in_chat(
+def _get_user_waifu_in_chat_common(
     user: User | UserData, chat: Chat | ChatData
 ) -> UserData | None:
     db_user = get_user_by_id(user.id)
     if db_user is None:
         add_user(user)
         return None
-    if married_waifu_id := db_user.married_waifu_id:
-        return get_user_by_id(married_waifu_id)
     db_chat = get_chat_by_id(chat.id)
     if db_chat is None:
         add_chat(chat)
@@ -322,6 +328,24 @@ def get_user_waifu_in_chat(
     if association.waifu_id is None:
         return None
     return get_user_by_id(association.waifu_id)
+
+
+def get_user_waifu_in_chat(
+    user: User | UserData, chat: Chat | ChatData
+) -> UserData | None:
+    waifu = _get_user_waifu_in_chat_common(user, chat)
+    if waifu is None:
+        db_user = get_user_by_id(user.id)
+        if db_user.married_waifu_id is not None:
+            return get_user_by_id(db_user.married_waifu_id)
+        return None
+    return waifu
+
+
+def get_user_waifu_in_chat_exclude_married(
+    user: User | UserData, chat: Chat | ChatData
+) -> UserData | None:
+    return _get_user_waifu_in_chat_common(user, chat)
 
 
 def get_user_waifu_of_in_chat(
@@ -343,20 +367,11 @@ def get_user_waifu_of_in_chat(
         add_chat(chat)
         return None
     associations = (
-        db.query(UserChatAssociation)
-        .filter(
-            UserChatAssociation.waifu_id == user.id,
-            UserChatAssociation.chat_id == chat.id,
-        )
-        .all()
+        db.query(UserChatAssociation).filter_by(waifu_id=user.id, chat_id=chat.id).all()
     )
-    if associations is None:
+    if not associations:
         return None
-    return [
-        get_user_by_id(association.user_id)
-        for association in associations
-        if association.user_id is not None
-    ]
+    return [get_user_by_id(association.user_id) for association in associations]
 
 
 def get_chat_married_users(chat: Chat | ChatData) -> list[UserData]:
@@ -364,11 +379,7 @@ def get_chat_married_users(chat: Chat | ChatData) -> list[UserData]:
     if db_chat is None:
         add_chat(chat)
         return []
-    return [
-        user
-        for user in db_chat.members
-        if user.is_married and user.married_waifu_id is not None
-    ]
+    return [user for user in db_chat.members if user.is_married]
 
 
 def get_chat_married_users_id(chat: Chat) -> list[int]:
@@ -389,7 +400,7 @@ def get_user_married_waifu(user: User) -> UserData | None:
 def put_user_waifu_in_chat(
     user: User | UserData, chat: Chat | ChatData, waifu: User | UserData
 ) -> bool:
-    if get_user_waifu_in_chat(user, chat) is not None:
+    if get_user_waifu_in_chat_exclude_married(user, chat) is not None:
         return False
     if get_user_by_id(waifu.id) is None:
         add_user(waifu)
@@ -431,7 +442,7 @@ def get_chat_users_has_waifu(chat: Chat | ChatData) -> list[UserData]:
     return [
         user
         for user in db_chat.members
-        if get_user_waifu_in_chat(user, chat) is not None
+        if get_user_waifu_in_chat_exclude_married(user, chat) is not None
     ]
 
 
@@ -506,17 +517,14 @@ def refresh_all_waifu_data():
 
 def refresh_user_all_waifu(user: User | UserData):
     db_user = add_user(user)
-    for association in get_user_associations(db_user):
+    associations = get_user_associations(db_user)
+    for association in associations:
         association.waifu_id = None
     commit()
 
 
 def get_user_associations(user: User | UserData) -> list[UserChatAssociation]:
-    return (
-        db.query(UserChatAssociation)
-        .filter(UserChatAssociation.user_id == user.id)
-        .all()
-    )
+    return db.query(UserChatAssociation).filter_by(user_id=user.id).all()
 
 
 def get_user_waifu_of_associations(user: User | UserData) -> list[UserChatAssociation]:

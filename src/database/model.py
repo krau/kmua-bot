@@ -76,6 +76,8 @@ class ChatData(Base):
     )
 
     quotes = relationship("Quote", back_populates="chat")
+    created_at = Column(DateTime, default=func.now())
+    updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
 
 
 class Quote(Base):
