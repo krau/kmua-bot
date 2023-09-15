@@ -1,3 +1,4 @@
+import asyncio
 from telegram import Chat, ChatMember, ChatMemberUpdated, Update
 from telegram.ext import ContextTypes
 
@@ -57,7 +58,8 @@ async def track_chats(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     elif not was_member and is_member:
         logger.debug(f"{cause_name} 将bot添加到频道 {chat.title}")
         try:
-            context.bot.leave_chat(chat.id)
+            await asyncio.sleep(1)
+            await context.bot.leave_chat(chat.id)
         except Exception as err:
             logger.error(f"退出频道时出错 {chat.title}: {err}")
 
