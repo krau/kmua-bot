@@ -3,7 +3,8 @@ from telegram.ext import ContextTypes
 
 from ..logger import logger
 from ..common.message import message_recorder
-
+from ..database import dao
+from ..common.user import download_big_avatar
 
 _start_bot_markup = InlineKeyboardMarkup(
     [
@@ -44,11 +45,19 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             text="Nya~",
             reply_markup=_start_bot_markup,
         )
-    await update.effective_message.reply_photo(
-        photo="AgACAgUAAx0EbmoR9QACFC5lAsNStCDvOHRLSZePZ_Uv9_eVZQACCbcxG_sWCFTfYtr8PTohXwEAAwIAA3MAAzAE",
+    db_bot_user = dao.get_user_by_id(context.bot.id)
+    if not db_bot_user:
+        db_bot_user = dao.add_user((await context.bot.get_me()))
+        db_bot_user.avatar_big_blob = await download_big_avatar(context.bot.id, context)
+        dao.commit()
+    photo = db_bot_user.avatar_big_id or db_bot_user.avatar_big_blob
+    sent_message = await update.effective_message.reply_photo(
+        photo=photo,
         caption="Nya~",
         reply_markup=_start_bot_markup,
     )
+    db_bot_user.avatar_big_id = sent_message.photo[-1].file_id
+    dao.commit()
 
 
 async def _start_in_group(update: Update, context: ContextTypes.DEFAULT_TYPE):
