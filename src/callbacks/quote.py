@@ -65,6 +65,7 @@ async def quote(update: Update, context: ContextTypes.DEFAULT_TYPE):
     qer_user = user
     if message.sender_chat:
         qer_user = message.sender_chat
+    dao.add_user(quote_user)
     quote_message_link = get_message_common_link(quote_message)
     if dao.get_quote_by_link(quote_message_link):
         sent_message = await message.reply_markdown_v2(
