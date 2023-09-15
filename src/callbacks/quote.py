@@ -403,11 +403,15 @@ async def inline_query_quote(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
 async def generate_quote_img(avatar: bytes, text: str, name: str) -> bytes:
     text = text.replace("\n", " ")
-    font_path = str(Path(__file__).resolve().parent.parent / "resource" / "TsukuA.ttc")
+    font_path = str(
+        Path(__file__).resolve().parent.parent.parent / "resource" / "TsukuA.ttc"
+    )
     font_size = 42
     font = ImageFont.truetype(font_path, font_size)
     base_img = Image.open(
-        os.path.join(Path(os.path.dirname(__file__)).parent, "resource", "base.png")
+        os.path.join(
+            Path(os.path.dirname(__file__)).parent.parent, "resource", "base.png"
+        )
     )
     img = Image.new("RGBA", (1200, 630), (255, 255, 255, 0))
     avatar = Image.open(io.BytesIO(avatar))
