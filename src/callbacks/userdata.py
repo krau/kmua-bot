@@ -122,10 +122,7 @@ async def user_waifu_manage(update: Update, context: ContextTypes.DEFAULT_TYPE):
         ]
     )
     text = get_user_waifu_info(update.effective_user)
-    if query.message.photo:
-        await query.edit_message_caption(caption=text, reply_markup=waifu_manage_markup)
-    else:
-        await query.edit_message_text(text=text, reply_markup=waifu_manage_markup)
+    await query.edit_message_caption(caption=text, reply_markup=waifu_manage_markup)
     dao.commit()
 
 
@@ -177,7 +174,7 @@ async def _divorce_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE):
     dao.refresh_user_all_waifu(db_user)
     dao.refresh_user_all_waifu(married_waifu)
     await query.edit_message_caption(
-        caption="**愿你有一天和重要之人重逢**",
+        caption="_愿你有一天和重要之人重逢_",
         parse_mode="MarkdownV2",
         reply_markup=back_home_markup,
     )
