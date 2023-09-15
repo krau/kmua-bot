@@ -200,6 +200,9 @@ async def on_error(update: object | None, context: ContextTypes.DEFAULT_TYPE):
     if error.__class__.__name__ == "BadRequest":
         if error.message == "Chat_write_forbidden":
             return
+    elif error.__class__.__name__ == "Forbidden":
+        if "bot was kicked from the supergroup chat" in error.message:
+            return
     logger.error(f"在该更新发生错误\n{update}\n错误信息\n{error.__class__.__name__}:{error}")
     if context.bot_data.get("error_notice", False):
 
