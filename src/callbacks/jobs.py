@@ -8,6 +8,7 @@ from .waifu import _waifu_graph
 
 
 async def refresh_waifu_data(context: ContextTypes.DEFAULT_TYPE):
+    logger.debug("Start refreshing waifu data")
     try:
         await asyncio.gather(
             *(_waifu_graph(chat, context) for chat in dao.get_all_chats())
@@ -19,7 +20,7 @@ async def refresh_waifu_data(context: ContextTypes.DEFAULT_TYPE):
         raise err
     finally:
         dao.refresh_all_waifu_data()
-        logger.debug("数据已刷新: waifu_data")
+        logger.success("数据已刷新: waifu_data")
 
 
 async def delete_message(context: ContextTypes.DEFAULT_TYPE):
@@ -43,3 +44,4 @@ async def send_message(context: ContextTypes.DEFAULT_TYPE):
 async def reset_user_cd(context: ContextTypes.DEFAULT_TYPE):
     cd_name = context.job.data["cd_name"]
     context.user_data[cd_name] = False
+    logger.debug(f"user [{context.job.user_id}] {cd_name} has been reset")

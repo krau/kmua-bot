@@ -16,6 +16,7 @@ from ..logger import logger
 async def get_big_avatar_bytes(
     chat_id: int, context: ContextTypes.DEFAULT_TYPE
 ) -> bytes | None:
+    logger.debug(f"Get big avatar for {chat_id}")
     db_user = dao.get_user_by_id(chat_id)
     if db_user:
         if db_user.avatar_big_blob:
@@ -40,16 +41,17 @@ async def download_big_avatar(
             return None
         avatar = await (await avatar_photo.get_big_file()).download_as_bytearray()
         avatar = bytes(avatar)
-        logger.debug(f"Success downloaded big avatar for {chat_id}")
+        logger.success(f"Success downloaded big avatar for {chat_id}")
         return avatar
     except Exception as err:
-        logger.error(f"Failed download: {err.__class__.__name__}: {err}")
+        logger.warning(f"Failed download: {err.__class__.__name__}: {err}")
         return None
 
 
 async def get_small_avatar_bytes(
     chat_id: int, context: ContextTypes.DEFAULT_TYPE
 ) -> bytes | None:
+    logger.debug(f"Get small avatar for {chat_id}")
     db_user = dao.get_user_by_id(chat_id)
     if db_user:
         if db_user.avatar_small_blob:
@@ -74,12 +76,10 @@ async def download_small_avatar(
             return None
         avatar = await (await avatar_photo.get_small_file()).download_as_bytearray()
         avatar = bytes(avatar)
-        logger.debug(f"Success downloaded small avatar for {chat_id}")
+        logger.success(f"Success downloaded small avatar for {chat_id}")
         return avatar
     except Exception as err:
-        logger.error(
-            f"Failed download: {err.__class__.__name__}: {err}"
-        )
+        logger.warning(f"Failed download: {err.__class__.__name__}: {err}")
         return None
 
 
@@ -91,6 +91,9 @@ async def verify_user_is_chat_admin(
 
     :return: bool
     """
+    logger.debug(
+        f"Verify user {user.full_name}<{user.id}> is {chat.title}<{chat.id}> admin"
+    )
     if chat.type == ChatType.PRIVATE:
         return False
     admins = await context.bot.get_chat_administrators(chat_id=chat.id)
@@ -108,6 +111,9 @@ async def verify_user_can_manage_bot(
     已在内部做 answer callback query 处理
     :return: bool
     """
+    logger.debug(
+        f"Verify user {user.full_name}<{user.id}> can manage bot in {chat.title}<{chat.id}>"  # noqa: E501
+    )
     if chat.type == ChatType.PRIVATE:
         return False
     if (
@@ -143,6 +149,7 @@ async def verify_user_can_manage_bot(
 
 
 def get_user_info(user: User | UserData) -> str:
+    logger.debug(f"Get user info for {user.full_name}<{user.id}>")
     db_user = dao.add_user(user)
     info = f"""
 id: {db_user.id}

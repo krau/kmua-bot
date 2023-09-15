@@ -38,7 +38,7 @@ async def waifu_graph(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         await _waifu_graph(chat, context, msg_id)
     except Exception as e:
-        logger.error(f"生成waifu图时出错: {e}")
+        logger.exception(f"Error when generating waifu graph: {e}")
         await context.bot.send_message(
             chat.id,
             f"呜呜呜... kmua 被玩坏惹\n{e.__class__.__name__}: {e}",
@@ -53,6 +53,7 @@ async def _waifu_graph(
     context: ContextTypes.DEFAULT_TYPE,
     msg_id: int | None = None,
 ):
+    logger.debug(f"Generating waifu graph for {chat.title}<{chat.id}>")
     relationships = get_chat_waifu_relationships(chat)
     participate_users = dao.get_chat_user_participated_waifu(chat)
 
@@ -80,6 +81,7 @@ async def _waifu_graph(
         reply_to_message_id=msg_id,
         allow_sending_without_reply=True,
     )
+    logger.success(f"Send waifu graph for {chat.title}<{chat.id}>")
 
 
 def _render_waifu_graph(

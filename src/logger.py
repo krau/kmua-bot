@@ -14,4 +14,4 @@ logger.add(
     retention="30 days",
 )
 
-logger.add(sys.stderr, level=settings.get("log_level", "INFO"))
+logger.add(sys.stdout, level=settings.get("log_level", "INFO"))

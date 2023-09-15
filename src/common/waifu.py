@@ -4,12 +4,14 @@ from telegram import Chat, User
 
 from ..database import dao
 from ..database.model import ChatData, UserData
+from ..logger import logger
 
 
 def get_chat_waifu_relationships(
     chat: Chat | ChatData,
 ) -> Generator[tuple[int, int], None, None]:
     # relationships: a generator that yields (int, int) for (user_id, waifu_id)
+    logger.debug(f"Get chat waifu relationships for {chat.title}<{chat.id}>")
     members = dao.get_chat_members(chat)
     for member in members:
         waifu = dao.get_user_waifu_in_chat(member, chat)
@@ -21,6 +23,7 @@ def get_chat_waifu_info_dict(
     chat: Chat | ChatData,
 ) -> dict[int, int]:
     # waifu_info_dict: a dict that maps user_id to waifu_id
+    logger.debug(f"Get chat waifu info dict for {chat.title}<{chat.id}>")
     waifu_info_dict = {}
     for user_id, waifu_id in get_chat_waifu_relationships(chat):
         waifu_info_dict[user_id] = waifu_id
@@ -28,6 +31,7 @@ def get_chat_waifu_info_dict(
 
 
 def get_user_waifu_info(user: User | UserData) -> str:
+    logger.debug(f"Get user waifu info for {user.full_name}<{user.id}>")
     db_user = dao.add_user(user)
     text = f"""
 是否@你: {db_user.waifu_mention}

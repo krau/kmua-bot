@@ -35,14 +35,14 @@ async def init_data(app: Application):
         ]
     )
     # dao.init_db()
-    logger.info("started")
+    logger.success("started bot")
 
 
 async def stop(app: Application):
     logger.debug("close database connection...")
     dao.commit()
     dao.db.close()
-    logger.info("stopped")
+    logger.success("stopped bot")
 
 
 def run():

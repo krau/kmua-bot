@@ -20,9 +20,8 @@ _user_data_manage_markup = InlineKeyboardMarkup(
 
 async def user_data_manage(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
-    chat = update.effective_chat
     query = update.callback_query
-    logger.info(f"[{chat.title}]({user.name}) <user data manage>")
+    logger.info(f"({user.name}) <user data manage>")
     db_user = dao.get_user_by_id(user.id)
     info = get_user_info(user)
     if db_user.avatar_big_id:
@@ -51,9 +50,8 @@ async def user_data_manage(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def user_data_refresh(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
-    chat = update.effective_chat
     query = update.callback_query
-    logger.info(f"[{chat.title}]({user.name}) <user data refresh>")
+    logger.info(f"({user.name}) <user data refresh>")
 
     if context.user_data.get("user_data_refresh_cd", False):
         await query.answer("技能冷却中...")
@@ -180,4 +178,7 @@ async def _divorce_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE):
         caption="**愿你有一天和重要之人重逢**",
         parse_mode="MarkdownV2",
         reply_markup=back_home_markup,
+    )
+    logger.debug(
+        f"{db_user.full_name}<{db_user.id}> divorced {married_waifu.full_name}<{married_waifu.id}>"  # noqa: E501
     )
