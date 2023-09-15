@@ -78,7 +78,8 @@ async def quote(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await _pin_quote_message(quote_message)
 
-    await quote_message.reply_text(text="好!")
+    text = ["好!", "让我康康是谁在说怪话!"]
+    await quote_message.reply_text(text=random.choice(text))
 
     quote_img_file_id = await _generate_and_sned_quote_img(
         update, context, quote_message, quote_user
