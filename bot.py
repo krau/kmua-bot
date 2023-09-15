@@ -75,7 +75,9 @@ def run():
         UpdateType.CHOSEN_INLINE_RESULT,
         UpdateType.INLINE_QUERY,
     ]
-    app.run_polling(allowed_updates=allowed_updates, drop_pending_updates=True)
+    app.run_polling(
+        allowed_updates=allowed_updates, drop_pending_updates=True, close_loop=False
+    )
 
 
 if __name__ == "__main__":

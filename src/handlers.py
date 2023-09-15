@@ -55,6 +55,7 @@ from .callbacks.manage import (
     set_bot_admin_in_chat,
     set_bot_admin_globally,
     bot_data_refresh,
+    leave_chat,
 )
 from .logger import logger
 
@@ -101,6 +102,7 @@ set_bot_admin_in_chat_handler = CommandHandler(
 set_bot_admin_globally_handler = CommandHandler(
     "set_bot_admin", set_bot_admin_globally, filters=filters.ChatType.PRIVATE
 )
+leave_chat_handler = CommandHandler("leave_chat", leave_chat)
 
 # CallbackQueryHandlers
 start_callback_handler = CallbackQueryHandler(start, pattern="back_home")
@@ -171,6 +173,7 @@ handlers = [
     bot_manage_handler,
     set_bot_admin_in_chat_handler,
     set_bot_admin_globally_handler,
+    leave_chat_handler,
     # callback handlers
     user_data_manage_handler,
     user_data_refresh_handler,

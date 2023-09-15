@@ -128,3 +128,30 @@ async def set_bot_admin_globally(update: Update, context: ContextTypes.DEFAULT_T
     await message.reply_text(
         f"已将{db_user.full_name}的bot全局管理权限设置为{db_user.is_bot_global_admin}"
     )
+
+
+async def leave_chat(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.effective_user
+    logger.info(f"[{user.name}] <leave_chat>")
+    if not verify_user_can_manage_bot(user):
+        return
+    chat = update.effective_chat
+    if chat.type == chat.GROUP or chat.type == chat.SUPERGROUP:
+        await context.bot.leave_chat(chat.id)
+        return
+    if not context.args:
+        await update.message.reply_text("请输入正确的群组ID")
+        return
+    to_leave_chat_id = context.args[0]
+    try:
+        to_leave_chat_id = int(to_leave_chat_id)
+    except ValueError:
+        await update.message.reply_text("请输入正确的群组ID")
+        return
+    try:
+        if await context.bot.leave_chat(to_leave_chat_id):
+            await update.message.reply_text("已离开群组")
+        else:
+            await update.message.reply_text("离开群组失败")
+    except Exception as e:
+        await update.message.reply_text(f"离开群组失败: {e}")
