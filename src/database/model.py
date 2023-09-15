@@ -46,7 +46,7 @@ class UserData(Base):
 
     is_married = Column(Boolean, default=False)
     married_waifu_id = Column(Integer, default=None)
-    waifu_mention = Column(Boolean, default=False)
+    waifu_mention = Column(Boolean, default=True)
 
     is_bot = Column(Boolean, default=False)
     is_real_user = Column(Boolean, default=True)  # 频道身份, bot, 匿名用户等 为 False
