@@ -1,17 +1,18 @@
 from sqlalchemy import (
-    Column,
-    func,
-    Integer,
-    String,
-    Float,
     BLOB,
     Boolean,
+    CheckConstraint,
+    Column,
     DateTime,
+    Float,
     ForeignKey,
+    Integer,
+    String,
+    func,
 )
 from sqlalchemy.orm import relationship
-from sqlalchemy import CheckConstraint
-from .db import Base
+
+from ..dao.db import Base
 
 
 class UserChatAssociation(Base):

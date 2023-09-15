@@ -1,5 +1,5 @@
 import datetime
-from src.database import dao
+from src.dao.db import db
 
 import pytz
 from telegram.constants import UpdateType
@@ -40,8 +40,8 @@ async def init_data(app: Application):
 
 async def stop(app: Application):
     logger.debug("close database connection...")
-    dao.commit()
-    dao.db.close()
+    db.commit()
+    db.close()
     logger.success("stopped bot")
 
 

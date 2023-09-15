@@ -1,10 +1,9 @@
 import io
 import os
 from pathlib import Path
-from telegram import User
+
 from PIL import Image, ImageFont
 from pilmoji import Pilmoji
-from ..database import dao
 
 
 async def generate_quote_img(avatar: bytes, text: str, name: str) -> bytes:

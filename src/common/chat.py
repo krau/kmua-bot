@@ -1,10 +1,11 @@
 from telegram import Chat
-from ..database import dao
-from ..database.model import ChatData
+
+from ..dao.chat import add_chat
+from ..models.models import ChatData
 
 
 def get_chat_info(chat: Chat | ChatData) -> str:
-    db_chat = dao.add_chat(chat)
+    db_chat = add_chat(chat)
     text = f"chat_id: {db_chat.id}\n"
     text += f"title: {db_chat.title}\n\n"
     text += f"记录中共有 {len(db_chat.members)} 个成员\n"

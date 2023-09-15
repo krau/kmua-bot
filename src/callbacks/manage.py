@@ -1,19 +1,22 @@
 from telegram import (
-    InlineKeyboardMarkup,
     InlineKeyboardButton,
+    InlineKeyboardMarkup,
     Update,
 )
 from telegram.ext import ContextTypes
-from .chatdata import chat_data_manage
-from ..common.user import (
-    verify_user_can_manage_bot_in_chat,
-    verify_user_can_manage_bot,
-    download_big_avatar,
-)
-from ..common.user import fake_users_id
-from ..logger import logger
-from ..database import dao
 
+from ..common.user import (
+    download_big_avatar,
+    fake_users_id,
+    verify_user_can_manage_bot,
+    verify_user_can_manage_bot_in_chat,
+)
+from ..dao.association import get_association_in_chat_by_user
+from ..dao.db import db
+from ..dao.user import get_user_by_id
+from ..logger import logger
+from ..service.user import check_user_in_chat
+from .chatdata import chat_data_manage
 
 _manage_markup = InlineKeyboardMarkup(
     [[InlineKeyboardButton("Refresh bot info", callback_data="bot_data_refresh")]]
@@ -43,7 +46,7 @@ async def bot_data_refresh(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     try:
         await query.answer("正在刷新 bot 数据...")
-        db_bot_user = dao.get_user_by_id(context.bot.id)
+        db_bot_user = get_user_by_id(context.bot.id)
         avatar = await download_big_avatar(context.bot.id, context)
         db_bot_user.avatar_big_blob = avatar
         sent_message = await chat.send_photo(
@@ -51,7 +54,7 @@ async def bot_data_refresh(update: Update, context: ContextTypes.DEFAULT_TYPE):
             caption="此消息用于获取 bot 头像缓存 id",
         )
         db_bot_user.avatar_big_id = sent_message.photo[-1].file_id
-        dao.commit()
+        db.commit()
         await sent_message.delete()
         await query.edit_message_text("刷新完成")
     finally:
@@ -86,19 +89,19 @@ async def set_bot_admin_in_chat(update: Update, context: ContextTypes.DEFAULT_TY
     else:
         await message.reply_text("请输入正确的用户ID, 或者回复一名消息")
         return
-    db_user = dao.get_user_by_id(to_promote_user_id)
+    db_user = get_user_by_id(to_promote_user_id)
     if not db_user:
         await message.reply_text("该用户不存在")
         return
-    if not dao.check_user_in_chat(db_user, chat):
+    if not check_user_in_chat(db_user, chat):
         await message.reply_text("该用户不在本群")
         return
     if not db_user.is_real_user:
         await message.reply_text("暂不支持设置该类用户为bot管理员")
         return
-    association = dao.get_user_association_in_chat(db_user, chat)
+    association = get_association_in_chat_by_user(chat, db_user)
     association.is_bot_admin = not association.is_bot_admin
-    dao.commit()
+    db.commit()
     await message.reply_text(
         f"已将{db_user.full_name}在本群的bot管理权限设置为{association.is_bot_admin}"
     )
@@ -119,12 +122,12 @@ async def set_bot_admin_globally(update: Update, context: ContextTypes.DEFAULT_T
     except ValueError:
         await message.reply_text("请输入正确的用户ID")
         return
-    db_user = dao.get_user_by_id(to_promote_user_id)
+    db_user = get_user_by_id(to_promote_user_id)
     if not db_user:
         await message.reply_text("该用户不存在")
         return
     db_user.is_bot_global_admin = not db_user.is_bot_global_admin
-    dao.commit()
+    db.commit()
     await message.reply_text(
         f"已将{db_user.full_name}的bot全局管理权限设置为{db_user.is_bot_global_admin}"
     )

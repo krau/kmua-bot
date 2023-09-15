@@ -19,14 +19,24 @@ from ..common.message import (
     message_recorder,
     parse_message_link,
 )
+from ..common.quote import generate_quote_img
 from ..common.user import (
     get_big_avatar_bytes,
     verify_user_can_manage_bot_in_chat,
     verify_user_is_chat_admin,
 )
 from ..common.utils import random_unit
-from ..common.quote import generate_quote_img
-from ..database import dao
+from ..dao.chat import (
+    get_chat_quote_probability,
+    get_chat_quotes,
+    get_chat_quotes_count,
+    get_chat_quotes_page,
+    update_chat_quote_probability,
+)
+from ..dao.quote import add_quote, delete_quote, delete_quote_by_link, get_quote_by_link
+from ..dao.user import (
+    add_user,
+)
 from ..logger import logger
 from .jobs import delete_message
 
@@ -61,9 +71,9 @@ async def quote(update: Update, context: ContextTypes.DEFAULT_TYPE):
     qer_user = user
     if message.sender_chat:
         qer_user = message.sender_chat
-    dao.add_user(quote_user)
+    add_user(quote_user)
     quote_message_link = get_message_common_link(quote_message)
-    if dao.get_quote_by_link(quote_message_link):
+    if get_quote_by_link(quote_message_link):
         sent_message = await message.reply_markdown_v2(
             "这条消息已经在语录中了哦" "\n_This message will be deleted in 10s_"
         )
@@ -150,7 +160,7 @@ async def _save_quote_data(
     :param quote_user: 语录消息的发送者
     :param quote_img: 语录图片的 file_id
     """
-    dao.add_quote(
+    add_quote(
         chat=update.effective_chat,
         user=quote_user,
         qer=qer,
@@ -185,7 +195,7 @@ async def set_quote_probability(update: Update, context: ContextTypes.DEFAULT_TY
         sent_message = await message.reply_text(except_text)
         logger.info(f"Bot: {sent_message.text}")
         return
-    dao.set_chat_quote_probability(chat, probability)
+    update_chat_quote_probability(chat, probability)
     sent_message = await message.reply_text(
         text=f"将本聊天的 random quote 的概率设为{probability}啦",
     )
@@ -227,14 +237,14 @@ async def random_quote(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     await message_recorder(update, context)
 
-    pb = dao.get_chat_quote_probability(chat)
+    pb = get_chat_quote_probability(chat)
     flag = random_unit(pb)
     if message.text is not None:
         if message.text.startswith("/qrand"):
             flag = True
     if not flag:
         return
-    quotes = dao.get_chat_quotes(chat)
+    quotes = get_chat_quotes(chat)
     if not quotes:
         return
     quote = random.choice(quotes)
@@ -247,7 +257,7 @@ async def random_quote(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.info(f"Bot: {sent_message.text}")
     except Exception as e:
         logger.warning(f"{e.__class__.__name__}: {e}")
-        dao.delete_quote(quote)
+        delete_quote(quote)
         await _unpin_messsage(message_id, chat.id, context)
 
 
@@ -298,7 +308,7 @@ async def delete_quote_in_chat(update: Update, context: ContextTypes.DEFAULT_TYP
         chat_id, message_id = parse_message_link(link)
 
     await _unpin_messsage(message_id, chat_id, context)
-    if dao.delete_quote_by_link(link):
+    if delete_quote_by_link(link):
         if not update.callback_query:
             sent_message = await quote_message.reply_text("已删除该语录")
             logger.info(f"Bot: {sent_message.text}")
@@ -329,10 +339,10 @@ async def _chat_quote_manage(update: Update, context: ContextTypes.DEFAULT_TYPE)
         int(update.callback_query.data.split(" ")[-1]) if update.callback_query else 1
     )
     page_size = 5
-    quotes = dao.get_chat_quotes_page(
+    quotes = get_chat_quotes_page(
         chat=update.effective_chat, page=page, page_size=page_size
     )
-    quotes_count = dao.get_chat_quotes_count(chat)
+    quotes_count = get_chat_quotes_count(chat)
     max_page = ceil(quotes_count / page_size)
     if quotes_count == 0 and not update.callback_query:
         sent_message = await message.reply_text("本群还没有语录哦")

@@ -1,5 +1,5 @@
 from .db import Base, engine
-from .model import (
+from ..models.models import (
     ChatData,  # noqa: F401
     Quote,  # noqa: F401
     UserData,  # noqa: F401

@@ -8,9 +8,11 @@ from telegram.ext import ContextTypes
 from telegram.helpers import escape_markdown
 
 from ..config import settings
-from ..database import dao
-from ..database.model import UserData, ChatData
+from ..dao.db import db
+from ..dao.user import add_user, get_user_by_id
 from ..logger import logger
+from ..models.models import ChatData, UserData
+from ..service.user import get_user_is_bot_admin_in_chat
 
 fake_users_id = [ChatID.FAKE_CHANNEL, ChatID.ANONYMOUS_ADMIN, ChatID.SERVICE_CHAT]
 
@@ -19,7 +21,7 @@ async def get_big_avatar_bytes(
     chat_id: int, context: ContextTypes.DEFAULT_TYPE
 ) -> bytes | None:
     logger.debug(f"Get big avatar for {chat_id}")
-    db_user = dao.get_user_by_id(chat_id)
+    db_user = get_user_by_id(chat_id)
     if db_user:
         if db_user.avatar_big_blob:
             return db_user.avatar_big_blob
@@ -27,7 +29,7 @@ async def get_big_avatar_bytes(
             avatar = await download_big_avatar(chat_id, context)
             if avatar:
                 db_user.avatar_big_blob = avatar
-                dao.commit()
+                db.commit()
             return avatar
     else:
         return await download_big_avatar(chat_id, context)
@@ -54,7 +56,7 @@ async def get_small_avatar_bytes(
     chat_id: int, context: ContextTypes.DEFAULT_TYPE
 ) -> bytes | None:
     logger.debug(f"Get small avatar for {chat_id}")
-    db_user = dao.get_user_by_id(chat_id)
+    db_user = get_user_by_id(chat_id)
     if db_user:
         if db_user.avatar_small_blob:
             return db_user.avatar_small_blob
@@ -62,7 +64,7 @@ async def get_small_avatar_bytes(
             avatar = await download_small_avatar(chat_id, context)
             if avatar:
                 db_user.avatar_small_blob = avatar
-                dao.commit()
+                db.commit()
             return avatar
     else:
         return await download_small_avatar(chat_id, context)
@@ -142,7 +144,7 @@ def verify_user_can_manage_bot(user: User | UserData) -> bool:
     """
     if user.id in settings.owners:
         return True
-    if db_user := dao.get_user_by_id(user.id):
+    if db_user := get_user_by_id(user.id):
         return db_user.is_bot_global_admin
     return False
 
@@ -164,7 +166,7 @@ async def verify_user_can_manage_bot_in_chat(
     if (
         verify_user_can_manage_bot(user)
         or user.id == ChatID.ANONYMOUS_ADMIN
-        or dao.get_user_is_bot_admin_in_chat(user, chat)
+        or get_user_is_bot_admin_in_chat(user, chat)
     ):
         return True
     if await verify_user_is_chat_owner(user, chat, update, context):
@@ -174,7 +176,7 @@ async def verify_user_can_manage_bot_in_chat(
 
 def get_user_info(user: User | UserData) -> str:
     logger.debug(f"Get user info for {user.full_name}<{user.id}>")
-    db_user = dao.add_user(user)
+    db_user = add_user(user)
     info = f"""
 id: {db_user.id}
 username: {db_user.username}
@@ -192,5 +194,5 @@ updated_at: {db_user.updated_at.strftime("%Y-%m-%d %H:%M:%S")}
 
 
 def mention_markdown_v2(user: User | UserData | Chat | ChatData) -> str:
-    db_user = dao.add_user(user)
+    db_user = add_user(user)
     return f"[{escape_markdown(db_user.full_name,2)}](tg://user?id={db_user.id})"

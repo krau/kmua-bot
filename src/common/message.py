@@ -1,8 +1,9 @@
 from telegram import Message, Update
-from telegram.constants import ChatType, ChatID
+from telegram.constants import ChatID, ChatType
 from telegram.ext import ContextTypes
 
-from ..database import dao
+from ..dao.association import add_association_in_chat
+from ..dao.user import add_user
 from ..logger import logger
 
 
@@ -20,9 +21,9 @@ async def message_recorder(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     if message.sender_chat:
         user = message.sender_chat
-    db_user = dao.add_user(user)
+    db_user = add_user(user)
     if chat.type == ChatType.GROUP or chat.type == ChatType.SUPERGROUP:
-        dao.add_user_to_chat(db_user, chat)
+        add_association_in_chat(chat, db_user)
 
 
 def get_message_common_link(message: Message) -> str:
