@@ -3,6 +3,7 @@ from telegram import Chat, ChatMember, ChatMemberUpdated, Update
 from telegram.ext import ContextTypes
 
 from ..logger import logger
+from ..database import dao
 
 
 def extract_status_change(chat_member_update: ChatMemberUpdated):
@@ -54,11 +55,12 @@ async def track_chats(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
 
         elif was_member and not is_member:
             logger.debug(f"{cause_name} 将bot移出群组 {chat.title}")
+            dao.delete_chat_data(chat)
 
     elif not was_member and is_member:
         logger.debug(f"{cause_name} 将bot添加到频道 {chat.title}")
         try:
-            await asyncio.sleep(1)
+            await asyncio.sleep(3)
             await context.bot.leave_chat(chat.id)
         except Exception as err:
             logger.error(f"退出频道时出错 {chat.title}: {err}")
@@ -70,6 +72,7 @@ async def track_chats(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
 async def on_member_left(update: Update, context: ContextTypes.DEFAULT_TYPE):
     left_user = update.effective_message.left_chat_member
     logger.debug(f"{left_user.full_name} 退出了群聊 {update.effective_chat.title}")
+    dao.remove_user_from_chat(left_user, update.effective_chat)
 
 
 async def on_member_join(update: Update, context: ContextTypes.DEFAULT_TYPE):
