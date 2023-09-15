@@ -3,10 +3,27 @@ import random
 from telegram import Update
 from telegram.ext import ContextTypes
 
-from ..data import birthplace, country, role
 from ..logger import logger
 from ..common.message import message_recorder
 from ..common.utils import random_unit
+
+
+country = [
+    "中国",
+    "日本",
+    "韩国",
+    "朝鲜",
+    "缅甸",
+    "美国",
+    "加拿大",
+    "英国",
+    "法国",
+    "德国",
+    "阿根廷",
+    "印度",
+]
+role = ["男孩子", "女孩子", "薯条", "xyn", "猫猫", "狗狗", "鼠鼠"]
+birthplace = ["首都", "省会", "直辖市", "市区", "县城", "自治区", "农村", "大学"]
 
 
 async def remake(update: Update, context: ContextTypes.DEFAULT_TYPE):

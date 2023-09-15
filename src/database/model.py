@@ -74,6 +74,7 @@ class ChatData(Base):
         primaryjoin="ChatData.id==UserChatAssociation.chat_id",
         secondaryjoin="UserData.id==UserChatAssociation.user_id",
     )
+    greet = Column(String, default=None)
 
     quotes = relationship("Quote", back_populates="chat")
     created_at = Column(DateTime, default=func.now())

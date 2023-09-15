@@ -12,6 +12,8 @@ from ..database import dao
 from ..database.model import UserData, ChatData
 from ..logger import logger
 
+fake_users_id = [ChatID.FAKE_CHANNEL, ChatID.ANONYMOUS_ADMIN, ChatID.SERVICE_CHAT]
+
 
 async def get_big_avatar_bytes(
     chat_id: int, context: ContextTypes.DEFAULT_TYPE

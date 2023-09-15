@@ -10,7 +10,7 @@ from ..common.user import (
     verify_user_can_manage_bot,
     download_big_avatar,
 )
-from ..common.utils import fake_users_id
+from ..common.user import fake_users_id
 from ..logger import logger
 from ..database import dao
 

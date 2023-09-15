@@ -7,11 +7,12 @@ from telegram.constants import ChatAction
 from telegram.ext import ContextTypes
 from zhconv import convert
 import asyncio
-from ..data import word_dict
+from ..common.utils import word_dict
 from ..logger import logger
 from ..common.message import message_recorder
 from .friendship import ohayo, oyasumi
 from telegram.error import BadRequest
+
 
 async def keyword_reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
     logger.info(

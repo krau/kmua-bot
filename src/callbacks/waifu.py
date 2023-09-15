@@ -18,7 +18,7 @@ from ..common.user import (
     mention_markdown_v2,
     verify_user_can_manage_bot_in_chat,
 )
-from ..common.utils import fake_users_id
+from ..common.user import fake_users_id
 from ..common.waifu import get_chat_waifu_relationships
 from ..database import dao
 from ..database.model import ChatData, UserData
