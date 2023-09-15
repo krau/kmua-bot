@@ -50,7 +50,12 @@ from .filters import (
     keyword_reply_filter,
     mention_or_private_filter,
 )
-from .callbacks.manage import manage, set_bot_admin_in_chat, set_bot_admin_globally
+from .callbacks.manage import (
+    manage,
+    set_bot_admin_in_chat,
+    set_bot_admin_globally,
+    bot_data_refresh,
+)
 from .logger import logger
 
 # CommandHandlers
@@ -120,6 +125,9 @@ marry_waifu_handler = CallbackQueryHandler(marry_waifu, pattern=r".*marry_waifu.
 user_quote_manage_handler = CallbackQueryHandler(
     delete_user_quote, pattern="user_quote_manage|delete_user_quote"
 )
+bot_data_refresh_handler = CallbackQueryHandler(
+    bot_data_refresh, pattern="bot_data_refresh"
+)
 
 
 # others
@@ -171,11 +179,13 @@ handlers = [
     chat_quote_manage_handler,
     set_title_permissions_callback_handler,
     start_callback_handler,
-    interact_handler,
     remove_waifu_handler,
-    keyword_reply_handler,
+    interact_handler,
     inline_query_handler,
     user_waifu_manage_handler,
+    bot_data_refresh_handler,
+    # message handlers
+    keyword_reply_handler,
     sticker2img_handler,
     random_quote_handler,
 ]

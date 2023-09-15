@@ -1,12 +1,23 @@
 from telegram import (
+    InlineKeyboardMarkup,
+    InlineKeyboardButton,
     Update,
 )
 from telegram.ext import ContextTypes
 from .chatdata import chat_data_manage
-from ..common.user import verify_user_can_manage_bot_in_chat, verify_user_can_manage_bot
+from ..common.user import (
+    verify_user_can_manage_bot_in_chat,
+    verify_user_can_manage_bot,
+    download_big_avatar,
+)
 from ..common.utils import fake_users_id
 from ..logger import logger
 from ..database import dao
+
+
+_manage_markup = InlineKeyboardMarkup(
+    [[InlineKeyboardButton("Refresh bot info", callback_data="bot_data_refresh")]]
+)
 
 
 async def manage(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -15,7 +26,36 @@ async def manage(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await chat_data_manage(update, context)
         return
     # TODO: manage bot in private chat
-    await chat.send_message("TODO")
+    if not verify_user_can_manage_bot(update.effective_user):
+        return
+    if context.bot_data.get("lock_manage_bot", False):
+        await chat.send_message("Locked")
+        return
+    await chat.send_message("TODO...", reply_markup=_manage_markup)
+
+
+async def bot_data_refresh(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    chat = update.effective_chat
+    if context.bot_data.get("lock_manage_bot", False):
+        await chat.send_message("Locked")
+        return
+    context.bot_data["lock_manage_bot"] = True
+    query = update.callback_query
+    try:
+        await query.answer("正在刷新 bot 数据...")
+        db_bot_user = dao.get_user_by_id(context.bot.id)
+        avatar = await download_big_avatar(context.bot.id, context)
+        db_bot_user.avatar_big_blob = avatar
+        sent_message = await chat.send_photo(
+            photo=avatar,
+            caption="此消息用于获取 bot 头像缓存 id",
+        )
+        db_bot_user.avatar_big_id = sent_message.photo[-1].file_id
+        dao.commit()
+        await sent_message.delete()
+        await query.edit_message_text("刷新完成")
+    finally:
+        context.bot_data["lock_manage_bot"] = False
 
 
 async def set_bot_admin_in_chat(update: Update, context: ContextTypes.DEFAULT_TYPE):
