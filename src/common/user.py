@@ -33,17 +33,17 @@ async def get_big_avatar_bytes(
 async def download_big_avatar(
     chat_id: int, context: ContextTypes.DEFAULT_TYPE
 ) -> bytes | None:
-    logger.debug(f"downloading big avatar for {chat_id}")
+    logger.debug(f"Downloading big avatar for {chat_id}")
     try:
         avatar_photo = (await context.bot.get_chat(chat_id=chat_id)).photo
         if not avatar_photo:
             return None
         avatar = await (await avatar_photo.get_big_file()).download_as_bytearray()
         avatar = bytes(avatar)
-        logger.debug(f"downloaded big avatar for {chat_id}")
+        logger.debug(f"Success downloaded big avatar for {chat_id}")
         return avatar
     except Exception as err:
-        logger.error(f"{err.__class__.__name__}: {err} happend when getting big avatar")
+        logger.error(f"Failed download: {err.__class__.__name__}: {err}")
         return None
 
 
@@ -67,18 +67,18 @@ async def get_small_avatar_bytes(
 async def download_small_avatar(
     chat_id: int, context: ContextTypes.DEFAULT_TYPE
 ) -> bytes | None:
-    logger.debug(f"downloading small avatar for {chat_id}")
+    logger.debug(f"Downloading small avatar for {chat_id}")
     try:
         avatar_photo = (await context.bot.get_chat(chat_id=chat_id)).photo
         if not avatar_photo:
             return None
         avatar = await (await avatar_photo.get_small_file()).download_as_bytearray()
         avatar = bytes(avatar)
-        logger.debug(f"downloaded small avatar for {chat_id}")
+        logger.debug(f"Success downloaded small avatar for {chat_id}")
         return avatar
     except Exception as err:
         logger.error(
-            f"{err.__class__.__name__}: {err} happend when getting small avatar"
+            f"Failed download: {err.__class__.__name__}: {err}"
         )
         return None
 

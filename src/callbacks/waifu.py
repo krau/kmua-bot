@@ -367,6 +367,7 @@ async def marry_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = int(query_data[2])
     db_waifu = dao.get_user_by_id(waifu_id)
     db_user = dao.get_user_by_id(user_id)
+    message = query.message
     if not db_waifu.is_real_user:
         await query.answer(
             text="＞﹏＜ Ta 不是真实用户哦.(不支持与匿名管理, 频道身份等结婚)",
@@ -374,7 +375,6 @@ async def marry_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE):
             cache_time=60,
         )
         return
-    message = query.message
     if now_user.id == waifu_id:
         await query.answer(
             text="(。・ω・。) 总会有人不远万里为你而来",
@@ -386,6 +386,13 @@ async def marry_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.answer(
             text="(￣ε(#￣) 别人的事情咱不要打扰呢", show_alert=True, cache_time=15
         )  # noqa: E501
+        return
+    if db_waifu.is_married:
+        await query.answer(
+            text="（＞人＜；）Ta 已经有别人了呢, 愿你找到对的人",
+            show_alert=True,
+            cache_time=60,
+        )
         return
     waifu_mention = mention_markdown_v2(db_waifu)
     user_mention = mention_markdown_v2(db_user)
@@ -418,6 +425,13 @@ async def _agree_marry_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE)
         await query.answer(
             text="(￣ε(#￣) 别人的事情咱不要打扰呢", show_alert=True, cache_time=60
         )  # noqa: E501
+        return
+    if db_waifu.is_married or db_user.is_married:
+        await query.answer(
+            text="（＞人＜；）Ta 已经有别人了呢, 愿你找到对的人",
+            show_alert=True,
+            cache_time=60,
+        )
         return
     db_user.married_waifu_id = waifu_id
     db_user.is_married = True
