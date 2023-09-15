@@ -1,5 +1,5 @@
 from telegram import Message, Update
-from telegram.constants import ChatType
+from telegram.constants import ChatType, ChatID
 from telegram.ext import ContextTypes
 
 from ..database import dao
@@ -12,7 +12,11 @@ async def message_recorder(update: Update, context: ContextTypes.DEFAULT_TYPE):
     message = update.effective_message
     if not user or not chat:
         return
-    if message.reply_to_message or chat.type == ChatType.CHANNEL:
+    if (
+        message.reply_to_message
+        or chat.type == ChatType.CHANNEL
+        or user.id == ChatID.SERVICE_CHAT
+    ):
         return
     if message.sender_chat:
         user = message.sender_chat
