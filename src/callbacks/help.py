@@ -16,21 +16,18 @@ async def help(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     help_text = """
 命令:
+/start - 开始使用|打开菜单
 /help - 显示此帮助信息
-/start - 开始使用
-/q - 载入史册
+/q - 记录语录
 /t - 获取头衔|互赠头衔
 /setqp - 设置发名言概率
 /waifu - 今天的群友老婆!
+/waifu_graph - 老婆关系图!
 
 私聊可详细管理个人数据
 
-互动:
 对其他人使用 "/"命令 即可对其施法
-例子:
-A使用"/透"回复B的消息
-Bot: "A透了B!"
-使用反斜杠可主客互换
+使用反斜杠可攻受互换
 用 "rua" 之类的命令时要用 "//" 或 "/$"
 """
     help_markup = InlineKeyboardMarkup(
