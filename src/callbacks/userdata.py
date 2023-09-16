@@ -95,6 +95,7 @@ async def user_data_refresh(update: Update, context: ContextTypes.DEFAULT_TYPE):
     db_user.avatar_big_id = avatar_big_id
     db.commit()
     info = get_user_info(user)
+    info += "\n刷新成功"
     if avatar_big_id:
         await query.edit_message_media(
             media=InputMediaPhoto(
