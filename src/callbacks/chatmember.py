@@ -4,8 +4,11 @@ from telegram import Chat, ChatMember, ChatMemberUpdated, Update
 from telegram.ext import ContextTypes
 
 from ..dao.association import delete_association_in_chat
+from ..dao.chat import add_chat
+from ..dao.db import db
 from ..logger import logger
 from ..service.chat import delete_chat_data
+from ..common.user import verify_user_can_manage_bot_in_chat
 
 
 def extract_status_change(chat_member_update: ChatMemberUpdated):
@@ -78,9 +81,38 @@ async def on_member_left(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def on_member_join(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    chat = update.effective_chat
     joined_user = update.effective_message.new_chat_members[0]
-    logger.debug(f"{joined_user} 加入了群聊 {update.effective_chat.title} ")
+    logger.debug(f"{joined_user} 加入了群聊 {chat.title} ")
+    if joined_user.is_bot:
+        return
+    db_chat = add_chat(chat)
+    greet = db_chat.greet
+    if greet:
+        greet = greet.format(
+            user=joined_user.full_name,
+            chat=chat.title,
+        )
+        await context.bot.send_message(
+            chat_id=chat.id,
+            text=greet,
+            reply_to_message_id=update.effective_message.id,
+        )
 
 
 async def set_greet(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    pass
+    user = update.effective_user
+    chat = update.effective_chat
+    logger.info(f"[{chat.title}]({user.name}) <set_greet>")
+    message = update.effective_message
+    if not await verify_user_can_manage_bot_in_chat(user, chat, update, context):
+        await message.reply_text("你没有权限哦")
+        return
+    greet = " ".join(context.args)
+    db_chat = add_chat(chat)
+    db_chat.greet = greet
+    db.commit()
+    if greet:
+        await message.reply_text("设置成功")
+    else:
+        await message.reply_text("已清除入群欢迎")
