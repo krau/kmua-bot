@@ -183,7 +183,7 @@ handlers = [
     set_title_permissions_callback_handler,
     start_callback_handler,
     remove_waifu_handler,
-    slash_filter,
+    slash_handler,
     inline_query_handler,
     user_waifu_manage_handler,
     bot_data_refresh_handler,
