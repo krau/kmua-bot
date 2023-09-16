@@ -74,7 +74,7 @@ async def track_chats(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
 async def on_member_left(update: Update, context: ContextTypes.DEFAULT_TYPE):
     left_user = update.effective_message.left_chat_member
     logger.debug(f"{left_user.full_name} 退出了群聊 {update.effective_chat.title}")
-    delete_association_in_chat(update.effective_chat, left_user.id)
+    delete_association_in_chat(update.effective_chat, left_user)
 
 
 async def on_member_join(update: Update, context: ContextTypes.DEFAULT_TYPE):
