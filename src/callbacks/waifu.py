@@ -377,7 +377,7 @@ def _get_marry_markup(waifu_id: int, user_id: int) -> InlineKeyboardMarkup:
                     callback_data=f"agree_marry_waifu {waifu_id} {user_id}",
                 ),
                 InlineKeyboardButton(
-                    text="婉拒",
+                    text="坏耶",
                     callback_data=f"refuse_marry_waifu {waifu_id} {user_id}",
                 ),
             ],
