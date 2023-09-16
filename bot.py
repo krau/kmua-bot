@@ -20,16 +20,16 @@ async def init_data(app: Application):
     logger.info("initing...")
     await app.bot.set_my_commands(
         [
-            ("start", "一键猫叫"),
-            ("t", "获取头衔"),
-            ("sett", "修改/t赋予权限"),
+            ("start", "一键猫叫|召出菜单"),
             ("waifu", "今日老婆!"),
             ("waifu_graph", "老婆关系图！"),
             ("q", "载入史册"),
-            ("setqp", "设置发名言概率"),
-            ("help", "帮助"),
-            ("qrand", "随机名言"),
             ("d", "移出史册"),
+            ("t", "获取头衔|互赠头衔"),
+            ("help", "帮助"),
+            ("qrand", "随机语录"),
+            ("setqp", "设置主动发送语录概率"),
+            ("sett", "修改/t赋予权限"),
             ("set_greet", "设置入群欢迎"),
             ("id", "获取聊天ID"),
         ]
