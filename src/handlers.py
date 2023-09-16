@@ -19,7 +19,7 @@ from .callbacks.chatmember import (
 )
 from .callbacks.chatdata import chat_data_manage
 from .callbacks.help import help
-from .callbacks.interact import interact
+from .callbacks.slash import slash
 from .callbacks.keyword_reply import keyword_reply
 from .callbacks.others import chat_migration, error_notice_control
 from .callbacks.quote import (
@@ -46,7 +46,7 @@ from .callbacks.userdata import (
 from .callbacks.waifu import marry_waifu, remove_waifu, today_waifu, waifu_graph
 from .config import settings
 from .filters import (
-    interact_filter,
+    slash_filter,
     keyword_reply_filter,
     mention_or_private_filter,
 )
@@ -133,7 +133,7 @@ bot_data_refresh_handler = CallbackQueryHandler(
 
 
 # others
-interact_handler = MessageHandler(filters=interact_filter, callback=interact)
+slash_handler = MessageHandler(slash_filter, slash)
 inline_query_handler = InlineQueryHandler(inline_query_quote)
 random_quote_handler = MessageHandler(~filters.COMMAND, random_quote)
 keyword_reply_handler = MessageHandler(keyword_reply_filter, keyword_reply)
@@ -183,7 +183,7 @@ handlers = [
     set_title_permissions_callback_handler,
     start_callback_handler,
     remove_waifu_handler,
-    interact_handler,
+    slash_filter,
     inline_query_handler,
     user_waifu_manage_handler,
     bot_data_refresh_handler,
@@ -203,8 +203,8 @@ async def on_error(update: object | None, context: ContextTypes.DEFAULT_TYPE):
     elif error.__class__.__name__ == "Forbidden":
         if "bot was kicked from the supergroup chat" in error.message:
             return
-    msg = f"在该更新发生错误\n{update}\n" + f"错误信息\n{error.__class__.__name__}:{error}"
-
+    msg = f"在该更新发生错误\n{update}\n"
+    msg += f"错误信息\n{error.__class__.__name__}:{error}"
     logger.error(msg)
     if context.bot_data.get("error_notice", False):
 

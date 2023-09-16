@@ -6,7 +6,7 @@ from telegram.ext.filters import (
 from telegram.ext import filters
 
 
-class InteractFilter(MessageFilter):
+class SlashFilter(MessageFilter):
     def filter(self, message: Message) -> bool | FilterDataDict | None:
         if not message.text:
             return False
@@ -65,7 +65,7 @@ class ReplyBotFilter(MessageFilter):
 
 
 mention_or_private_filter = MentionBotFilter() | filters.ChatType.PRIVATE
-interact_filter = InteractFilter() & TextLengthFilter(min_length=1, max_length=100)
+slash_filter = SlashFilter() & TextLengthFilter(min_length=1, max_length=100)
 keyword_reply_filter = (
-    TextLengthFilter(min_length=1, max_length=200) & ~interact_filter
+    TextLengthFilter(min_length=1, max_length=200) & ~slash_filter
 ) & (ReplyBotFilter() | MentionBotFilter() | filters.ChatType.PRIVATE)
