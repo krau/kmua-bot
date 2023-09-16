@@ -18,13 +18,19 @@ async def help(update: Update, context: ContextTypes.DEFAULT_TYPE):
 命令:
 /start - 开始使用|打开菜单
 /help - 显示此帮助信息
-/q - 记录语录
-/t - 获取头衔|互赠头衔
-/setqp - 设置发名言概率
 /waifu - 今天的群友老婆!
 /waifu_graph - 老婆关系图!
+/q - 记录语录
+/d - 删除语录|管理群语录
+/qrand - 随机语录
+/t - 获取头衔|互赠头衔
+/setqp - 设置主动发送语录的概率
+/id - 获取聊天ID
+/set_greet - 设置群组欢迎语
+/set_bot_admin - 在群组中设置bot管理员 (对于bot该用户将具有同等于群主的权限, 慎用)
 
-私聊可详细管理个人数据
+
+私聊可详细管理个人数据 (使用 /start 开始)
 
 对其他人使用 "/"命令 即可对其施法
 使用反斜杠可攻受互换
