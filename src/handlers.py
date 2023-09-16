@@ -203,14 +203,18 @@ async def on_error(update: object | None, context: ContextTypes.DEFAULT_TYPE):
     elif error.__class__.__name__ == "Forbidden":
         if "bot was kicked from the supergroup chat" in error.message:
             return
-    logger.error(f"在该更新发生错误\n{update}\n错误信息\n{error.__class__.__name__}:{error}")
-    if context.bot_data.get("error_notice", False):
+    msg = (
+        f"在该更新发生错误\n{update}\n"
+        + f"module: {error.__module__}\n"
+        + f"错误信息\n{error.__class__.__name__}:{error}"
+    )
 
+    logger.error(msg)
+    if context.bot_data.get("error_notice", False):
         async def send_update_error(chat_id):
             await context.bot.send_message(
                 chat_id=chat_id,
-                text=f"在该更新发生错误\n{update}\n错误信息\n\n{context.error.__class__.__name__}:{context.error}",
+                text=msg,
             )
-
         tasks = [send_update_error(chat_id) for chat_id in settings.owners]
         await asyncio.gather(*tasks)
