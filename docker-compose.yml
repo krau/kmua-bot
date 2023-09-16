@@ -12,3 +12,4 @@ services:
       - KMUA_TOKEN="你的token"
       - KMUA_OWNERS=[]
       - KMUA_LOG_LEVEL="INFO"
+      - KMUA_DB_URL="sqlite:///./data/kmua.db"
