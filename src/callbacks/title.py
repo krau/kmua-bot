@@ -23,6 +23,7 @@ async def title(update: Update, context: ContextTypes.DEFAULT_TYPE):
     replied_user = None
     replied_message = None
     custom_title = " ".join(context.args) if context.args else None
+    user_id = user.id
     if message.reply_to_message:
         replied_message = message.reply_to_message
         replied_user = replied_message.from_user
