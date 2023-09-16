@@ -4,7 +4,6 @@ import random
 import shutil
 import tempfile
 from math import ceil, sqrt
-from typing import Generator
 
 import graphviz
 from telegram import Chat, InlineKeyboardButton, InlineKeyboardMarkup, Update, User
@@ -77,7 +76,7 @@ async def _waifu_graph(
     logger.debug(f"Generating waifu graph for {chat.title}<{chat.id}>")
     relationships = get_chat_waifu_relationships(chat)
     participate_users = get_chat_user_participated_waifu(chat)
-    if not participate_users:
+    if not participate_users or not relationships:
         await context.bot.send_message(
             chat.id,
             "本群今日没有人抽过老婆哦",
@@ -96,7 +95,6 @@ async def _waifu_graph(
         }
         for user in participate_users
     }
-    await context.bot.send_chat_action(chat.id, ChatAction.TYPING)
     image_bytes = _render_waifu_graph(relationships, user_info)
     logger.debug(f"image_size: {len(image_bytes)}")
     await status_msg.delete()
@@ -113,12 +111,12 @@ async def _waifu_graph(
 
 
 def _render_waifu_graph(
-    relationships: Generator[tuple[int, int], None, None],
+    relationships: list[tuple[int, int]],
     user_info: dict,
 ) -> bytes:
     """
     Render waifu graph and return the image bytes
-    :param relationships: a generator that yields (int, int) for (user_id, waifu_id)
+    :param relationships: a list of tuple(user_id, waifu_id)
     :param user_info: a dict, user_id -> {"avatar": Optional[bytes], "username": str}
     :return: bytes
     """

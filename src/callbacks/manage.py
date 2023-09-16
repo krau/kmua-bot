@@ -11,6 +11,7 @@ from ..common.user import (
     verify_user_can_manage_bot,
     verify_user_can_manage_bot_in_chat,
 )
+from .jobs import refresh_waifu_data
 from ..dao.association import get_association_in_chat_by_user
 from ..dao.db import db
 from ..dao.user import get_user_by_id
@@ -158,3 +159,13 @@ async def leave_chat(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text("离开群组失败")
     except Exception as e:
         await update.message.reply_text(f"离开群组失败: {e}")
+
+
+async def refresh_waifu_data_manually(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+):
+    user = update.effective_user
+    if not verify_user_can_manage_bot(user):
+        return
+    await update.effective_message.reply_text("3s 后刷新 waifu_data")
+    context.job_queue.run_once(refresh_waifu_data, 3)

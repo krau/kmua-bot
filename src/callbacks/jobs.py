@@ -18,7 +18,7 @@ async def refresh_waifu_data(context: ContextTypes.DEFAULT_TYPE):
         )
         raise err
     finally:
-        refresh_all_waifu_data()
+        await refresh_all_waifu_data()
         logger.success("数据已刷新: waifu_data")
 
 

@@ -181,7 +181,7 @@ def refresh_all_waifu_in_chat(chat: Chat | ChatData):
         refresh_user_waifu_in_chat(user, chat)
 
 
-def refresh_all_waifu_data():
+async def refresh_all_waifu_data():
     db.query(UserChatAssociation).update({UserChatAssociation.waifu_id: None})
     db.commit()
 

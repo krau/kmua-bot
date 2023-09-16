@@ -1,5 +1,3 @@
-from typing import Generator
-
 from telegram import Chat, User
 
 from ..dao.chat import get_chat_members
@@ -15,14 +13,17 @@ from ..service.waifu import (
 
 def get_chat_waifu_relationships(
     chat: Chat | ChatData,
-) -> Generator[tuple[int, int], None, None]:
-    # relationships: a generator that yields (int, int) for (user_id, waifu_id)
+) -> list[tuple[int, int]]:
+    relationships = []
     logger.debug(f"Get chat waifu relationships for {chat.title}<{chat.id}>")
     members = get_chat_members(chat)
     for member in members:
         waifu = get_user_waifu_in_chat_exclude_married(member, chat)
         if waifu:
-            yield (member.id, waifu.id)
+            relationships.append((member.id, waifu.id))
+    return relationships
+           
+
 
 
 def get_chat_waifu_info_dict(
