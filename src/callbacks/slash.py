@@ -90,5 +90,6 @@ async def slash(update: Update, context: ContextTypes.DEFAULT_TYPE):
         chat_id=update.effective_chat.id,
         text=text,
         parse_mode="MarkdownV2",
+        disable_web_page_preview=True,
     )
     message_recorder(update, context)
