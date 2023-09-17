@@ -171,7 +171,6 @@ async def today_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 allow_sending_without_reply=True,
             )
     finally:
-        context.user_data["waifu_waiting"] = False
         if waifu:
             if not waifu.avatar_small_blob:
                 waifu.avatar_small_blob = await download_small_avatar(waifu.id, context)
@@ -179,6 +178,7 @@ async def today_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if not db_user.avatar_small_blob:
             db_user.avatar_small_blob = await download_small_avatar(user.id, context)
         db.commit()
+        context.user_data["waifu_waiting"] = False
 
 
 async def _get_waifu_for_user(
@@ -250,6 +250,19 @@ async def remove_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if "cancel" in query_data:
         await _remove_waifu_cancel(update, context)
         return
+    if context.user_data.get("remove_waifu_cd", False):
+        await update.callback_query.answer(
+            text="技能冷却中...",
+            show_alert=True,
+            cache_time=5,
+        )
+        return
+    context.user_data["remove_waifu_cd"] = True
+    context.job_queue.run_once(
+        callback=reset_waifu_cd,
+        when=5,
+        data={"cd_name": "remove_waifu_cd"},
+    )
     query_data = query_data.split(" ")
     if not await verify_user_can_manage_bot_in_chat(
         update.effective_user, update.effective_chat, update, context
@@ -337,6 +350,19 @@ async def marry_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if "cancel" in query.data:
         await _cancel_marry_waifu(update, context)
         return
+    if context.user_data.get("marry_waifu_cd", False):
+        await query.answer(
+            text="技能冷却中...",
+            show_alert=True,
+            cache_time=60,
+        )
+        return
+    context.user_data["marry_waifu_cd"] = True
+    context.job_queue.run_once(
+        callback=reset_waifu_cd,
+        when=60,
+        data={"cd_name": "marry_waifu_cd"},
+    )
     now_user = update.effective_user
     query_data = query.data.split(" ")
     waifu_id = int(query_data[1])
@@ -497,3 +523,11 @@ async def _cancel_marry_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE
         parse_mode="MarkdownV2",
         reply_markup=markup,
     )
+
+
+async def reset_waifu_cd(context: ContextTypes.DEFAULT_TYPE):
+    cd_name = context.job.data.get("cd_name", None)
+    if not cd_name or not context.user_data:
+        return
+    context.user_data[cd_name] = False
+    logger.debug(f"user [{context.job.user_id}] {cd_name} has been reset")

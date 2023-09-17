@@ -122,7 +122,7 @@ async def verify_user_is_chat_owner(
             return True
         if update.callback_query:
             await update.callback_query.answer(
-                "你没有执行此操作的权限", show_alert=False, cache_time=15
+                "你没有执行此操作的权限", show_alert=True, cache_time=15
             )
     except Exception as err:
         logger.warning(f"{err.__class__.__name__}: {err}")
