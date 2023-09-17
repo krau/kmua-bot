@@ -5,7 +5,7 @@ from telegram.ext import ContextTypes
 
 from ..dao.association import delete_association_in_chat
 from ..dao.chat import add_chat
-from ..dao.db import db
+from ..dao import db
 from ..logger import logger
 from ..service.chat import delete_chat_data
 from ..common.user import verify_user_can_manage_bot_in_chat

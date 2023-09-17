@@ -1,7 +1,7 @@
 from telegram import Chat, User
 
 from ..models.models import ChatData, UserChatAssociation, UserData
-from .db import db
+from .db import db, commit
 
 
 def get_association_in_chat(chat: Chat | ChatData) -> UserChatAssociation | None:
@@ -41,7 +41,7 @@ def add_association_in_chat(
             chat_id=chat.id,
         )
     )
-    db.commit()
+    commit
     return get_association_in_chat_by_user(chat, user)
 
 
@@ -56,7 +56,7 @@ def delete_association_in_chat(
     """
     if association := get_association_in_chat_by_user(chat, user):
         db.delete(association)
-        db.commit()
+        commit()
 
 
 def get_associations_of_user(user: User | UserData) -> list[UserChatAssociation]:

@@ -7,3 +7,15 @@ engine = create_engine(settings.DB_URL)
 _session = scoped_session(sessionmaker(autoflush=False, bind=engine))
 db = _session()
 Base = declarative_base()
+
+
+def commit():
+    try:
+        db.commit()
+    except Exception as err:
+        db.rollback()
+        raise err
+
+
+def close():
+    db.close()

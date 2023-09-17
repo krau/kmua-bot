@@ -13,7 +13,7 @@ from ..common.user import (
 )
 from .jobs import refresh_waifu_data
 from ..dao.association import get_association_in_chat_by_user
-from ..dao.db import db
+from ..dao import db
 from ..dao.user import get_user_by_id
 from ..logger import logger
 from ..service.user import check_user_in_chat

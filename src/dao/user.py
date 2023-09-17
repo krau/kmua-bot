@@ -1,7 +1,7 @@
 from telegram import Chat, User
 
 from ..models.models import ChatData, Quote, UserData
-from .db import db
+from .db import db, commit
 
 
 def get_user_by_id(user_id: int) -> UserData | None:
@@ -42,7 +42,7 @@ def add_user(user: User | UserData | Chat | ChatData) -> UserData:
             full_name=user.full_name,
         )
     db.add(userdata)
-    db.commit()
+    commit()
     return get_user_by_id(user.id)
 
 
@@ -53,7 +53,7 @@ def get_user_is_bot_global_admin(user: User | UserData) -> bool:
 def update_user_is_bot_global_admin(user: User | UserData, is_admin: bool):
     db_user = add_user(user)
     db_user.is_bot_global_admin = is_admin
-    db.commit()
+    commit()
 
 
 def get_user_quotes(user: User | UserData) -> list[Quote]:

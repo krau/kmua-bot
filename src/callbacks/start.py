@@ -4,7 +4,7 @@ from telegram.ext import ContextTypes
 from ..logger import logger
 from ..common.message import message_recorder
 
-from ..dao.db import db
+from ..dao import db
 from ..dao.user import (
     add_user,
     get_user_by_id,

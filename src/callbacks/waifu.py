@@ -25,7 +25,7 @@ from ..dao.association import (
 from ..dao.chat import (
     get_chat_users_without_bots_id,
 )
-from ..dao.db import db
+from ..dao import db
 from ..dao.user import (
     add_user,
     get_user_by_id,

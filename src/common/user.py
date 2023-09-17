@@ -8,7 +8,7 @@ from telegram.ext import ContextTypes
 from telegram.helpers import escape_markdown
 
 from ..config import settings
-from ..dao.db import db
+from ..dao import db
 from ..dao.user import add_user, get_user_by_id
 from ..logger import logger
 from ..models.models import ChatData, UserData

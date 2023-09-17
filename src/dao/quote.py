@@ -1,7 +1,7 @@
 from telegram import Chat, Message, User
 
 from ..models.models import ChatData, Quote, UserData
-from .db import db
+from .db import db, commit
 
 
 def get_quote_by_link(link: str) -> Quote | None:
@@ -10,7 +10,7 @@ def get_quote_by_link(link: str) -> Quote | None:
 
 def delete_quote(quote: Quote):
     db.delete(quote)
-    db.commit()
+    commit()
 
 
 def delete_quote_by_link(link: str) -> bool:
@@ -54,5 +54,5 @@ def add_quote(
             img=img,
         )
     )
-    db.commit()
+    commit()
     return get_quote_by_link(message.link)

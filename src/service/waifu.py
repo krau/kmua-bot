@@ -8,7 +8,7 @@ from ..dao.association import (
     get_associations_of_user_waifu_of,
 )
 from ..dao.chat import add_chat, get_chat_by_id
-from ..dao.db import db
+from ..dao import db
 from ..dao.user import add_user, get_user_by_id
 from ..models.models import ChatData, UserChatAssociation, UserData
 

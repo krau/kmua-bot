@@ -138,7 +138,9 @@ bot_data_refresh_handler = CallbackQueryHandler(
 # others
 slash_handler = MessageHandler(slash_filter, slash)
 inline_query_handler = InlineQueryHandler(inline_query_quote)
-random_quote_handler = MessageHandler(~filters.COMMAND, random_quote)
+random_quote_handler = MessageHandler(
+    (~filters.COMMAND & filters.ChatType.GROUPS), random_quote
+)
 keyword_reply_handler = MessageHandler(keyword_reply_filter, keyword_reply)
 track_chats_handler = ChatMemberHandler(track_chats, ChatMemberHandler.MY_CHAT_MEMBER)
 member_left_handler = MessageHandler(

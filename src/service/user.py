@@ -2,7 +2,7 @@ from telegram import Chat, User
 
 from ..dao.association import add_association_in_chat, get_association_in_chat_by_user
 from ..dao.chat import get_chat_by_id
-from ..dao.db import db
+from ..dao import db
 from ..dao.user import get_user_by_id
 from ..models.models import ChatData, UserData
 

@@ -1,7 +1,7 @@
 from telegram import Chat
 
 from ..dao.chat import get_chat_by_id
-from ..dao.db import db
+from ..dao import db
 from ..dao.quote import delete_quote
 from ..models.models import ChatData
 

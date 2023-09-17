@@ -1,7 +1,7 @@
 from telegram import Chat
 
 from ..models.models import ChatData, Quote, UserData
-from .db import db
+from .db import db, commit
 
 
 def get_chat_by_id(chat_id: int) -> ChatData | None:
@@ -23,7 +23,7 @@ def add_chat(chat: Chat | ChatData) -> ChatData:
             title=chat.title,
         )
     )
-    db.commit()
+    commit()
     return get_chat_by_id(chat.id)
 
 
@@ -54,7 +54,7 @@ def update_chat_quote_probability(chat: Chat | ChatData, probability: float):
         add_chat(chat)
         db_chat = get_chat_by_id(chat.id)
     db_chat.quote_probability = probability
-    db.commit()
+    commit()
 
 
 def get_chat_quotes(chat: Chat | ChatData) -> list[Quote]:

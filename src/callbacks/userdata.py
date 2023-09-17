@@ -7,7 +7,7 @@ from telegram.helpers import escape_markdown
 from ..common.user import get_big_avatar_bytes, get_small_avatar_bytes, get_user_info
 from ..common.utils import back_home_markup
 from ..common.waifu import get_user_waifu_info
-from ..dao.db import db
+from ..dao import db
 from ..dao.quote import delete_quote_by_link
 from ..dao.user import (
     get_user_by_id,

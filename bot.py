@@ -1,5 +1,5 @@
 import datetime
-from src.dao.db import db
+from src.dao import db
 
 import pytz
 from telegram.constants import UpdateType
