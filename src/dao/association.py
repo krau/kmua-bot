@@ -24,7 +24,9 @@ def get_association_in_chat_by_user(
 
 
 def add_association_in_chat(
-    chat: Chat | ChatData, user: User | UserData | Chat | ChatData
+    chat: Chat | ChatData,
+    user: User | UserData | Chat | ChatData,
+    waifu: User | UserData | Chat | ChatData | None = None,
 ) -> UserChatAssociation:
     """
     add association if not exists(add user to chat)
@@ -39,6 +41,7 @@ def add_association_in_chat(
         UserChatAssociation(
             user_id=user.id,
             chat_id=chat.id,
+            waifu_id=waifu.id if waifu else None,
         )
     )
     commit()
@@ -63,7 +66,20 @@ def get_associations_of_user(user: User | UserData) -> list[UserChatAssociation]
     return db.query(UserChatAssociation).filter_by(user_id=user.id).all()
 
 
+def get_associations_of_user_waifu_of_in_chat(
+    user: User | UserData, chat: Chat | ChatData
+) -> list[UserChatAssociation]:
+    return (
+        db.query(UserChatAssociation).filter_by(waifu_id=user.id, chat_id=chat.id).all()
+    )
+
+
 def get_associations_of_user_waifu_of(
     user: User | UserData,
 ) -> list[UserChatAssociation]:
     return db.query(UserChatAssociation).filter_by(waifu_id=user.id).all()
+
+
+def update_associations_all_waifu_id_to_none():
+    db.query(UserChatAssociation).update({UserChatAssociation.waifu_id: None})
+    db.commit()

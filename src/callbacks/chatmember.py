@@ -7,7 +7,7 @@ from ..dao.association import delete_association_in_chat
 from ..dao.chat import add_chat
 from ..dao import db
 from ..logger import logger
-from ..service.chat import delete_chat_data
+from ..service.chat import delete_chat_data_and_quotes
 from ..common.user import verify_user_can_manage_bot_in_chat
 
 
@@ -60,7 +60,7 @@ async def track_chats(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
 
         elif was_member and not is_member:
             logger.debug(f"{cause_name} 将bot移出群组 {chat.title}")
-            delete_chat_data(chat)
+            delete_chat_data_and_quotes(chat)
 
     elif not was_member and is_member:
         logger.debug(f"{cause_name} 将bot添加到频道 {chat.title}")

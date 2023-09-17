@@ -6,11 +6,14 @@ from ..dao.association import (
     get_association_in_chat_by_user,
     get_associations_of_user,
     get_associations_of_user_waifu_of,
+    get_associations_of_user_waifu_of_in_chat,
+    add_association_in_chat,
+    update_associations_all_waifu_id_to_none,
 )
 from ..dao.chat import add_chat, get_chat_by_id
-from ..dao.db import db
+from ..dao import db
 from ..dao.user import add_user, get_user_by_id
-from ..models.models import ChatData, UserChatAssociation, UserData
+from ..models.models import ChatData, UserData
 
 
 def _get_user_waifu_in_chat_common(
@@ -68,9 +71,7 @@ def get_user_waifu_of_in_chat(
     if db_chat is None:
         add_chat(chat)
         return None
-    associations = (
-        db.query(UserChatAssociation).filter_by(waifu_id=user.id, chat_id=chat.id).all()
-    )
+    associations = get_associations_of_user_waifu_of_in_chat(db_user, db_chat)
     if not associations:
         return None
     return [get_user_by_id(association.user_id) for association in associations]
@@ -114,13 +115,7 @@ def put_user_waifu_in_chat(
         else:
             return False
     else:
-        db.add(
-            UserChatAssociation(
-                user_id=user.id,
-                chat_id=chat.id,
-                waifu_id=waifu.id,
-            )
-        )
+        add_association_in_chat(chat, user, waifu)
         db.commit()
         return True
 
@@ -182,7 +177,7 @@ def refresh_all_waifu_in_chat(chat: Chat | ChatData):
 
 
 async def refresh_all_waifu_data():
-    db.query(UserChatAssociation).update({UserChatAssociation.waifu_id: None})
+    update_associations_all_waifu_id_to_none()
     db.commit()
 
 

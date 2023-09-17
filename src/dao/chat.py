@@ -109,3 +109,11 @@ def get_all_chats() -> list[ChatData]:
 
 def get_all_chats_id() -> list[int]:
     return [chat.id for chat in get_all_chats()]
+
+
+def delete_chat(chat: Chat | ChatData):
+    db_chat = get_chat_by_id(chat.id)
+    if db_chat is None:
+        return
+    db.delete(db_chat)
+    commit()
