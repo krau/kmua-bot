@@ -44,7 +44,8 @@ async def send_message(context: ContextTypes.DEFAULT_TYPE):
 
 async def reset_user_cd(context: ContextTypes.DEFAULT_TYPE):
     cd_name = context.job.data.get("cd_name", None)
-    if not cd_name or not context.user_data:
+    if not cd_name:
         return
-    context.user_data[cd_name] = False
+    user_id = context.job.user_id
+    context.bot_data.get(user_id,{}).pop(cd_name, None)
     logger.debug(f"user [{context.job.user_id}] {cd_name} has been reset")

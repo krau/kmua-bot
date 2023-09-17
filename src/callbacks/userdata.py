@@ -65,14 +65,18 @@ async def user_data_refresh(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     logger.info(f"({user.name}) <user data refresh>")
 
-    if context.user_data.get("user_data_refresh_cd", False):
-        await query.answer("技能冷却中...")
+    if context.bot_data.get(user.id, {}).get("user_data_refresh_cd", False):
+        await query.answer("技能冷却中...", cache_time=60)
         return
-    context.user_data["user_data_refresh_cd"] = True
+    if not context.bot_data.get(user.id, {}):
+        context.bot_data[user.id] = {}
+    context.bot_data[user.id]["user_data_refresh_cd"] = True
+
     context.job_queue.run_once(
         callback=reset_user_cd,
         when=600,
         data={"cd_name": "user_data_refresh_cd"},
+        user_id=user.id,
     )
     await query.answer("刷新中...")
     username = user.username
