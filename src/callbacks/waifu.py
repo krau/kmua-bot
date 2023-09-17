@@ -19,6 +19,7 @@ from ..common.waifu import (
     get_waifu_text,
     render_waifu_graph,
     get_waifu_markup,
+    get_remove_markup,
 )
 from ..dao.association import (
     delete_association_in_chat,
@@ -242,6 +243,34 @@ async def _get_photo_to_send(
 
 
 async def remove_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query_data = update.callback_query.data
+    if "confirm" in query_data:
+        await _remove_waifu_confirm(update, context)
+        return
+    if "cancel" in query_data:
+        await _remove_waifu_cancel(update, context)
+        return
+    query_data = query_data.split(" ")
+    if not await verify_user_can_manage_bot_in_chat(
+        update.effective_user, update.effective_chat, update, context
+    ):
+        return
+    waifu_id = int(query_data[1])
+    user_id = int(query_data[2])
+    message = update.callback_query.message
+    user = get_user_by_id(user_id)
+    waifu = get_user_by_id(waifu_id)
+    if not user or not waifu:
+        await update.callback_query.answer(text="查无此人,可能已经被移除了")
+        return
+    markup = get_remove_markup(waifu, user)
+    if message.photo:
+        await message.edit_caption(caption="确定要移除ta吗?", reply_markup=markup)
+        return
+    await message.edit_text(text="确定要移除ta吗?", reply_markup=markup)
+
+
+async def _remove_waifu_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not await verify_user_can_manage_bot_in_chat(
         update.effective_user, update.effective_chat, update, context
     ):
@@ -268,6 +297,33 @@ async def remove_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
     await message.edit_text(text=text, parse_mode="MarkdownV2")
+
+
+async def _remove_waifu_cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not await verify_user_can_manage_bot_in_chat(
+        update.effective_user, update.effective_chat, update, context
+    ):
+        return
+    query_data = update.callback_query.data.split(" ")
+    waifu_id = int(query_data[1])
+    user_id = int(query_data[2])
+    message = update.callback_query.message
+    user = get_user_by_id(user_id)
+    waifu = get_user_by_id(waifu_id)
+    text = get_waifu_text(waifu, False)
+    markup = get_waifu_markup(waifu, user)
+    if message.photo:
+        await message.edit_caption(
+            caption=text,
+            parse_mode="MarkdownV2",
+            reply_markup=markup,
+        )
+        return
+    await message.edit_text(
+        text=text,
+        parse_mode="MarkdownV2",
+        reply_markup=markup,
+    )
 
 
 async def marry_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -428,15 +484,16 @@ async def _cancel_marry_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE
         text="o((>ω< ))o 你取消了这个求婚请求",
         cache_time=5,
     )
+    markup = get_waifu_markup(db_waifu, db_user)
     if message.photo:
         await message.edit_caption(
             caption=text,
             parse_mode="MarkdownV2",
-            reply_markup=get_waifu_markup(db_waifu, db_user),
+            reply_markup=markup,
         )
         return
     await message.edit_text(
         text=text,
         parse_mode="MarkdownV2",
-        reply_markup=get_waifu_markup(db_waifu, db_user),
+        reply_markup=markup,
     )

@@ -189,3 +189,22 @@ def get_waifu_markup(
             ]
         ]
     )
+
+
+def get_remove_markup(
+    waifu: User | UserData, user: User | UserData
+) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        [
+            [
+                InlineKeyboardButton(
+                    text="移除",
+                    callback_data=f"remove_waifu_confirm {waifu.id} {user.id}",
+                ),
+                InlineKeyboardButton(
+                    text="算了",
+                    callback_data=f"remove_waifu_cancel {waifu.id} {user.id}",
+                ),
+            ]
+        ]
+    )
