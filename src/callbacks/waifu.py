@@ -60,7 +60,7 @@ async def waifu_graph(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         await send_waifu_graph(chat, context, msg_id)
     except Exception as e:
-        logger.exception(f"Error when generating waifu graph: {e}")
+        logger.error(f"Error when generating waifu graph: {e}")
         await context.bot.send_message(
             chat.id,
             f"呜呜呜... kmua 被玩坏惹\n{e.__class__.__name__}: {e}",
