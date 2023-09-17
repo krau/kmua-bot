@@ -41,6 +41,6 @@ async def remake(update: Update, context: ContextTypes.DEFAULT_TYPE):
     sent_message = await update.effective_message.reply_text(
         text=text, parse_mode="MarkdownV2"
     )
-    await message_recorder(update, context)
+    message_recorder(update, context)
     logger.info(f"Bot: {sent_message.text}")
     context.user_data["remake_cd"] = False

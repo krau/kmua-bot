@@ -91,4 +91,4 @@ async def slash(update: Update, context: ContextTypes.DEFAULT_TYPE):
         text=text,
         parse_mode="MarkdownV2",
     )
-    await message_recorder(update, context)
+    message_recorder(update, context)

@@ -53,5 +53,5 @@ async def help(update: Update, context: ContextTypes.DEFAULT_TYPE):
         text=help_text,
         reply_markup=help_markup,
     )
-    await message_recorder(update, context)
+    message_recorder(update, context)
     logger.info(f"Bot: {sent_message.text}")

@@ -5,13 +5,15 @@ from telegram.ext import ContextTypes
 from ..dao.chat import get_all_chats
 from ..logger import logger
 from ..service.waifu import refresh_all_waifu_data
-from .waifu import _waifu_graph
+from .waifu import send_waifu_graph
 
 
 async def refresh_waifu_data(context: ContextTypes.DEFAULT_TYPE):
     logger.debug("Start refreshing waifu data")
     try:
-        await asyncio.gather(*(_waifu_graph(chat, context) for chat in get_all_chats()))
+        await asyncio.gather(
+            *(send_waifu_graph(chat, context) for chat in get_all_chats())
+        )
     except Exception as err:
         logger.error(
             f"{err.__class__.__name__}: {err} happend when performing waifu graph tasks"

@@ -1,4 +1,11 @@
-from telegram import Chat, User
+import os
+import shutil
+import tempfile
+from math import ceil, sqrt
+
+import graphviz
+from telegram import Chat, InlineKeyboardButton, InlineKeyboardMarkup, User
+from telegram.helpers import escape_markdown
 
 from ..dao.chat import get_chat_members
 from ..dao.user import add_user
@@ -22,8 +29,6 @@ def get_chat_waifu_relationships(
         if waifu:
             relationships.append((member.id, waifu.id))
     return relationships
-           
-
 
 
 def get_chat_waifu_info_dict(
@@ -64,3 +69,123 @@ def get_user_waifu_info(user: User | UserData) -> str:
         for waifu_of, chat in waifus_of_with_chat:
             text += f"{waifu_of.full_name} ({chat.title})\n"
     return text
+
+
+def get_marry_markup(waifu_id: int, user_id: int) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        [
+            [
+                InlineKeyboardButton(
+                    text="好耶",
+                    callback_data=f"agree_marry_waifu {waifu_id} {user_id}",
+                ),
+                InlineKeyboardButton(
+                    text="坏耶",
+                    callback_data=f"refuse_marry_waifu {waifu_id} {user_id}",
+                ),
+            ],
+            [
+                InlineKeyboardButton(
+                    text="取消",
+                    callback_data=f"cancel_marry_waifu {waifu_id} {user_id}",
+                ),
+            ],
+        ]
+    )
+
+
+def get_waifu_text(waifu: User | UserData, is_got_waifu: bool) -> str:
+    return (
+        (
+            f"你今天已经抽过老婆了\! [{escape_markdown(waifu.full_name,2)}](tg://user?id={waifu.id}) 是你今天的老婆\!"  # noqa: E501
+            if is_got_waifu
+            else f"你今天的群幼老婆是 [{escape_markdown(waifu.full_name,2)}](tg://user?id={waifu.id}) \!"  # noqa: E501
+        )
+        if waifu.waifu_mention
+        else (
+            f"你今天已经抽过老婆了\! {escape_markdown(waifu.full_name,2)} 是你今天的老婆\!"  # noqa: E501
+            if is_got_waifu
+            else f"你今天的群幼老婆是 {escape_markdown(waifu.full_name,2)} \!"
+        )
+    )
+
+
+def render_waifu_graph(
+    relationships: list[tuple[int, int]],
+    user_info: dict,
+) -> bytes:
+    """
+    Render waifu graph and return the image bytes
+    :param relationships: a list of tuple(user_id, waifu_id)
+    :param user_info: a dict, user_id -> {"avatar": Optional[bytes], "username": str}
+    :return: bytes
+    """
+    dpi = max(150, ceil(5 * sqrt(len(user_info) / 3)) * 20)
+    graph = graphviz.Digraph(graph_attr={"dpi": str(dpi)})
+
+    tempdir = tempfile.mkdtemp()
+
+    try:
+        # Create nodes
+        for user_id, info in user_info.items():
+            username = info.get("username")
+            if not info.get("avatar"):
+                graph.node(str(user_id), label=username)
+                continue
+            avatar = info["avatar"]
+            avatar_path = os.path.join(tempdir, f"{user_id}_avatar.png")
+            with open(avatar_path, "wb") as avatar_file:
+                avatar_file.write(avatar)
+            # Create a subgraph for each node
+            with graph.subgraph(name=f"cluster_{user_id}") as subgraph:
+                # Set the attributes for the subgraph
+                subgraph.attr(label=username)
+                subgraph.attr(shape="none")
+                subgraph.attr(image=avatar_path)
+                subgraph.attr(imagescale="true")
+                subgraph.attr(fixedsize="true")
+                subgraph.attr(width="1")
+                subgraph.attr(height="1")
+                subgraph.attr(labelloc="b")  # Label position at the bottom
+
+                # Create a node within the subgraph
+                subgraph.node(
+                    str(user_id),
+                    label="",
+                    shape="none",
+                    image=avatar_path,
+                    imagescale="true",
+                    fixedsize="true",
+                    width="1",
+                    height="1",
+                )
+        # Create edges
+        for user_id, waifu_id in relationships:
+            graph.edge(str(user_id), str(waifu_id))
+
+        return graph.pipe(format="webp")
+
+    except Exception:
+        raise
+    finally:
+        if os.path.exists(tempdir):
+            shutil.rmtree(tempdir)
+
+
+def get_waifu_markup(
+    waifu: User | UserData, user: User | UserData
+) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        [
+            [
+                InlineKeyboardButton(
+                    text="remove",
+                    callback_data=f"remove_waifu {waifu.id} {user.id}",
+                ),
+                InlineKeyboardButton(
+                    text="marry",
+                    callback_data=f"marry_waifu {waifu.id} {user.id}",
+                ),
+            ]
+        ]
+    )

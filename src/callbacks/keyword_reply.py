@@ -40,7 +40,7 @@ async def keyword_reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
             if keyword == "晚安":
                 await oyasumi(update, context)
             break
-    await message_recorder(update, context)
+    message_recorder(update, context)
     await asyncio.sleep(30)
     if sent_message:
         source_message = sent_message.reply_to_message

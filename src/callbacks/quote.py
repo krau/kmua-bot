@@ -51,7 +51,7 @@ async def quote(update: Update, context: ContextTypes.DEFAULT_TYPE):
     message = update.effective_message
     logger.info(f"[{chat.title}]({user.name})" + f" {message.text}")
 
-    await message_recorder(update, context)
+    message_recorder(update, context)
 
     if chat.type == ChatType.PRIVATE:
         return
@@ -178,7 +178,7 @@ async def set_quote_probability(update: Update, context: ContextTypes.DEFAULT_TY
     chat = update.effective_chat
     message = update.effective_message
     logger.info(f"[{chat.title}]({user.name})" + f" {message.text}")
-    await message_recorder(update, context)
+    message_recorder(update, context)
 
     if not await verify_user_is_chat_admin(user, chat, context):
         sent_message = await message.reply_text("你没有权限哦")
@@ -235,7 +235,7 @@ async def random_quote(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"[{chat.title}({chat.id})]<{user.name}>"
         + (f" {message.text}" if message.text else "<非文本消息>")
     )
-    await message_recorder(update, context)
+    message_recorder(update, context)
 
     pb = get_chat_quote_probability(chat)
     flag = random_unit(pb)
@@ -271,7 +271,7 @@ async def delete_quote_in_chat(update: Update, context: ContextTypes.DEFAULT_TYP
     message = update.effective_message
     if not update.callback_query:
         logger.info(f"[{chat.title}]({user.name})" + f" {message.text}")
-    await message_recorder(update, context)
+    message_recorder(update, context)
     query_data = ""
     if update.callback_query:
         query_data = update.callback_query.data

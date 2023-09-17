@@ -7,7 +7,7 @@ from ..dao.user import add_user
 from ..logger import logger
 
 
-async def message_recorder(update: Update, context: ContextTypes.DEFAULT_TYPE):
+def message_recorder(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     chat = update.effective_chat
     message = update.effective_message

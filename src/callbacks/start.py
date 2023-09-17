@@ -31,7 +31,7 @@ _start_bot_markup = InlineKeyboardMarkup(
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     logger.info(f"[{update.effective_user.name}] <start>")
-    await message_recorder(update, context)
+    message_recorder(update, context)
     if update.effective_chat.type != "private":
         if update.effective_message.text == "/start":
             # 如果是群聊，且没有艾特，直接返回
