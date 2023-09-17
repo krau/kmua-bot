@@ -41,7 +41,7 @@ def add_association_in_chat(
             chat_id=chat.id,
         )
     )
-    commit
+    commit()
     return get_association_in_chat_by_user(chat, user)
 
 
