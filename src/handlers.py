@@ -1,4 +1,5 @@
 import asyncio
+from telegram import Update
 
 from telegram.ext import (
     CallbackQueryHandler,
@@ -200,11 +201,17 @@ handlers = [
 ]
 
 
-async def on_error(update: object | None, context: ContextTypes.DEFAULT_TYPE):
+async def on_error(update, context):
     error = context.error
     # 如果聊天限制了 bot 发送消息, 忽略
     if error.__class__.__name__ == "BadRequest":
         if error.message == "Chat_write_forbidden":
+            return
+        if error.message == "There is no caption in the message to edit":
+            if update.callback_query:
+                await update.callback_query.answer(
+                    "请使用 /start 重新召出菜单", show_alert=True, cache_time=600
+                ) # 更新后菜单发生了变化, 旧的菜单无法使用
             return
     elif error.__class__.__name__ == "Forbidden":
         if "bot was kicked from the supergroup chat" in error.message:
