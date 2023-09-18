@@ -12,8 +12,12 @@ async def refresh_waifu_data(context: ContextTypes.DEFAULT_TYPE):
     logger.debug("Start refreshing waifu data")
     try:
         context.bot_data["refeshing_waifu_data"] = True
+        semaphore = asyncio.Semaphore(50)
         await asyncio.gather(
-            *(send_waifu_graph(chat, context) for chat in get_all_chats())
+            *(
+                send_waifu_graph(chat, context, semaphore=semaphore)
+                for chat in get_all_chats()
+            )
         )
     except Exception as err:
         logger.error(
@@ -21,6 +25,7 @@ async def refresh_waifu_data(context: ContextTypes.DEFAULT_TYPE):
         )
         raise err
     finally:
+        await asyncio.sleep(3)
         await refresh_all_waifu_data()
         logger.success("数据已刷新: waifu_data")
         context.bot_data["refeshing_waifu_data"] = False
@@ -49,5 +54,5 @@ async def reset_user_cd(context: ContextTypes.DEFAULT_TYPE):
     if not cd_name:
         return
     user_id = context.job.user_id
-    context.bot_data.get(user_id,{}).pop(cd_name, None)
+    context.bot_data.get(user_id, {}).pop(cd_name, None)
     logger.debug(f"user [{context.job.user_id}] {cd_name} has been reset")

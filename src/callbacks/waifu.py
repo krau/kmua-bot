@@ -61,13 +61,6 @@ async def waifu_graph(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat = update.effective_chat
     try:
         await send_waifu_graph(chat, context, msg_id)
-    except Exception as e:
-        logger.error(f"Error when generating waifu graph: {e}")
-        await context.bot.send_message(
-            chat.id,
-            f"呜呜呜... kmua 被玩坏惹\n{e.__class__.__name__}: {e}",
-            reply_to_message_id=msg_id,
-        )
     finally:
         context.chat_data["waifu_graph_waiting"] = False
 
@@ -76,42 +69,67 @@ async def send_waifu_graph(
     chat: Chat | ChatData,
     context: ContextTypes.DEFAULT_TYPE,
     msg_id: int | None = None,
+    semaphore: asyncio.Semaphore = None,
+):
+    if semaphore is None:
+        await _send_waifu_graph(chat, context, msg_id)
+        return
+    async with semaphore:
+        await _send_waifu_graph(chat, context, msg_id)
+
+
+async def _send_waifu_graph(
+    chat: Chat | ChatData,
+    context: ContextTypes.DEFAULT_TYPE,
+    msg_id: int | None = None,
 ):
     logger.debug(f"Generating waifu graph for {chat.title}<{chat.id}>")
-    relationships = get_chat_waifu_relationships(chat)
-    participate_users = get_chat_user_participated_waifu(chat)
-    if not participate_users or not relationships:
+    try:
+        relationships = get_chat_waifu_relationships(chat)
+        participate_users = get_chat_user_participated_waifu(chat)
+        if not participate_users or not relationships:
+            await context.bot.send_message(
+                chat.id,
+                "本群今日没有人抽过老婆哦",
+                reply_to_message_id=msg_id,
+            )
+            return
+
+        status_msg = await context.bot.send_message(
+            chat.id, "少女祈祷中...", reply_to_message_id=msg_id
+        )
+
+        user_info = {
+            user.id: {
+                "username": user.username or f"id: {user.id}",
+                "avatar": user.avatar_small_blob,
+            }
+            for user in participate_users
+        }
+        image_bytes = render_waifu_graph(relationships, user_info)
+        logger.debug(f"image_size: {len(image_bytes)}")
+        await context.bot.send_document(
+            chat.id,
+            document=image_bytes,
+            caption=f"老婆关系图:\n {len(participate_users)} users",
+            filename="waifu_graph.webp",
+            disable_content_type_detection=True,
+            reply_to_message_id=msg_id,
+            allow_sending_without_reply=True,
+        )
+        logger.success(f"Send waifu graph for {chat.title}<{chat.id}>")
+    except Exception as err:
+        error_info = f"{err.__class__.__name__}: {err}"
+        logger.error(
+            f"{error_info} happend when sending waifu graph for {chat.title}<{chat.id}>"
+        )
         await context.bot.send_message(
             chat.id,
-            "本群今日没有人抽过老婆哦",
+            f"呜呜呜, 画不出来了, {error_info}",
             reply_to_message_id=msg_id,
         )
-        return
-
-    status_msg = await context.bot.send_message(
-        chat.id, "少女祈祷中...", reply_to_message_id=msg_id
-    )
-
-    user_info = {
-        user.id: {
-            "username": user.username or f"id: {user.id}",
-            "avatar": user.avatar_small_blob,
-        }
-        for user in participate_users
-    }
-    image_bytes = render_waifu_graph(relationships, user_info)
-    logger.debug(f"image_size: {len(image_bytes)}")
-    await status_msg.delete()
-    await context.bot.send_document(
-        chat.id,
-        document=image_bytes,
-        caption=f"老婆关系图:\n {len(participate_users)} users",
-        filename="waifu_graph.webp",
-        disable_content_type_detection=True,
-        reply_to_message_id=msg_id,
-        allow_sending_without_reply=True,
-    )
-    logger.success(f"Send waifu graph for {chat.title}<{chat.id}>")
+    finally:
+        await status_msg.delete()
 
 
 async def today_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE):
