@@ -4,7 +4,11 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup, InputMediaPhoto
 from telegram.ext import ContextTypes
 from telegram.helpers import escape_markdown
 
-from ..common.user import get_big_avatar_bytes, get_small_avatar_bytes, get_user_info
+from ..common.user import (
+    get_user_info,
+    download_big_avatar,
+    download_small_avatar,
+)
 from ..common.utils import back_home_markup
 from ..common.waifu import get_user_waifu_info
 from ..dao import db
@@ -81,8 +85,8 @@ async def user_data_refresh(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.answer("刷新中...")
     username = user.username
     full_name = user.full_name
-    avatar_big_blog = await get_big_avatar_bytes(user.id, context)
-    avatar_small_blog = await get_small_avatar_bytes(user.id, context)
+    avatar_big_blog = await download_big_avatar(user.id, context)
+    avatar_small_blog = await download_small_avatar(user.id, context)
     avatar_big_id = None
     if avatar_big_blog:
         sent_message = await update.effective_chat.send_photo(
