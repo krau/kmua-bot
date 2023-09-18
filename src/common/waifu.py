@@ -115,7 +115,14 @@ def render_waifu_graph(
     user_info: dict,
 ) -> bytes:
     dpi = max(150, ceil(5 * sqrt(len(user_info) / 3)) * 20)
-    dot = graphviz.Digraph(graph_attr={"dpi": str(dpi)}, format="webp")
+    dot = graphviz.Digraph(
+        graph_attr={
+            "dpi": str(dpi),
+            "bgcolor": "transparent",
+            "beautify": "true",
+        },
+        format="webp",
+    )
 
     tempdir = tempfile.mkdtemp()
 
@@ -123,6 +130,9 @@ def render_waifu_graph(
         # Create nodes
         for user_id, info in user_info.items():
             username = info.get("username")
+            username = (
+                username[:6] + "..." if username and len(username) > 6 else username
+            )
             if not info.get("avatar"):
                 dot.node(str(user_id), label=username)
                 continue
@@ -130,12 +140,13 @@ def render_waifu_graph(
             avatar_path = os.path.join(tempdir, f"{user_id}_avatar.png")
             with open(avatar_path, "wb") as avatar_file:
                 avatar_file.write(avatar)
-            # Create a subgraph for each node
+
             with dot.subgraph(name=f"cluster_{user_id}") as subgraph:
                 # Set the attributes for the subgraph
                 subgraph.attr(label=username)
                 subgraph.attr(rank="same")  # Ensure nodes are on the same rank
                 subgraph.attr(labelloc="b")  # Label position at the bottom
+                subgraph.attr(style="filled")
 
                 # Create a node within the subgraph
                 subgraph.node(
