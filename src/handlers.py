@@ -1,11 +1,9 @@
 import asyncio
-from telegram import Update
 
 from telegram.ext import (
     CallbackQueryHandler,
     ChatMemberHandler,
     CommandHandler,
-    ContextTypes,
     InlineQueryHandler,
     MessageHandler,
     filters,

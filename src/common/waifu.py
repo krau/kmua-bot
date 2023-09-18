@@ -114,14 +114,8 @@ def render_waifu_graph(
     relationships: list[tuple[int, int]],
     user_info: dict,
 ) -> bytes:
-    """
-    Render waifu graph and return the image bytes
-    :param relationships: a list of tuple(user_id, waifu_id)
-    :param user_info: a dict, user_id -> {"avatar": Optional[bytes], "username": str}
-    :return: bytes
-    """
     dpi = max(150, ceil(5 * sqrt(len(user_info) / 3)) * 20)
-    graph = graphviz.Digraph(graph_attr={"dpi": str(dpi)})
+    dot = graphviz.Digraph(graph_attr={"dpi": str(dpi)}, format="webp")
 
     tempdir = tempfile.mkdtemp()
 
@@ -130,22 +124,17 @@ def render_waifu_graph(
         for user_id, info in user_info.items():
             username = info.get("username")
             if not info.get("avatar"):
-                graph.node(str(user_id), label=username)
+                dot.node(str(user_id), label=username)
                 continue
             avatar = info["avatar"]
             avatar_path = os.path.join(tempdir, f"{user_id}_avatar.png")
             with open(avatar_path, "wb") as avatar_file:
                 avatar_file.write(avatar)
             # Create a subgraph for each node
-            with graph.subgraph(name=f"cluster_{user_id}") as subgraph:
+            with dot.subgraph(name=f"cluster_{user_id}") as subgraph:
                 # Set the attributes for the subgraph
                 subgraph.attr(label=username)
-                subgraph.attr(shape="none")
-                subgraph.attr(image=avatar_path)
-                subgraph.attr(imagescale="true")
-                subgraph.attr(fixedsize="true")
-                subgraph.attr(width="1")
-                subgraph.attr(height="1")
+                subgraph.attr(rank="same")  # Ensure nodes are on the same rank
                 subgraph.attr(labelloc="b")  # Label position at the bottom
 
                 # Create a node within the subgraph
@@ -155,15 +144,13 @@ def render_waifu_graph(
                     shape="none",
                     image=avatar_path,
                     imagescale="true",
-                    fixedsize="true",
-                    width="1",
-                    height="1",
                 )
+
         # Create edges
         for user_id, waifu_id in relationships:
-            graph.edge(str(user_id), str(waifu_id))
+            dot.edge(str(user_id), str(waifu_id))
 
-        return graph.pipe(format="webp")
+        return dot.pipe()
 
     except Exception:
         raise
