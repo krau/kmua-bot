@@ -12,12 +12,8 @@ async def refresh_waifu_data(context: ContextTypes.DEFAULT_TYPE):
     logger.debug("Start refreshing waifu data")
     try:
         context.bot_data["refeshing_waifu_data"] = True
-        semaphore = asyncio.Semaphore(50)
         await asyncio.gather(
-            *(
-                send_waifu_graph(chat, context, semaphore=semaphore)
-                for chat in get_all_chats()
-            )
+            *(send_waifu_graph(chat, context) for chat in get_all_chats())
         )
     except Exception as err:
         logger.error(

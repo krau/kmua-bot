@@ -118,7 +118,6 @@ def render_waifu_graph(
     dot = graphviz.Digraph(
         graph_attr={
             "dpi": str(dpi),
-            "bgcolor": "transparent",
             "beautify": "true",
         },
         format="webp",

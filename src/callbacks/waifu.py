@@ -69,19 +69,6 @@ async def send_waifu_graph(
     chat: Chat | ChatData,
     context: ContextTypes.DEFAULT_TYPE,
     msg_id: int | None = None,
-    semaphore: asyncio.Semaphore = None,
-):
-    if semaphore is None:
-        await _send_waifu_graph(chat, context, msg_id)
-        return
-    async with semaphore:
-        await _send_waifu_graph(chat, context, msg_id)
-
-
-async def _send_waifu_graph(
-    chat: Chat | ChatData,
-    context: ContextTypes.DEFAULT_TYPE,
-    msg_id: int | None = None,
 ):
     logger.debug(f"Generating waifu graph for {chat.title}<{chat.id}>")
     try:
