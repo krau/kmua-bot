@@ -11,6 +11,7 @@ from .waifu import send_waifu_graph
 async def refresh_waifu_data(context: ContextTypes.DEFAULT_TYPE):
     logger.debug("Start refreshing waifu data")
     try:
+        context.bot_data["refeshing_waifu_data"] = True
         await asyncio.gather(
             *(send_waifu_graph(chat, context) for chat in get_all_chats())
         )
@@ -22,6 +23,7 @@ async def refresh_waifu_data(context: ContextTypes.DEFAULT_TYPE):
     finally:
         await refresh_all_waifu_data()
         logger.success("数据已刷新: waifu_data")
+        context.bot_data["refeshing_waifu_data"] = False
 
 
 async def delete_message(context: ContextTypes.DEFAULT_TYPE):

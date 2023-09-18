@@ -54,6 +54,8 @@ async def waifu_graph(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     if context.chat_data.get("waifu_graph_waiting", False):
         return
+    if context.bot_data.get("refeshing_waifu_data", False):
+        return
 
     msg_id = update.effective_message.id
     chat = update.effective_chat
