@@ -1,7 +1,7 @@
 import asyncio
 import random
 
-from telegram import Chat, Update, User
+from telegram import Chat, Message, Update, User
 from telegram.constants import ChatAction
 from telegram.ext import ContextTypes
 from telegram.helpers import escape_markdown
@@ -71,6 +71,7 @@ async def send_waifu_graph(
     msg_id: int | None = None,
 ):
     logger.debug(f"Generating waifu graph for {chat.title}<{chat.id}>")
+    status_msg: Message = None
     try:
         relationships = get_chat_waifu_relationships(chat)
         participate_users = get_chat_user_participated_waifu(chat)
