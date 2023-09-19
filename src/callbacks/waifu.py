@@ -117,7 +117,8 @@ async def send_waifu_graph(
             reply_to_message_id=msg_id,
         )
     finally:
-        await status_msg.delete()
+        if status_msg:
+            await status_msg.delete()
 
 
 async def today_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE):

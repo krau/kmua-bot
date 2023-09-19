@@ -211,7 +211,7 @@ async def on_error(update, context):
                     "请使用 /start 重新召出菜单", show_alert=True, cache_time=600
                 )  # 更新后菜单发生了变化, 旧的菜单无法使用
             return
-        if error.message == "Not enough rights to send text messages to the chat":
+        if "Not enough rights to send" in error.message:
             return
     elif error.__class__.__name__ == "Forbidden":
         if "bot was kicked from the supergroup chat" in error.message:
