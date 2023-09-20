@@ -11,7 +11,7 @@ def message_recorder(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     chat = update.effective_chat
     message = update.effective_message
-    if not user or not chat:
+    if not user or not chat or not message:
         return
     if (
         message.reply_to_message
