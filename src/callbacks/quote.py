@@ -62,15 +62,12 @@ async def quote(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.info(f"Bot: {sent_message.text}")
         return
     quote_message = message.reply_to_message
-    quote_user = quote_message.from_user
+    quote_user = quote_message.sender_chat or quote_message.from_user
     forward_from_user = quote_message.forward_from or quote_message.forward_from_chat
-    if forward_from_user:
+    if forward_from_user and quote_message.forward_sender_name:
         quote_user = forward_from_user
-    if quote_message.sender_chat:
-        quote_user = quote_message.sender_chat
-    qer_user = user
-    if message.sender_chat:
-        qer_user = message.sender_chat
+    qer_user = message.sender_chat or user
+
     add_user(quote_user)
     quote_message_link = get_message_common_link(quote_message)
     if get_quote_by_link(quote_message_link):
