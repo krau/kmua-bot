@@ -12,6 +12,7 @@ from ..common.user import (
     fake_users_id,
     mention_markdown_v2,
     verify_user_can_manage_bot_in_chat,
+    get_big_avatar_bytes,
 )
 from ..common.waifu import (
     get_chat_waifu_relationships,
@@ -244,14 +245,7 @@ async def _get_photo_to_send(
 ) -> bytes | str | None:
     if waifu.avatar_big_id:
         return waifu.avatar_big_id
-    if waifu.avatar_big_blob:
-        return waifu.avatar_big_blob
-    avatar = (await context.bot.get_chat(waifu.id)).photo
-    if avatar:
-        avatar = await (await avatar.get_big_file()).download_as_bytearray()
-        avatar = bytes(avatar)
-        waifu.avatar_big_blob = avatar
-        return avatar
+    return await get_big_avatar_bytes(waifu.id, context)
 
 
 async def remove_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE):
