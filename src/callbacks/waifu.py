@@ -85,7 +85,7 @@ async def send_waifu_graph(
 
         await context.bot.send_message(
             chat.id,
-            "少女祈祷中...",
+            random.choice(["少女祈祷中...", "少女折寿中..."]),
             reply_to_message_id=msg_id,
         )
 
