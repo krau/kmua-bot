@@ -1,7 +1,7 @@
 import asyncio
 import random
 
-from telegram import Chat, Message, Update, User
+from telegram import Chat, Update, User
 from telegram.constants import ChatAction
 from telegram.ext import ContextTypes
 from telegram.helpers import escape_markdown
@@ -72,7 +72,6 @@ async def send_waifu_graph(
     msg_id: int | None = None,
 ):
     logger.debug(f"Generating waifu graph for {chat.title}<{chat.id}>")
-    status_msg: Message = None
     try:
         relationships = get_chat_waifu_relationships(chat)
         participate_users = get_chat_user_participated_waifu(chat)
@@ -84,8 +83,10 @@ async def send_waifu_graph(
             )
             return
 
-        status_msg = await context.bot.send_message(
-            chat.id, "少女祈祷中...", reply_to_message_id=msg_id
+        await context.bot.send_message(
+            chat.id,
+            "少女祈祷中...",
+            reply_to_message_id=msg_id,
         )
 
         user_info = {
@@ -117,9 +118,6 @@ async def send_waifu_graph(
             f"呜呜呜, 画不出来了, {error_info}",
             reply_to_message_id=msg_id,
         )
-    finally:
-        if status_msg:
-            await status_msg.delete()
 
 
 async def today_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE):
