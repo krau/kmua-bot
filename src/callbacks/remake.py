@@ -1,4 +1,5 @@
 import random
+import asyncio
 
 from telegram import Update
 from telegram.ext import ContextTypes
@@ -43,4 +44,5 @@ async def remake(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     message_recorder(update, context)
     logger.info(f"Bot: {sent_message.text}")
+    await asyncio.sleep(30)
     context.user_data["remake_cd"] = False
