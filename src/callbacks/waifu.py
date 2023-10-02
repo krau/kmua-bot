@@ -10,25 +10,26 @@ from ..common.message import message_recorder
 from ..common.user import (
     download_small_avatar,
     fake_users_id,
+    get_big_avatar_bytes,
     mention_markdown_v2,
     verify_user_can_manage_bot_in_chat,
-    get_big_avatar_bytes,
 )
+from ..common.utils import loading_word
 from ..common.waifu import (
     get_chat_waifu_relationships,
     get_marry_markup,
+    get_remove_markup,
+    get_waifu_markup,
     get_waifu_text,
     render_waifu_graph,
-    get_waifu_markup,
-    get_remove_markup,
 )
+from ..dao import db
 from ..dao.association import (
     delete_association_in_chat,
 )
 from ..dao.chat import (
     get_chat_users_without_bots_id,
 )
-from ..dao import db
 from ..dao.user import (
     add_user,
     get_user_by_id,
@@ -85,7 +86,7 @@ async def send_waifu_graph(
 
         await context.bot.send_message(
             chat.id,
-            random.choice(["少女祈祷中...", "少女折寿中..."]),
+            random.choice(loading_word),
             reply_to_message_id=msg_id,
         )
 
