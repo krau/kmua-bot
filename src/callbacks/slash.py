@@ -52,6 +52,8 @@ async def slash(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     is_one_cmd = True if len(message.text.split(" ")) == 1 else False
     cmd1 = escape_markdown(replace_special_char(message.text.split(" ")[0][1:]), 2)
+    if not cmd1:
+        return
     if not is_one_cmd:
         cmd2 = escape_markdown(
             replace_special_char(" ".join(message.text.split(" ")[1:])), 2
