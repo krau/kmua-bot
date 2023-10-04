@@ -64,7 +64,7 @@ async def quote(update: Update, context: ContextTypes.DEFAULT_TYPE):
     quote_message = message.reply_to_message
     quote_user = quote_message.sender_chat or quote_message.from_user
     forward_from_user = quote_message.forward_from or quote_message.forward_from_chat
-    if forward_from_user and quote_message.forward_sender_name:
+    if forward_from_user:
         quote_user = forward_from_user
     qer_user = message.sender_chat or user
 
