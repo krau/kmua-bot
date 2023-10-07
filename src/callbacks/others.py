@@ -3,7 +3,7 @@ from telegram.ext import ContextTypes
 
 from ..config import settings
 from ..logger import logger
-from ..dao import chat as chat_dao
+from ..service.chat import update_chat_id
 
 
 async def chat_migration(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -14,15 +14,11 @@ async def chat_migration(update: Update, context: ContextTypes.DEFAULT_TYPE):
     message = update.message
     application = context.application
     application.migrate_chat_data(message=message)
-    if message.migrate_from_chat_id is None:
+    old_chat_id = message.migrate_from_chat_id
+    new_chat_id = message.migrate_to_chat_id
+    if old_chat_id is None or new_chat_id is None:
         return
-    db_chat = chat_dao.get_chat_by_id(message.migrate_from_chat_id)
-    if db_chat is None or message.migrate_to_chat_id is None:
-        return
-    if chat_dao.get_chat_by_id(message.migrate_to_chat_id) is not None:
-        return
-    db_chat.id = message.migrate_to_chat_id
-    chat_dao.commit()
+    update_chat_id(old_chat_id, new_chat_id)
 
 
 async def error_notice_control(update: Update, context: ContextTypes.DEFAULT_TYPE):

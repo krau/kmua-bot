@@ -15,3 +15,21 @@ def delete_chat_data_and_quotes(chat: Chat | ChatData):
         delete_quote(quote)
     delete_chat(db_chat)
     db.commit()
+
+
+def update_chat_id(old_id: int, new_id: int):
+    db_chat = get_chat_by_id(old_id)
+    if db_chat is None:
+        return
+    if get_chat_by_id(new_id) is not None:
+        return
+    db_chat.id = new_id
+    db.commit()
+
+
+def update_chat_title(chat: Chat | ChatData, title: str):
+    db_chat = get_chat_by_id(chat.id)
+    if db_chat is None:
+        return
+    db_chat.title = title
+    db.commit()

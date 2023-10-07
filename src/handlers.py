@@ -16,7 +16,7 @@ from .callbacks.chatmember import (
     set_greet,
     track_chats,
 )
-from .callbacks.chatdata import chat_data_manage
+from .callbacks.chatdata import chat_data_manage, chat_title_update
 from .callbacks.help import help
 from .callbacks.slash import slash
 from .callbacks.keyword_reply import keyword_reply
@@ -61,7 +61,7 @@ from .logger import logger
 
 # CommandHandlers
 start_handler = CommandHandler("start", start, filters=mention_or_private_filter)
-chat_migration_handler = MessageHandler(filters.StatusUpdate.MIGRATE, chat_migration)
+
 title_handler = CommandHandler("t", title, filters=filters.ChatType.GROUPS)
 
 quote_handler = CommandHandler("q", quote, filters=filters.ChatType.GROUPS)
@@ -135,6 +135,7 @@ bot_data_refresh_handler = CallbackQueryHandler(
 
 
 # others
+chat_migration_handler = MessageHandler(filters.StatusUpdate.MIGRATE, chat_migration)
 slash_handler = MessageHandler(slash_filter, slash)
 inline_query_handler = InlineQueryHandler(inline_query_quote)
 random_quote_handler = MessageHandler(
@@ -151,6 +152,10 @@ member_join_handler = MessageHandler(
 sticker2img_handler = MessageHandler(
     (filters.Sticker.ALL & filters.ChatType.PRIVATE), sticker2img
 )
+chat_title_update_handler = MessageHandler(
+    filters.ChatType.GROUPS & filters.StatusUpdate.NEW_CHAT_TITLE,
+    chat_title_update,
+)
 
 handlers = [
     # pin handlers
@@ -159,6 +164,7 @@ handlers = [
     member_left_handler,
     member_join_handler,
     chat_migration_handler,
+    chat_title_update_handler,
     # command handlers
     today_waifu_handler,
     waifu_graph_handler,
