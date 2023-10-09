@@ -117,3 +117,7 @@ def delete_chat(chat: Chat | ChatData):
         return
     db.delete(db_chat)
     commit()
+
+
+def get_all_chats_count() -> int:
+    return db.query(ChatData).count()

@@ -5,19 +5,20 @@ from telegram import (
 )
 from telegram.ext import ContextTypes
 
+from ..common.bot import get_bot_status
 from ..common.user import (
     download_big_avatar,
     fake_users_id,
     verify_user_can_manage_bot,
     verify_user_can_manage_bot_in_chat,
 )
-from .jobs import refresh_waifu_data
-from ..dao.association import get_association_in_chat_by_user
 from ..dao import db
+from ..dao.association import get_association_in_chat_by_user
 from ..dao.user import get_user_by_id
 from ..logger import logger
 from ..service.user import check_user_in_chat
 from .chatdata import chat_data_manage
+from .jobs import refresh_waifu_data
 
 _manage_markup = InlineKeyboardMarkup(
     [[InlineKeyboardButton("Refresh bot info", callback_data="bot_data_refresh")]]
@@ -35,7 +36,13 @@ async def manage(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if context.bot_data.get("lock_manage_bot", False):
         await chat.send_message("Locked")
         return
-    await chat.send_message("TODO...", reply_markup=_manage_markup)
+    text = """
+/set_bot_admin <user_id> - 将用户提升为bot管理员(全局)
+/leave_chat <chat_id> - 离开群组(同时删除群组数据)
+/refresh_waifu_data - 刷新 waifu_data
+/status - 查看 bot 状态
+"""
+    await chat.send_message(text, reply_markup=_manage_markup)
 
 
 async def bot_data_refresh(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -169,3 +176,10 @@ async def refresh_waifu_data_manually(
         return
     await update.effective_message.reply_text("3s 后刷新 waifu_data")
     context.job_queue.run_once(refresh_waifu_data, 3)
+
+
+async def status(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.effective_user
+    if not verify_user_can_manage_bot(user):
+        return
+    await update.effective_message.reply_text(get_bot_status())

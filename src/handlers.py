@@ -56,6 +56,7 @@ from .callbacks.manage import (
     bot_data_refresh,
     leave_chat,
     refresh_waifu_data_manually,
+    status,
 )
 from .logger import logger
 
@@ -106,6 +107,8 @@ leave_chat_handler = CommandHandler("leave_chat", leave_chat)
 refresh_waifu_data_manually_handler = CommandHandler(
     "refresh_waifu_data", refresh_waifu_data_manually
 )
+status_handler = CommandHandler("status", status)
+
 # CallbackQueryHandlers
 start_callback_handler = CallbackQueryHandler(start, pattern="back_home")
 
@@ -185,6 +188,7 @@ handlers = [
     set_bot_admin_globally_handler,
     leave_chat_handler,
     refresh_waifu_data_manually_handler,
+    status_handler,
     # callback handlers
     user_data_manage_handler,
     user_data_refresh_handler,

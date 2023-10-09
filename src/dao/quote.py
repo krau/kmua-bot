@@ -1,7 +1,7 @@
 from telegram import Chat, Message, User
 
 from ..models.models import ChatData, Quote, UserData
-from .db import db, commit
+from .db import commit, db
 
 
 def get_quote_by_link(link: str) -> Quote | None:
@@ -56,3 +56,7 @@ def add_quote(
     )
     commit()
     return get_quote_by_link(message.link)
+
+
+def get_all_quotes_count() -> int:
+    return db.query(Quote).count()

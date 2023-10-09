@@ -83,3 +83,7 @@ def get_associations_of_user_waifu_of(
 def update_associations_all_waifu_id_to_none():
     db.query(UserChatAssociation).update({UserChatAssociation.waifu_id: None})
     db.commit()
+
+
+def get_all_associations_count() -> int:
+    return db.query(UserChatAssociation).count()

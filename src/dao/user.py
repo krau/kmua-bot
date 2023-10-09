@@ -69,3 +69,7 @@ def get_user_quotes_page(
     user: User | UserData, page: int, page_size: int
 ) -> list[Quote]:
     return get_user_quotes(user)[(page - 1) * page_size : page * page_size]
+
+
+def get_all_users_count() -> int:
+    return db.query(UserData).count()
