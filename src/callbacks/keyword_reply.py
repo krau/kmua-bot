@@ -27,22 +27,24 @@ async def keyword_reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
         chat_id=update.effective_chat.id, action=ChatAction.TYPING
     )
     sent_message = None
+    all_resplist = []
     for keyword, resplist in word_dict.items():
         if keyword in message_text:
-            text = random.choice(resplist)
-            text = text.replace("name", update.effective_user.name)
-            sent_message = await update.effective_message.reply_text(
-                text, allow_sending_without_reply=False, quote=True
-            )
-            logger.info(f"Bot: {sent_message.text}")
+            all_resplist.extend(resplist)
             if keyword == "早":
                 await ohayo(update, context)
             if keyword == "晚安":
                 await oyasumi(update, context)
-            break
+    if all_resplist:
+        sent_message = await update.effective_message.reply_text(
+            text=random.choice(all_resplist),
+            quote=True,
+            allow_sending_without_reply=False,
+        )
+        logger.info("Bot: " + sent_message.text)
     message_recorder(update, context)
-    await asyncio.sleep(30)
     if sent_message:
+        await asyncio.sleep(30)
         source_message = sent_message.reply_to_message
         try:
             await source_message.edit_reply_markup()
