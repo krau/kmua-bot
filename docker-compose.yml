@@ -2,7 +2,7 @@ version: "3"
 services:
   kmua:
     image: ghcr.io/krau/kmua-bot:v2
-    container_name: kmua-v2-main
+    container_name: kmua-main
     restart: always
     volumes:
       - ./data:/kmua/data # 不要修改此挂载
