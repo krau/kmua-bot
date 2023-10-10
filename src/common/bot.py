@@ -1,4 +1,5 @@
 import os
+import platform
 import time
 from pathlib import Path
 
@@ -28,11 +29,15 @@ Database Status:
     p = psutil.Process(pid)
     process_status = f"""
 Process Status:
-    - Memory: {p.memory_info().rss / 1024 / 1024:.2f} MB
+    - Memory: {p.memory_full_info().rss / 1024 / 1024:.2f} MB
     - CPU: {p.cpu_percent()}%
     - Uptime: {(time.time() - p.create_time()) / 60 / 60:.2f} hours
-    - PID: {pid}
-    - PWD: {os.getcwd()}
     - Python: {psutil.Process().exe()}
     """
-    return db_status + process_status
+    system_status = f"""
+System Status:
+    - System: {platform.system()} {platform.release()}
+    - Total Memory: {psutil.virtual_memory().total / 1024 / 1024:.2f} MB
+    - Time: {time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())}
+    """
+    return db_status + process_status + system_status

@@ -9,6 +9,7 @@ from telegram.ext import (
     filters,
 )
 
+from .callbacks.chatdata import chat_data_manage, chat_title_update
 from .callbacks.chatinfo import getid
 from .callbacks.chatmember import (
     on_member_join,
@@ -16,10 +17,17 @@ from .callbacks.chatmember import (
     set_greet,
     track_chats,
 )
-from .callbacks.chatdata import chat_data_manage, chat_title_update
 from .callbacks.help import help
-from .callbacks.slash import slash
 from .callbacks.keyword_reply import keyword_reply
+from .callbacks.manage import (
+    bot_data_refresh,
+    leave_chat,
+    manage,
+    refresh_waifu_data_manually,
+    set_bot_admin_globally,
+    set_bot_admin_in_chat,
+    status,
+)
 from .callbacks.others import chat_migration, error_notice_control
 from .callbacks.quote import (
     delete_quote_in_chat,
@@ -29,6 +37,7 @@ from .callbacks.quote import (
     set_quote_probability,
 )
 from .callbacks.remake import remake
+from .callbacks.slash import slash
 from .callbacks.start import start
 from .callbacks.sticker import sticker2img
 from .callbacks.title import (
@@ -37,26 +46,17 @@ from .callbacks.title import (
     title,
 )
 from .callbacks.userdata import (
+    delete_user_quote,
     user_data_manage,
     user_data_refresh,
     user_waifu_manage,
-    delete_user_quote,
 )
 from .callbacks.waifu import marry_waifu, remove_waifu, today_waifu, waifu_graph
 from .config import settings
 from .filters import (
-    slash_filter,
     keyword_reply_filter,
     mention_or_private_filter,
-)
-from .callbacks.manage import (
-    manage,
-    set_bot_admin_in_chat,
-    set_bot_admin_globally,
-    bot_data_refresh,
-    leave_chat,
-    refresh_waifu_data_manually,
-    status,
+    slash_filter,
 )
 from .logger import logger
 
@@ -135,6 +135,7 @@ user_quote_manage_handler = CallbackQueryHandler(
 bot_data_refresh_handler = CallbackQueryHandler(
     bot_data_refresh, pattern="bot_data_refresh"
 )
+status_refresh_handler = CallbackQueryHandler(status, pattern="status_refresh")
 
 
 # others
@@ -202,6 +203,7 @@ handlers = [
     inline_query_handler,
     user_waifu_manage_handler,
     bot_data_refresh_handler,
+    status_refresh_handler,
     # message handlers
     keyword_reply_handler,
     sticker2img_handler,

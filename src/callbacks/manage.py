@@ -1,3 +1,5 @@
+import asyncio
+
 from telegram import (
     InlineKeyboardButton,
     InlineKeyboardMarkup,
@@ -178,8 +180,25 @@ async def refresh_waifu_data_manually(
     context.job_queue.run_once(refresh_waifu_data, 3)
 
 
+_status_markup = InlineKeyboardMarkup(
+    [[InlineKeyboardButton("Refresh", callback_data="status_refresh")]]
+)
+
+
 async def status(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user = update.effective_user
-    if not verify_user_can_manage_bot(user):
+    logger.info(f"{update.effective_user.name} <status>")
+    if context.user_data.get("lock_status", False):
         return
-    await update.effective_message.reply_text(get_bot_status())
+    context.user_data["lock_status"] = True
+    query = update.callback_query
+    try:
+        if not query:
+            await update.effective_message.reply_text(
+                get_bot_status(), reply_markup=_status_markup
+            )
+
+            return
+        await query.edit_message_text(get_bot_status(), reply_markup=_status_markup)
+    finally:
+        await asyncio.sleep(1)
+        context.user_data["lock_status"] = False
