@@ -94,6 +94,7 @@ async def on_member_join(update: Update, context: ContextTypes.DEFAULT_TYPE):
             chat_id=chat.id,
             text=greet,
             reply_to_message_id=update.effective_message.id,
+            message_thread_id=update.effective_message.message_thread_id,
         )
 
 

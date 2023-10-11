@@ -229,6 +229,7 @@ async def random_quote(update: Update, context: ContextTypes.DEFAULT_TYPE):
         sent_message = await chat.forward_to(
             chat_id=chat.id,
             message_id=message_id,
+            message_thread_id=update.effective_message.message_thread_id,
         )
         logger.info(f"Bot: {sent_message.text}")
     except Exception as e:

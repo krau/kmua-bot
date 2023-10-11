@@ -88,9 +88,9 @@ async def slash(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # 在中英文之间加空格
     text = re.sub(r"([a-zA-Z0-9])([\u4e00-\u9fa5])", r"\1 \2", text)
     text = re.sub(r"([\u4e00-\u9fa5])([a-zA-Z0-9])", r"\1 \2", text)
-    await context.bot.send_message(
-        chat_id=update.effective_chat.id,
+    await update.effective_chat.send_message(
         text=text,
+        message_thread_id=message.message_thread_id,
         parse_mode="MarkdownV2",
         disable_web_page_preview=True,
     )

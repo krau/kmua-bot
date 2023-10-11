@@ -75,6 +75,7 @@ async def title(update: Update, context: ContextTypes.DEFAULT_TYPE):
             text=text,
             parse_mode="MarkdownV2",
             reply_to_message_id=message.id,
+            message_thread_id=message.message_thread_id,
         )
         logger.info(f"Bot: {sent_message.text}")
     except BadRequest as e:
@@ -92,6 +93,7 @@ async def title(update: Update, context: ContextTypes.DEFAULT_TYPE):
         sent_message = await chat.send_message(
             text=text,
             reply_to_message_id=message.id,
+            message_thread_id=message.message_thread_id,
         )
         logger.info(f"Bot: {sent_message.text}")
     except Exception as e:
