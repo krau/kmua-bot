@@ -24,6 +24,7 @@ from .callbacks import (
     title,
     waifu,
     help,
+    bilibili,
 )
 from .filters import (
     keyword_reply_filter,
@@ -148,6 +149,11 @@ chat_title_update_handler = MessageHandler(
     filters.ChatType.GROUPS & filters.StatusUpdate.NEW_CHAT_TITLE,
     chatdata.chat_title_update,
 )
+bililink_convert_handler = MessageHandler(
+    filters.ChatType.PRIVATE
+    & filters.Regex(r"b23.tv/[a-zA-Z0-9]+|bilibili.com/video/[a-zA-Z0-9]+"),
+    bilibili.bililink_convert,
+)
 
 handlers = [
     # pin handlers
@@ -192,6 +198,7 @@ handlers = [
     bot_data_refresh_handler,
     status_refresh_handler,
     # message handlers
+    bililink_convert_handler,
     keyword_reply_handler,
     sticker2img_handler,
     random_quote_handler,

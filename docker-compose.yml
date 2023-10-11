@@ -10,6 +10,7 @@ services:
     environment:
       - TZ=Asia/Shanghai
       - KMUA_TOKEN="你的token"
-      - KMUA_OWNERS=[]
+      - KMUA_OWNERS=[] # 主人id, 是一个数组
       - KMUA_LOG_LEVEL="INFO"
       - KMUA_DB_URL="sqlite:///./data/kmua.db"
+      - KMUA_BILILINK_CONVERT_API="" # 可选，用于转换b站链接
