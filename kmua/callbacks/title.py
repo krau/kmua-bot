@@ -71,12 +71,7 @@ async def title(update: Update, context: ContextTypes.DEFAULT_TYPE):
         text = re.sub(r"([a-zA-Z])([\u4e00-\u9fa5])", r"\1 \2", text)
         text = re.sub(r"([\u4e00-\u9fa5])([a-zA-Z])", r"\1 \2", text)
 
-        sent_message = await chat.send_message(
-            text=text,
-            parse_mode="MarkdownV2",
-            reply_to_message_id=message.id,
-            message_thread_id=message.message_thread_id,
-        )
+        sent_message = await message.reply_markdown_v2(text=text)
         logger.info(f"Bot: {sent_message.text}")
     except BadRequest as e:
         if e.message == "Not enough rights":
@@ -90,11 +85,7 @@ async def title(update: Update, context: ContextTypes.DEFAULT_TYPE):
         else:
             text = f"失败了喵: {e.message}"
             logger.error(f"{e.message}")
-        sent_message = await chat.send_message(
-            text=text,
-            reply_to_message_id=message.id,
-            message_thread_id=message.message_thread_id,
-        )
+        sent_message = await message.reply_text(text=text)
         logger.info(f"Bot: {sent_message.text}")
     except Exception as e:
         raise e

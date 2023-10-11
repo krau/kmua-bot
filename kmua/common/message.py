@@ -28,10 +28,7 @@ def message_recorder(update: Update, context: ContextTypes.DEFAULT_TYPE):
 def get_message_common_link(message: Message) -> str:
     logger.debug(f"Get message common link for {message.link}")
     chat = message.chat
-    if chat.username:
-        link = f"https://t.me/c/{str(chat.id).removeprefix('-100')}/{message.id}"
-    else:
-        link = message.link
+    link = f"https://t.me/c/{str(chat.id).removeprefix('-100')}/{message.id}"
     return link
 
 

@@ -11,10 +11,9 @@ import kmua.dao as dao
 async def chat_data_manage(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat = update.effective_chat
     logger.info(f"chat_data_manage: {chat.title}")
+    message = update.effective_message
     text = common.get_chat_info(chat)
-    await chat.send_message(
-        text=text, message_thread_id=update.effective_message.message_thread_id
-    )
+    await message.reply_text(text=text)
     # TODO: manage chat data
 
 

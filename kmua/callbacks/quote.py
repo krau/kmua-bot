@@ -40,6 +40,9 @@ async def quote(update: Update, context: ContextTypes.DEFAULT_TYPE):
         sent_message = await message.reply_text("请回复一条消息")
         logger.info(f"Bot: {sent_message.text}")
         return
+    if message.is_topic_message:
+        await message.reply_text("暂不支持在主话题外使用此功能")
+        return
     quote_message = message.reply_to_message
     quote_user = quote_message.sender_chat or quote_message.from_user
     forward_from_user = quote_message.forward_from or quote_message.forward_from_chat

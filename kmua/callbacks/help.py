@@ -48,11 +48,10 @@ async def help(update: Update, context: ContextTypes.DEFAULT_TYPE):
             ]
         ]
     )
-    await context.bot.send_message(
-        chat_id=update.effective_chat.id,
+    message = update.effective_message
+    await message.reply_text(
         text=help_text,
         reply_markup=help_markup,
-        message_thread_id=update.effective_message.message_thread_id,
     )
     common.message_recorder(update, context)
     logger.info("Bot: <help text>")

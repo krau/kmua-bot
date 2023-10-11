@@ -90,12 +90,8 @@ async def on_member_join(update: Update, context: ContextTypes.DEFAULT_TYPE):
             user=joined_user.full_name,
             chat=chat.title,
         )
-        await context.bot.send_message(
-            chat_id=chat.id,
-            text=greet,
-            reply_to_message_id=update.effective_message.id,
-            message_thread_id=update.effective_message.message_thread_id,
-        )
+        message = update.effective_message
+        await message.reply_text(text=greet)
 
 
 async def set_greet(update: Update, context: ContextTypes.DEFAULT_TYPE):
