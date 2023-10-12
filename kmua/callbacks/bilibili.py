@@ -7,7 +7,7 @@ from telegram.ext import ContextTypes
 from kmua.config import settings
 from kmua.logger import logger
 
-_api_url: str = settings.bililink_convert_api
+_api_url: str = settings.get("bililink_convert_api")
 _api_url = _api_url.removesuffix("/") if _api_url else None
 
 
