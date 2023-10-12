@@ -1,6 +1,6 @@
-site_name: Kmua-botV2
+site_name: kmua-bot v2
 site_author: Krau
-site_description: Kmua-botV2 官方文档
+site_description: kmua-bot v2 官方文档
 repo_name: krau/kmua-bot
 repo_url: https://github.com/krau/kmua-bot
 copyright: CC BY-NC-SA 4.0
@@ -14,4 +14,3 @@ nav:
   - help.md
   - self-host.md
   - license.md
-  - aboutv1.md
