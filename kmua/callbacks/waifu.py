@@ -25,6 +25,7 @@ async def waifu_graph(update: Update, context: ContextTypes.DEFAULT_TYPE):
     msg_id = update.effective_message.id
     chat = update.effective_chat
     try:
+        await update.effective_message.reply_text(random.choice(common.loading_word))
         await send_waifu_graph(chat, context, msg_id)
     finally:
         context.chat_data["waifu_graph_waiting"] = False
@@ -46,13 +47,6 @@ async def send_waifu_graph(
                 reply_to_message_id=msg_id,
             )
             return
-
-        await context.bot.send_message(
-            chat.id,
-            random.choice(common.loading_word),
-            reply_to_message_id=msg_id,
-        )
-
         user_info = {
             user.id: {
                 "username": user.username or f"id: {user.id}",
