@@ -292,6 +292,45 @@ win32-setctime = {version = ">=1.0.0", markers = "sys_platform == \"win32\""}
 dev = ["Sphinx (==7.2.5)", "colorama (==0.4.5)", "colorama (==0.4.6)", "exceptiongroup (==1.1.3)", "freezegun (==1.1.0)", "freezegun (==1.2.2)", "mypy (==v0.910)", "mypy (==v0.971)", "mypy (==v1.4.1)", "mypy (==v1.5.1)", "pre-commit (==3.4.0)", "pytest (==6.1.2)", "pytest (==7.4.0)", "pytest-cov (==2.12.1)", "pytest-cov (==4.1.0)", "pytest-mypy-plugins (==1.9.3)", "pytest-mypy-plugins (==3.0.0)", "sphinx-autobuild (==2021.3.14)", "sphinx-rtd-theme (==1.3.0)", "tox (==3.27.1)", "tox (==4.11.0)"]
 
 [[package]]
+name = "mysql-connector-python"
+version = "8.1.0"
+description = "MySQL driver written in Python"
+optional = false
+python-versions = ">=3.8"
+files = [
+    {file = "mysql-connector-python-8.1.0.tar.gz", hash = "sha256:78a43eeb2b845986dc769ab611e3c480991c8037c94aee67ee6842d1f7e961a9"},
+    {file = "mysql_connector_python-8.1.0-cp310-cp310-macosx_12_0_arm64.whl", hash = "sha256:4f58e1d41b3ba04281099884421c3a63589204b2cf40e473c5dbebbc26971017"},
+    {file = "mysql_connector_python-8.1.0-cp310-cp310-macosx_12_0_x86_64.whl", hash = "sha256:8062c11619bc48baf9ada3f85d85832aec5e57359eb11ed9e7d75ddcce81721a"},
+    {file = "mysql_connector_python-8.1.0-cp310-cp310-manylinux_2_17_aarch64.whl", hash = "sha256:5f1cdf9d3ed2f3c70a91c4b94d3ab3b2890c477a61b4085bb89d2275c50e1e3d"},
+    {file = "mysql_connector_python-8.1.0-cp310-cp310-manylinux_2_17_x86_64.whl", hash = "sha256:556f83cfc3e1f3e3db0080bb19ca50650815551ef7e10518053fe2ba76d2e59e"},
+    {file = "mysql_connector_python-8.1.0-cp310-cp310-win_amd64.whl", hash = "sha256:dd0005e9b7e54c700745416ecf26435c69687d5234eef9ff11cf85a7d76945e2"},
+    {file = "mysql_connector_python-8.1.0-cp311-cp311-macosx_12_0_arm64.whl", hash = "sha256:1d292d8ee08a3e0103f3e9aba81f292c12c244c1d5345168375bf6842b2b3e9b"},
+    {file = "mysql_connector_python-8.1.0-cp311-cp311-macosx_12_0_x86_64.whl", hash = "sha256:64f4d7f7c60e2fe5a01d9e7915634d05a350bd866332ea4eab281b29db190e2b"},
+    {file = "mysql_connector_python-8.1.0-cp311-cp311-manylinux_2_17_aarch64.whl", hash = "sha256:7f1cbc06411115c318af775291386ed1494302e05b5c45da73f01593c0827bc1"},
+    {file = "mysql_connector_python-8.1.0-cp311-cp311-manylinux_2_17_x86_64.whl", hash = "sha256:89151683654748f4de59cd4cf04102b6180976923f1db9921b87cff2c2da7b1d"},
+    {file = "mysql_connector_python-8.1.0-cp311-cp311-win_amd64.whl", hash = "sha256:f36a1a308d0d0d6202fea2e51741b5265f60206be331cfbb32f2f5bf62a20359"},
+    {file = "mysql_connector_python-8.1.0-cp38-cp38-macosx_12_0_x86_64.whl", hash = "sha256:f8160777788c7e561f9d7f93eff45776031c83aa2f02a0d8c138d8f9c9bd088e"},
+    {file = "mysql_connector_python-8.1.0-cp38-cp38-manylinux_2_17_aarch64.whl", hash = "sha256:e3a2c2b398af1c5f0cbc1b1935f98bb5a7da4f178b2e73f0851872fbb37e66cc"},
+    {file = "mysql_connector_python-8.1.0-cp38-cp38-manylinux_2_17_x86_64.whl", hash = "sha256:f2ac6d43fc5a01e574fcc2a6b732cc2374e6ce576ee039cc2051f18d2daafd6d"},
+    {file = "mysql_connector_python-8.1.0-cp38-cp38-win_amd64.whl", hash = "sha256:22259479bdba53e0eb64325d5d97d7ecae35e729a8b39822c16729476ba2cd92"},
+    {file = "mysql_connector_python-8.1.0-cp39-cp39-macosx_12_0_arm64.whl", hash = "sha256:816b46c9dc250a0e59d11a902e187be190dae992a2b802512b888930db380487"},
+    {file = "mysql_connector_python-8.1.0-cp39-cp39-macosx_12_0_x86_64.whl", hash = "sha256:90adf52cdb25a7adc18da0cc6c5454709598af0e87343e39ab2c11d7dc5aaf34"},
+    {file = "mysql_connector_python-8.1.0-cp39-cp39-manylinux_2_17_aarch64.whl", hash = "sha256:76432810ee58abda81e0a34666f86aba69a7ded58f164a1d19835dba70b1451b"},
+    {file = "mysql_connector_python-8.1.0-cp39-cp39-manylinux_2_17_x86_64.whl", hash = "sha256:9cc256eaf55a7dd706ae514bebb863d3e426bd12686b88e284bdad6c37bf6dde"},
+    {file = "mysql_connector_python-8.1.0-cp39-cp39-win_amd64.whl", hash = "sha256:40e3b5d60dbc5446ccd1901eb3db4c9b1ad07a490f4e0fc96e7ac53a6fe9b7bc"},
+    {file = "mysql_connector_python-8.1.0-py2.py3-none-any.whl", hash = "sha256:7abe27b88ae1354433713fc289ed663cc04f7b75ea818a2b18067c3a736b0975"},
+]
+
+[package.dependencies]
+protobuf = ">=4.21.1,<=4.21.12"
+
+[package.extras]
+compression = ["lz4 (>=2.1.6,<=4.3.2)", "zstandard (>=0.12.0,<=0.19.0)"]
+dns-srv = ["dnspython (>=1.16.0,<=2.3.0)"]
+gssapi = ["gssapi (>=1.6.9,<=1.8.2)"]
+opentelemetry = ["Deprecated (>=1.2.6)", "typing-extensions (>=3.7.4)", "zipp (>=0.5)"]
+
+[[package]]
 name = "pillow"
 version = "9.5.0"
 description = "Python Imaging Library (Fork)"
@@ -387,6 +426,29 @@ Pillow = "*"
 
 [package.extras]
 requests = ["requests"]
+
+[[package]]
+name = "protobuf"
+version = "4.21.12"
+description = ""
+optional = false
+python-versions = ">=3.7"
+files = [
+    {file = "protobuf-4.21.12-cp310-abi3-win32.whl", hash = "sha256:b135410244ebe777db80298297a97fbb4c862c881b4403b71bac9d4107d61fd1"},
+    {file = "protobuf-4.21.12-cp310-abi3-win_amd64.whl", hash = "sha256:89f9149e4a0169cddfc44c74f230d7743002e3aa0b9472d8c28f0388102fc4c2"},
+    {file = "protobuf-4.21.12-cp37-abi3-macosx_10_9_universal2.whl", hash = "sha256:299ea899484ee6f44604deb71f424234f654606b983cb496ea2a53e3c63ab791"},
+    {file = "protobuf-4.21.12-cp37-abi3-manylinux2014_aarch64.whl", hash = "sha256:d1736130bce8cf131ac7957fa26880ca19227d4ad68b4888b3be0dea1f95df97"},
+    {file = "protobuf-4.21.12-cp37-abi3-manylinux2014_x86_64.whl", hash = "sha256:78a28c9fa223998472886c77042e9b9afb6fe4242bd2a2a5aced88e3f4422aa7"},
+    {file = "protobuf-4.21.12-cp37-cp37m-win32.whl", hash = "sha256:3d164928ff0727d97022957c2b849250ca0e64777ee31efd7d6de2e07c494717"},
+    {file = "protobuf-4.21.12-cp37-cp37m-win_amd64.whl", hash = "sha256:f45460f9ee70a0ec1b6694c6e4e348ad2019275680bd68a1d9314b8c7e01e574"},
+    {file = "protobuf-4.21.12-cp38-cp38-win32.whl", hash = "sha256:6ab80df09e3208f742c98443b6166bcb70d65f52cfeb67357d52032ea1ae9bec"},
+    {file = "protobuf-4.21.12-cp38-cp38-win_amd64.whl", hash = "sha256:1f22ac0ca65bb70a876060d96d914dae09ac98d114294f77584b0d2644fa9c30"},
+    {file = "protobuf-4.21.12-cp39-cp39-win32.whl", hash = "sha256:27f4d15021da6d2b706ddc3860fac0a5ddaba34ab679dc182b60a8bb4e1121cc"},
+    {file = "protobuf-4.21.12-cp39-cp39-win_amd64.whl", hash = "sha256:237216c3326d46808a9f7c26fd1bd4b20015fb6867dc5d263a493ef9a539293b"},
+    {file = "protobuf-4.21.12-py2.py3-none-any.whl", hash = "sha256:a53fd3f03e578553623272dc46ac2f189de23862e68565e83dde203d41b76fc5"},
+    {file = "protobuf-4.21.12-py3-none-any.whl", hash = "sha256:b98d0148f84e3a3c569e19f52103ca1feacdac0d2df8d6533cf983d1fda28462"},
+    {file = "protobuf-4.21.12.tar.gz", hash = "sha256:7cd532c4566d0e6feafecc1059d04c7915aec8e182d1cf7adee8b24ef1e2e6ab"},
+]
 
 [[package]]
 name = "psutil"
@@ -636,4 +698,4 @@ files = [
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.11"
-content-hash = "dbf4b0b7ee89a2d37df47acc8e40fc6c8279753240202aee950aa41903c8735d"
+content-hash = "029ddd01c7303c06fd9041c7c74cb21c15736086721e8acd1dfb9dbe93d34267"

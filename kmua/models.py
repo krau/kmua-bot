@@ -1,12 +1,12 @@
 from sqlalchemy import (
-    BLOB,
+    LargeBinary,
     Boolean,
     CheckConstraint,
     Column,
     DateTime,
     Float,
     ForeignKey,
-    Integer,
+    BigInteger,
     String,
     func,
 )
@@ -14,15 +14,23 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.ext.declarative import declarative_base
 from kmua.dao._db import engine
 from kmua.config import data_dir
+from kmua.logger import logger
+
 
 Base = declarative_base()
 
 
 class UserChatAssociation(Base):
     __tablename__ = "user_chat_association"
-    user_id = Column(Integer, ForeignKey("user_data.id"), primary_key=True)
-    chat_id = Column(Integer, ForeignKey("chat_data.id"), primary_key=True)
-    waifu_id = Column(Integer, ForeignKey("user_data.id"), default=None)
+    user_id = Column(
+        BigInteger, ForeignKey("user_data.id"), primary_key=True, autoincrement=False
+    )
+    chat_id = Column(
+        BigInteger, ForeignKey("chat_data.id"), primary_key=True, autoincrement=False
+    )
+    waifu_id = Column(
+        BigInteger, ForeignKey("user_data.id"), default=None, autoincrement=False
+    )
     is_bot_admin = Column(Boolean, default=False)
 
     created_at = Column(DateTime, default=func.now())
@@ -31,12 +39,12 @@ class UserChatAssociation(Base):
 
 class UserData(Base):
     __tablename__ = "user_data"
-    id = Column(Integer, primary_key=True, index=True)
-    username = Column(String)
-    full_name = Column(String, nullable=False)
-    avatar_small_blob = Column(BLOB, default=None)
-    avatar_big_blob = Column(BLOB, default=None)
-    avatar_big_id = Column(String, default=None)
+    id = Column(BigInteger, primary_key=True, index=True, autoincrement=False)
+    username = Column(String(32))
+    full_name = Column(String(128), nullable=False)
+    avatar_small_blob = Column(LargeBinary(65536), default=None)
+    avatar_big_blob = Column(LargeBinary(65536), default=None)
+    avatar_big_id = Column(String(128), default=None)
 
     chats = relationship(
         "ChatData",
@@ -49,7 +57,7 @@ class UserData(Base):
     quotes = relationship("Quote", back_populates="user")
 
     is_married = Column(Boolean, default=False)
-    married_waifu_id = Column(Integer, default=None)
+    married_waifu_id = Column(BigInteger, default=None)
     waifu_mention = Column(Boolean, default=True)
 
     is_bot = Column(Boolean, default=False)
@@ -68,9 +76,9 @@ class UserData(Base):
 
 class ChatData(Base):
     __tablename__ = "chat_data"
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(BigInteger, primary_key=True, index=True, autoincrement=False)
     quote_probability = Column(Float, default=0.001)
-    title = Column(String, nullable=False)
+    title = Column(String(128), nullable=False)
     members = relationship(
         "UserData",
         secondary=UserChatAssociation.__tablename__,
@@ -78,7 +86,7 @@ class ChatData(Base):
         primaryjoin="ChatData.id==UserChatAssociation.chat_id",
         secondaryjoin="UserData.id==UserChatAssociation.user_id",
     )
-    greet = Column(String, default=None)
+    greet = Column(String(4096), default=None)
 
     quotes = relationship("Quote", back_populates="chat")
     created_at = Column(DateTime, default=func.now())
@@ -87,13 +95,13 @@ class ChatData(Base):
 
 class Quote(Base):
     __tablename__ = "quotes"
-    chat_id = Column(Integer, ForeignKey("chat_data.id"))
-    message_id = Column(Integer, nullable=False)
-    link = Column(String, nullable=False, primary_key=True)
-    user_id = Column(Integer, ForeignKey("user_data.id"))
-    qer_id = Column(Integer)  # 使用 q 的人
-    text = Column(String, nullable=True, default=None)
-    img = Column(String, nullable=True, default=None, comment="图片的 file id")
+    chat_id = Column(BigInteger, ForeignKey("chat_data.id"))
+    message_id = Column(BigInteger, nullable=False)
+    link = Column(String(128), nullable=False, primary_key=True)
+    user_id = Column(BigInteger, ForeignKey("user_data.id"))
+    qer_id = Column(BigInteger)  # 使用 q 的人
+    text = Column(String(4096), nullable=True, default=None)
+    img = Column(String(128), nullable=True, default=None, comment="图片的 file id")
     created_at = Column(DateTime, default=func.now())
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
 
@@ -104,4 +112,8 @@ class Quote(Base):
 if not data_dir.exists():
     data_dir.mkdir()
 
+logger.debug("Connecting to database...")
+
 Base.metadata.create_all(bind=engine)
+
+logger.info("Success")
