@@ -20,8 +20,11 @@ Database Status:
     - Chats: {dao.get_all_chats_count()}
     - Quotes: {dao.get_all_quotes_count()}
     - Associations: {dao.get_all_associations_count()}
-    - Size: {_database_path.stat().st_size / 1024 / 1024:.2f} MB
     """
+    if settings.get("db_url").startswith("sqlite"):
+        db_status += f"""
+    - Size: {_database_path.stat().st_size / 1024 / 1024:.2f} MB
+        """
     pid = os.getpid()
     p = psutil.Process(pid)
     process_status = f"""
