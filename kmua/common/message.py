@@ -22,6 +22,7 @@ def message_recorder(update: Update, context: ContextTypes.DEFAULT_TYPE):
         user = message.sender_chat
     db_user = dao.add_user(user)
     if chat.type == ChatType.GROUP or chat.type == ChatType.SUPERGROUP:
+        dao.add_chat(chat)
         dao.add_association_in_chat(chat, db_user)
 
 
