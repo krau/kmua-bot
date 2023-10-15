@@ -46,6 +46,7 @@ async def send_waifu_graph(
                 "本群今日没有人抽过老婆哦",
                 reply_to_message_id=msg_id,
             )
+            logger.debug(f"No user participated waifu in {chat.title}<{chat.id}>")
             return
         user_info = {
             user.id: {

@@ -1,29 +1,15 @@
-import asyncio
-
 from telegram.ext import ContextTypes
 
 from kmua.logger import logger
 import kmua.dao as dao
-from .waifu import send_waifu_graph
 
 
 async def refresh_waifu_data(context: ContextTypes.DEFAULT_TYPE):
     logger.debug("Start refreshing waifu data")
-    try:
-        context.bot_data["refeshing_waifu_data"] = True
-        await asyncio.gather(
-            *(send_waifu_graph(chat, context) for chat in dao.get_all_chats())
-        )
-    except Exception as err:
-        logger.error(
-            f"{err.__class__.__name__}: {err} happend when performing waifu graph tasks"
-        )
-        raise err
-    finally:
-        await asyncio.sleep(3)
-        await dao.refresh_all_waifu_data()
-        logger.success("数据已刷新: waifu_data")
-        context.bot_data["refeshing_waifu_data"] = False
+    context.bot_data["refeshing_waifu_data"] = True
+    await dao.refresh_all_waifu_data()
+    logger.success("数据已刷新: waifu_data")
+    context.bot_data["refeshing_waifu_data"] = False
 
 
 async def delete_message(context: ContextTypes.DEFAULT_TYPE):
