@@ -89,6 +89,11 @@ refresh_waifu_data_manually_handler = CommandHandler(
     "refresh_waifu_data", manage.refresh_waifu_data_manually
 )
 status_handler = CommandHandler("status", manage.status)
+clear_inactive_user_avatar_handler = CommandHandler(
+    "clear_inactive_user_avatar",
+    manage.clear_inactive_user_avatar,
+    filters=filters.ChatType.PRIVATE,
+)
 
 
 # CallbackQueryHandlers
@@ -120,6 +125,9 @@ bot_data_refresh_handler = CallbackQueryHandler(
     manage.bot_data_refresh, pattern="bot_data_refresh"
 )
 status_refresh_handler = CallbackQueryHandler(manage.status, pattern="status_refresh")
+clear_inactive_user_avatar_confirm_handler = CallbackQueryHandler(
+    manage.clear_inactive_user_avatar, pattern="clear_inactive_user_avatar"
+)
 
 
 # others
@@ -184,6 +192,7 @@ handlers = [
     leave_chat_handler,
     refresh_waifu_data_manually_handler,
     status_handler,
+    clear_inactive_user_avatar_handler,
     # callback handlers
     user_data_manage_handler,
     user_data_refresh_handler,
@@ -197,6 +206,7 @@ handlers = [
     user_waifu_manage_handler,
     bot_data_refresh_handler,
     status_refresh_handler,
+    clear_inactive_user_avatar_confirm_handler,
     # message handlers
     bililink_convert_handler,
     keyword_reply_handler,

@@ -41,10 +41,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 reply_markup=_start_bot_markup,
             )
             return
-        await update.callback_query.edit_message_text(
-            text="Nya~",
-            reply_markup=_start_bot_markup,
-        )
+        await update.callback_query.delete_message()
     db_bot_user = dao.get_user_by_id(context.bot.id)
     if not db_bot_user:
         db_bot_user = dao.add_user((await context.bot.get_me()))

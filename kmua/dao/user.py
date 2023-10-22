@@ -1,5 +1,6 @@
+import datetime
 from telegram import Chat, User
-
+from sqlalchemy import text
 from kmua.dao._db import commit, _db
 from kmua.models import ChatData, Quote, UserData
 
@@ -62,14 +63,55 @@ def get_user_quotes(user: User | UserData) -> list[Quote]:
 
 
 def get_user_quotes_count(user: User | UserData) -> int:
-    return len(get_user_quotes(user))
+    return _db.query(Quote).filter(Quote.user_id == user.id).count()
 
 
 def get_user_quotes_page(
     user: User | UserData, page: int, page_size: int
 ) -> list[Quote]:
-    return get_user_quotes(user)[(page - 1) * page_size : page * page_size]
+    offset = (page - 1) * page_size
+    return (
+        _db.query(Quote)
+        .filter(Quote.user_id == user.id)
+        .offset(offset)
+        .limit(page_size)
+        .all()
+    )
 
 
 def get_all_users_count() -> int:
     return _db.query(UserData).count()
+
+
+def get_inactived_users_count(days: int) -> int:
+    return (
+        _db.query(UserData)
+        .filter(
+            UserData.updated_at
+            < datetime.datetime.now() - datetime.timedelta(days=days)
+        )
+        .count()
+    )
+
+
+def clear_inactived_users_avatar(days: int) -> int:
+    count = (
+        _db.query(UserData)
+        .filter(
+            UserData.updated_at
+            < datetime.datetime.now() - datetime.timedelta(days=days)
+        )
+        .update(
+            {
+                UserData.avatar_big_id: None,
+                UserData.avatar_small_blob: None,
+                UserData.avatar_big_blob: None,
+            }
+        )
+    )
+    commit()
+    _db.flush()
+    _db.execute(text("VACUUM"))
+    commit()
+    _db.flush()
+    return count

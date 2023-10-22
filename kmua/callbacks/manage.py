@@ -192,3 +192,44 @@ async def status(update: Update, context: ContextTypes.DEFAULT_TYPE):
     finally:
         await asyncio.sleep(1)
         context.user_data["lock_status"] = False
+
+
+# 清理不活跃用户的头像缓存
+async def clear_inactive_user_avatar(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+):
+    logger.info(f"{update.effective_user.name} <clear_inactive_user_avatar>")
+    if not common.verify_user_can_manage_bot(update.effective_user):
+        return
+    if query := update.callback_query:
+        days = int(query.data.split(" ")[-1])
+        await query.answer("正在清理...")
+        count = dao.clear_inactived_users_avatar(days)
+        await query.edit_message_text(f"已清理 {count} 个用户的头像缓存")
+        return
+    message = update.effective_message
+    days = 30
+    if context.args:
+        try:
+            days = int(context.args[0])
+        except ValueError:
+            await message.reply_text("请输入正确的天数")
+            return
+    if days < 1:
+        await message.reply_text("请输入正确的天数")
+        return
+    count = dao.get_inactived_users_count(days)
+    _clear_inactive_user_avatar_markup = InlineKeyboardMarkup(
+        [
+            [
+                InlineKeyboardButton(
+                    "清理", callback_data=f"clear_inactive_user_avatar confirm {days}"
+                ),
+                InlineKeyboardButton("算了", callback_data="back_home"),
+            ]
+        ]
+    )
+    await message.reply_text(
+        f"共有 {count} 个在最近 {days} 天内未活跃的用户, 确定要清理吗? (请注意备份)",
+        reply_markup=_clear_inactive_user_avatar_markup,
+    )
