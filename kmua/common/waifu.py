@@ -113,6 +113,8 @@ def render_waifu_graph(
         graph_attr={
             "dpi": str(dpi),
             "beautify": "true",
+            "compound": "true",
+            "ranksep": "1",
         },
         format="webp",
     )
@@ -121,6 +123,7 @@ def render_waifu_graph(
 
     try:
         # Create nodes
+        has_avatar = set()
         for user_id, info in user_info.items():
             username = info.get("username")
             username = (
@@ -129,6 +132,7 @@ def render_waifu_graph(
             if not info.get("avatar"):
                 dot.node(str(user_id), label=username)
                 continue
+            has_avatar.add(user_id)
             avatar = info["avatar"]
             avatar_path = os.path.join(tempdir, f"{user_id}_avatar.png")
             with open(avatar_path, "wb") as avatar_file:
@@ -152,7 +156,11 @@ def render_waifu_graph(
 
         # Create edges
         for user_id, waifu_id in relationships:
-            dot.edge(str(user_id), str(waifu_id))
+            dot.edge(
+                str(user_id), str(waifu_id),
+                lhead=f"cluster_{waifu_id}" if waifu_id in has_avatar else None,
+                ltail=f"cluster_{user_id}" if user_id in has_avatar else None
+            )
 
         return dot.pipe()
 
