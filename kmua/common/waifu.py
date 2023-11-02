@@ -115,6 +115,7 @@ def render_waifu_graph(
             "beautify": "true",
             "compound": "true",
             "ranksep": "1",
+            "splines": "ortho",
         },
         format="webp",
     )
@@ -158,8 +159,8 @@ def render_waifu_graph(
         for user_id, waifu_id in relationships:
             dot.edge(
                 str(user_id), str(waifu_id),
-                lhead=f"cluster_{waifu_id}" if waifu_id in has_avatar else None,
-                ltail=f"cluster_{user_id}" if user_id in has_avatar else None
+                lhead=f"cluster_{waifu_id}" if waifu_id in has_avatar else "",
+                ltail=f"cluster_{user_id}" if user_id in has_avatar else "",
             )
 
         return dot.pipe()
