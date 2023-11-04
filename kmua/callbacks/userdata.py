@@ -69,6 +69,7 @@ async def user_data_refresh(update: Update, context: ContextTypes.DEFAULT_TYPE):
         user_id=user.id,
     )
     await query.answer("刷新中...")
+    context.application.drop_user_data(user.id)
     username = user.username
     full_name = user.full_name
     avatar_big_blog = await common.download_big_avatar(user.id, context)
