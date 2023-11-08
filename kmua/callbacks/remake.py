@@ -35,12 +35,12 @@ async def remake(update: Update, context: ContextTypes.DEFAULT_TYPE):
         + f" {update.effective_message.text}"
     )
     if common.random_unit(0.114):
-        await update.effective_message.reply_text(text="重开失败!您没能出生!")
-        return
-    text = f"重开成功\! 您出生在*{random.choice(_country)}*的*{random.choice(_birthplace)}*\! 是*{random.choice(_role)}*\!"  # noqa: E501
-    sent_message = await update.effective_message.reply_text(
-        text=text, parse_mode="MarkdownV2"
-    )
+        sent_message = await update.effective_message.reply_text(text="重开失败!您没能出生!")
+    else:
+        text = f"重开成功\! 您出生在*{random.choice(_country)}*的*{random.choice(_birthplace)}*\! 是*{random.choice(_role)}*\!"  # noqa: E501
+        sent_message = await update.effective_message.reply_text(
+            text=text, parse_mode="MarkdownV2"
+        )
     common.message_recorder(update, context)
     logger.info(f"Bot: {sent_message.text}")
     await asyncio.sleep(30)
