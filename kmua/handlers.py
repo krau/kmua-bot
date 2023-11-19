@@ -119,7 +119,8 @@ marry_waifu_handler = CallbackQueryHandler(
     waifu.marry_waifu, pattern=r".*marry_waifu.*"
 )
 user_quote_manage_handler = CallbackQueryHandler(
-    userdata.delete_user_quote, pattern="user_quote_manage|delete_user_quote"
+    userdata.delete_user_quote,
+    pattern="user_quote_manage|delete_user_quote|qer_quote_manage",
 )
 bot_data_refresh_handler = CallbackQueryHandler(
     manage.bot_data_refresh, pattern="bot_data_refresh"

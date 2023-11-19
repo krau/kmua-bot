@@ -194,6 +194,9 @@ async def delete_user_quote(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if "user_quote_manage" in query.data:
         await _user_quote_manage(update, context)
         return
+    if "qer_quote_manage" in query.data:
+        await _qer_quote_manage(update, context)
+        return
     quote_link = query.data.split(" ")[1]
     dao.delete_quote_by_link(quote_link)
     await query.answer("已删除", show_alert=False, cache_time=5)
@@ -214,7 +217,7 @@ async def _user_quote_manage(update: Update, context: ContextTypes.DEFAULT_TYPE)
         )  # noqa: E501
         await query.edit_message_caption(
             caption=caption,
-            reply_markup=common.back_home_markup,
+            reply_markup=common.no_quote_markup,
         )
         return
     if page > max_page or page < 1:
@@ -239,21 +242,44 @@ async def _user_quote_manage(update: Update, context: ContextTypes.DEFAULT_TYPE)
             )
         )
     keyboard.append(line)
-    navigation_buttons = [
-        InlineKeyboardButton(
-            "上一页",
-            callback_data=f"user_quote_manage {page - 1}",
-        ),
-        InlineKeyboardButton(
-            "返回",
-            callback_data="back_home",
-        ),
-        InlineKeyboardButton(
-            "下一页",
-            callback_data=f"user_quote_manage {page + 1}",
-        ),
-    ]
-    keyboard.append(navigation_buttons)
+    keyboard.append(common.qer_quote_manage_button)
+    keyboard.append(common.get_user_quote_navigation_buttons(page))
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    await query.edit_message_caption(
+        caption=text,
+        parse_mode="MarkdownV2",
+        reply_markup=reply_markup,
+    )
+
+
+async def _qer_quote_manage(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.effective_user
+    query = update.callback_query
+    logger.info(f"({user.name}) <qer quote manage>")
+    page = int(query.data.split(" ")[-1]) if len(query.data.split(" ")) > 1 else 1
+    page_size = 5
+    quotes_count = dao.get_qer_quotes_count(user)
+    max_page = ceil(quotes_count / page_size)
+    if quotes_count == 0:
+        await query.edit_message_caption(
+            caption="这里空空如也",
+            reply_markup=common.back_home_markup,
+        )
+        return
+    if page > max_page or page < 1:
+        await update.callback_query.answer("已经没有啦", show_alert=False, cache_time=5)
+        return
+    text = f"被你q过的语录: 共{quotes_count}条; 第{page}/{max_page}页\n"
+    quotes = dao.get_qer_quotes_page(user, page, page_size)
+    for index, quote in enumerate(quotes):
+        quote_content = (
+            escape_markdown(quote.text[:100], 2)
+            if quote.text
+            else "A non\-text message"
+        )
+        text += f"{index + 1}\. [{quote_content}]({escape_markdown(quote.link,2)})\n\n"
+    keyboard = []
+    keyboard.append(common.get_qer_quote_navigation_buttons(page))
     reply_markup = InlineKeyboardMarkup(keyboard)
     await query.edit_message_caption(
         caption=text,

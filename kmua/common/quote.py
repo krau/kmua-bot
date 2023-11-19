@@ -4,6 +4,71 @@ from pathlib import Path
 
 from PIL import Image, ImageFont
 from pilmoji import Pilmoji
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+
+
+qer_quote_manage_button = [
+    InlineKeyboardButton(
+        "看看别人的",
+        callback_data="qer_quote_manage",
+    )
+]
+
+user_quote_manage_button = [
+    InlineKeyboardButton(
+        "看看我的",
+        callback_data="user_quote_manage",
+    )
+]
+
+
+no_quote_markup = InlineKeyboardMarkup(
+    [
+        qer_quote_manage_button,
+        [
+            InlineKeyboardButton(
+                "返回",
+                callback_data="back_home",
+            )
+        ],
+    ],
+)
+
+
+def get_user_quote_navigation_buttons(page: int) -> list[InlineKeyboardButton]:
+    navigation_buttons = [
+        InlineKeyboardButton(
+            "上一页",
+            callback_data=f"user_quote_manage {page - 1}",
+        ),
+        InlineKeyboardButton(
+            "返回",
+            callback_data="back_home",
+        ),
+        InlineKeyboardButton(
+            "下一页",
+            callback_data=f"user_quote_manage {page + 1}",
+        ),
+    ]
+    return navigation_buttons
+
+
+def get_qer_quote_navigation_buttons(page: int) -> list[InlineKeyboardButton]:
+    navigation_buttons = [
+        InlineKeyboardButton(
+            "上一页",
+            callback_data=f"qer_quote_manage {page - 1}",
+        ),
+        InlineKeyboardButton(
+            "返回",
+            callback_data="back_home",
+        ),
+        InlineKeyboardButton(
+            "下一页",
+            callback_data=f"qer_quote_manage {page + 1}",
+        ),
+    ]
+    return navigation_buttons
 
 
 async def generate_quote_img(avatar: bytes, text: str, name: str) -> bytes:

@@ -79,6 +79,23 @@ def get_user_quotes_page(
     )
 
 
+def get_qer_quotes_count(user: User | UserData) -> int:
+    return _db.query(Quote).filter(Quote.qer_id == user.id).count()
+
+
+def get_qer_quotes_page(
+    user: User | UserData, page: int, page_size: int
+) -> list[Quote]:
+    offset = (page - 1) * page_size
+    return (
+        _db.query(Quote)
+        .filter(Quote.qer_id == user.id)
+        .offset(offset)
+        .limit(page_size)
+        .all()
+    )
+
+
 def get_all_users_count() -> int:
     return _db.query(UserData).count()
 
