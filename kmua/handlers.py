@@ -6,6 +6,7 @@ from telegram.ext import (
     CommandHandler,
     MessageHandler,
     filters,
+    InlineQueryHandler,
 )
 
 from .callbacks import (
@@ -163,6 +164,8 @@ bililink_convert_handler = MessageHandler(
     & filters.Regex(r"b23.tv/[a-zA-Z0-9]+|bilibili.com/video/[a-zA-Z0-9]+"),
     bilibili.bililink_convert,
 )
+inline_query_handler = InlineQueryHandler(quote.inline_query_quote)
+
 
 handlers = [
     # pin handlers
@@ -213,6 +216,7 @@ handlers = [
     keyword_reply_handler,
     sticker2img_handler,
     random_quote_handler,
+    inline_query_handler,
 ]
 
 

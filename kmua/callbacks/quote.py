@@ -17,6 +17,7 @@ from telegram.helpers import escape_markdown
 import kmua.common as common
 import kmua.dao as dao
 from kmua.logger import logger
+
 from .jobs import delete_message
 
 
@@ -388,8 +389,24 @@ async def _chat_quote_manage(update: Update, context: ContextTypes.DEFAULT_TYPE)
     )
 
 
-_result_button = InlineQueryResultsButton(text="名言管理", start_parameter="start")
+_result_button = InlineQueryResultsButton(
+    text="语录管理", start_parameter="user_quote_manage"
+)
 
 
 async def inline_query_quote(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    pass
+    user = update.effective_user
+    query = update.inline_query.query
+    logger.debug(f"{user.name} query: {query}")
+    results = []
+    user_quotes = dao.query_user_quote_by_text(user=user, text=query, limit=22)
+    qer_quotes = dao.query_qer_quote_by_text(user=user, text=query, limit=22)
+    for quote in set(user_quotes + qer_quotes):
+        common.get_inline_query_result(quote)
+        results.append(common.get_inline_query_result(quote))
+    await update.inline_query.answer(
+        results=results,
+        cache_time=5,
+        button=_result_button,
+        is_personal=True,
+    )

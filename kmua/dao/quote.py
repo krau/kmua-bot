@@ -60,3 +60,25 @@ def add_quote(
 
 def get_all_quotes_count() -> int:
     return _db.query(Quote).count()
+
+
+def query_user_quote_by_text(
+    user: User | UserData, text: str, limit: int = 10
+) -> list[Quote]:
+    return (
+        _db.query(Quote)
+        .filter(Quote.user_id == user.id, Quote.text.like(f"%{text}%"))
+        .limit(limit)
+        .all()
+    )
+
+
+def query_qer_quote_by_text(
+    user: User | UserData, text: str, limit: int = 10
+) -> list[Quote]:
+    return (
+        _db.query(Quote)
+        .filter(Quote.qer_id == user.id, Quote.text.like(f"%{text}%"))
+        .limit(limit)
+        .all()
+    )
