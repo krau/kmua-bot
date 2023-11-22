@@ -1,4 +1,5 @@
 import sys
+from datetime import timedelta
 
 from loguru import logger
 
@@ -11,7 +12,7 @@ logger.add(
     enqueue=True,
     encoding="utf-8",
     level="TRACE",
-    retention="30 days",
+    retention=timedelta(days=settings.get("log_retention_days", 30)),
 )
 
 logger.add(sys.stdout, level=settings.get("log_level", "INFO"))
