@@ -4,36 +4,36 @@ from telegram.ext import (
     CallbackQueryHandler,
     ChatMemberHandler,
     CommandHandler,
+    InlineQueryHandler,
     MessageHandler,
     filters,
-    InlineQueryHandler,
 )
 
 from .callbacks import (
+    bilibili,
     chatdata,
     chatinfo,
     chatmember,
+    help,
     keyword_reply,
     manage,
     quote,
     remake,
+    setu,
     slash,
     start,
     sticker,
-    userdata,
     title,
+    userdata,
     waifu,
-    help,
-    bilibili,
 )
+from .config import settings
 from .filters import (
     keyword_reply_filter,
     mention_or_private_filter,
     slash_filter,
 )
 from .logger import logger
-from .config import settings
-
 
 # CommandHandlers
 start_handler = CommandHandler("start", start.start, filters=mention_or_private_filter)
@@ -94,6 +94,7 @@ clear_inactive_user_avatar_handler = CommandHandler(
     manage.clear_inactive_user_avatar,
     filters=filters.ChatType.PRIVATE,
 )
+setu_handler = CommandHandler("setu", setu.setu)
 
 
 # CallbackQueryHandlers
@@ -196,6 +197,7 @@ handlers = [
     refresh_waifu_data_manually_handler,
     status_handler,
     clear_inactive_user_avatar_handler,
+    setu_handler,
     # callback handlers
     user_data_manage_handler,
     user_data_refresh_handler,
