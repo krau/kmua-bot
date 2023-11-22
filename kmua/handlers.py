@@ -94,7 +94,7 @@ clear_inactive_user_avatar_handler = CommandHandler(
     manage.clear_inactive_user_avatar,
     filters=filters.ChatType.PRIVATE,
 )
-setu_handler = CommandHandler("setu", setu.setu)
+setu_handler = CommandHandler("setu", setu.setu, filters=filters.ChatType.GROUPS)
 
 
 # CallbackQueryHandlers
