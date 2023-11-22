@@ -2,6 +2,7 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 from kmua.logger import logger
 import kmua.common as common
+from kmua.config import settings
 
 import asyncio
 import kmua.dao as dao
@@ -233,3 +234,13 @@ async def clear_inactive_user_avatar(
         f"共有 {count} 个在最近 {days} 天内未活跃的用户, 确定要清理吗? (请注意备份)",
         reply_markup=_clear_inactive_user_avatar_markup,
     )
+
+
+async def error_notice_control(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if update.effective_user.id not in settings.owners:
+        return
+    is_enabled = context.bot_data.get("error_notice", False)
+    text = "已关闭" if is_enabled else "已开启"
+    text += "错误通知"
+    context.bot_data["error_notice"] = not is_enabled
+    await update.message.reply_text(text)

@@ -15,7 +15,6 @@ from .callbacks import (
     chatmember,
     keyword_reply,
     manage,
-    others,
     quote,
     remake,
     slash,
@@ -54,7 +53,7 @@ qrand_handler = CommandHandler(
 
 help_handler = CommandHandler("help", help.help, filters=mention_or_private_filter)
 error_notice_control_handler = CommandHandler(
-    "error_notice", others.error_notice_control
+    "error_notice", manage.error_notice_control
 )
 remake_handler = CommandHandler("remake", remake.remake)
 
@@ -134,7 +133,7 @@ clear_inactive_user_avatar_confirm_handler = CallbackQueryHandler(
 
 # others
 chat_migration_handler = MessageHandler(
-    filters.StatusUpdate.MIGRATE, others.chat_migration
+    filters.StatusUpdate.MIGRATE, chatdata.chat_migration
 )
 slash_handler = MessageHandler(slash_filter, slash.slash)
 random_quote_handler = MessageHandler(
