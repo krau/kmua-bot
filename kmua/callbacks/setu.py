@@ -27,11 +27,10 @@ async def setu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         async with httpx.AsyncClient() as client:
             resp = await client.get(url=f"{_api_url}/v1/artwork/random")
-            logger.debug(f"resp: {resp.json()}")
             if resp.status_code != 200:
                 await update.effective_message.reply_text(text="失败惹，请稍后再试", quote=True)
                 return
-            await update.effective_message.reply_photo(
+            sent_message = await update.effective_message.reply_photo(
                 photo=resp.json()["data"]["pictures"][0]["direct_url"],
                 caption=resp.json()["data"]["title"],
                 reply_markup=InlineKeyboardMarkup(
@@ -44,8 +43,10 @@ async def setu(update: Update, context: ContextTypes.DEFAULT_TYPE):
                         ]
                     ]
                 ),
+                has_spoiler=resp.json()["data"]["r18"],
                 quote=True,
             )
+            logger.info(f"Bot: {sent_message.caption}")
     except Exception as e:
         logger.error(f"setu error: {e.__class__.__name__}:{e}")
         await update.effective_message.reply_text(text="失败惹，请稍后再试", quote=True)
