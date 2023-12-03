@@ -180,7 +180,7 @@ def get_chat_user_participated_waifu(chat: Chat | ChatData) -> list[UserData]:
         _db.query(UserChatAssociation)
         .filter(
             UserChatAssociation.chat_id == db_chat.id,
-            UserChatAssociation.waifu_id is not None,
+            UserChatAssociation.waifu_id.isnot(None),
         )
         .all()
     )
