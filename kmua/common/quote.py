@@ -112,10 +112,7 @@ def get_inline_query_result_article(quote: Quote) -> InlineQueryResultArticle:
 For {quote.user.full_name} in {quote.chat.title}
 Create at {datetime.strftime(quote.created_at, '%Y-%m-%d %H:%M:%S')} by {dao.get_user_by_id(quote.qer_id).full_name}
 """,
-        input_message_content=InputTextMessageContent(
-            quote.text,
-            parse_mode="MarkdownV2",
-        ),
+        input_message_content=InputTextMessageContent(quote.text),
         reply_markup=InlineKeyboardMarkup(
             [
                 [
