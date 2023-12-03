@@ -405,7 +405,7 @@ async def inline_query_quote(update: Update, context: ContextTypes.DEFAULT_TYPE)
         if quote.img:
             results.append(common.get_inline_query_result_cached_photo(quote))
         results.append(common.get_inline_query_result_article(quote))
-        if len(results) >= 50:
+        if len(results) >= 48:
             break
     await update.inline_query.answer(
         results=results,
