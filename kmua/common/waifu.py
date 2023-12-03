@@ -17,7 +17,7 @@ def get_chat_waifu_relationships(
 ) -> list[tuple[int, int]]:
     relationships = []
     logger.debug(f"Get chat waifu relationships for {chat.title}<{chat.id}>")
-    members = dao.get_chat_members(chat)
+    members = dao.get_chat_user_participated_waifu(chat)
     for member in members:
         waifu = dao.get_user_waifu_in_chat_exclude_married(member, chat)
         if waifu:
@@ -158,7 +158,8 @@ def render_waifu_graph(
         # Create edges
         for user_id, waifu_id in relationships:
             dot.edge(
-                str(user_id), str(waifu_id),
+                str(user_id),
+                str(waifu_id),
                 lhead=f"cluster_{waifu_id}" if waifu_id in has_avatar else "",
                 ltail=f"cluster_{user_id}" if user_id in has_avatar else "",
             )

@@ -5,9 +5,9 @@ from telegram import Chat, User
 import kmua.dao.association as association_dao
 import kmua.dao.chat as chat_dao
 import kmua.dao.user as user_dao
-from ._db import commit
+from ._db import commit, _db
 
-from kmua.models import ChatData, UserData
+from kmua.models import ChatData, UserData, UserChatAssociation
 
 
 def _get_user_waifu_in_chat_common(
@@ -134,10 +134,16 @@ def get_chat_users_has_waifu(chat: Chat | ChatData) -> list[UserData]:
     :return: list of UserData object
     """
     db_chat = chat_dao.add_chat(chat)
+    associations = (
+        _db.query(UserChatAssociation)
+        .filter(
+            UserChatAssociation.chat_id == db_chat.id,
+            UserChatAssociation.waifu_id is not None,
+        )
+        .all()
+    )
     return [
-        user
-        for user in db_chat.members
-        if get_user_waifu_in_chat_exclude_married(user, chat) is not None
+        user_dao.get_user_by_id(association.user_id) for association in associations
     ]
 
 
@@ -149,10 +155,16 @@ def get_chat_users_was_waifu(chat: Chat | ChatData) -> list[UserData]:
     :return: list of UserData object
     """
     db_chat = chat_dao.add_chat(chat)
+    associations = (
+        _db.query(UserChatAssociation)
+        .filter(
+            UserChatAssociation.chat_id == db_chat.id,
+            UserChatAssociation.waifu_id is not None,
+        )
+        .all()
+    )
     return [
-        user
-        for user in db_chat.members
-        if get_user_waifu_of_in_chat(user, chat) is not None
+        user_dao.get_user_by_id(association.waifu_id) for association in associations
     ]
 
 
@@ -163,9 +175,23 @@ def get_chat_user_participated_waifu(chat: Chat | ChatData) -> list[UserData]:
     :param chat: Chat or ChatData object
     :return: list of UserData object
     """
-    user_has_waifu = get_chat_users_has_waifu(chat)
-    user_was_waifu = get_chat_users_was_waifu(chat)
-    return set(chain(user_has_waifu, user_was_waifu))
+    db_chat = chat_dao.add_chat(chat)
+    associations = (
+        _db.query(UserChatAssociation)
+        .filter(
+            UserChatAssociation.chat_id == db_chat.id,
+            UserChatAssociation.waifu_id is not None,
+        )
+        .all()
+    )
+    users_id_has_waifu = [association.user_id for association in associations]
+    users_id_was_waifu = [
+        association.waifu_id
+        for association in associations
+        if association.waifu_id is not None
+    ]
+    users_id_participated = list(set(chain(users_id_has_waifu, users_id_was_waifu)))
+    return [user_dao.get_user_by_id(user_id) for user_id in users_id_participated]
 
 
 def refresh_all_waifu_in_chat(chat: Chat | ChatData):

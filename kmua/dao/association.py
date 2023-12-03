@@ -17,8 +17,10 @@ def get_association_in_chat_by_user(
 ) -> UserChatAssociation | None:
     return (
         _db.query(UserChatAssociation)
-        .filter(UserChatAssociation.chat_id == chat.id)
-        .filter(UserChatAssociation.user_id == user.id)
+        .filter(
+            UserChatAssociation.chat_id == chat.id,
+            UserChatAssociation.user_id == user.id,
+        )
         .first()
     )
 
