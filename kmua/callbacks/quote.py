@@ -399,11 +399,14 @@ async def inline_query_quote(update: Update, context: ContextTypes.DEFAULT_TYPE)
     query = update.inline_query.query
     logger.debug(f"{user.name} query: {query}")
     results = []
-    user_quotes = dao.query_user_quote_by_text(user=user, text=query, limit=22)
-    qer_quotes = dao.query_qer_quote_by_text(user=user, text=query, limit=22)
+    user_quotes = dao.query_user_quote_by_text(user=user, text=query, limit=25)
+    qer_quotes = dao.query_qer_quote_by_text(user=user, text=query, limit=25)
     for quote in set(user_quotes + qer_quotes):
-        common.get_inline_query_result(quote)
-        results.append(common.get_inline_query_result(quote))
+        if quote.img:
+            results.append(common.get_inline_query_result_cached_photo(quote))
+        results.append(common.get_inline_query_result_article(quote))
+        if len(results) >= 50:
+            break
     await update.inline_query.answer(
         results=results,
         cache_time=5,

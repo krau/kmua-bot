@@ -9,7 +9,6 @@ from pilmoji import Pilmoji
 from telegram import (
     InlineKeyboardButton,
     InlineKeyboardMarkup,
-    InlineQueryResult,
     InlineQueryResultArticle,
     InlineQueryResultCachedPhoto,
     InputTextMessageContent,
@@ -82,47 +81,52 @@ def get_qer_quote_navigation_buttons(page: int) -> list[InlineKeyboardButton]:
     return navigation_buttons
 
 
-def get_inline_query_result(quote: Quote) -> InlineQueryResult:
+def get_inline_query_result_cached_photo(quote: Quote) -> InlineQueryResultCachedPhoto:
+    if not quote.img:
+        return None
     id = uuid4()
-    if quote.img:
-        result = InlineQueryResultCachedPhoto(
-            id=id,
-            photo_file_id=quote.img,
-            title=quote.text[:10],
-            reply_markup=InlineKeyboardMarkup(
+    result = InlineQueryResultCachedPhoto(
+        id=id,
+        photo_file_id=quote.img,
+        title=quote.text[:10],
+        reply_markup=InlineKeyboardMarkup(
+            [
                 [
-                    [
-                        InlineKeyboardButton(
-                            "Source",
-                            url=quote.link,
-                        )
-                    ]
+                    InlineKeyboardButton(
+                        "Source",
+                        url=quote.link,
+                    )
                 ]
-            ),
-        )
-    else:
-        result = InlineQueryResultArticle(
-            id=id,
-            title=quote.text[:10],
-            description=f"""
+            ]
+        ),
+    )
+    return result
+
+
+def get_inline_query_result_article(quote: Quote) -> InlineQueryResultArticle:
+    id = uuid4()
+    result = InlineQueryResultArticle(
+        id=id,
+        title=quote.text[:10],
+        description=f"""
 For {quote.user.full_name} in {quote.chat.title}
 Create at {datetime.strftime(quote.created_at, '%Y-%m-%d %H:%M:%S')} by {dao.get_user_by_id(quote.qer_id).full_name}
 """,
-            input_message_content=InputTextMessageContent(
-                quote.text,
-                parse_mode="MarkdownV2",
-            ),
-            reply_markup=InlineKeyboardMarkup(
+        input_message_content=InputTextMessageContent(
+            quote.text,
+            parse_mode="MarkdownV2",
+        ),
+        reply_markup=InlineKeyboardMarkup(
+            [
                 [
-                    [
-                        InlineKeyboardButton(
-                            "Source",
-                            url=quote.link,
-                        )
-                    ]
+                    InlineKeyboardButton(
+                        "Source",
+                        url=quote.link,
+                    )
                 ]
-            ),
-        )
+            ]
+        ),
+    )
     return result
 
 
