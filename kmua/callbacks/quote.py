@@ -77,8 +77,13 @@ async def quote(update: Update, context: ContextTypes.DEFAULT_TYPE):
     quote_img_file_id = await _generate_and_sned_quote_img(
         update, context, quote_message, quote_user
     )
-    await _save_quote_data(
-        update, qer_user, quote_message, quote_user, quote_img_file_id
+    dao.add_quote(
+        chat=chat,
+        user=quote_user,
+        qer=qer_user,
+        message=quote_message,
+        link=quote_message_link,
+        img=quote_img_file_id,
     )
 
 
@@ -125,31 +130,6 @@ async def _generate_and_sned_quote_img(
     )
     sent_photo = await update.effective_chat.send_photo(photo=quote_img)
     return sent_photo.photo[0].file_id
-
-
-async def _save_quote_data(
-    update: Update,
-    qer: User | Chat,
-    quote_message: Message,
-    quote_user: User | Chat,
-    quote_img: str | None,
-) -> None:
-    """
-    保存语录数据
-
-    :param update: Update
-    :param qer: 语录的记录者
-    :param quote_message: 语录消息
-    :param quote_user: 语录消息的发送者
-    :param quote_img: 语录图片的 file_id
-    """
-    dao.add_quote(
-        chat=update.effective_chat,
-        user=quote_user,
-        qer=qer,
-        message=quote_message,
-        img=quote_img,
-    )
 
 
 async def set_quote_probability(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -405,10 +385,10 @@ async def inline_query_quote(update: Update, context: ContextTypes.DEFAULT_TYPE)
         if quote.img:
             results.append(common.get_inline_query_result_cached_photo(quote))
         results.append(common.get_inline_query_result_article(quote))
-        if len(results) >= 48:
+        if len(results) >= 50:
             break
     await update.inline_query.answer(
-        results=results,
+        results=results[:49],
         cache_time=5,
         button=_result_button,
         is_personal=True,

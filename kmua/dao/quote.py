@@ -26,6 +26,7 @@ def add_quote(
     user: User | UserData | Chat,
     qer: User | UserData | Chat,
     message: Message,
+    link: str,
     img: str = None,
 ) -> Quote:
     """
@@ -37,10 +38,6 @@ def add_quote(
     :param message: Message object
     :param img: str, 图片的 file_id, defaults to None
     """
-    link = message.link
-    # 如果群组为公开群组, 将其转换为与私有群组相同的格式
-    if chat.username is not None:
-        link = f"https://t.me/c/{str(chat.id).removeprefix('-100')}/{message.id}"
     if quote := get_quote_by_link(link):
         return quote
     _db.add(
@@ -55,7 +52,7 @@ def add_quote(
         )
     )
     commit()
-    return get_quote_by_link(message.link)
+    return get_quote_by_link(link)
 
 
 def get_all_quotes_count() -> int:
