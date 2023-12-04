@@ -194,12 +194,6 @@ def get_chat_user_participated_waifu(chat: Chat | ChatData) -> list[UserData]:
     return [user_dao.get_user_by_id(user_id) for user_id in users_id_participated]
 
 
-def refresh_all_waifu_in_chat(chat: Chat | ChatData):
-    db_chat = chat_dao.add_chat(chat)
-    for user in db_chat.members:
-        refresh_user_waifu_in_chat(user, chat)
-
-
 async def refresh_all_waifu_data():
     association_dao.update_associations_all_waifu_id_to_none()
     commit()
