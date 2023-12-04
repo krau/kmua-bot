@@ -109,7 +109,7 @@ def get_inline_query_result_article(quote: Quote) -> InlineQueryResultArticle:
         id=id,
         title=quote.text[:10],
         description=f"""
-For {quote.user.full_name} in {quote.chat.title}
+For {quote.user.full_name if quote.user else "<数据丢失>"} in {quote.chat.title if quote.chat else "<数据丢失>"}
 Create at {datetime.strftime(quote.created_at, '%Y-%m-%d %H:%M:%S')} by {dao.get_user_by_id(quote.qer_id).full_name}
 """,
         input_message_content=InputTextMessageContent(quote.text),
