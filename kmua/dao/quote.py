@@ -1,5 +1,5 @@
 from telegram import Chat, Message, User
-
+from sqlalchemy import func
 from kmua.dao._db import commit, _db
 from kmua.models import ChatData, Quote, UserData
 
@@ -68,6 +68,7 @@ def query_user_quote_by_text(
     return (
         _db.query(Quote)
         .filter(Quote.user_id == user.id, Quote.text.like(f"%{text}%"))
+        .order_by(func.random())
         .limit(limit)
         .all()
     )
@@ -79,6 +80,7 @@ def query_qer_quote_by_text(
     return (
         _db.query(Quote)
         .filter(Quote.qer_id == user.id, Quote.text.like(f"%{text}%"))
+        .order_by(func.random())
         .limit(limit)
         .all()
     )

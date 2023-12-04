@@ -54,7 +54,7 @@ async def quote(update: Update, context: ContextTypes.DEFAULT_TYPE):
     dao.add_user(quote_user)
     quote_message_link = common.get_message_common_link(quote_message)
     if not quote_message_link:
-        await message.reply_text("Error: 无法获取消息链接")
+        await message.reply_text("Error: 无法获取消息链接\n本群组可能不是超级群组")
         return
     if dao.get_quote_by_link(quote_message_link):
         sent_message = await message.reply_markdown_v2(

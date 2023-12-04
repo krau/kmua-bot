@@ -26,11 +26,15 @@ def message_recorder(update: Update, context: ContextTypes.DEFAULT_TYPE):
         dao.add_association_in_chat(chat, db_user)
 
 
-def get_message_common_link(message: Message) -> str:
+def get_message_common_link(message: Message) -> str | None:
     logger.debug(f"Get message common link for {message.link}")
-    chat = message.chat
-    link = f"https://t.me/c/{str(chat.id).removeprefix('-100')}/{message.id}"
-    return link
+    try:
+        chat = message.chat
+        link = f"https://t.me/c/{str(chat.id).removeprefix('-100')}/{message.id}"
+        return link
+    except Exception as e:
+        logger.error(f"{e.__class__.__name__}: {e}")
+        return None
 
 
 def parse_message_link(link: str) -> tuple[int, int]:
