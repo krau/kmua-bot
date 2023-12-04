@@ -59,6 +59,25 @@ def get_all_quotes_count() -> int:
     return _db.query(Quote).count()
 
 
+def query_quote_user_can_see_by_text(
+    user: User | UserData, text: str, limit: int = 10
+) -> list[Quote]:
+    return (
+        _db.query(Quote)
+        .filter(
+            Quote.chat_id.in_(
+                _db.query(ChatData.id).filter(
+                    ChatData.members.any(UserData.id == user.id)
+                )
+            ),
+            Quote.text.like(f"%{text}%"),
+        )
+        .order_by(func.random())
+        .limit(limit)
+        .all()
+    )
+
+
 def query_user_quote_by_text(
     user: User | UserData, text: str, limit: int = 10
 ) -> list[Quote]:
