@@ -105,12 +105,16 @@ def get_inline_query_result_cached_photo(quote: Quote) -> InlineQueryResultCache
 
 def get_inline_query_result_article(quote: Quote) -> InlineQueryResultArticle:
     id = uuid4()
+    quote_user_name = quote.user.full_name if quote.user else "<数据丢失>"
+    quote_chat_title = quote.chat.title if quote.chat else "<数据丢失>"
+    qer_user = dao.get_user_by_id(quote.qer_id)
+    qer_user_name = qer_user.full_name if qer_user else "<数据丢失>"
     result = InlineQueryResultArticle(
         id=id,
         title=quote.text[:10],
         description=f"""
-For {quote.user.full_name if quote.user else "<数据丢失>"} in {quote.chat.title if quote.chat else "<数据丢失>"}
-Create at {datetime.strftime(quote.created_at, '%Y-%m-%d %H:%M:%S')} by {dao.get_user_by_id(quote.qer_id).full_name}
+For {quote_user_name} in {quote_chat_title}
+Create at {datetime.strftime(quote.created_at, '%Y-%m-%d %H:%M:%S')} by {qer_user_name}
 """,
         input_message_content=InputTextMessageContent(quote.text),
         reply_markup=InlineKeyboardMarkup(
