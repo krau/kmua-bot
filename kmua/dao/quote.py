@@ -1,5 +1,5 @@
 from telegram import Chat, Message, User
-from sqlalchemy import func
+from sqlalchemy import func, or_
 from kmua.dao._db import commit, _db
 from kmua.models import ChatData, Quote, UserData
 
@@ -65,10 +65,14 @@ def query_quote_user_can_see_by_text(
     return (
         _db.query(Quote)
         .filter(
-            Quote.chat_id.in_(
-                _db.query(ChatData.id).filter(
-                    ChatData.members.any(UserData.id == user.id)
-                )
+            or_(
+                Quote.chat_id.in_(
+                    _db.query(ChatData.id).filter(
+                        ChatData.members.any(UserData.id == user.id)
+                    )
+                ),
+                Quote.user_id == user.id,
+                Quote.qer_id == user.id,
             ),
             Quote.text.like(f"%{text}%"),
         )
