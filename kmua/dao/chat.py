@@ -66,13 +66,19 @@ def get_chat_quotes(chat: Chat | ChatData) -> list[Quote]:
 
 
 def get_chat_quotes_count(chat: Chat | ChatData) -> int:
-    return len(get_chat_quotes(chat))
+    return _db.query(Quote).filter(Quote.chat_id == chat.id).count()
 
 
 def get_chat_quotes_page(
     chat: Chat | ChatData, page: int, page_size: int
 ) -> list[Quote]:
-    return get_chat_quotes(chat)[(page - 1) * page_size : page * page_size]
+    return (
+        _db.query(Quote)
+        .filter(Quote.chat_id == chat.id)
+        .offset((page - 1) * page_size)
+        .limit(page_size)
+        .all()
+    )
 
 
 def get_chat_quotes_message_id(chat: Chat | ChatData) -> list[int]:

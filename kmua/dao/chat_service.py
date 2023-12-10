@@ -6,7 +6,6 @@ from kmua.models import ChatData
 
 
 def delete_chat_data_and_quotes(chat: Chat | ChatData):
-    # 删除与该群组相关的所有数据
     db_chat = chat_dao.get_chat_by_id(chat.id)
     if db_chat is None:
         return
