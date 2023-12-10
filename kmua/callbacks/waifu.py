@@ -41,11 +41,12 @@ async def send_waifu_graph(
         relationships = common.get_chat_waifu_relationships(chat)
         participate_users = dao.get_chat_user_participated_waifu(chat)
         if not participate_users or not relationships:
-            await context.bot.send_message(
-                chat.id,
-                "本群今日没有人抽过老婆哦",
-                reply_to_message_id=msg_id,
-            )
+            if msg_id:
+                await context.bot.send_message(
+                    chat.id,
+                    "本群今日没有人抽过老婆哦",
+                    reply_to_message_id=msg_id,
+                )
             logger.debug(f"No user participated waifu in {chat.title}<{chat.id}>")
             return
         user_info = {
