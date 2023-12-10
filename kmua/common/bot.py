@@ -30,7 +30,6 @@ Database Status:
     process_status = f"""
 Process Status:
     - Memory: {p.memory_full_info().rss / 1024 / 1024:.2f} MB
-    - CPU: {p.cpu_percent()}%
     - Uptime: {(time.time() - p.create_time()) / 60 / 60:.2f} hours
     - Python: {psutil.Process().exe()}
     """
