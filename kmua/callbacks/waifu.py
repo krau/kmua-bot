@@ -12,11 +12,28 @@ import kmua.dao as dao
 from kmua.models.models import ChatData, UserData
 
 
+async def switch_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.effective_user
+    chat = update.effective_chat
+    message = update.effective_message
+    logger.info(f"[{chat.title}]({user.name}) {message.text}")
+    if not await common.verify_user_can_manage_bot_in_chat(user, chat, update, context):
+        return
+    disabled = dao.get_chat_waifu_disabled(chat)
+    dao.update_chat_waifu_disabled(chat, not disabled)
+    if disabled:
+        await message.reply_text("已开启 waifu 功能")
+    else:
+        await message.reply_text("已关闭 waifu 功能")
+
+
 async def waifu_graph(update: Update, context: ContextTypes.DEFAULT_TYPE):
     logger.info(
         f"[{update.effective_chat.title}]({update.effective_user.name})"
         + f" {update.effective_message.text}"
     )
+    if dao.get_chat_waifu_disabled(update.effective_chat):
+        return
     if context.chat_data.get("waifu_graph_waiting", False):
         return
     if context.bot_data.get("refeshing_waifu_data", False):
@@ -90,6 +107,8 @@ async def today_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"[{chat.title}]({user.name if not message.sender_chat else user.title})"
         + f" {message.text}"
     )
+    if dao.get_chat_waifu_disabled(chat):
+        return
     if context.user_data.get("waifu_waiting", False):
         return
     context.user_data["waifu_waiting"] = True

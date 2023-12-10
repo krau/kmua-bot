@@ -20,6 +20,7 @@ async def help(update: Update, context: ContextTypes.DEFAULT_TYPE):
 /help - 显示此帮助信息
 /waifu - 今天的群友老婆!
 /waifu_graph - 老婆关系图!
+/switch_waifu - 开关老婆功能
 /q - 记录语录
 /d - 删除语录|管理群语录
 /qrand - 随机语录

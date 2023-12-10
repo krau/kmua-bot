@@ -95,6 +95,9 @@ clear_inactive_user_avatar_handler = CommandHandler(
     filters=filters.ChatType.PRIVATE,
 )
 setu_handler = CommandHandler("setu", setu.setu, filters=filters.ChatType.GROUPS)
+switch_waifu_handler = CommandHandler(
+    "switch_waifu", waifu.switch_waifu, filters=filters.ChatType.GROUPS
+)
 
 
 # CallbackQueryHandlers
@@ -198,6 +201,7 @@ handlers = [
     status_handler,
     clear_inactive_user_avatar_handler,
     setu_handler,
+    switch_waifu_handler,
     # callback handlers
     user_data_manage_handler,
     user_data_refresh_handler,

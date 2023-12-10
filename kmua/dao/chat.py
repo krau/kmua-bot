@@ -127,3 +127,14 @@ def delete_chat(chat: Chat | ChatData):
 
 def get_all_chats_count() -> int:
     return _db.query(ChatData).count()
+
+
+def get_chat_waifu_disabled(chat: Chat | ChatData) -> bool:
+    _db_chat = add_chat(chat)
+    return _db_chat.waifu_disabled
+
+
+def update_chat_waifu_disabled(chat: Chat | ChatData, disabled: bool):
+    _db_chat = add_chat(chat)
+    _db_chat.waifu_disabled = disabled
+    commit()
