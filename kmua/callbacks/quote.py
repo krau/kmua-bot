@@ -221,8 +221,6 @@ async def random_quote(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.info(f"Bot: {sent_message.text}")
     except Exception as e:
         logger.warning(f"{e.__class__.__name__}: {e}")
-        dao.delete_quote(quote)
-        await _unpin_messsage(message_id, chat.id, context)
 
 
 async def delete_quote_in_chat(update: Update, context: ContextTypes.DEFAULT_TYPE):
