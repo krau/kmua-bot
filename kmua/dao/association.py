@@ -1,7 +1,7 @@
 from telegram import Chat, User
 
 from kmua.dao._db import commit, _db
-from kmua.models import ChatData, UserChatAssociation, UserData
+from kmua.models.models import ChatData, UserChatAssociation, UserData
 
 
 def get_association_in_chat(chat: Chat | ChatData) -> UserChatAssociation | None:

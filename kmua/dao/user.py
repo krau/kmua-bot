@@ -2,7 +2,7 @@ import datetime
 from telegram import Chat, User
 from sqlalchemy import text
 from kmua.dao._db import commit, _db
-from kmua.models import ChatData, Quote, UserData
+from kmua.models.models import ChatData, Quote, UserData
 
 
 def get_user_by_id(user_id: int) -> UserData | None:

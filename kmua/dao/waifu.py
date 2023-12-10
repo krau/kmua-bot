@@ -7,7 +7,7 @@ import kmua.dao.chat as chat_dao
 import kmua.dao.user as user_dao
 from ._db import commit, _db
 
-from kmua.models import ChatData, UserData, UserChatAssociation
+from kmua.models.models import ChatData, UserData, UserChatAssociation
 
 
 def _get_user_waifu_in_chat_common(

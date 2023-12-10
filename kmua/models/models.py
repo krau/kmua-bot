@@ -12,9 +12,6 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import relationship
 from sqlalchemy.ext.declarative import declarative_base
-from kmua.dao._db import engine
-from kmua.config import data_dir
-from kmua.logger import logger
 
 
 Base = declarative_base()
@@ -28,9 +25,7 @@ class UserChatAssociation(Base):
     chat_id = Column(
         BigInteger, ForeignKey("chat_data.id"), primary_key=True, autoincrement=False
     )
-    waifu_id = Column(
-        BigInteger, ForeignKey("user_data.id"), default=None, autoincrement=False
-    )
+    waifu_id = Column(BigInteger, ForeignKey("user_data.id"), default=None)
     is_bot_admin = Column(Boolean, default=False)
 
     created_at = Column(DateTime, default=func.now())
@@ -77,6 +72,7 @@ class UserData(Base):
 class ChatData(Base):
     __tablename__ = "chat_data"
     id = Column(BigInteger, primary_key=True, index=True, autoincrement=False)
+    waifu_disabled = Column(Boolean, default=False)
     quote_probability = Column(Float, default=0.001)
     title = Column(String(128), nullable=False)
     members = relationship(
@@ -107,13 +103,3 @@ class Quote(Base):
 
     user = relationship("UserData", back_populates="quotes")
     chat = relationship("ChatData", back_populates="quotes")
-
-
-if not data_dir.exists():
-    data_dir.mkdir()
-
-logger.debug("Connecting to database...")
-
-Base.metadata.create_all(bind=engine)
-
-logger.info("Success")

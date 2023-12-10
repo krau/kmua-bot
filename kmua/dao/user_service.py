@@ -3,7 +3,7 @@ import kmua.dao.association as association_dao
 import kmua.dao.chat as chat_dao
 import kmua.dao.user as user_dao
 from ._db import commit
-from kmua.models import ChatData, UserData
+from kmua.models.models import ChatData, UserData
 
 
 def get_user_is_bot_admin_in_chat(user: User | UserData, chat: Chat | ChatData) -> bool:

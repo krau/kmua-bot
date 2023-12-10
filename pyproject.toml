@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "kmua"
-version = "2.1.0"
+version = "2.2.0"
 description = ""
 authors = ["krau <me@krau.top>"]
 readme = "README.md"
@@ -30,6 +30,7 @@ idna = "^3.4"
 loguru = "^0.7.2"
 greenlet = "^3.0.0"
 mysql-connector-python = "^8.1.0"
+alembic = "^1.13.0"
 
 
 [build-system]

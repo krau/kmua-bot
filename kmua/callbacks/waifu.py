@@ -9,7 +9,7 @@ from telegram.helpers import escape_markdown
 from kmua.logger import logger
 import kmua.common as common
 import kmua.dao as dao
-from kmua.models import ChatData, UserData
+from kmua.models.models import ChatData, UserData
 
 
 async def waifu_graph(update: Update, context: ContextTypes.DEFAULT_TYPE):

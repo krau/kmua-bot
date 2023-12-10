@@ -1,7 +1,7 @@
 from telegram import Chat
 
 import kmua.dao as dao
-from kmua.models import ChatData
+from kmua.models.models import ChatData
 
 
 def get_chat_info(chat: Chat | ChatData) -> str:

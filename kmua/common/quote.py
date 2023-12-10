@@ -15,7 +15,7 @@ from telegram import (
 )
 
 from kmua import dao
-from kmua.models import Quote
+from kmua.models.models import Quote
 
 qer_quote_manage_button = [
     InlineKeyboardButton(

@@ -32,6 +32,7 @@ async def manage(update: Update, context: ContextTypes.DEFAULT_TYPE):
 /leave_chat <chat_id> - 离开群组(同时删除群组数据)
 /refresh_waifu_data - 刷新 waifu_data
 /status - 查看 bot 状态
+/clear_inactive_user_avatar <days> - 清理不活跃用户的头像缓存
 """
     await chat.send_message(text, reply_markup=_manage_markup)
 

@@ -9,7 +9,7 @@ from telegram.helpers import escape_markdown
 
 import kmua.dao as dao
 from kmua.logger import logger
-from kmua.models import ChatData, UserData
+from kmua.models.models import ChatData, UserData
 
 
 def get_chat_waifu_relationships(

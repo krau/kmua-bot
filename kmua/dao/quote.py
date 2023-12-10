@@ -1,7 +1,7 @@
 from telegram import Chat, Message, User
 from sqlalchemy import func, or_
 from kmua.dao._db import commit, _db
-from kmua.models import ChatData, Quote, UserData
+from kmua.models.models import ChatData, Quote, UserData
 
 
 def get_quote_by_link(link: str) -> Quote | None:

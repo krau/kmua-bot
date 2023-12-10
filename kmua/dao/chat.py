@@ -1,7 +1,7 @@
 from telegram import Chat
 
 from kmua.dao._db import commit, _db
-from kmua.models import ChatData, Quote, UserData
+from kmua.models.models import ChatData, Quote, UserData
 
 
 def get_chat_by_id(chat_id: int) -> ChatData | None:
