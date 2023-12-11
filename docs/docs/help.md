@@ -72,7 +72,7 @@
 
 左侧按钮可跳转至帮助页面 右侧则为开源仓库地址
 
-![help lite](./images/-help lite.jpg)
+![help lite](./images/-help_lite.jpg)
 
 即使在群内 本条消息生成的内容也无任何差别
 
@@ -98,11 +98,36 @@
 
 ### /waifu
 
-摸了 下次再写.jpg
+抽取群老婆！抽取后则本日内结果不变
+
+左为移除右为结婚
+
+![-waifu](.\images\-waifu.jpg)
+
+点击右侧时
+
+---
+
+### /id
+
+*本部分无图例*
+
+获取当前对话的ID和请求的用户ID 还可通过回复消息内容
+
+获取消息发送者的ID（**回复 /id**）
+
+或许有用处？
+
+---
+
+### /qrand
+
+
 
 ---
 
 ## 目前已知的管理组命令
 
-| /switch_waifu | /d   | /setqp | /set_greet | /set_bot_admin |
-| :-----------: | ---- | ------ | ---------- | -------------- |
+|    /switch_waifu     | /d   | /setqp | /set_greet | /set_bot_admin |      |
+| :------------------: | ---- | ------ | ---------- | -------------- | ---- |
+| /switch_delete_event |      |        |            |                |      |
