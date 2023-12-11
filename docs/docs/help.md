@@ -30,7 +30,7 @@
 
 抽老婆管理和一个Nya~
 
-![帮助页内容](images\-help.jpg)
+![帮助页内容](./images/-help.jpg)
 
 每一个小功能内非常简单这边就不加说明了（
 
@@ -42,15 +42,15 @@
 
 * 简单快速易上手
 
-![自己使用时](images\-t myself.jpg)
+![自己使用时](./images/-t myself.jpg)
 
 但有一点要注意 这个功能在对群组所有者使用时是无效的
 
-![对群组所有者](images\-t admin.jpg)
+![对群组所有者](./images/-t admin.jpg)
 
 * 不仅可以用于自己 还能赋予他人 一般通过**回复 /t 内容**用法
 
-![土块](images\-t 2other.jpg)
+![土块](./images/-t 2other.jpg)
 
 ---
 
@@ -60,19 +60,19 @@
 
 左侧按钮即可打开图片来源
 
-![setu](images\-setu.jpg)
+![setu](./images/-setu.jpg)
 
 *这一项命令在私聊中似乎是无效的*
 
 ---
 
-/help 
+### /help 
 
 生成一条带有所有命令的简要参数信息 帮助用户更快上手
 
 左侧按钮可跳转至帮助页面 右侧则为开源仓库地址
 
-![help lite](images\-help lite.jpg)
+![help lite](./images/-help lite.jpg)
 
 即使在群内 本条消息生成的内容也无任何差别
 
@@ -86,9 +86,9 @@
 
 其用法为 **回复 /q**
 
-在对所q消息置顶之后kmua便会回复被/q的句子一句随机的话 并生成一张带有所q消息内容的图片
+在对所q消息置顶之后 kmua便会回复被/q的句子一句随机的应答语 并生成一张带有所q消息内容的图片
 
-![名言记录](images\-q.jpg)
+![名言记录](./images/-q.jpg)
 
 其实 即使不对消息进行回复 kmua也会贴心的回复你/q的正确用法
 
