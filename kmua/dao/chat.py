@@ -138,3 +138,14 @@ def update_chat_waifu_disabled(chat: Chat | ChatData, disabled: bool):
     _db_chat = add_chat(chat)
     _db_chat.waifu_disabled = disabled
     commit()
+
+
+def get_chat_delete_events_enabled(chat: Chat | ChatData) -> bool:
+    _db_chat = add_chat(chat)
+    return _db_chat.delete_events_enabled
+
+
+def update_chat_delete_events_enabled(chat: Chat | ChatData, enabled: bool):
+    _db_chat = add_chat(chat)
+    _db_chat.delete_events_enabled = enabled
+    commit()

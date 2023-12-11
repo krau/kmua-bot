@@ -26,11 +26,11 @@ async def help(update: Update, context: ContextTypes.DEFAULT_TYPE):
 /qrand - 随机语录
 /t - 获取头衔|互赠头衔
 /setqp - 设置主动发送语录的概率
-/setu - 来点色图 (/ω＼*)
+/setu - 来点色图 (/ω＼*) (如无响应就是没启用)
+/switch_delete_events - 开关删除事件消息的功能 (bot 需要管理员权限)
 /id - 获取聊天ID
 /set_greet - 设置群组欢迎语
 /set_bot_admin - 在群组中设置bot管理员 (对于bot该用户将具有同等于群主的权限, 慎用)
-
 
 私聊可详细管理个人数据 (使用 /start 开始)
 

@@ -64,8 +64,31 @@ class ReplyBotFilter(MessageFilter):
         return True
 
 
+_service_message_attr = [
+    "delete_chat_photo",
+    "message_auto_delete_timer_changed",
+    "video_chat_scheduled",
+    "video_chat_started",
+    "video_chat_ended",
+    "video_chat_participants_invited",
+    "new_chat_photo",
+    "pinned_message",
+    "new_chat_members",
+    "left_chat_member",
+    "new_chat_title",
+]
+
+
+class ServiceMessageFilter(MessageFilter):
+    def filter(self, message: Message) -> bool | FilterDataDict | None:
+        if any(getattr(message, attr) for attr in _service_message_attr):
+            return True
+        return False
+
+
 mention_or_private_filter = MentionBotFilter() | filters.ChatType.PRIVATE
 slash_filter = SlashFilter() & TextLengthFilter(min_length=1, max_length=100)
 keyword_reply_filter = (
     TextLengthFilter(min_length=1, max_length=200) & ~slash_filter
 ) & (ReplyBotFilter() | MentionBotFilter() | filters.ChatType.PRIVATE)
+service_message_filter = ServiceMessageFilter()

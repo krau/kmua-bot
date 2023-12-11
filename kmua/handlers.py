@@ -9,11 +9,14 @@ from telegram.ext import (
     filters,
 )
 
+import kmua.filters as kmua_filters
+
 from .callbacks import (
     bilibili,
     chatdata,
     chatinfo,
     chatmember,
+    delete_events,
     help,
     keyword_reply,
     manage,
@@ -28,15 +31,12 @@ from .callbacks import (
     waifu,
 )
 from .config import settings
-from .filters import (
-    keyword_reply_filter,
-    mention_or_private_filter,
-    slash_filter,
-)
 from .logger import logger
 
 # CommandHandlers
-start_handler = CommandHandler("start", start.start, filters=mention_or_private_filter)
+start_handler = CommandHandler(
+    "start", start.start, filters=kmua_filters.mention_or_private_filter
+)
 
 title_handler = CommandHandler("t", title.title, filters=filters.ChatType.GROUPS)
 
@@ -51,7 +51,9 @@ qrand_handler = CommandHandler(
     "qrand", quote.random_quote, filters=filters.ChatType.GROUPS
 )
 
-help_handler = CommandHandler("help", help.help, filters=mention_or_private_filter)
+help_handler = CommandHandler(
+    "help", help.help, filters=kmua_filters.mention_or_private_filter
+)
 error_notice_control_handler = CommandHandler(
     "error_notice", manage.error_notice_control
 )
@@ -98,6 +100,11 @@ setu_handler = CommandHandler("setu", setu.setu, filters=filters.ChatType.GROUPS
 switch_waifu_handler = CommandHandler(
     "switch_waifu", waifu.switch_waifu, filters=filters.ChatType.GROUPS
 )
+switch_delete_events_handler = CommandHandler(
+    "switch_delete_events",
+    delete_events.switch_delete_events,
+    filters=filters.ChatType.GROUPS,
+)
 
 
 # CallbackQueryHandlers
@@ -139,12 +146,12 @@ clear_inactive_user_avatar_confirm_handler = CallbackQueryHandler(
 chat_migration_handler = MessageHandler(
     filters.StatusUpdate.MIGRATE, chatdata.chat_migration
 )
-slash_handler = MessageHandler(slash_filter, slash.slash)
+slash_handler = MessageHandler(kmua_filters.slash_filter, slash.slash)
 random_quote_handler = MessageHandler(
     (~filters.COMMAND & filters.ChatType.GROUPS), quote.random_quote
 )
 keyword_reply_handler = MessageHandler(
-    keyword_reply_filter, keyword_reply.keyword_reply
+    (~filters.COMMAND & kmua_filters.keyword_reply_filter), keyword_reply.keyword_reply
 )
 track_chats_handler = ChatMemberHandler(
     chatmember.track_chats, ChatMemberHandler.MY_CHAT_MEMBER
@@ -168,17 +175,29 @@ bililink_convert_handler = MessageHandler(
     bilibili.bililink_convert,
 )
 inline_query_handler = InlineQueryHandler(quote.inline_query_quote)
+delete_event_message_handler = MessageHandler(
+    (kmua_filters.service_message_filter & filters.ChatType.SUPERGROUP),
+    delete_events.delete_event_message,
+)
 
+callback_query_handlers = [
+    user_data_manage_handler,
+    user_data_refresh_handler,
+    user_quote_manage_handler,
+    marry_waifu_handler,
+    chat_quote_manage_handler,
+    set_title_permissions_callback_handler,
+    start_callback_handler,
+    remove_waifu_handler,
+    slash_handler,
+    user_waifu_manage_handler,
+    bot_data_refresh_handler,
+    status_refresh_handler,
+    clear_inactive_user_avatar_confirm_handler,
+]
 
-handlers = [
-    # pin handlers
+command_handlers = [
     start_handler,
-    track_chats_handler,
-    member_left_handler,
-    member_join_handler,
-    chat_migration_handler,
-    chat_title_update_handler,
-    # command handlers
     today_waifu_handler,
     waifu_graph_handler,
     quote_handler,
@@ -202,27 +221,26 @@ handlers = [
     clear_inactive_user_avatar_handler,
     setu_handler,
     switch_waifu_handler,
-    # callback handlers
-    user_data_manage_handler,
-    user_data_refresh_handler,
-    user_quote_manage_handler,
-    marry_waifu_handler,
-    chat_quote_manage_handler,
-    set_title_permissions_callback_handler,
-    start_callback_handler,
-    remove_waifu_handler,
-    slash_handler,
-    user_waifu_manage_handler,
-    bot_data_refresh_handler,
-    status_refresh_handler,
-    clear_inactive_user_avatar_confirm_handler,
-    # message handlers
+    switch_delete_events_handler,
+]
+
+chatdata_handlers = [
+    track_chats_handler,
+    member_left_handler,
+    member_join_handler,
+    chat_migration_handler,
+    chat_title_update_handler,
+]
+
+message_handlers = [
     bililink_convert_handler,
     keyword_reply_handler,
     sticker2img_handler,
+    delete_event_message_handler,
     random_quote_handler,
-    inline_query_handler,
 ]
+
+other_handlers = [inline_query_handler]
 
 
 async def on_error(update, context):
