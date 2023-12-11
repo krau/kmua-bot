@@ -73,6 +73,7 @@ class ChatData(Base):
     __tablename__ = "chat_data"
     id = Column(BigInteger, primary_key=True, index=True, autoincrement=False)
     waifu_disabled = Column(Boolean, default=False)
+    delete_events_enabled = Column(Boolean, default=False)
     quote_probability = Column(Float, default=0.001)
     title = Column(String(128), nullable=False)
     members = relationship(

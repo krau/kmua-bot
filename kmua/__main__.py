@@ -8,11 +8,19 @@ from telegram.ext import (
     ApplicationBuilder,
     Defaults,
 )
-from kmua.logger import logger
-from kmua.config import settings
+
 import kmua.dao._db as db
-from kmua.handlers import handlers, on_error
 from kmua.callbacks.jobs import refresh_waifu_data
+from kmua.config import settings
+from kmua.handlers import (
+    callback_query_handlers,
+    chatdata_handlers,
+    command_handlers,
+    message_handlers,
+    on_error,
+    other_handlers,
+)
+from kmua.logger import logger
 
 
 async def init_data(app: Application):
@@ -25,10 +33,8 @@ async def init_data(app: Application):
             ("q", "载入史册"),
             ("d", "移出史册"),
             ("t", "获取头衔|互赠头衔"),
-            ("help", "帮助"),
+            ("help", "帮助|更多功能"),
             ("qrand", "随机语录"),
-            ("setqp", "设置主动发送语录概率"),
-            ("sett", "修改/t赋予权限"),
             ("set_greet", "设置入群欢迎"),
             ("id", "获取聊天ID"),
         ]
@@ -63,7 +69,15 @@ def run():
         time=datetime.time(4, 0, 0, 0, tzinfo=pytz.timezone("Asia/Shanghai")),
         name="refresh_waifu_data",
     )
-    app.add_handlers(handlers)
+    app.add_handlers(
+        {
+            0: command_handlers,
+            1: message_handlers,
+            2: chatdata_handlers,
+            3: callback_query_handlers,
+            4: other_handlers,
+        }
+    )
     app.add_error_handler(on_error)
     allowed_updates = [
         UpdateType.MESSAGE,
