@@ -154,7 +154,7 @@ async def set_quote_probability(update: Update, context: ContextTypes.DEFAULT_TY
         sent_message = await message.reply_text(except_text)
         logger.info(f"Bot: {sent_message.text}")
         return
-    if probability < 0 or probability > 1:
+    if not (probability >= 0 and probability <= 1):
         sent_message = await message.reply_text(except_text)
         logger.info(f"Bot: {sent_message.text}")
         return
