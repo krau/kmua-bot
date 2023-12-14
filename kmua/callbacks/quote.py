@@ -17,6 +17,7 @@ from telegram.helpers import escape_markdown
 import kmua.common as common
 import kmua.dao as dao
 from kmua.logger import logger
+import re
 
 from .jobs import delete_message
 
@@ -148,8 +149,18 @@ async def set_quote_probability(update: Update, context: ContextTypes.DEFAULT_TY
         logger.info(f"Bot: {sent_message.text}")
         return
     except_text = "概率是在[0,1]之间的浮点数,请检查输入"
+    if not context.args:
+        sent_message = await message.reply_text(except_text)
+        logger.info(f"Bot: {sent_message.text}")
+        return
+    float_pattern = re.compile(r"^[-+]?[0-9]*\.?[0-9]+([eE][-+]?[0-9]+)?$")
+    value = context.args[0]
+    if not float_pattern.match(value) or len(value) > 8:
+        sent_message = await message.reply_text("请不要输入奇怪的东西> <")
+        logger.info(f"Bot: {sent_message.text}")
+        return
     try:
-        probability = float(context.args[0])
+        probability = float(value)
     except Exception:
         sent_message = await message.reply_text(except_text)
         logger.info(f"Bot: {sent_message.text}")
