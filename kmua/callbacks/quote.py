@@ -257,6 +257,10 @@ async def delete_quote_in_chat(update: Update, context: ContextTypes.DEFAULT_TYP
         await _chat_quote_manage(update, context)
         return
     quote_message = message.reply_to_message
+    if not quote_message:
+        sent_message = await message.reply_text("请回复要从语录中删除的消息")
+        logger.info(f"Bot: {sent_message.text}")
+        return
     quote_user = quote_message.sender_chat or quote_message.from_user
 
     user = message.sender_chat if message.sender_chat else user
