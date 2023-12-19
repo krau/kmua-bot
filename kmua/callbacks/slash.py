@@ -1,11 +1,13 @@
+import re
+
 from telegram import (
     Update,
 )
 from telegram.ext import ContextTypes
 from telegram.helpers import escape_markdown
-from kmua.logger import logger
+
 import kmua.common as common
-import re
+from kmua.logger import logger
 
 
 def replace_special_char(text: str):
@@ -60,9 +62,9 @@ async def slash(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         text = (
             (
-                f"{this_mention} 被 {replied_mention} {cmd1}{cmd2} \!"
+                f"{replied_mention} {cmd1} {this_mention} {cmd2} \!"
                 if replied_user
-                else f"{this_mention} 被自己{cmd1}{cmd2} \!"
+                else f"{this_mention} {cmd1}自己{cmd2} \!" # 好像和line73一样, 暂时没有其他 idea
             )
             if is_backslash
             else (
