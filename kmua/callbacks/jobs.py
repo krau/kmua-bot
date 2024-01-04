@@ -1,5 +1,5 @@
 import asyncio
-
+import gc
 from telegram.ext import ContextTypes
 
 import kmua.dao as dao
@@ -22,6 +22,7 @@ async def refresh_waifu_data(context: ContextTypes.DEFAULT_TYPE):
     finally:
         await asyncio.sleep(1)
         await dao.refresh_all_waifu_data()
+        gc.collect()
         logger.success("数据已刷新: waifu_data")
         context.bot_data["refeshing_waifu_data"] = False
 
