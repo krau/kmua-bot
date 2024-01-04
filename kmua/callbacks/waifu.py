@@ -55,6 +55,7 @@ async def send_waifu_graph(
 ):
     logger.debug(f"Generating waifu graph for {chat.title}<{chat.id}>")
     try:
+        context.chat_data["waifu_graph_waiting"] = True
         relationships = common.get_chat_waifu_relationships(chat)
         participate_users = dao.get_chat_user_participated_waifu(chat)
         if not participate_users or not relationships:
