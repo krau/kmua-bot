@@ -29,6 +29,7 @@ from .callbacks import (
     title,
     userdata,
     waifu,
+    ip,
 )
 from .config import settings
 from .logger import logger
@@ -105,6 +106,7 @@ switch_delete_events_handler = CommandHandler(
     delete_events.switch_delete_events,
     filters=filters.ChatType.GROUPS,
 )
+ip_handler = CommandHandler("ip", ip.ipinfo)
 
 
 # CallbackQueryHandlers
@@ -222,6 +224,7 @@ command_handlers = [
     setu_handler,
     switch_waifu_handler,
     switch_delete_events_handler,
+    ip_handler,
 ]
 
 chatdata_handlers = [
