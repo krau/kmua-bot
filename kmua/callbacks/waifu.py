@@ -34,18 +34,13 @@ async def waifu_graph(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     if dao.get_chat_waifu_disabled(update.effective_chat):
         return
-    if context.chat_data.get("waifu_graph_waiting", False):
-        return
     if context.bot_data.get("refeshing_waifu_data", False):
         return
 
     msg_id = update.effective_message.id
     chat = update.effective_chat
-    try:
-        await update.effective_message.reply_text(random.choice(common.loading_word))
-        await send_waifu_graph(chat, context, msg_id)
-    finally:
-        context.chat_data["waifu_graph_waiting"] = False
+    await update.effective_message.reply_text(random.choice(common.loading_word))
+    await send_waifu_graph(chat, context, msg_id)
 
 
 async def send_waifu_graph(
@@ -55,7 +50,6 @@ async def send_waifu_graph(
 ):
     logger.debug(f"Generating waifu graph for {chat.title}<{chat.id}>")
     try:
-        context.chat_data["waifu_graph_waiting"] = True
         relationships = common.get_chat_waifu_relationships(chat)
         participate_users = dao.get_chat_user_participated_waifu(chat)
         if not participate_users or not relationships:
@@ -91,11 +85,12 @@ async def send_waifu_graph(
         logger.error(
             f"{error_info} happend when sending waifu graph for {chat.title}<{chat.id}>"
         )
-        await context.bot.send_message(
-            chat.id,
-            f"呜呜呜, 画不出来了, {error_info}",
-            reply_to_message_id=msg_id,
-        )
+        if msg_id:
+            await context.bot.send_message(
+                chat.id,
+                f"呜呜呜, 画不出来了, {error_info}",
+                reply_to_message_id=msg_id,
+            )
 
 
 async def today_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE):
