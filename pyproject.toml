@@ -1,7 +1,7 @@
 [tool.poetry]
 name = "kmua"
-version = "2.2.0"
-description = ""
+version = "2.2.1"
+description = "A Telegram Bot"
 authors = ["krau <me@krau.top>"]
 readme = "README.md"
 license = "MIT"
