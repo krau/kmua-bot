@@ -1,15 +1,7 @@
-<div align="center">
+# kmua pyro
 
-# kmua-bot v2
+这是 kmua 使用 [Pyrogram](https://github.com/KurimuzonAkuma/pyrogram) (MTProto API) 重构的分支
 
-干啥啥不行，喵喵第一名
-</div>
+摸鱼开发中...
 
-## [文档](https://krau.github.io/kmua-bot/)
-
-demo: [@kmuav2bot](https://t.me/kmuav2bot)
-
-## 鸣谢
-
-- [python-telegram-bot](https://python-telegram-bot.org/)
-- [Kyomotoi/AnimeThesaurus](https://github.com/Kyomotoi/AnimeThesaurus)
+由于 [Pyrogram](https://github.com/pyrogram/pyrogram) 原仓库已许久未有任何活动, 因此使用 [KurimuzonAkuma](https://github.com/KurimuzonAkuma) 的分支版本.
