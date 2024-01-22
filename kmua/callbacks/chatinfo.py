@@ -24,7 +24,7 @@ async def getid(client: Client, message: types.Message):
         await message.reply_text(
             text=f"""
 **Chat ID:** `{message.chat.id}`
-**User ID:** `{message.from_user.id}`
+**User ID:** `{user.id}`
 """,
             parse_mode=enums.ParseMode.MARKDOWN,
         )

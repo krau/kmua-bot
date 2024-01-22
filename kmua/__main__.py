@@ -1,7 +1,7 @@
 from pyrogram import Client
 from kmua.config import settings, data_dir
 from kmua.logger import logger
-import kmua.handlers as handlers
+from kmua.handlers import command_handlers
 
 client = Client(
     name=settings.session,
@@ -11,10 +11,10 @@ client = Client(
     workdir=data_dir,
 )
 
-
 def main():
     logger.info("Starting bot...")
-    client.add_handler(handlers.id_handler)
+    for handler in command_handlers:
+        client.add_handler(handler, 0)
     client.run()
 
 
