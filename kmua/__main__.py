@@ -1,6 +1,7 @@
 import datetime
 
 import pytz
+import uvloop
 from telegram.constants import UpdateType
 from telegram.ext import (
     AIORateLimiter,
@@ -50,6 +51,7 @@ async def stop(app: Application):
 
 
 def run():
+    uvloop.install()
     token = settings.token
     defaults = Defaults(tzinfo=pytz.timezone("Asia/Shanghai"))
     rate_limiter = AIORateLimiter()
