@@ -4,11 +4,10 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup, InputMediaPhoto
 from telegram.ext import ContextTypes
 from telegram.helpers import escape_markdown
 
-from .jobs import reset_user_cd
+from kmua import common, dao
 from kmua.logger import logger
-import kmua.dao as dao
-import kmua.common as common
 
+from .jobs import reset_user_cd
 
 _user_data_manage_markup = InlineKeyboardMarkup(
     [

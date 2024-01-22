@@ -1,7 +1,9 @@
 import datetime
-from telegram import Chat, User
+
 from sqlalchemy import text
-from kmua.dao._db import commit, _db
+from telegram import Chat, User
+
+from kmua.dao._db import _db, commit
 from kmua.models.models import ChatData, Quote, UserData
 
 

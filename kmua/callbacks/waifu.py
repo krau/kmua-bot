@@ -6,9 +6,8 @@ from telegram.constants import ChatAction
 from telegram.ext import ContextTypes
 from telegram.helpers import escape_markdown
 
+from kmua import common, dao
 from kmua.logger import logger
-import kmua.common as common
-import kmua.dao as dao
 from kmua.models.models import ChatData, UserData
 
 

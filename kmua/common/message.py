@@ -2,7 +2,7 @@ from telegram import Message, Update
 from telegram.constants import ChatID, ChatType
 from telegram.ext import ContextTypes
 
-import kmua.dao as dao
+from kmua import dao
 from kmua.logger import logger
 
 

@@ -5,7 +5,7 @@ from telegram import (
 )
 from telegram.ext import ContextTypes
 
-import kmua.common as common
+from kmua import common
 from kmua.logger import logger
 
 

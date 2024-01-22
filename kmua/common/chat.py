@@ -1,6 +1,6 @@
 from telegram import Chat
 
-import kmua.dao as dao
+from kmua import dao
 from kmua.models.models import ChatData
 
 

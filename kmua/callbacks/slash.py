@@ -6,7 +6,7 @@ from telegram import (
 from telegram.ext import ContextTypes
 from telegram.helpers import escape_markdown
 
-import kmua.common as common
+from kmua import common
 from kmua.logger import logger
 
 

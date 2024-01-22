@@ -1,19 +1,18 @@
+import asyncio
 import random
 
 from telegram import (
     Update,
 )
 from telegram.constants import ChatAction
+from telegram.error import BadRequest
 from telegram.ext import ContextTypes
 from zhconv import convert
 
-import asyncio
-
-import kmua.common as common
+from kmua import common
 from kmua.logger import logger
-from telegram.error import BadRequest
-from .friendship import ohayo, oyasumi
 
+from .friendship import ohayo, oyasumi
 
 
 async def keyword_reply(update: Update, context: ContextTypes.DEFAULT_TYPE):

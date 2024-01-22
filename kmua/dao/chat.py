@@ -1,6 +1,6 @@
 from telegram import Chat
 
-from kmua.dao._db import commit, _db
+from kmua.dao._db import _db, commit
 from kmua.models.models import ChatData, Quote, UserData
 
 

@@ -3,9 +3,10 @@ import random
 from telegram import Update
 from telegram.ext import ContextTypes
 
+from kmua import common
 from kmua.logger import logger
+
 from .jobs import send_message
-import kmua.common as common
 
 
 async def ohayo(update: Update, context: ContextTypes.DEFAULT_TYPE):

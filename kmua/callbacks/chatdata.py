@@ -3,9 +3,8 @@ from telegram import (
 )
 from telegram.ext import ContextTypes
 
-import kmua.common as common
+from kmua import common, dao
 from kmua.logger import logger
-import kmua.dao as dao
 
 
 async def chat_data_manage(update: Update, context: ContextTypes.DEFAULT_TYPE):

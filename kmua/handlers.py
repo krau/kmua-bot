@@ -18,6 +18,7 @@ from .callbacks import (
     chatmember,
     delete_events,
     help,
+    ip,
     keyword_reply,
     manage,
     quote,
@@ -29,7 +30,6 @@ from .callbacks import (
     title,
     userdata,
     waifu,
-    ip,
 )
 from .config import settings
 from .logger import logger

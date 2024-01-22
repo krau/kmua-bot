@@ -1,6 +1,7 @@
-from telegram import Chat, Message, User
 from sqlalchemy import func, or_
-from kmua.dao._db import commit, _db
+from telegram import Chat, Message, User
+
+from kmua.dao._db import _db, commit
 from kmua.models.models import ChatData, Quote, UserData
 
 

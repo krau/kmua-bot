@@ -1,8 +1,8 @@
 from telegram import Update
 from telegram.ext import ContextTypes
+
+from kmua import common, dao
 from kmua.logger import logger
-import kmua.common as common
-import kmua.dao as dao
 
 
 async def switch_delete_events(update: Update, context: ContextTypes.DEFAULT_TYPE):

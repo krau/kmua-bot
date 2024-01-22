@@ -7,11 +7,10 @@ from telegram.constants import ChatID, ChatMemberStatus, ChatType
 from telegram.ext import ContextTypes
 from telegram.helpers import escape_markdown
 
+from kmua import dao
 from kmua.config import settings
-import kmua.dao as dao
 from kmua.logger import logger
 from kmua.models.models import ChatData, UserData
-
 
 fake_users_id = [ChatID.FAKE_CHANNEL, ChatID.ANONYMOUS_ADMIN, ChatID.SERVICE_CHAT]
 

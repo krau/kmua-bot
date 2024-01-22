@@ -3,8 +3,7 @@ import asyncio
 from telegram import Chat, ChatMember, ChatMemberUpdated, Update
 from telegram.ext import ContextTypes
 
-import kmua.common as common
-import kmua.dao as dao
+from kmua import common, dao
 from kmua.logger import logger
 
 

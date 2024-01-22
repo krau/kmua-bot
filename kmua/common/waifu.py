@@ -7,7 +7,7 @@ import graphviz
 from telegram import Chat, InlineKeyboardButton, InlineKeyboardMarkup, User
 from telegram.helpers import escape_markdown
 
-import kmua.dao as dao
+from kmua import dao
 from kmua.logger import logger
 from kmua.models.models import ChatData, UserData
 

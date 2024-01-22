@@ -1,9 +1,9 @@
 from telegram import Message
+from telegram.ext import filters
 from telegram.ext.filters import (
     FilterDataDict,
     MessageFilter,
 )
-from telegram.ext import filters
 
 
 class SlashFilter(MessageFilter):

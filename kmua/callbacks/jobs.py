@@ -1,8 +1,9 @@
 import asyncio
 import gc
+
 from telegram.ext import ContextTypes
 
-import kmua.dao as dao
+from kmua import dao
 from kmua.logger import logger
 
 from .waifu import send_waifu_graph

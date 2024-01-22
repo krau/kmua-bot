@@ -5,7 +5,7 @@ from pathlib import Path
 
 import psutil
 
-import kmua.dao as dao
+from kmua import dao
 from kmua.config import data_dir, settings
 
 _database_path = Path(

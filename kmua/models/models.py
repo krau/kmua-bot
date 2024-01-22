@@ -1,18 +1,17 @@
 from sqlalchemy import (
-    LargeBinary,
+    BigInteger,
     Boolean,
     CheckConstraint,
     Column,
     DateTime,
     Float,
     ForeignKey,
-    BigInteger,
+    LargeBinary,
     String,
     func,
 )
-from sqlalchemy.orm import relationship
 from sqlalchemy.ext.declarative import declarative_base
-
+from sqlalchemy.orm import relationship
 
 Base = declarative_base()
 

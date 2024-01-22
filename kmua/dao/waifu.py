@@ -5,9 +5,9 @@ from telegram import Chat, User
 import kmua.dao.association as association_dao
 import kmua.dao.chat as chat_dao
 import kmua.dao.user as user_dao
-from ._db import commit, _db
+from kmua.models.models import ChatData, UserChatAssociation, UserData
 
-from kmua.models.models import ChatData, UserData, UserChatAssociation
+from ._db import _db, commit
 
 
 def _get_user_waifu_in_chat_common(

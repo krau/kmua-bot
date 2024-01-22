@@ -1,15 +1,14 @@
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import ContextTypes
-from kmua.logger import logger
-import kmua.common as common
-from kmua.config import settings
-
 import asyncio
-import kmua.dao as dao
+
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
+from telegram.ext import ContextTypes
+
+from kmua import common, dao
+from kmua.config import settings
+from kmua.logger import logger
+
 from .chatdata import chat_data_manage
-
 from .jobs import refresh_waifu_data
-
 
 _manage_markup = InlineKeyboardMarkup(
     [[InlineKeyboardButton("Refresh bot info", callback_data="bot_data_refresh")]]

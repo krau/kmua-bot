@@ -1,12 +1,12 @@
 import re
 
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.error import BadRequest
 from telegram.ext import ContextTypes
 from telegram.helpers import escape_markdown
-import kmua.common as common
 
-from ..logger import logger
+from kmua import common
+from kmua.logger import logger
 
 
 async def title(update: Update, context: ContextTypes.DEFAULT_TYPE):
