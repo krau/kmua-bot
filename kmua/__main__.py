@@ -1,7 +1,11 @@
+import uvloop
 from pyrogram import Client
-from kmua.config import settings, data_dir
+
+from kmua.config import data_dir, settings
+from kmua.handlers import kmua_handlers as handlers
 from kmua.logger import logger
-from kmua.handlers import command_handlers
+
+uvloop.install()
 
 client = Client(
     name=settings.session,
@@ -11,10 +15,13 @@ client = Client(
     workdir=data_dir,
 )
 
+
 def main():
     logger.info("Starting bot...")
-    for handler in command_handlers:
-        client.add_handler(handler, 0)
+    for group, handler_list in handlers.items():
+        for handler in handler_list:
+            client.add_handler(handler, group=group)
+
     client.run()
 
 

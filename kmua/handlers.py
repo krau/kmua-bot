@@ -11,6 +11,24 @@ _help_handler = handlers.MessageHandler(
 _init_handler = handlers.MessageHandler(
     callback=manage.init, filters=filters.command("init")
 )
+_status_handler = handlers.MessageHandler(
+    callback=manage.status, filters=filters.command("status")
+)
 
+_status_refresh_handler = handlers.CallbackQueryHandler(
+    callback=manage.status_refresh, filters=filters.regex("status_refresh")
+)
 
-command_handlers = [_id_handler, _help_handler, _init_handler]
+_command_handlers = [
+    _id_handler,
+    _help_handler,
+    _init_handler,
+    _status_handler,
+]
+
+_callback_handlers = [_status_refresh_handler]
+
+kmua_handlers = {
+    0: _command_handlers,
+    1: _callback_handlers,
+}
