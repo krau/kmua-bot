@@ -1,5 +1,4 @@
 __pycache__
-*test*
 *venv*
 *old*
 *.log
@@ -8,9 +7,6 @@ logs/
 .idea
 .vscode
 settings.dev*
-data.dev*
-data/data.pickle
-data/avatars/*
-data/*.db
+data/
 .python-version
 *.session

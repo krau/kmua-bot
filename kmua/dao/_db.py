@@ -16,7 +16,7 @@ logger.debug("Connecting to database...")
 
 Base.metadata.create_all(bind=engine)
 
-logger.info("Success")
+logger.success("Success connected to database")
 
 
 def commit():

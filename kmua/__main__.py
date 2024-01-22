@@ -17,11 +17,11 @@ client = Client(
 
 
 def main():
-    logger.info("Starting bot...")
+    logger.debug("Registering handlers...")
     for group, handler_list in handlers.items():
         for handler in handler_list:
             client.add_handler(handler, group=group)
-
+    logger.info("Bot started")
     client.run()
 
 
