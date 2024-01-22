@@ -1,95 +1,22 @@
-import datetime
-
-import pytz
-from telegram.constants import UpdateType
-from telegram.ext import (
-    AIORateLimiter,
-    Application,
-    ApplicationBuilder,
-    Defaults,
-)
-
-import kmua.dao._db as db
-from kmua.callbacks.jobs import refresh_waifu_data
-from kmua.config import settings
-from kmua.handlers import (
-    callback_query_handlers,
-    chatdata_handlers,
-    command_handlers,
-    message_handlers,
-    on_error,
-    other_handlers,
-)
+from pyrogram import Client
+from kmua.config import settings, data_dir
 from kmua.logger import logger
+import kmua.handlers as handlers
+
+client = Client(
+    name=settings.session,
+    api_id=settings.api_id,
+    api_hash=settings.api_hash,
+    bot_token=settings.bot_token,
+    workdir=data_dir,
+)
 
 
-async def init_data(app: Application):
-    logger.info("initing...")
-    await app.bot.set_my_commands(
-        [
-            ("start", "一键猫叫|召出菜单"),
-            ("waifu", "今日老婆!"),
-            ("waifu_graph", "老婆关系图！"),
-            ("q", "载入史册"),
-            ("d", "移出史册"),
-            ("t", "获取头衔|互赠头衔"),
-            ("help", "帮助|更多功能"),
-            ("qrand", "随机语录"),
-            ("set_greet", "设置入群欢迎"),
-            ("id", "获取聊天ID"),
-        ]
-    )
-    logger.success("started bot")
+def main():
+    logger.info("Starting bot...")
+    client.add_handler(handlers.id_handler)
+    client.run()
 
 
-async def stop(app: Application):
-    logger.debug("close database connection...")
-    db.commit()
-    db.close()
-    logger.success("stopped bot")
-
-
-def run():
-    token = settings.token
-    defaults = Defaults(tzinfo=pytz.timezone("Asia/Shanghai"))
-    rate_limiter = AIORateLimiter()
-    app = (
-        ApplicationBuilder()
-        .token(token)
-        .defaults(defaults)
-        .concurrent_updates(True)
-        .post_init(init_data)
-        .post_stop(stop)
-        .rate_limiter(rate_limiter)
-        .build()
-    )
-    job_queue = app.job_queue
-    job_queue.run_daily(
-        refresh_waifu_data,
-        time=datetime.time(4, 0, 0, 0, tzinfo=pytz.timezone("Asia/Shanghai")),
-        name="refresh_waifu_data",
-    )
-    app.add_handlers(
-        {
-            0: command_handlers,
-            1: message_handlers,
-            2: chatdata_handlers,
-            3: callback_query_handlers,
-            4: other_handlers,
-        }
-    )
-    app.add_error_handler(on_error)
-    allowed_updates = [
-        UpdateType.MESSAGE,
-        UpdateType.CALLBACK_QUERY,
-        UpdateType.CHAT_MEMBER,
-        UpdateType.MY_CHAT_MEMBER,
-        UpdateType.CHOSEN_INLINE_RESULT,
-        UpdateType.INLINE_QUERY,
-    ]
-    app.run_polling(
-        allowed_updates=allowed_updates, drop_pending_updates=True, close_loop=False
-    )
-
-
-run()
+if __name__ == "__main__":
+    main()

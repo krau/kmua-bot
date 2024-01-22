@@ -1,5 +1,7 @@
-token = ''
-owners = []
+session = ''
+api_id = 1
+api_hash = ''
+bot_token = ''
 log_level = 'INFO'
 db_url = 'sqlite:///./data/kmua.db'
 bililink_convert_api = ''           # 不填则不启用此功能,见 https://github.com/krau/bililink-converter

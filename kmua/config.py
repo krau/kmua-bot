@@ -14,8 +14,7 @@ settings_files = [
 settings = Dynaconf(
     envvar_prefix="KMUA",
     settings_files=settings_files,
-    environments=False,
-    base_dir=_BASE_DIR,
+    root_path=_BASE_DIR,
 )
 
 # `envvar_prefix` = export envvars with `export DYNACONF_FOO=bar`.
