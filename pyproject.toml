@@ -15,7 +15,13 @@ dynaconf = "^3.2.4"
 sqlalchemy = "^2.0.25"
 psutil = "^5.9.8"
 uvloop = "^0.19.0"
+pillow = "^10.2.0"
+pilmoji = "^2.0.4"
+httpx = "^0.26.0"
 
+
+[tool.poetry.group.dev.dependencies]
+pylint = "^3.0.3"
 
 [build-system]
 requires = ["poetry-core"]

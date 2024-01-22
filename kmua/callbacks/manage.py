@@ -1,7 +1,8 @@
 from pyrogram import Client, types
 from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
-from kmua.logger import logger
+
 from kmua import common
+from kmua.logger import logger
 
 
 async def init(client: Client, message: types.Message):

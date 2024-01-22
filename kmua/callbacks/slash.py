@@ -19,20 +19,12 @@ async def slash(client: Client, message: types.Message):
         return
     user = message.sender_chat or message.from_user
     logger.info(f"[{user.username or user.full_name}]: {message.text}")
-    user_mention = (
-        f"[{common.escape_markdown(user.full_name)}](tg://user?id={user.id})"
-        if not user.username
-        else f"[{common.escape_markdown(user.full_name)}](https://t.me/{user.username})"
-    )
+    user_mention = common.mention_markdown(user)
     target = None
     target_mention = ""
     if reply := message.reply_to_message:
         target = reply.sender_chat or reply.from_user
-        target_mention = (
-            f"[{common.escape_markdown(target.full_name)}](tg://user?id={target.id})"
-            if not target.username
-            else f"[{common.escape_markdown(target.full_name)}](https://t.me/{target.username})"
-        )
+        target_mention = common.mention_markdown(target)
     is_backslash = (
         False
         if message.text.startswith("/")
