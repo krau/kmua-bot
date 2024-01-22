@@ -1,6 +1,6 @@
-from kmua.callbacks import chatinfo, help, manage
+from pyrogram import filters, handlers
 
-from pyrogram import handlers, filters
+from kmua.callbacks import chatinfo, help, manage, slash
 
 _id_handler = handlers.MessageHandler(
     callback=chatinfo.getid, filters=filters.command("id")
@@ -19,6 +19,11 @@ _status_refresh_handler = handlers.CallbackQueryHandler(
     callback=manage.status_refresh, filters=filters.regex("status_refresh")
 )
 
+
+_slash_handler = handlers.MessageHandler(
+    callback=slash.slash, filters=filters.regex(r"^(/|\\)")
+)
+
 _command_handlers = [
     _id_handler,
     _help_handler,
@@ -26,9 +31,16 @@ _command_handlers = [
     _status_handler,
 ]
 
-_callback_handlers = [_status_refresh_handler]
+_callback_handlers = [
+    _status_refresh_handler,
+]
+
+_message_handlers = [
+    _slash_handler,
+]
 
 kmua_handlers = {
     0: _command_handlers,
-    1: _callback_handlers,
+    1: _message_handlers,
+    2: _callback_handlers,
 }
