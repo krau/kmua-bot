@@ -84,9 +84,9 @@ def get_qer_quote_navigation_buttons(page: int) -> list[InlineKeyboardButton]:
 def get_inline_query_result_cached_photo(quote: Quote) -> InlineQueryResultCachedPhoto:
     if not quote.img:
         return None
-    id = uuid4()
+    result_id = uuid4()
     result = InlineQueryResultCachedPhoto(
-        id=id,
+        id=result_id,
         photo_file_id=quote.img,
         title=quote.text[:10],
         reply_markup=InlineKeyboardMarkup(
@@ -104,13 +104,13 @@ def get_inline_query_result_cached_photo(quote: Quote) -> InlineQueryResultCache
 
 
 def get_inline_query_result_article(quote: Quote) -> InlineQueryResultArticle:
-    id = uuid4()
+    result_id = uuid4()
     quote_user_name = quote.user.full_name if quote.user else "<数据丢失>"
     quote_chat_title = quote.chat.title if quote.chat else "<数据丢失>"
     qer_user = dao.get_user_by_id(quote.qer_id)
     qer_user_name = qer_user.full_name if qer_user else "<数据丢失>"
     result = InlineQueryResultArticle(
-        id=id,
+        id=result_id,
         title=quote.text[:10],
         description=f"""
 For {quote_user_name} in {quote_chat_title}
@@ -146,14 +146,14 @@ async def generate_quote_img(avatar: bytes, text: str, name: str) -> bytes:
 
     text_list = [text[i : i + 18] for i in range(0, len(text), 18)]
     new_text_height = font_size * len(text_list)
-    new_text_width = max([font.getsize(x)[0] for x in text_list])
+    new_text_width = max((font.getsize(x)[0] for x in text_list))
     text_x = 540 + int((560 - new_text_width) / 2)
     text_y = int((630 - new_text_height) / 2)
     with Pilmoji(img) as pilmoji:
-        for i in range(len(text_list)):
+        for i, v in enumerate(text_list):
             pilmoji.text(
                 (text_x, text_y + i * font_size),
-                text=text_list[i],
+                text=v,
                 fill=(255, 255, 252),
                 font=font,
                 align="center",

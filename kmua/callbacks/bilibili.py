@@ -32,7 +32,7 @@ async def bililink_convert(update: Update, context: ContextTypes):
         return
 
 
-async def _b23_convert(update: Update, context: ContextTypes, b23code: str):
+async def _b23_convert(update: Update, _: ContextTypes, b23code: str):
     logger.debug(f"b23code: {b23code}")
     message = update.effective_message
     request_url = _api_url + f"/b23/{b23code}"
@@ -51,7 +51,7 @@ async def _b23_convert(update: Update, context: ContextTypes, b23code: str):
             )
 
 
-async def _bvav_convert(update: Update, context: ContextTypes, bvavcode: str):
+async def _bvav_convert(update: Update, _: ContextTypes, bvavcode: str):
     logger.debug(f"bvavcode: {bvavcode}")
     request_url = _api_url
     if bvavcode.startswith("BV"):

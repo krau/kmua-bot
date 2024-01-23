@@ -7,6 +7,9 @@ from telegram.ext.filters import (
 
 
 class SlashFilter(MessageFilter):
+    """
+    Filter messages starting with a slash or backslash.
+    """
     def filter(self, message: Message) -> bool | FilterDataDict | None:
         if not message.text:
             return False
@@ -22,6 +25,9 @@ class SlashFilter(MessageFilter):
 
 
 class TextLengthFilter(MessageFilter):
+    """
+    Filter messages with text length not in range [min_length, max_length].
+    """
     def __init__(
         self,
         name: str = None,
@@ -44,6 +50,9 @@ class TextLengthFilter(MessageFilter):
 
 
 class MentionBotFilter(MessageFilter):
+    """
+    Filter messages that mention the bot.
+    """
     def filter(self, message: Message) -> bool | FilterDataDict | None:
         if not message.text:
             return False
@@ -53,6 +62,9 @@ class MentionBotFilter(MessageFilter):
 
 
 class ReplyBotFilter(MessageFilter):
+    """
+    Filter messages that reply to the bot.
+    """
     def filter(self, message: Message) -> bool | FilterDataDict | None:
         if not message.reply_to_message:
             return False
@@ -80,6 +92,9 @@ _service_message_attr = [
 
 
 class ServiceMessageFilter(MessageFilter):
+    """
+    Filter service messages.
+    """
     def filter(self, message: Message) -> bool | FilterDataDict | None:
         if any(getattr(message, attr) for attr in _service_message_attr):
             return True

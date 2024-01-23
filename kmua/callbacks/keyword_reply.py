@@ -16,6 +16,12 @@ from .friendship import ohayo, oyasumi
 
 
 async def keyword_reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """
+    关键词回复
+
+    :param update: Update
+    :param context: Context
+    """
     logger.info(
         f"[{update.effective_chat.title}]({update.effective_user.name})"
         + f" {update.effective_message.text}"

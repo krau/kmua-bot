@@ -23,12 +23,11 @@ async def get_big_avatar_bytes(
     if db_user:
         if db_user.avatar_big_blob:
             return db_user.avatar_big_blob
-        else:
-            avatar = await download_big_avatar(chat_id, context)
-            if avatar:
-                db_user.avatar_big_blob = avatar
-                dao.commit()
-            return avatar
+        avatar = await download_big_avatar(chat_id, context)
+        if avatar:
+            db_user.avatar_big_blob = avatar
+            dao.commit()
+        return avatar
     else:
         return await download_big_avatar(chat_id, context)
 
@@ -58,12 +57,11 @@ async def get_small_avatar_bytes(
     if db_user:
         if db_user.avatar_small_blob:
             return db_user.avatar_small_blob
-        else:
-            avatar = await download_small_avatar(chat_id, context)
-            if avatar:
-                db_user.avatar_small_blob = avatar
-                dao.commit()
-            return avatar
+        avatar = await download_small_avatar(chat_id, context)
+        if avatar:
+            db_user.avatar_small_blob = avatar
+            dao.commit()
+        return avatar
     else:
         return await download_small_avatar(chat_id, context)
 
@@ -157,7 +155,8 @@ async def verify_user_can_manage_bot_in_chat(
     :return: bool
     """
     logger.debug(
-        f"Verify user {user.full_name}<{user.id}> can manage bot in {chat.title}<{chat.id}>"  # noqa: E501
+        f"Verify user {user.full_name}<{user.id}> "
+        f"can manage bot in {chat.title}<{chat.id}>"
     )
     if chat.type == ChatType.PRIVATE:
         return False
@@ -200,5 +199,4 @@ def mention_markdown_v2(user: User | UserData | Chat | ChatData) -> str:
         return (
             f"[{escape_markdown(db_user.full_name,2)}](https://t.me/{db_user.username})"
         )
-    else:
-        return f"[{escape_markdown(db_user.full_name,2)}](tg://user?id={db_user.id})"
+    return f"[{escape_markdown(db_user.full_name,2)}](tg://user?id={db_user.id})"

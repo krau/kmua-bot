@@ -251,6 +251,9 @@ other_handlers = [inline_query_handler]
 
 
 async def on_error(update, context):
+    """
+    出现未被处理的错误时回调
+    """
     error = context.error
     # 如果聊天限制了 bot 发送消息, 忽略
     if error.__class__.__name__ == "BadRequest":

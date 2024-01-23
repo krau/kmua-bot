@@ -25,6 +25,9 @@ from kmua.logger import logger
 
 
 async def init_data(app: Application):
+    """
+    初始化数据
+    """
     logger.info("initing...")
     await app.bot.set_my_commands(
         [
@@ -43,7 +46,10 @@ async def init_data(app: Application):
     logger.success("started bot")
 
 
-async def stop(app: Application):
+async def stop(_: Application):
+    """
+    关闭数据库连接
+    """
     logger.debug("close database connection...")
     db.commit()
     db.close()
@@ -51,6 +57,9 @@ async def stop(app: Application):
 
 
 def run():
+    """
+    启动bot
+    """
     uvloop.install()
     token = settings.token
     defaults = Defaults(tzinfo=pytz.timezone("Asia/Shanghai"))

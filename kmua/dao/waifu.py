@@ -110,8 +110,7 @@ def put_user_waifu_in_chat(
             association.waifu_id = waifu.id
             commit()
             return True
-        else:
-            return False
+        return False
     else:
         association_dao.add_association_in_chat(chat, user, waifu)
         commit()

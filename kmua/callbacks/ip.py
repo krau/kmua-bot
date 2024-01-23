@@ -59,13 +59,14 @@ async def _get_ip_info(url: str) -> str:
         data = await client.get(
             url="http://ip-api.com/json/" + url,
             params={
-                "fields": "status,message,country,regionName,city,lat,lon,isp,org,as,mobile,proxy,hosting,query"
+                "fields": "status,message,country,regionName,"
+                "city,lat,lon,isp,org,as,mobile,proxy,hosting,query"
             },
         )
     ipinfo_json = data.json()
     if ipinfo_json["status"] == "fail":
         return "查询失败: " + ipinfo_json["message"]
-    elif ipinfo_json["status"] == "success":
+    if ipinfo_json["status"] == "success":
         ipinfo_list = [f"查询目标： `{url}`"]
         if ipinfo_json["query"] != url:
             ipinfo_list.extend(["解析地址： `" + ipinfo_json["query"] + "`"])

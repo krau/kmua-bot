@@ -12,6 +12,12 @@ _api_url = _api_url.removesuffix("/") if _api_url else None
 
 
 async def setu(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """
+    来张涩图
+
+    :param update: Update
+    :param context: Context
+    """
     logger.info(
         f"[{update.effective_chat.title}]({update.effective_user.name})"
         + f" {update.effective_message.text}"

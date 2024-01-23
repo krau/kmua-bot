@@ -58,7 +58,7 @@ async def quote(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     if dao.get_quote_by_link(quote_message_link):
         sent_message = await message.reply_markdown_v2(
-            "这条消息已经在语录中了哦" "\n_This message will be deleted in 10s_"
+            "这条消息已经在语录中了哦\n_This message will be deleted in 10s_"
         )
         logger.info(f"Bot: {sent_message.text}")
         context.job_queue.run_once(
@@ -164,7 +164,7 @@ async def set_quote_probability(update: Update, context: ContextTypes.DEFAULT_TY
         sent_message = await message.reply_text(except_text)
         logger.info(f"Bot: {sent_message.text}")
         return
-    if not (probability >= 0 and probability <= 1):
+    if not (0 <= probability <= 1):
         sent_message = await message.reply_text(except_text)
         logger.info(f"Bot: {sent_message.text}")
         return
@@ -220,8 +220,7 @@ async def random_quote(update: Update, context: ContextTypes.DEFAULT_TYPE):
     quotes = dao.get_chat_quotes(chat)
     if not quotes:
         return
-    quote = random.choice(quotes)
-    message_id = quote.message_id
+    message_id = random.choice(quotes).message_id
     try:
         sent_message = await chat.forward_to(
             chat_id=chat.id,
@@ -304,7 +303,7 @@ async def delete_quote_in_chat(update: Update, context: ContextTypes.DEFAULT_TYP
         )
 
 
-async def _chat_quote_manage(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def _chat_quote_manage(update: Update, _: ContextTypes.DEFAULT_TYPE):
     """
     分页管理本群的语录
     此功能只应该在 verify_user_can_manage_bot_in_chat 通过时被调用
@@ -339,9 +338,12 @@ async def _chat_quote_manage(update: Update, context: ContextTypes.DEFAULT_TYPE)
         quote_content = (
             escape_markdown(quote.text[:100], 2)
             if quote.text
-            else f"A non\-text message sent by {escape_markdown(quote.user.full_name,2)}"  # noqa: E501
+            else r"A non\-text message sent by"
+            f"{escape_markdown(quote.user.full_name,2)}"
         )
-        text += f"{index+1}\. [{quote_content}]({escape_markdown(quote.link,2)})\n\n"
+        text += (
+            rf"{index+1}\. " f"[{quote_content}]({escape_markdown(quote.link,2)})\n\n"
+        )
         # 每行5个按钮
         line.append(
             InlineKeyboardButton(
@@ -386,7 +388,7 @@ _result_button = InlineQueryResultsButton(
 )
 
 
-async def inline_query_quote(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def inline_query_quote(update: Update, _: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     query = update.inline_query.query
     logger.debug(f"{user.name} query: {query}")

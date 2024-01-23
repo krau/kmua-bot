@@ -184,14 +184,13 @@ async def _get_waifu_for_user(
     if not group_member:
         return None, False
     waifu_id = random.choice(group_member)
-    while retry := 0 < 3:
+    while (retry := 0) < 3:
         try:
             if waifu := dao.get_user_by_id(waifu_id):
                 return waifu, False
-            else:
-                waifu_chat = await context.bot.get_chat(waifu_id)
-                waifu = dao.add_user(waifu_chat)
-                return waifu, False
+            waifu_chat = await context.bot.get_chat(waifu_id)
+            waifu = dao.add_user(waifu_chat)
+            return waifu, False
         except Exception as e:
             logger.error(
                 f"Can not get chat for {waifu_id}: {e.__class__.__name__}: {e}"
@@ -204,7 +203,7 @@ async def _get_waifu_for_user(
 
 
 async def _get_chat_members_id_to_get_waifu(
-    update: Update, context: ContextTypes.DEFAULT_TYPE, user: User, chat: Chat
+    update: Update, _: ContextTypes.DEFAULT_TYPE, user: User, chat: Chat
 ) -> list[int]:
     group_member = dao.get_chat_users_without_bots_id(chat)
     married = dao.get_chat_married_users_id(chat)
@@ -370,7 +369,7 @@ async def marry_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 
-async def _agree_marry_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def _agree_marry_waifu(update: Update, _: ContextTypes.DEFAULT_TYPE):
     now_user = update.effective_user
     query = update.callback_query
     query_data = query.data.split(" ")
@@ -404,7 +403,7 @@ async def _agree_marry_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE)
     dao.put_user_waifu_in_chat(db_waifu, message.chat, db_user)
     waifu_mention = common.mention_markdown_v2(db_waifu)
     user_mention = common.mention_markdown_v2(db_user)
-    text = f"恭喜 {waifu_mention} 和 {user_mention} 结婚啦\~"
+    text = rf"恭喜 {waifu_mention} 和 {user_mention} 结婚啦\~"
     if message.photo:
         await message.edit_caption(
             caption=text,
@@ -417,7 +416,7 @@ async def _agree_marry_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE)
     )
 
 
-async def _refuse_marry_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def _refuse_marry_waifu(update: Update, _: ContextTypes.DEFAULT_TYPE):
     now_user = update.effective_user
     query = update.callback_query
     query_data = query.data.split(" ")
@@ -447,17 +446,19 @@ async def _refuse_marry_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE
     )
 
 
-async def _cancel_marry_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def _cancel_marry_waifu(update: Update, _: ContextTypes.DEFAULT_TYPE):
     now_user = update.effective_user
     query = update.callback_query
     query_data = query.data.split(" ")
     waifu_id = int(query_data[1])
     user_id = int(query_data[2])
     message = query.message
-    if now_user.id != user_id and now_user.id != waifu_id:
+    if now_user.id not in (waifu_id, user_id):
         await query.answer(
-            text="(￣ε(#￣) 别人的事情咱不要打扰呢", show_alert=True, cache_time=60
-        )  # noqa: E501
+            text="(￣ε(#￣) 别人的事情咱不要打扰呢",
+            show_alert=True,
+            cache_time=60,
+        )
         return
     db_waifu = dao.get_user_by_id(waifu_id)
     db_user = dao.get_user_by_id(user_id)

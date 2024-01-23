@@ -10,6 +10,13 @@ from kmua.logger import logger
 
 
 async def title(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """
+    获取头衔|互赠头衔
+
+    :param update: Update
+    :param context: Context
+    :raises e: Exception when unknown error
+    """
     user = update.effective_user
     chat = update.effective_chat
     logger.info(f"[{chat.title}]({user.name}) <title>")
@@ -57,7 +64,7 @@ async def title(update: Update, context: ContextTypes.DEFAULT_TYPE):
             text_when_have_replied_message = (
                 f"{user_mention}"
                 + f" 把 {replied_user.mention_markdown_v2()}"
-                + f" 变成{escape_markdown(custom_title,2)} \!"
+                + rf" 变成{escape_markdown(custom_title,2)} \!"
             )
         text = (
             f"好, 你现在是{escape_markdown(custom_title,2)}啦"
@@ -130,6 +137,12 @@ _title_permissions_markup = InlineKeyboardMarkup(
 
 
 async def set_title_permissions(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """
+    设置 /t 命令所赋予的权限
+
+    :param update: Update
+    :param context: Context
+    """
     user = update.effective_user
     chat = update.effective_chat
     logger.info(f"[{chat.title}]({user.name}) <set_title_permissions>")
@@ -159,6 +172,12 @@ async def set_title_permissions(update: Update, context: ContextTypes.DEFAULT_TY
 async def set_title_permissions_callback(
     update: Update, context: ContextTypes.DEFAULT_TYPE
 ):
+    """
+    设置 /t 命令所赋予的权限(callback query)
+
+    :param update: Update
+    :param context: Context
+    """
     user = update.effective_user
     chat = update.effective_chat
     logger.info(f"[{chat.title}]({user.name}) <set_title_permissions_callback>")

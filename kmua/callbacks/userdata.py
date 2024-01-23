@@ -20,7 +20,7 @@ _user_data_manage_markup = InlineKeyboardMarkup(
 )
 
 
-async def user_data_manage(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def user_data_manage(update: Update, _: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     query = update.callback_query
     logger.info(f"({user.name}) <user data manage>")
@@ -240,7 +240,7 @@ async def _divorce_ask(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 
-async def _divorce_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def _divorce_confirm(update: Update, _: ContextTypes.DEFAULT_TYPE):
     db_user = dao.get_user_by_id(update.effective_user.id)
     query = update.callback_query
     married_waifu = dao.get_user_by_id(db_user.married_waifu_id)
@@ -257,7 +257,8 @@ async def _divorce_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply_markup=common.back_home_markup,
     )
     logger.debug(
-        f"{db_user.full_name}<{db_user.id}> divorced {married_waifu.full_name}<{married_waifu.id}>"  # noqa: E501
+        f"{db_user.full_name}<{db_user.id}> divorced "
+        + f"{married_waifu.full_name}<{married_waifu.id}>"
     )
 
 
@@ -275,7 +276,7 @@ async def delete_user_quote(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await _user_quote_manage(update, context)
 
 
-async def _user_quote_manage(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def _user_quote_manage(update: Update, _: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     query = update.callback_query
     logger.info(f"({user.name}) <user quote manage>")
@@ -284,9 +285,7 @@ async def _user_quote_manage(update: Update, context: ContextTypes.DEFAULT_TYPE)
     quotes_count = dao.get_user_quotes_count(user)
     max_page = ceil(quotes_count / page_size)
     if quotes_count == 0:
-        caption = (
-            "已经没有语录啦" if "delete_user_quote" in query.data else "你没有语录呢"
-        )  # noqa: E501
+        caption = "已经没有语录啦" if "delete_user_quote" in query.data else "你没有语录呢"
         await query.edit_message_caption(
             caption=caption,
             reply_markup=common.no_quote_markup,
@@ -303,9 +302,11 @@ async def _user_quote_manage(update: Update, context: ContextTypes.DEFAULT_TYPE)
         quote_content = (
             escape_markdown(quote.text[:100], 2)
             if quote.text
-            else "A non\-text message"
+            else r"A non\-text message"
         )
-        text += f"{index + 1}\. [{quote_content}]({escape_markdown(quote.link,2)})\n\n"
+        text += (
+            rf"{index + 1}\. " f"[{quote_content}]({escape_markdown(quote.link,2)})\n\n"
+        )
 
         line.append(
             InlineKeyboardButton(
@@ -324,7 +325,7 @@ async def _user_quote_manage(update: Update, context: ContextTypes.DEFAULT_TYPE)
     )
 
 
-async def _qer_quote_manage(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def _qer_quote_manage(update: Update, _: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     query = update.callback_query
     logger.info(f"({user.name}) <qer quote manage>")
@@ -347,9 +348,11 @@ async def _qer_quote_manage(update: Update, context: ContextTypes.DEFAULT_TYPE):
         quote_content = (
             escape_markdown(quote.text[:100], 2)
             if quote.text
-            else "A non\-text message"
+            else r"A non\-text message"
         )
-        text += f"{index + 1}\. [{quote_content}]({escape_markdown(quote.link,2)})\n\n"
+        text += (
+            rf"{index + 1}\. " f"[{quote_content}]({escape_markdown(quote.link,2)})\n\n"
+        )
     keyboard = []
     keyboard.append(common.get_qer_quote_navigation_buttons(page))
     reply_markup = InlineKeyboardMarkup(keyboard)

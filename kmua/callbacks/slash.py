@@ -44,7 +44,7 @@ async def slash(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     if is_backslash is None:
         return
-    is_one_cmd = True if len(message.text.split(" ")) == 1 else False
+    is_one_cmd = len(message.text.split(" ")) == 1
     cmd1 = escape_markdown(replace_special_char(message.text.split(" ")[0][1:]), 2)
     if not cmd1:
         return
@@ -54,29 +54,29 @@ async def slash(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         text = (
             (
-                f"{replied_mention} {cmd1} {this_mention} {cmd2} \!"
+                rf"{replied_mention} {cmd1} {this_mention} {cmd2} \!"
                 if replied_user
-                else f"{this_mention} {cmd1}自己{cmd2} \!"  # 好像和line73一样, 暂时没有其他 idea
+                else rf"{this_mention} {cmd1}自己{cmd2} \!"  # 好像和line73一样, 暂时没有其他 idea
             )
             if is_backslash
             else (
-                f"{this_mention} {cmd1} {replied_mention} {cmd2} \!"
+                rf"{this_mention} {cmd1} {replied_mention} {cmd2} \!"
                 if replied_user
-                else f"{this_mention} {cmd1}自己{cmd2} \!"
+                else rf"{this_mention} {cmd1}自己{cmd2} \!"
             )
         )
     else:
         text = (
             (
-                f"{this_mention} 被 {replied_mention} {cmd1}了 \!"
+                rf"{this_mention} 被 {replied_mention} {cmd1}了 \!"
                 if replied_user
-                else f"{this_mention} 被自己{cmd1}了 \!"
+                else rf"{this_mention} 被自己{cmd1}了 \!"
             )
             if is_backslash
             else (
-                f"{this_mention} {cmd1}了 {replied_mention} \!"
+                rf"{this_mention} {cmd1}了 {replied_mention} \!"
                 if replied_user
-                else f"{this_mention} {cmd1}了自己 \!"
+                else rf"{this_mention} {cmd1}了自己 \!"
             )
         )
     # 在中英文之间加空格

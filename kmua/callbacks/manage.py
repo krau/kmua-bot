@@ -17,10 +17,9 @@ _manage_markup = InlineKeyboardMarkup(
 
 async def manage(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat = update.effective_chat
-    if chat.type == chat.GROUP or chat.type == chat.SUPERGROUP:
+    if chat.type in (chat.GROUP, chat.SUPERGROUP):
         await chat_data_manage(update, context)
         return
-    # TODO: manage bot in private chat
     if not common.verify_user_can_manage_bot(update.effective_user):
         return
     if context.bot_data.get("lock_manage_bot", False):
@@ -138,7 +137,7 @@ async def leave_chat(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not common.verify_user_can_manage_bot(user):
         return
     chat = update.effective_chat
-    if chat.type == chat.GROUP or chat.type == chat.SUPERGROUP:
+    if chat.type in (chat.GROUP, chat.SUPERGROUP):
         await context.bot.leave_chat(chat.id)
         return
     if not context.args:

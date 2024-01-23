@@ -6,7 +6,7 @@ from kmua import dao
 from kmua.logger import logger
 
 
-def message_recorder(update: Update, context: ContextTypes.DEFAULT_TYPE):
+def message_recorder(update: Update, _: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     chat = update.effective_chat
     message = update.effective_message
@@ -21,7 +21,7 @@ def message_recorder(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if message.sender_chat:
         user = message.sender_chat
     db_user = dao.add_user(user)
-    if chat.type == ChatType.GROUP or chat.type == ChatType.SUPERGROUP:
+    if chat.type in (chat.GROUP, chat.SUPERGROUP):
         dao.add_chat(chat)
         dao.add_association_in_chat(chat, db_user)
 

@@ -21,7 +21,7 @@ def add_user(user: User | UserData | Chat | ChatData) -> UserData:
     if userdata := get_user_by_id(user.id):
         return userdata
     userdata = None
-    if isinstance(user, Chat) or isinstance(user, ChatData):
+    if isinstance(user, (Chat, ChatData)):
         userdata = UserData(
             id=user.id,
             username=user.username,

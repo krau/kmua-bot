@@ -64,7 +64,7 @@ def _load_word_dict():
     for file in glob.glob(f"{word_dict_path_internal}" + r"/*.json"):
         logger.debug(f"加载内置词库: {file}")
         try:
-            with open(file, "r") as f:
+            with open(file, "r", encoding="utf-8") as f:
                 for k, v in json.load(f).items():
                     if k in word_dict:
                         word_dict[k].extend(v)
@@ -77,7 +77,7 @@ def _load_word_dict():
         for file in glob.glob(f"{word_dict_path_user}" + r"/*.json"):
             logger.debug(f"加载用户词库: {file}")
             try:
-                with open(file, "r") as f:
+                with open(file, "r", encoding="utf-8") as f:
                     for k, v in json.load(f).items():
                         if k in word_dict:
                             word_dict[k].extend(v)
