@@ -1,3 +1,4 @@
+import re
 from math import ceil
 
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, InputMediaPhoto, Update
@@ -71,12 +72,12 @@ async def user_data_refresh(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.application.drop_user_data(user.id)
     username = user.username
     full_name = user.full_name
-    avatar_big_blog = await common.download_big_avatar(user.id, context)
-    avatar_small_blog = await common.download_small_avatar(user.id, context)
+    avatar_big_blob = await common.download_big_avatar(user.id, context)
+    avatar_small_blob = await common.download_small_avatar(user.id, context)
     avatar_big_id = None
-    if avatar_big_blog:
+    if avatar_big_blob:
         sent_message = await update.effective_chat.send_photo(
-            photo=avatar_big_blog,
+            photo=avatar_big_blob,
             caption="此消息用于获取头像缓存 id",
         )
         avatar_big_id = sent_message.photo[-1].file_id
@@ -84,8 +85,8 @@ async def user_data_refresh(update: Update, context: ContextTypes.DEFAULT_TYPE):
     db_user = dao.get_user_by_id(user.id)
     db_user.username = username
     db_user.full_name = full_name
-    db_user.avatar_big_blob = avatar_big_blog
-    db_user.avatar_small_blob = avatar_small_blog
+    db_user.avatar_big_blob = avatar_big_blob
+    db_user.avatar_small_blob = avatar_small_blob
     db_user.avatar_big_id = avatar_big_id
     dao.commit()
     info = common.get_user_info(user)
@@ -103,6 +104,78 @@ async def user_data_refresh(update: Update, context: ContextTypes.DEFAULT_TYPE):
         caption=info,
         reply_markup=_user_data_manage_markup,
     )
+
+
+async def refresh_user_data_by_id(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """
+    通过 id 手动刷新用户数据
+    具有 bot 全局管理权限可刷新任意数据
+    否则只能刷新 user.is_real_user 为 False 的用户数据
+    """
+    logger.info(f"({update.effective_user.name}): {update.message.text}")
+    if not context.args:
+        await update.effective_message.reply_text("请输入用户 id")
+        return
+
+    chat_id = context.args[0]
+    if not re.match(r"^-?\d+$", chat_id):
+        await update.effective_message.reply_text("请不要输入奇怪的东西")
+        return
+
+    user = update.effective_user
+
+    if context.bot_data.get(user.id, {}).get("user_data_refresh_cd", False):
+        await update.effective_message.reply_text("技能冷却中...")
+        return
+    if not context.bot_data.get(user.id, {}):
+        context.bot_data[user.id] = {}
+    context.bot_data[user.id]["user_data_refresh_cd"] = True
+    context.job_queue.run_once(
+        callback=reset_user_cd,
+        when=600,
+        data={"cd_name": "user_data_refresh_cd"},
+        user_id=user.id,
+    )
+
+    is_channel = chat_id.startswith("-")
+    chat_id = int(chat_id)
+
+    if not is_channel and not common.verify_user_can_manage_bot(user):
+        await update.effective_message.reply_text("你只能使用该命令刷新频道或机器人用户数据")
+        return
+
+    db_user = dao.get_user_by_id(chat_id)
+    if not db_user:
+        await update.effective_message.reply_text("用户不存在")
+        return
+
+    target = await context.bot.get_chat(chat_id)
+    avatar_big_blob = await common.download_big_avatar(chat_id, context)
+    avatar_small_blob = await common.download_small_avatar(chat_id, context)
+    avatar_big_id = None
+
+    sent_message = None
+    if avatar_big_blob:
+        sent_message = await update.effective_message.reply_photo(
+            photo=avatar_big_blob,
+            caption="此消息用于获取头像缓存 id",
+        )
+        avatar_big_id = sent_message.photo[-1].file_id
+
+    db_user.username = target.username
+    db_user.full_name = target.full_name or target.title
+    db_user.avatar_big_blob = avatar_big_blob
+    db_user.avatar_small_blob = avatar_small_blob
+    db_user.avatar_big_id = avatar_big_id
+    dao.commit()
+
+    info = common.get_user_info(target) + "\n刷新成功"
+    if avatar_big_id and sent_message:
+        await sent_message.edit_caption(
+            caption=info,
+        )
+        return
+    await update.effective_message.reply_text(info)
 
 
 async def user_waifu_manage(update: Update, context: ContextTypes.DEFAULT_TYPE):

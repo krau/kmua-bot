@@ -176,17 +176,20 @@ def get_user_info(user: User | UserData) -> str:
     logger.debug(f"Get user info for {user.full_name}<{user.id}>")
     db_user = dao.add_user(user)
     info = f"""
-id: {db_user.id}
-username: {db_user.username}
-full_name: {db_user.full_name}
-头像缓存id(大尺寸): {True if db_user.avatar_big_id else None}
-头像(大尺寸): {True if db_user.avatar_big_blob else None}
-头像(小尺寸): {True if db_user.avatar_small_blob else None}
-已结婚: {db_user.is_married}
-已结婚的老婆id: {db_user.married_waifu_id}
-是否为bot全局管理: {db_user.is_bot_global_admin}
-created_at: {db_user.created_at.strftime("%Y-%m-%d %H:%M:%S")}
-updated_at: {db_user.updated_at.strftime("%Y-%m-%d %H:%M:%S")}
+id:    {db_user.id}
+username:    {db_user.username}
+full_name:    {db_user.full_name}
+头像缓存id(大尺寸):    {True if db_user.avatar_big_id else None}
+头像(大尺寸):    {True if db_user.avatar_big_blob else None}
+头像(小尺寸):    {True if db_user.avatar_small_blob else None}
+已结婚:    {db_user.is_married}
+已结婚的老婆id:    {db_user.married_waifu_id}
+是否允许被老婆提及:    {db_user.waifu_mention}
+是否为bot:    {db_user.is_bot}
+是否为真实用户:    {db_user.is_real_user}
+是否为bot全局管理:    {db_user.is_bot_global_admin}
+created_at:    {db_user.created_at.strftime("%Y-%m-%d %H:%M:%S")}
+updated_at:    {db_user.updated_at.strftime("%Y-%m-%d %H:%M:%S")}
 """
     return info
 

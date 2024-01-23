@@ -107,6 +107,9 @@ switch_delete_events_handler = CommandHandler(
     filters=filters.ChatType.GROUPS,
 )
 ip_handler = CommandHandler("ip", ip.ipinfo)
+refresh_user_data_by_id_handler = CommandHandler(
+    "refresh", userdata.refresh_user_data_by_id
+)
 
 
 # CallbackQueryHandlers
@@ -225,6 +228,7 @@ command_handlers = [
     switch_waifu_handler,
     switch_delete_events_handler,
     ip_handler,
+    refresh_user_data_by_id_handler,
 ]
 
 chatdata_handlers = [
