@@ -16,10 +16,7 @@ async def title(update: Update, context: ContextTypes.DEFAULT_TYPE):
     message = update.effective_message
     user = message.sender_chat if message.sender_chat else user
     user_mention = ""
-    try:
-        user_mention = user.mention_markdown_v2()
-    except TypeError:
-        user_mention = f"[{escape_markdown(user.title,2)}](tg://user?id={user.id})"
+    user_mention = common.mention_markdown_v2(user)
     replied_user = None
     replied_message = None
     custom_title = " ".join(context.args) if context.args else None
@@ -71,7 +68,9 @@ async def title(update: Update, context: ContextTypes.DEFAULT_TYPE):
         text = re.sub(r"([a-zA-Z])([\u4e00-\u9fa5])", r"\1 \2", text)
         text = re.sub(r"([\u4e00-\u9fa5])([a-zA-Z])", r"\1 \2", text)
 
-        sent_message = await message.reply_markdown_v2(text=text)
+        sent_message = await message.reply_markdown_v2(
+            text=text, disable_web_page_preview=True
+        )
         logger.info(f"Bot: {sent_message.text}")
     except BadRequest as e:
         if e.message == "Not enough rights":

@@ -193,4 +193,9 @@ updated_at: {db_user.updated_at.strftime("%Y-%m-%d %H:%M:%S")}
 
 def mention_markdown_v2(user: User | UserData | Chat | ChatData) -> str:
     db_user = dao.add_user(user)
-    return f"[{escape_markdown(db_user.full_name,2)}](tg://user?id={db_user.id})"
+    if not db_user.is_real_user and db_user.username is not None:
+        return (
+            f"[{escape_markdown(db_user.full_name,2)}](https://t.me/{db_user.username})"
+        )
+    else:
+        return f"[{escape_markdown(db_user.full_name,2)}](tg://user?id={db_user.id})"

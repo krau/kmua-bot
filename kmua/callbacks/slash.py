@@ -25,12 +25,7 @@ async def slash(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = ""
     message = update.effective_message
     this_user = message.sender_chat if message.sender_chat else message.from_user
-    try:
-        this_mention = this_user.mention_markdown_v2()
-    except TypeError:
-        this_mention = (
-            f"[{escape_markdown(this_user.title,2)}](tg://user?id={this_user.id})"
-        )
+    this_mention = common.mention_markdown_v2(this_user)
     replied_user = None
     replied_mention = ""
     if reply_to_message := update.effective_message.reply_to_message:
@@ -39,10 +34,7 @@ async def slash(update: Update, context: ContextTypes.DEFAULT_TYPE):
             if reply_to_message.sender_chat
             else reply_to_message.from_user
         )
-        try:
-            replied_mention = replied_user.mention_markdown_v2()
-        except TypeError:
-            replied_mention = f"[{escape_markdown(replied_user.title,2)}](tg://user?id={replied_user.id})"
+        replied_mention = common.mention_markdown_v2(replied_user)
     is_backslash = (
         False
         if message.text.startswith("/")
@@ -64,7 +56,7 @@ async def slash(update: Update, context: ContextTypes.DEFAULT_TYPE):
             (
                 f"{replied_mention} {cmd1} {this_mention} {cmd2} \!"
                 if replied_user
-                else f"{this_mention} {cmd1}自己{cmd2} \!" # 好像和line73一样, 暂时没有其他 idea
+                else f"{this_mention} {cmd1}自己{cmd2} \!"  # 好像和line73一样, 暂时没有其他 idea
             )
             if is_backslash
             else (

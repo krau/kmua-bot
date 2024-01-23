@@ -124,7 +124,7 @@ async def today_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         waifu_markup = common.get_waifu_markup(waifu, user)
         text = common.get_waifu_text(waifu, is_got_waifu)
         if user.id == waifu.married_waifu_id:
-            text = f"你和 [{escape_markdown(waifu.full_name,2)}](tg://user?id={waifu.id}) 已经结婚了哦, 还想娶第二遍嘛?"  # noqa: E501
+            text = f"你和 {common.mention_markdown_v2(waifu)} 已经结婚了哦, 还想娶第二遍嘛?"
             waifu_markup = None
             if is_waifu_in_chat:
                 dao.put_user_waifu_in_chat(waifu, chat, user)
