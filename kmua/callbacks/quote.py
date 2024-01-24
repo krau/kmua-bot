@@ -205,7 +205,7 @@ async def random_quote(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     message = update.effective_message
     logger.info(
-        f"[{chat.title}({chat.id})]<{user.name}>"
+        f"[{chat.title}({chat.id})({chat.username})]<{user.name}>"
         + (f" {message.text}" if message.text else "<非文本消息>")
     )
     common.message_recorder(update, context)

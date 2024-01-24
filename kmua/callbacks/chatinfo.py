@@ -1,4 +1,4 @@
-from telegram import Update
+from telegram import Update, Chat
 from telegram.constants import ParseMode
 from telegram.ext import ContextTypes
 
@@ -12,7 +12,7 @@ async def getid(update: Update, _: ContextTypes.DEFAULT_TYPE):
     message = update.effective_message
     user = message.sender_chat or message.from_user
     logger.info(
-        f"[{update.effective_chat.title}]({user.title if user.title else user.name})"
+        f"[{update.effective_chat.title}]({user.title if isinstance(user,Chat) else user.name})"
         + f" {message.text}"
     )
     if target_message := message.reply_to_message:
