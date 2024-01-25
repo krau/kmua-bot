@@ -111,10 +111,9 @@ def put_user_waifu_in_chat(
             commit()
             return True
         return False
-    else:
-        association_dao.add_association_in_chat(chat, user, waifu)
-        commit()
-        return True
+    association_dao.add_association_in_chat(chat, user, waifu)
+    commit()
+    return True
 
 
 def refresh_user_waifu_in_chat(user: User | UserData, chat: Chat | ChatData):

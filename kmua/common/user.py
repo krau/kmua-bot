@@ -28,8 +28,7 @@ async def get_big_avatar_bytes(
             db_user.avatar_big_blob = avatar
             dao.commit()
         return avatar
-    else:
-        return await download_big_avatar(chat_id, context)
+    return await download_big_avatar(chat_id, context)
 
 
 async def download_big_avatar(
@@ -62,8 +61,7 @@ async def get_small_avatar_bytes(
             db_user.avatar_small_blob = avatar
             dao.commit()
         return avatar
-    else:
-        return await download_small_avatar(chat_id, context)
+    return await download_small_avatar(chat_id, context)
 
 
 async def download_small_avatar(
