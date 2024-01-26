@@ -149,3 +149,13 @@ def update_chat_delete_events_enabled(chat: Chat | ChatData, enabled: bool):
     _db_chat = add_chat(chat)
     _db_chat.delete_events_enabled = enabled
     commit()
+
+
+def get_chat_unpin_channel_pin_enabled(chat: Chat | ChatData) -> bool:
+    _db_chat = add_chat(chat)
+    return _db_chat.unpin_channel_pin_enabled
+
+def update_chat_unpin_channel_pin_enabled(chat: Chat | ChatData, enabled: bool):
+    _db_chat = add_chat(chat)
+    _db_chat.unpin_channel_pin_enabled = enabled
+    commit()

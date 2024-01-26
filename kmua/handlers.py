@@ -21,6 +21,7 @@ from .callbacks import (
     ip,
     keyword_reply,
     manage,
+    pin,
     quote,
     remake,
     setu,
@@ -110,6 +111,11 @@ ip_handler = CommandHandler("ip", ip.ipinfo)
 refresh_user_data_by_id_handler = CommandHandler(
     "refresh", userdata.refresh_user_data_by_id
 )
+switch_unpin_channel_pin_handler = CommandHandler(
+    "switch_unpin_channel_pin",
+    pin.switch_unpin_channel_pin,
+    filters=filters.ChatType.GROUPS,
+)
 
 
 # CallbackQueryHandlers
@@ -184,6 +190,9 @@ delete_event_message_handler = MessageHandler(
     (kmua_filters.service_message_filter & filters.ChatType.SUPERGROUP),
     delete_events.delete_event_message,
 )
+unpin_channel_pin_handler = MessageHandler(
+    kmua_filters.auto_forward_filter, pin.unpin_channel_pin
+)
 
 callback_query_handlers = [
     user_data_manage_handler,
@@ -229,6 +238,7 @@ command_handlers = [
     switch_delete_events_handler,
     ip_handler,
     refresh_user_data_by_id_handler,
+    switch_unpin_channel_pin_handler,
 ]
 
 chatdata_handlers = [
@@ -244,6 +254,7 @@ message_handlers = [
     keyword_reply_handler,
     sticker2img_handler,
     delete_event_message_handler,
+    unpin_channel_pin_handler,
     random_quote_handler,
 ]
 

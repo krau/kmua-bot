@@ -99,6 +99,18 @@ class ServiceMessageFilter(MessageFilter):
         if any(getattr(message, attr) for attr in _service_message_attr):
             return True
         return False
+    
+
+class AutoForwardFilter(MessageFilter):
+    """
+    Filter messages that are auto forwarded.
+    """
+    def filter(self, message: Message) -> bool | FilterDataDict | None:
+        if message.chat.type not in [message.chat.GROUP, message.chat.SUPERGROUP]:
+            return False
+        if message.is_automatic_forward:
+            return True
+        return False
 
 
 mention_or_private_filter = MentionBotFilter() | filters.ChatType.PRIVATE
@@ -107,3 +119,4 @@ keyword_reply_filter = (
     TextLengthFilter(min_length=1, max_length=200) & ~slash_filter
 ) & (ReplyBotFilter() | MentionBotFilter() | filters.ChatType.PRIVATE)
 service_message_filter = ServiceMessageFilter()
+auto_forward_filter = AutoForwardFilter()
