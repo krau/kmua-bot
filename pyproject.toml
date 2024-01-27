@@ -1,7 +1,7 @@
 [tool.poetry]
 name = "kmua"
-version = "2.2.0"
-description = ""
+version = "2.3.0"
+description = "A Telegram Bot"
 authors = ["krau <me@krau.top>"]
 readme = "README.md"
 license = "MIT"
@@ -31,7 +31,11 @@ loguru = "^0.7.2"
 greenlet = "^3.0.0"
 mysql-connector-python = "^8.1.0"
 alembic = "^1.13.0"
+uvloop = "^0.19.0"
 
+
+[tool.poetry.group.dev.dependencies]
+pylint = "^3.0.3"
 
 [build-system]
 requires = ["poetry-core"]

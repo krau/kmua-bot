@@ -1,8 +1,9 @@
 from sqlalchemy import create_engine
 from sqlalchemy.orm import scoped_session, sessionmaker
-from kmua.models.models import Base
-from kmua.config import settings, data_dir
+
+from kmua.config import data_dir, settings
 from kmua.logger import logger
+from kmua.models.models import Base
 
 engine = create_engine(settings.DB_URL)
 _session = scoped_session(sessionmaker(autoflush=False, bind=engine))

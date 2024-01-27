@@ -18,8 +18,10 @@ from .callbacks import (
     chatmember,
     delete_events,
     help,
+    ip,
     keyword_reply,
     manage,
+    pin,
     quote,
     remake,
     setu,
@@ -105,6 +107,15 @@ switch_delete_events_handler = CommandHandler(
     delete_events.switch_delete_events,
     filters=filters.ChatType.GROUPS,
 )
+ip_handler = CommandHandler("ip", ip.ipinfo)
+refresh_user_data_by_id_handler = CommandHandler(
+    "refresh", userdata.refresh_user_data_by_id
+)
+switch_unpin_channel_pin_handler = CommandHandler(
+    "switch_unpin_channel_pin",
+    pin.switch_unpin_channel_pin,
+    filters=filters.ChatType.GROUPS,
+)
 
 
 # CallbackQueryHandlers
@@ -179,6 +190,9 @@ delete_event_message_handler = MessageHandler(
     (kmua_filters.service_message_filter & filters.ChatType.SUPERGROUP),
     delete_events.delete_event_message,
 )
+unpin_channel_pin_handler = MessageHandler(
+    kmua_filters.auto_forward_filter, pin.unpin_channel_pin
+)
 
 callback_query_handlers = [
     user_data_manage_handler,
@@ -222,6 +236,9 @@ command_handlers = [
     setu_handler,
     switch_waifu_handler,
     switch_delete_events_handler,
+    ip_handler,
+    refresh_user_data_by_id_handler,
+    switch_unpin_channel_pin_handler,
 ]
 
 chatdata_handlers = [
@@ -237,6 +254,7 @@ message_handlers = [
     keyword_reply_handler,
     sticker2img_handler,
     delete_event_message_handler,
+    unpin_channel_pin_handler,
     random_quote_handler,
 ]
 
@@ -244,6 +262,9 @@ other_handlers = [inline_query_handler]
 
 
 async def on_error(update, context):
+    """
+    出现未被处理的错误时回调
+    """
     error = context.error
     # 如果聊天限制了 bot 发送消息, 忽略
     if error.__class__.__name__ == "BadRequest":

@@ -1,18 +1,17 @@
 from sqlalchemy import (
-    LargeBinary,
+    BigInteger,
     Boolean,
     CheckConstraint,
     Column,
     DateTime,
     Float,
     ForeignKey,
-    BigInteger,
+    LargeBinary,
     String,
     func,
 )
-from sqlalchemy.orm import relationship
 from sqlalchemy.ext.declarative import declarative_base
-
+from sqlalchemy.orm import relationship
 
 Base = declarative_base()
 
@@ -74,6 +73,7 @@ class ChatData(Base):
     id = Column(BigInteger, primary_key=True, index=True, autoincrement=False)
     waifu_disabled = Column(Boolean, default=False)
     delete_events_enabled = Column(Boolean, default=False)
+    unpin_channel_pin_enabled = Column(Boolean, default=False)
     quote_probability = Column(Float, default=0.001)
     title = Column(String(128), nullable=False)
     members = relationship(

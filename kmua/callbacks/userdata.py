@@ -1,14 +1,14 @@
+import re
 from math import ceil
 
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, InputMediaPhoto, Update
 from telegram.ext import ContextTypes
 from telegram.helpers import escape_markdown
 
-from .jobs import reset_user_cd
+from kmua import common, dao
 from kmua.logger import logger
-import kmua.dao as dao
-import kmua.common as common
 
+from .jobs import reset_user_cd
 
 _user_data_manage_markup = InlineKeyboardMarkup(
     [
@@ -20,7 +20,7 @@ _user_data_manage_markup = InlineKeyboardMarkup(
 )
 
 
-async def user_data_manage(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def user_data_manage(update: Update, _: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     query = update.callback_query
     logger.info(f"({user.name}) <user data manage>")
@@ -72,12 +72,12 @@ async def user_data_refresh(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.application.drop_user_data(user.id)
     username = user.username
     full_name = user.full_name
-    avatar_big_blog = await common.download_big_avatar(user.id, context)
-    avatar_small_blog = await common.download_small_avatar(user.id, context)
+    avatar_big_blob = await common.download_big_avatar(user.id, context)
+    avatar_small_blob = await common.download_small_avatar(user.id, context)
     avatar_big_id = None
-    if avatar_big_blog:
+    if avatar_big_blob:
         sent_message = await update.effective_chat.send_photo(
-            photo=avatar_big_blog,
+            photo=avatar_big_blob,
             caption="此消息用于获取头像缓存 id",
         )
         avatar_big_id = sent_message.photo[-1].file_id
@@ -85,8 +85,8 @@ async def user_data_refresh(update: Update, context: ContextTypes.DEFAULT_TYPE):
     db_user = dao.get_user_by_id(user.id)
     db_user.username = username
     db_user.full_name = full_name
-    db_user.avatar_big_blob = avatar_big_blog
-    db_user.avatar_small_blob = avatar_small_blog
+    db_user.avatar_big_blob = avatar_big_blob
+    db_user.avatar_small_blob = avatar_small_blob
     db_user.avatar_big_id = avatar_big_id
     dao.commit()
     info = common.get_user_info(user)
@@ -104,6 +104,78 @@ async def user_data_refresh(update: Update, context: ContextTypes.DEFAULT_TYPE):
         caption=info,
         reply_markup=_user_data_manage_markup,
     )
+
+
+async def refresh_user_data_by_id(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """
+    通过 id 手动刷新用户数据
+    具有 bot 全局管理权限可刷新任意数据
+    否则只能刷新 user.is_real_user 为 False 的用户数据
+    """
+    logger.info(f"({update.effective_user.name}): {update.message.text}")
+    if not context.args:
+        await update.effective_message.reply_text("请输入用户 id")
+        return
+
+    chat_id = context.args[0]
+    if not re.match(r"^-?\d+$", chat_id):
+        await update.effective_message.reply_text("请不要输入奇怪的东西")
+        return
+
+    user = update.effective_user
+
+    if context.bot_data.get(user.id, {}).get("user_data_refresh_cd", False):
+        await update.effective_message.reply_text("技能冷却中...")
+        return
+    if not context.bot_data.get(user.id, {}):
+        context.bot_data[user.id] = {}
+    context.bot_data[user.id]["user_data_refresh_cd"] = True
+    context.job_queue.run_once(
+        callback=reset_user_cd,
+        when=600,
+        data={"cd_name": "user_data_refresh_cd"},
+        user_id=user.id,
+    )
+
+    is_channel = chat_id.startswith("-")
+    chat_id = int(chat_id)
+
+    if not is_channel and not common.verify_user_can_manage_bot(user):
+        await update.effective_message.reply_text("你只能使用该命令刷新频道或机器人用户数据")
+        return
+
+    db_user = dao.get_user_by_id(chat_id)
+    if not db_user:
+        await update.effective_message.reply_text("用户不存在")
+        return
+
+    target = await context.bot.get_chat(chat_id)
+    avatar_big_blob = await common.download_big_avatar(chat_id, context)
+    avatar_small_blob = await common.download_small_avatar(chat_id, context)
+    avatar_big_id = None
+
+    sent_message = None
+    if avatar_big_blob:
+        sent_message = await update.effective_message.reply_photo(
+            photo=avatar_big_blob,
+            caption="此消息用于获取头像缓存 id",
+        )
+        avatar_big_id = sent_message.photo[-1].file_id
+
+    db_user.username = target.username
+    db_user.full_name = target.full_name or target.title
+    db_user.avatar_big_blob = avatar_big_blob
+    db_user.avatar_small_blob = avatar_small_blob
+    db_user.avatar_big_id = avatar_big_id
+    dao.commit()
+
+    info = common.get_user_info(target) + "\n刷新成功"
+    if avatar_big_id and sent_message:
+        await sent_message.edit_caption(
+            caption=info,
+        )
+        return
+    await update.effective_message.reply_text(info)
 
 
 async def user_waifu_manage(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -168,7 +240,7 @@ async def _divorce_ask(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 
-async def _divorce_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def _divorce_confirm(update: Update, _: ContextTypes.DEFAULT_TYPE):
     db_user = dao.get_user_by_id(update.effective_user.id)
     query = update.callback_query
     married_waifu = dao.get_user_by_id(db_user.married_waifu_id)
@@ -185,7 +257,8 @@ async def _divorce_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply_markup=common.back_home_markup,
     )
     logger.debug(
-        f"{db_user.full_name}<{db_user.id}> divorced {married_waifu.full_name}<{married_waifu.id}>"  # noqa: E501
+        f"{db_user.full_name}<{db_user.id}> divorced "
+        + f"{married_waifu.full_name}<{married_waifu.id}>"
     )
 
 
@@ -203,7 +276,7 @@ async def delete_user_quote(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await _user_quote_manage(update, context)
 
 
-async def _user_quote_manage(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def _user_quote_manage(update: Update, _: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     query = update.callback_query
     logger.info(f"({user.name}) <user quote manage>")
@@ -212,9 +285,7 @@ async def _user_quote_manage(update: Update, context: ContextTypes.DEFAULT_TYPE)
     quotes_count = dao.get_user_quotes_count(user)
     max_page = ceil(quotes_count / page_size)
     if quotes_count == 0:
-        caption = (
-            "已经没有语录啦" if "delete_user_quote" in query.data else "你没有语录呢"
-        )  # noqa: E501
+        caption = "已经没有语录啦" if "delete_user_quote" in query.data else "你没有语录呢"
         await query.edit_message_caption(
             caption=caption,
             reply_markup=common.no_quote_markup,
@@ -231,9 +302,11 @@ async def _user_quote_manage(update: Update, context: ContextTypes.DEFAULT_TYPE)
         quote_content = (
             escape_markdown(quote.text[:100], 2)
             if quote.text
-            else "A non\-text message"
+            else r"A non\-text message"
         )
-        text += f"{index + 1}\. [{quote_content}]({escape_markdown(quote.link,2)})\n\n"
+        text += (
+            rf"{index + 1}\. " f"[{quote_content}]({escape_markdown(quote.link,2)})\n\n"
+        )
 
         line.append(
             InlineKeyboardButton(
@@ -252,7 +325,7 @@ async def _user_quote_manage(update: Update, context: ContextTypes.DEFAULT_TYPE)
     )
 
 
-async def _qer_quote_manage(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def _qer_quote_manage(update: Update, _: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     query = update.callback_query
     logger.info(f"({user.name}) <qer quote manage>")
@@ -275,9 +348,11 @@ async def _qer_quote_manage(update: Update, context: ContextTypes.DEFAULT_TYPE):
         quote_content = (
             escape_markdown(quote.text[:100], 2)
             if quote.text
-            else "A non\-text message"
+            else r"A non\-text message"
         )
-        text += f"{index + 1}\. [{quote_content}]({escape_markdown(quote.link,2)})\n\n"
+        text += (
+            rf"{index + 1}\. " f"[{quote_content}]({escape_markdown(quote.link,2)})\n\n"
+        )
     keyboard = []
     keyboard.append(common.get_qer_quote_navigation_buttons(page))
     reply_markup = InlineKeyboardMarkup(keyboard)

@@ -5,7 +5,7 @@ from pathlib import Path
 
 import psutil
 
-import kmua.dao as dao
+from kmua import dao
 from kmua.config import data_dir, settings
 
 _database_path = Path(
@@ -22,16 +22,15 @@ Database Status:
     - Associations: {dao.get_all_associations_count()}
     """
     if settings.get("db_url").startswith("sqlite"):
-        db_status += f"""
-    - Size: {_database_path.stat().st_size / 1024 / 1024:.2f} MB
-        """
+        db_status += f"- Size: {_database_path.stat().st_size / 1024 / 1024:.2f} MB"
+    db_status += "\n"
     pid = os.getpid()
     p = psutil.Process(pid)
     process_status = f"""
 Process Status:
     - Memory: {p.memory_full_info().rss / 1024 / 1024:.2f} MB
     - Uptime: {(time.time() - p.create_time()) / 60 / 60:.2f} hours
-    - Python: {psutil.Process().exe()}
+    - Python: {platform.python_version()}
     """
     system_status = f"""
 System Status:

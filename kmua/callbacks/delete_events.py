@@ -1,11 +1,17 @@
 from telegram import Update
 from telegram.ext import ContextTypes
+
+from kmua import common, dao
 from kmua.logger import logger
-import kmua.common as common
-import kmua.dao as dao
 
 
 async def switch_delete_events(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """
+    开关删除事件消息功能
+
+    :param update: Update
+    :param context: Context
+    """
     user = update.effective_user
     chat = update.effective_chat
     message = update.effective_message
@@ -20,7 +26,13 @@ async def switch_delete_events(update: Update, context: ContextTypes.DEFAULT_TYP
     )
 
 
-async def delete_event_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def delete_event_message(update: Update, _: ContextTypes.DEFAULT_TYPE):
+    """
+    删除事件消息
+
+    :param update: Update
+    :param _: Context
+    """
     chat = update.effective_chat
     if not dao.get_chat_delete_events_enabled(chat):
         return

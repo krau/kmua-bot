@@ -1,22 +1,27 @@
+import asyncio
 import random
 
 from telegram import (
     Update,
 )
 from telegram.constants import ChatAction
+from telegram.error import BadRequest
 from telegram.ext import ContextTypes
 from zhconv import convert
 
-import asyncio
-
-import kmua.common as common
+from kmua import common
 from kmua.logger import logger
-from telegram.error import BadRequest
+
 from .friendship import ohayo, oyasumi
 
 
-
 async def keyword_reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """
+    关键词回复
+
+    :param update: Update
+    :param context: Context
+    """
     logger.info(
         f"[{update.effective_chat.title}]({update.effective_user.name})"
         + f" {update.effective_message.text}"

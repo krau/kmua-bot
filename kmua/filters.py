@@ -1,12 +1,15 @@
 from telegram import Message
+from telegram.ext import filters
 from telegram.ext.filters import (
     FilterDataDict,
     MessageFilter,
 )
-from telegram.ext import filters
 
 
 class SlashFilter(MessageFilter):
+    """
+    Filter messages starting with a slash or backslash.
+    """
     def filter(self, message: Message) -> bool | FilterDataDict | None:
         if not message.text:
             return False
@@ -22,6 +25,9 @@ class SlashFilter(MessageFilter):
 
 
 class TextLengthFilter(MessageFilter):
+    """
+    Filter messages with text length not in range [min_length, max_length].
+    """
     def __init__(
         self,
         name: str = None,
@@ -44,6 +50,9 @@ class TextLengthFilter(MessageFilter):
 
 
 class MentionBotFilter(MessageFilter):
+    """
+    Filter messages that mention the bot.
+    """
     def filter(self, message: Message) -> bool | FilterDataDict | None:
         if not message.text:
             return False
@@ -53,6 +62,9 @@ class MentionBotFilter(MessageFilter):
 
 
 class ReplyBotFilter(MessageFilter):
+    """
+    Filter messages that reply to the bot.
+    """
     def filter(self, message: Message) -> bool | FilterDataDict | None:
         if not message.reply_to_message:
             return False
@@ -80,8 +92,23 @@ _service_message_attr = [
 
 
 class ServiceMessageFilter(MessageFilter):
+    """
+    Filter service messages.
+    """
     def filter(self, message: Message) -> bool | FilterDataDict | None:
         if any(getattr(message, attr) for attr in _service_message_attr):
+            return True
+        return False
+    
+
+class AutoForwardFilter(MessageFilter):
+    """
+    Filter messages that are auto forwarded.
+    """
+    def filter(self, message: Message) -> bool | FilterDataDict | None:
+        if message.chat.type not in [message.chat.GROUP, message.chat.SUPERGROUP]:
+            return False
+        if message.is_automatic_forward:
             return True
         return False
 
@@ -92,3 +119,4 @@ keyword_reply_filter = (
     TextLengthFilter(min_length=1, max_length=200) & ~slash_filter
 ) & (ReplyBotFilter() | MentionBotFilter() | filters.ChatType.PRIVATE)
 service_message_filter = ServiceMessageFilter()
+auto_forward_filter = AutoForwardFilter()

@@ -7,11 +7,10 @@ from telegram.constants import ChatID, ChatMemberStatus, ChatType
 from telegram.ext import ContextTypes
 from telegram.helpers import escape_markdown
 
+from kmua import dao
 from kmua.config import settings
-import kmua.dao as dao
 from kmua.logger import logger
 from kmua.models.models import ChatData, UserData
-
 
 fake_users_id = [ChatID.FAKE_CHANNEL, ChatID.ANONYMOUS_ADMIN, ChatID.SERVICE_CHAT]
 
@@ -24,14 +23,12 @@ async def get_big_avatar_bytes(
     if db_user:
         if db_user.avatar_big_blob:
             return db_user.avatar_big_blob
-        else:
-            avatar = await download_big_avatar(chat_id, context)
-            if avatar:
-                db_user.avatar_big_blob = avatar
-                dao.commit()
-            return avatar
-    else:
-        return await download_big_avatar(chat_id, context)
+        avatar = await download_big_avatar(chat_id, context)
+        if avatar:
+            db_user.avatar_big_blob = avatar
+            dao.commit()
+        return avatar
+    return await download_big_avatar(chat_id, context)
 
 
 async def download_big_avatar(
@@ -59,14 +56,12 @@ async def get_small_avatar_bytes(
     if db_user:
         if db_user.avatar_small_blob:
             return db_user.avatar_small_blob
-        else:
-            avatar = await download_small_avatar(chat_id, context)
-            if avatar:
-                db_user.avatar_small_blob = avatar
-                dao.commit()
-            return avatar
-    else:
-        return await download_small_avatar(chat_id, context)
+        avatar = await download_small_avatar(chat_id, context)
+        if avatar:
+            db_user.avatar_small_blob = avatar
+            dao.commit()
+        return avatar
+    return await download_small_avatar(chat_id, context)
 
 
 async def download_small_avatar(
@@ -158,7 +153,8 @@ async def verify_user_can_manage_bot_in_chat(
     :return: bool
     """
     logger.debug(
-        f"Verify user {user.full_name}<{user.id}> can manage bot in {chat.title}<{chat.id}>"  # noqa: E501
+        f"Verify user {user.full_name}<{user.id}> "
+        f"can manage bot in {chat.title}<{chat.id}>"
     )
     if chat.type == ChatType.PRIVATE:
         return False
@@ -177,21 +173,30 @@ def get_user_info(user: User | UserData) -> str:
     logger.debug(f"Get user info for {user.full_name}<{user.id}>")
     db_user = dao.add_user(user)
     info = f"""
-id: {db_user.id}
-username: {db_user.username}
-full_name: {db_user.full_name}
-头像缓存id(大尺寸): {True if db_user.avatar_big_id else None}
-头像(大尺寸): {True if db_user.avatar_big_blob else None}
-头像(小尺寸): {True if db_user.avatar_small_blob else None}
-已结婚: {db_user.is_married}
-已结婚的老婆id: {db_user.married_waifu_id}
-是否为bot全局管理: {db_user.is_bot_global_admin}
-created_at: {db_user.created_at.strftime("%Y-%m-%d %H:%M:%S")}
-updated_at: {db_user.updated_at.strftime("%Y-%m-%d %H:%M:%S")}
+id:    {db_user.id}
+username:    {db_user.username}
+full_name:    {db_user.full_name}
+头像缓存id(大尺寸):    {True if db_user.avatar_big_id else None}
+头像(大尺寸):    {True if db_user.avatar_big_blob else None}
+头像(小尺寸):    {True if db_user.avatar_small_blob else None}
+已结婚:    {db_user.is_married}
+已结婚的老婆id:    {db_user.married_waifu_id}
+是否允许被老婆提及:    {db_user.waifu_mention}
+是否为bot:    {db_user.is_bot}
+是否为真实用户:    {db_user.is_real_user}
+是否为bot全局管理:    {db_user.is_bot_global_admin}
+created_at:    {db_user.created_at.strftime("%Y-%m-%d %H:%M:%S")}
+updated_at:    {db_user.updated_at.strftime("%Y-%m-%d %H:%M:%S")}
 """
     return info
 
 
 def mention_markdown_v2(user: User | UserData | Chat | ChatData) -> str:
+    if isinstance(user,(User,Chat)):
+        return user.mention_markdown_v2()
     db_user = dao.add_user(user)
+    if not db_user.is_real_user and db_user.username is not None:
+        return (
+            f"[{escape_markdown(db_user.full_name,2)}](https://t.me/{db_user.username})"
+        )
     return f"[{escape_markdown(db_user.full_name,2)}](tg://user?id={db_user.id})"

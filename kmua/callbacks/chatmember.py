@@ -3,12 +3,17 @@ import asyncio
 from telegram import Chat, ChatMember, ChatMemberUpdated, Update
 from telegram.ext import ContextTypes
 
-import kmua.common as common
-import kmua.dao as dao
+from kmua import common, dao
 from kmua.logger import logger
 
 
-def extract_status_change(chat_member_update: ChatMemberUpdated):
+def extract_status_change(chat_member_update: ChatMemberUpdated) -> tuple[bool, bool]:
+    """
+    Extracts the status change from a ChatMemberUpdated object.
+
+    :param chat_member_update: The ChatMemberUpdated object.
+    :return: A tuple of (old_status, new_status) or None if no change happened.
+    """
     status_change = chat_member_update.difference().get("status")
     old_is_member, new_is_member = chat_member_update.difference().get(
         "is_member", (None, None)
@@ -33,7 +38,12 @@ def extract_status_change(chat_member_update: ChatMemberUpdated):
 
 
 async def track_chats(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Tracks the chats the bot is in."""
+    """
+    Track chats the bot is added to or removed from.
+
+    :param update: Update
+    :param context: Context
+    """
     result = extract_status_change(update.my_chat_member)
     if result is None:
         return
@@ -71,13 +81,25 @@ async def track_chats(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         logger.debug(f"{cause_name} 将bot移出频道 {chat.title}")
 
 
-async def on_member_left(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def on_member_left(update: Update, _: ContextTypes.DEFAULT_TYPE):
+    """
+    Callback when a user leaves a chat.
+
+    :param update: Update
+    :param _: Context
+    """
     left_user = update.effective_message.left_chat_member
     logger.debug(f"{left_user.full_name} 退出了群聊 {update.effective_chat.title}")
     dao.delete_association_in_chat(update.effective_chat, left_user)
 
 
-async def on_member_join(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def on_member_join(update: Update, _: ContextTypes.DEFAULT_TYPE):
+    """
+    Callback when a user joins a chat.
+
+    :param update: Update
+    :param _: Context
+    """
     chat = update.effective_chat
     joined_user = update.effective_message.new_chat_members[0]
     logger.debug(f"{joined_user} 加入了群聊 {chat.title} ")
@@ -95,6 +117,12 @@ async def on_member_join(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def set_greet(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """
+    设置入群欢迎
+
+    :param update: Update
+    :param context: Context
+    """
     user = update.effective_user
     chat = update.effective_chat
     logger.info(f"[{chat.title}]({user.name}) <set_greet>")

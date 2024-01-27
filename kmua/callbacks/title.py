@@ -1,25 +1,29 @@
 import re
 
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.error import BadRequest
 from telegram.ext import ContextTypes
 from telegram.helpers import escape_markdown
-import kmua.common as common
 
-from ..logger import logger
+from kmua import common
+from kmua.logger import logger
 
 
 async def title(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """
+    获取头衔|互赠头衔
+
+    :param update: Update
+    :param context: Context
+    :raises e: Exception when unknown error
+    """
     user = update.effective_user
     chat = update.effective_chat
     logger.info(f"[{chat.title}]({user.name}) <title>")
     message = update.effective_message
     user = message.sender_chat if message.sender_chat else user
     user_mention = ""
-    try:
-        user_mention = user.mention_markdown_v2()
-    except TypeError:
-        user_mention = f"[{escape_markdown(user.title,2)}](tg://user?id={user.id})"
+    user_mention = common.mention_markdown_v2(user)
     replied_user = None
     replied_message = None
     custom_title = " ".join(context.args) if context.args else None
@@ -60,7 +64,7 @@ async def title(update: Update, context: ContextTypes.DEFAULT_TYPE):
             text_when_have_replied_message = (
                 f"{user_mention}"
                 + f" 把 {replied_user.mention_markdown_v2()}"
-                + f" 变成{escape_markdown(custom_title,2)} \!"
+                + rf" 变成{escape_markdown(custom_title,2)} \!"
             )
         text = (
             f"好, 你现在是{escape_markdown(custom_title,2)}啦"
@@ -71,7 +75,9 @@ async def title(update: Update, context: ContextTypes.DEFAULT_TYPE):
         text = re.sub(r"([a-zA-Z])([\u4e00-\u9fa5])", r"\1 \2", text)
         text = re.sub(r"([\u4e00-\u9fa5])([a-zA-Z])", r"\1 \2", text)
 
-        sent_message = await message.reply_markdown_v2(text=text)
+        sent_message = await message.reply_markdown_v2(
+            text=text, disable_web_page_preview=True
+        )
         logger.info(f"Bot: {sent_message.text}")
     except BadRequest as e:
         if e.message == "Not enough rights":
@@ -131,6 +137,12 @@ _title_permissions_markup = InlineKeyboardMarkup(
 
 
 async def set_title_permissions(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """
+    设置 /t 命令所赋予的权限
+
+    :param update: Update
+    :param context: Context
+    """
     user = update.effective_user
     chat = update.effective_chat
     logger.info(f"[{chat.title}]({user.name}) <set_title_permissions>")
@@ -160,6 +172,12 @@ async def set_title_permissions(update: Update, context: ContextTypes.DEFAULT_TY
 async def set_title_permissions_callback(
     update: Update, context: ContextTypes.DEFAULT_TYPE
 ):
+    """
+    设置 /t 命令所赋予的权限(callback query)
+
+    :param update: Update
+    :param context: Context
+    """
     user = update.effective_user
     chat = update.effective_chat
     logger.info(f"[{chat.title}]({user.name}) <set_title_permissions_callback>")

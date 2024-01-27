@@ -1,8 +1,10 @@
 from telegram import Chat
+
 import kmua.dao.chat as chat_dao
 import kmua.dao.quote as quote_dao
-from ._db import commit
 from kmua.models.models import ChatData
+
+from ._db import commit
 
 
 def delete_chat_data_and_quotes(chat: Chat | ChatData):

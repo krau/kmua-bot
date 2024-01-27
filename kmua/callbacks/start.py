@@ -1,10 +1,8 @@
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import ContextTypes
 
+from kmua import common, dao
 from kmua.logger import logger
-import kmua.common as common
-
-import kmua.dao as dao
 
 _start_bot_markup = InlineKeyboardMarkup(
     [

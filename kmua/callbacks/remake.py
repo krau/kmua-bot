@@ -1,12 +1,12 @@
-import random
 import asyncio
+import random
 
 from telegram import Update
+from telegram.constants import ParseMode
 from telegram.ext import ContextTypes
 
+from kmua import common
 from kmua.logger import logger
-import kmua.common as common
-
 
 _country = [
     "中国",
@@ -22,11 +22,28 @@ _country = [
     "阿根廷",
     "印度",
 ]
-_role = ["男孩子", "女孩子", "薯条", "xyn", "猫猫", "狗狗", "鼠鼠"]
+_role = [
+    "男孩子",
+    "女孩子",
+    "薯条",
+    "xyn",
+    "猫猫",
+    "狗狗",
+    "鼠鼠",
+    "鸽子",
+    "猪猪",
+    "鲨鲨",
+]
 _birthplace = ["首都", "省会", "直辖市", "市区", "县城", "自治区", "农村", "大学"]
 
 
 async def remake(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """
+    重开!
+
+    :param update: Update
+    :param context: Context
+    """
     if context.user_data.get("remake_cd", False):
         return
     context.user_data["remake_cd"] = True
@@ -37,9 +54,13 @@ async def remake(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if common.random_unit(0.114):
         sent_message = await update.effective_message.reply_text(text="重开失败!您没能出生!")
     else:
-        text = f"重开成功\! 您出生在*{random.choice(_country)}*的*{random.choice(_birthplace)}*\! 是*{random.choice(_role)}*\!"  # noqa: E501
+        text = (
+            rf"重开成功\! 您出生在*{random.choice(_country)}*的*{random.choice(_birthplace)}*\! "
+            + rf"是*{random.choice(_role)}*\!"
+        )
         sent_message = await update.effective_message.reply_text(
-            text=text, parse_mode="MarkdownV2"
+            text=text,
+            parse_mode=ParseMode.MARKDOWN_V2,
         )
     common.message_recorder(update, context)
     logger.info(f"Bot: {sent_message.text}")

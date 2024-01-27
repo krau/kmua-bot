@@ -5,9 +5,9 @@ from telegram import Chat, User
 import kmua.dao.association as association_dao
 import kmua.dao.chat as chat_dao
 import kmua.dao.user as user_dao
-from ._db import commit, _db
+from kmua.models.models import ChatData, UserChatAssociation, UserData
 
-from kmua.models.models import ChatData, UserData, UserChatAssociation
+from ._db import _db, commit
 
 
 def _get_user_waifu_in_chat_common(
@@ -110,12 +110,10 @@ def put_user_waifu_in_chat(
             association.waifu_id = waifu.id
             commit()
             return True
-        else:
-            return False
-    else:
-        association_dao.add_association_in_chat(chat, user, waifu)
-        commit()
-        return True
+        return False
+    association_dao.add_association_in_chat(chat, user, waifu)
+    commit()
+    return True
 
 
 def refresh_user_waifu_in_chat(user: User | UserData, chat: Chat | ChatData):

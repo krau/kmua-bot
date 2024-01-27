@@ -1,15 +1,14 @@
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import ContextTypes
-from kmua.logger import logger
-import kmua.common as common
-from kmua.config import settings
-
 import asyncio
-import kmua.dao as dao
+
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
+from telegram.ext import ContextTypes
+
+from kmua import common, dao
+from kmua.config import settings
+from kmua.logger import logger
+
 from .chatdata import chat_data_manage
-
 from .jobs import refresh_waifu_data
-
 
 _manage_markup = InlineKeyboardMarkup(
     [[InlineKeyboardButton("Refresh bot info", callback_data="bot_data_refresh")]]
@@ -18,10 +17,9 @@ _manage_markup = InlineKeyboardMarkup(
 
 async def manage(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat = update.effective_chat
-    if chat.type == chat.GROUP or chat.type == chat.SUPERGROUP:
+    if chat.type in (chat.GROUP, chat.SUPERGROUP):
         await chat_data_manage(update, context)
         return
-    # TODO: manage bot in private chat
     if not common.verify_user_can_manage_bot(update.effective_user):
         return
     if context.bot_data.get("lock_manage_bot", False):
@@ -139,7 +137,7 @@ async def leave_chat(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not common.verify_user_can_manage_bot(user):
         return
     chat = update.effective_chat
-    if chat.type == chat.GROUP or chat.type == chat.SUPERGROUP:
+    if chat.type in (chat.GROUP, chat.SUPERGROUP):
         await context.bot.leave_chat(chat.id)
         return
     if not context.args:

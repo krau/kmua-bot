@@ -1,7 +1,9 @@
 import datetime
-from telegram import Chat, User
+
 from sqlalchemy import text
-from kmua.dao._db import commit, _db
+from telegram import Chat, User
+
+from kmua.dao._db import _db, commit
 from kmua.models.models import ChatData, Quote, UserData
 
 
@@ -19,7 +21,7 @@ def add_user(user: User | UserData | Chat | ChatData) -> UserData:
     if userdata := get_user_by_id(user.id):
         return userdata
     userdata = None
-    if isinstance(user, Chat) or isinstance(user, ChatData):
+    if isinstance(user, (Chat, ChatData)):
         userdata = UserData(
             id=user.id,
             username=user.username,

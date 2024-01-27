@@ -7,9 +7,11 @@ import graphviz
 from telegram import Chat, InlineKeyboardButton, InlineKeyboardMarkup, User
 from telegram.helpers import escape_markdown
 
-import kmua.dao as dao
+from kmua import dao
 from kmua.logger import logger
 from kmua.models.models import ChatData, UserData
+
+from .user import mention_markdown_v2
 
 
 def get_chat_waifu_relationships(
@@ -91,15 +93,15 @@ def get_marry_markup(waifu_id: int, user_id: int) -> InlineKeyboardMarkup:
 def get_waifu_text(waifu: User | UserData, is_got_waifu: bool) -> str:
     return (
         (
-            f"你今天已经抽过老婆了\! [{escape_markdown(waifu.full_name,2)}](tg://user?id={waifu.id}) 是你今天的老婆\!"  # noqa: E501
+            rf"你今天已经抽过老婆了\! {mention_markdown_v2(waifu)} 是你今天的老婆\!"
             if is_got_waifu
-            else f"你今天的群幼老婆是 [{escape_markdown(waifu.full_name,2)}](tg://user?id={waifu.id}) \!"  # noqa: E501
+            else rf"你今天的群幼老婆是 {mention_markdown_v2(waifu)} \!"
         )
         if waifu.waifu_mention
         else (
-            f"你今天已经抽过老婆了\! {escape_markdown(waifu.full_name,2)} 是你今天的老婆\!"  # noqa: E501
+            rf"你今天已经抽过老婆了\! {escape_markdown(waifu.full_name,2)} 是你今天的老婆\!"
             if is_got_waifu
-            else f"你今天的群幼老婆是 {escape_markdown(waifu.full_name,2)} \!"
+            else rf"你今天的群幼老婆是 {escape_markdown(waifu.full_name,2)} \!"
         )
     )
 
@@ -166,8 +168,6 @@ def render_waifu_graph(
 
         return dot.pipe()
 
-    except Exception:
-        raise
     finally:
         if os.path.exists(tempdir):
             shutil.rmtree(tempdir)
