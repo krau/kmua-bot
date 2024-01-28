@@ -10,6 +10,7 @@ from telegram.ext import (
 )
 
 import kmua.filters as kmua_filters
+from kmua import dao
 
 from .callbacks import (
     bilibili,
@@ -32,7 +33,6 @@ from .callbacks import (
     userdata,
     waifu,
 )
-from .config import settings
 from .logger import logger
 
 # CommandHandlers
@@ -284,13 +284,15 @@ async def on_error(update, context):
     msg = f"在该更新发生错误\n{update}\n"
     msg += f"错误信息\n{error.__class__.__name__}:{error}"
     logger.error(msg)
-    if context.bot_data.get("error_notice", False):
+    if context.bot_data.get("error_notice", True):
 
         async def send_update_error(chat_id):
-            await context.bot.send_message(
+            try:
+                await context.bot.send_message(
                 chat_id=chat_id,
                 text=msg,
             )
+            except Exception as e:
+                logger.error(f"发送错误信息失败\n{e}")
 
-        tasks = [send_update_error(chat_id) for chat_id in settings.owners]
-        await asyncio.gather(*tasks)
+        await asyncio.gather(*(send_update_error(admin.id) for admin in dao.get_bot_global_admins()))

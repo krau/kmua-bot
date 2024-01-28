@@ -134,3 +134,7 @@ def clear_inactived_users_avatar(days: int) -> int:
     commit()
     _db.flush()
     return count
+
+
+def get_bot_global_admins() -> list[UserData]:
+    return _db.query(UserData).filter(UserData.is_bot_global_admin).all()
