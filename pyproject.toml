@@ -11,7 +11,7 @@ python = "^3.11"
 python-telegram-bot = { extras = ["rate-limiter"], version = "^20.6" }
 dynaconf = "^3.2.3"
 graphviz = "^0.20.1"
-Pillow = "9.5.0"
+Pillow = "10.2.0"
 anyio = "^4.0.0"
 apscheduler = "^3.10.4"
 certifi = "^2023.7.22"
