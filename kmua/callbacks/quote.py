@@ -30,12 +30,10 @@ async def quote(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat = update.effective_chat
     message = update.effective_message
     logger.info(f"[{chat.title}]({user.name})" + f" {message.text}")
-
     common.message_recorder(update, context)
-
     if chat.type == ChatType.PRIVATE:
         return
-    if context.args:
+    if context.args and context.args[0] != "nopin":
         return
     if not message.reply_to_message:
         sent_message = await message.reply_text("请回复一条消息")
@@ -50,7 +48,6 @@ async def quote(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if forward_from_user:
         quote_user = forward_from_user
     qer_user = message.sender_chat or user
-
     dao.add_user(quote_user)
     quote_message_link = common.get_message_common_link(quote_message)
     if not quote_message_link:
@@ -68,12 +65,8 @@ async def quote(update: Update, context: ContextTypes.DEFAULT_TYPE):
             chat_id=chat.id,
         )
         return
-
-    await _pin_quote_message(quote_message)
-
     text = ["好!", "让我康康是谁在说怪话!", "名入册焉"]
     await quote_message.reply_text(text=random.choice(text))
-
     quote_img_file_id = await _generate_and_sned_quote_img(
         update, context, quote_message, quote_user
     )
@@ -85,6 +78,9 @@ async def quote(update: Update, context: ContextTypes.DEFAULT_TYPE):
         link=quote_message_link,
         img=quote_img_file_id,
     )
+    if context.args and context.args[0] == "nopin":
+        return
+    await _pin_quote_message(quote_message)
 
 
 async def _pin_quote_message(quote_message: Message) -> bool:
