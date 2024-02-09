@@ -46,7 +46,6 @@ async def keyword_reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
         sent_message = await update.effective_message.reply_text(
             text=random.choice(all_resplist),
             quote=True,
-            allow_sending_without_reply=False,
         )
         logger.info("Bot: " + sent_message.text)
     common.message_recorder(update, context)

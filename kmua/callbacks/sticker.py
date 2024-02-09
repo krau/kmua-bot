@@ -30,7 +30,6 @@ async def sticker2img(update: Update, context: ContextTypes.DEFAULT_TYPE):
         document=file,
         filename=f"{sticker.file_size}.{ext_name}",
         disable_content_type_detection=True,
-        allow_sending_without_reply=True,
         caption=f"file_id: {sticker.file_id}",
     )
     doc_file_id = sent_message.document.file_id

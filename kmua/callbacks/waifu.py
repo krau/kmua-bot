@@ -134,7 +134,6 @@ async def today_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_markdown_v2(
                 text=text,
                 reply_markup=waifu_markup,
-                allow_sending_without_reply=True,
             )
             return
         try:
@@ -143,7 +142,6 @@ async def today_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 caption=text,
                 parse_mode="MarkdownV2",
                 reply_markup=waifu_markup,
-                allow_sending_without_reply=True,
             )
             avatar_big_id = sent_message.photo[0].file_id
             waifu.avatar_big_id = avatar_big_id
@@ -153,7 +151,6 @@ async def today_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_markdown_v2(
                 text=text,
                 reply_markup=waifu_markup,
-                allow_sending_without_reply=True,
             )
     finally:
         if waifu:
@@ -172,7 +169,7 @@ async def today_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def _get_waifu_for_user(
     update: Update, context: ContextTypes.DEFAULT_TYPE, user: User, chat: Chat
-) -> (UserData | None, bool):
+) -> tuple[UserData, bool]:
     """
     Get a waifu for user
 
