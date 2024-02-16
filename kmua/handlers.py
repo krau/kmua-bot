@@ -276,6 +276,12 @@ async def on_error(update, context):
                     "请使用 /start 重新召出菜单", show_alert=True, cache_time=600
                 )  # 更新后菜单发生了变化, 旧的菜单无法使用
             return
+        if "Message is not modified" in error.message:
+            if update.callback_query:
+                await update.callback_query.answer(
+                    "请...请慢一点> <", show_alert=True, cache_time=1
+                )
+            return
         if "Not enough rights to send" in error.message:
             return
     elif error.__class__.__name__ == "Forbidden":
