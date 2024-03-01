@@ -98,7 +98,7 @@ clear_inactive_user_avatar_handler = CommandHandler(
     manage.clear_inactive_user_avatar,
     filters=filters.ChatType.PRIVATE,
 )
-setu_handler = CommandHandler("setu", setu.setu, filters=filters.ChatType.GROUPS)
+setu_handler = CommandHandler("setu", setu.setu)
 switch_waifu_handler = CommandHandler(
     "switch_waifu", waifu.switch_waifu, filters=filters.ChatType.GROUPS
 )
@@ -295,10 +295,12 @@ async def on_error(update, context):
         async def send_update_error(chat_id):
             try:
                 await context.bot.send_message(
-                chat_id=chat_id,
-                text=msg,
-            )
+                    chat_id=chat_id,
+                    text=msg,
+                )
             except Exception as e:
                 logger.error(f"发送错误信息失败\n{e}")
 
-        await asyncio.gather(*(send_update_error(admin.id) for admin in dao.get_bot_global_admins()))
+        await asyncio.gather(
+            *(send_update_error(admin.id) for admin in dao.get_bot_global_admins())
+        )
