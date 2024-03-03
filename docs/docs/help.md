@@ -94,7 +94,7 @@
 
 左为移除右为结婚
 
-![-waifu](.\images\-waifu.jpg)
+![-waifu](./images/-waifu.jpg)
 
 ---
 
@@ -114,7 +114,7 @@
 
 随机抽取语录进行发送（范围为整个群中）
 
-在此前需要曾有已被记录的名言 否则将不进行任何输出![qrand](.\images\qrand.png)
+在此前需要曾有已被记录的名言 否则将不进行任何输出![qrand](./images/qrand.png)
 
 ---
 
@@ -124,7 +124,7 @@
 
 此外 稍候的提示语是随机的 每一次均有不同
 
-![image-20240127133802647](.\images\waifu_graph.png)
+![image-20240127133802647](./images/waifu_graph.png)
 
 ---
 
@@ -138,7 +138,7 @@
 
 e.g:/ip google.com
 
-![image-20240127140934306](.\images\ip.png)
+![image-20240127140934306](./images/ip.png)
 
 ---
 
@@ -158,7 +158,7 @@ e.g:/ip google.com
 
 但如果处于管理员状态下 /d的作用域会扩大一些 略有不同 在下方的管理员命令里了解更多
 
-![image-20240127134648693](.\images\-d.png)
+![image-20240127134648693](./images/-d.png)
 
 ---
 
@@ -180,7 +180,7 @@ e.g:/ip google.com
 
 <addition>为可选值 不输入并不影响
 
-![image-20240127144829277](.\images\action.png)
+![image-20240127144829277](./images/action.png)
 
 ---
 
