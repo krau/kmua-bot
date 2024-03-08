@@ -1,5 +1,7 @@
 # 部署指南
 
+启动 Bot **之前**, 需要为 Bot **设置头像**, 并关闭隐私模式
+
 ## 使用 docker-compose
 
 新建文件夹, 新建文件 `docker-compose.yml`
