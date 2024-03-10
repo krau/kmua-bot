@@ -20,11 +20,11 @@ from .callbacks import (
     delete_events,
     help,
     ip,
-    keyword_reply,
     manage,
     pin,
     quote,
     remake,
+    reply,
     setu,
     slash,
     start,
@@ -162,7 +162,7 @@ random_quote_handler = MessageHandler(
     (~filters.COMMAND & filters.ChatType.GROUPS), quote.random_quote
 )
 keyword_reply_handler = MessageHandler(
-    (~filters.COMMAND & kmua_filters.keyword_reply_filter), keyword_reply.keyword_reply
+    (~filters.COMMAND & kmua_filters.keyword_reply_filter), reply.keyword_reply
 )
 track_chats_handler = ChatMemberHandler(
     chatmember.track_chats, ChatMemberHandler.MY_CHAT_MEMBER
