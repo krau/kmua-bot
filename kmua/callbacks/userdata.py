@@ -13,8 +13,8 @@ from .jobs import reset_user_cd
 _user_data_manage_markup = InlineKeyboardMarkup(
     [
         [
-            InlineKeyboardButton("Refresh", callback_data="user_data_refresh"),
-            InlineKeyboardButton("Back", callback_data="back_home"),
+            InlineKeyboardButton("刷新信息", callback_data="user_data_refresh"),
+            InlineKeyboardButton("返回", callback_data="back_home"),
         ]
     ]
 )
@@ -141,7 +141,9 @@ async def refresh_user_data_by_id(update: Update, context: ContextTypes.DEFAULT_
     chat_id = int(chat_id)
 
     if not is_channel and not common.verify_user_can_manage_bot(user):
-        await update.effective_message.reply_text("你只能使用该命令刷新频道或机器人用户数据")
+        await update.effective_message.reply_text(
+            "你只能使用该命令刷新频道或机器人用户数据"
+        )
         return
 
     db_user = dao.get_user_by_id(chat_id)
@@ -285,7 +287,9 @@ async def _user_quote_manage(update: Update, _: ContextTypes.DEFAULT_TYPE):
     quotes_count = dao.get_user_quotes_count(user)
     max_page = ceil(quotes_count / page_size)
     if quotes_count == 0:
-        caption = "已经没有语录啦" if "delete_user_quote" in query.data else "你没有语录呢"
+        caption = (
+            "已经没有语录啦" if "delete_user_quote" in query.data else "你没有语录呢"
+        )
         await query.edit_message_caption(
             caption=caption,
             reply_markup=common.no_quote_markup,

@@ -7,16 +7,16 @@ from kmua.logger import logger
 _start_bot_markup = InlineKeyboardMarkup(
     [
         [
-            InlineKeyboardButton("Open source", url="https://github.com/krau/kmua-bot"),
-            InlineKeyboardButton("Detail help", url="https://krau.github.io/kmua-bot/"),
+            InlineKeyboardButton("开源仓库", url="https://github.com/krau/kmua-bot"),
+            InlineKeyboardButton("详细帮助", url="https://krau.github.io/kmua-bot/"),
         ],
         [
-            InlineKeyboardButton("Your data", callback_data="user_data_manage"),
-            InlineKeyboardButton("Quote manage", callback_data="user_quote_manage"),
+            InlineKeyboardButton("个人信息", callback_data="user_data_manage"),
+            InlineKeyboardButton("语录管理", callback_data="user_quote_manage"),
         ],
         [
-            InlineKeyboardButton("Waifu manage", callback_data="user_waifu_manage"),
-            InlineKeyboardButton("Nya~", callback_data="noop"),
+            InlineKeyboardButton("老婆管理", callback_data="user_waifu_manage"),
+            InlineKeyboardButton("喵喵喵喵", callback_data="noop"),
         ],
     ]
 )

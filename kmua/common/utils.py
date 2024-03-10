@@ -16,7 +16,7 @@ from kmua.logger import logger
 back_home_markup = InlineKeyboardMarkup(
     [
         [
-            InlineKeyboardButton("Back", callback_data="back_home"),
+            InlineKeyboardButton("返回", callback_data="back_home"),
         ]
     ]
 )
