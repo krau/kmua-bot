@@ -1,3 +1,4 @@
+import asyncio
 import random
 import re
 from math import ceil
@@ -66,21 +67,21 @@ async def quote(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
     text = ["好!", "让我康康是谁在说怪话!", "名入册焉"]
-    await quote_message.reply_text(text=random.choice(text))
-    quote_img_file_id = await _generate_and_sned_quote_img(
-        update, context, quote_message, quote_user
-    )
+    tasks = [
+        quote_message.reply_text(text=random.choice(text)),
+        _generate_and_sned_quote_img(update, context, quote_message, quote_user),
+    ]
+    if not (context.args and context.args[0] == "nopin"):
+        tasks.append(_pin_quote_message(quote_message))
+    results = await asyncio.gather(*tasks)
     dao.add_quote(
         chat=chat,
         user=quote_user,
         qer=qer_user,
         message=quote_message,
         link=quote_message_link,
-        img=quote_img_file_id,
+        img=results[1],
     )
-    if context.args and context.args[0] == "nopin":
-        return
-    await _pin_quote_message(quote_message)
 
 
 async def _pin_quote_message(quote_message: Message) -> bool:
@@ -119,7 +120,7 @@ async def _generate_and_sned_quote_img(
     if not avatar:
         return None
     await update.effective_chat.send_action(ChatAction.UPLOAD_PHOTO)
-    quote_img = await common.generate_quote_img(
+    quote_img = common.generate_quote_img(
         avatar=avatar,
         text=quote_message.text,
         name=quote_user.title if isinstance(quote_user, Chat) else quote_user.name,

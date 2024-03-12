@@ -130,9 +130,8 @@ Create at {datetime.strftime(quote.created_at, '%Y-%m-%d %H:%M:%S')} by {qer_use
     return result
 
 
-async def generate_quote_img(avatar: bytes, text: str, name: str) -> bytes:
+def generate_quote_img(avatar: bytes, text: str, name: str) -> bytes:
     text = text.replace("\n", " ")
-
     script_dir = Path(__file__).resolve().parent
     font_path = str(script_dir.parent / "resource" / "TsukuA.ttc")
     base_img_path = str(script_dir.parent / "resource" / "base.png")
@@ -150,7 +149,7 @@ async def generate_quote_img(avatar: bytes, text: str, name: str) -> bytes:
     img.paste(avatar_img, (0, 0))
     img.paste(base_img, (0, 0), base_img)
 
-    text_list = [text[i:i + 18] for i in range(0, len(text), 18)]
+    text_list = [text[i : i + 18] for i in range(0, len(text), 18)]
     new_text_height = font_size * len(text_list)
     new_text_width = max(font.getbbox(x)[2] - font.getbbox(x)[0] for x in text_list)
     text_x = 540 + int((560 - new_text_width) / 2)
@@ -185,4 +184,5 @@ async def generate_quote_img(avatar: bytes, text: str, name: str) -> bytes:
     img_byte_arr = io.BytesIO()
     img = img.convert("RGB")
     img.save(img_byte_arr, format="png")
+    img_byte_arr.seek(0)
     return img_byte_arr.getvalue()

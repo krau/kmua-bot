@@ -2,6 +2,7 @@ import os
 import shutil
 import tempfile
 from math import ceil, sqrt
+from typing import Any, Generator
 
 import graphviz
 from telegram import Chat, InlineKeyboardButton, InlineKeyboardMarkup, User
@@ -16,15 +17,13 @@ from .user import mention_markdown_v2
 
 def get_chat_waifu_relationships(
     chat: Chat | ChatData,
-) -> list[tuple[int, int]]:
-    relationships = []
+) -> Generator[tuple[int, int], None, None]:
     logger.debug(f"Get chat waifu relationships for {chat.title}<{chat.id}>")
     members = dao.get_chat_user_participated_waifu(chat)
     for member in members:
         waifu = dao.get_user_waifu_in_chat_exclude_married(member, chat)
         if waifu:
-            relationships.append((member.id, waifu.id))
-    return relationships
+            yield (member.id, waifu.id)
 
 
 def get_chat_waifu_info_dict(
@@ -107,10 +106,11 @@ def get_waifu_text(waifu: User | UserData, is_got_waifu: bool) -> str:
 
 
 def render_waifu_graph(
-    relationships: list[tuple[int, int]],
-    user_info: dict,
+    relationships: Generator[tuple[int, int], None, None],
+    user_info: Generator[dict[str, Any], None, None],
+    length: int = 0,
 ) -> bytes:
-    dpi = max(150, ceil(5 * sqrt(len(user_info) / 3)) * 20)
+    dpi = max(150, ceil(5 * sqrt(length / 3)) * 20)
     dot = graphviz.Digraph(
         graph_attr={
             "dpi": str(dpi),
@@ -127,16 +127,17 @@ def render_waifu_graph(
     try:
         # Create nodes
         has_avatar = set()
-        for user_id, info in user_info.items():
-            username = info.get("username")
+        for user in user_info:
+            user_id = user["id"]
+            username = user.get("username")
             username = (
                 username[:6] + "..." if username and len(username) > 6 else username
             )
-            if not info.get("avatar"):
+            if not user.get("avatar"):
                 dot.node(str(user_id), label=username)
                 continue
             has_avatar.add(user_id)
-            avatar = info["avatar"]
+            avatar = user["avatar"]
             avatar_path = os.path.join(tempdir, f"{user_id}_avatar.png")
             with open(avatar_path, "wb") as avatar_file:
                 avatar_file.write(avatar)

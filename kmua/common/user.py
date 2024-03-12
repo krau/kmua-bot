@@ -113,11 +113,13 @@ async def verify_user_is_chat_owner(
             chat_id=chat.id, user_id=user.id
         )
         if chat_member.status == ChatMemberStatus.OWNER:
+            dao.update_user_is_bot_admin_in_chat(user, chat, True)
             return True
         if update.callback_query:
             await update.callback_query.answer(
                 "你没有执行此操作的权限", show_alert=True, cache_time=15
             )
+            dao.update_user_is_bot_admin_in_chat(user, chat, False)
     except Exception as err:
         logger.warning(f"{err.__class__.__name__}: {err}")
         if update.callback_query:
@@ -129,7 +131,7 @@ async def verify_user_is_chat_owner(
                 show_alert=True,
                 cache_time=15,
             )
-        return False
+    return False
 
 
 def verify_user_can_manage_bot(user: User | UserData) -> bool:
@@ -192,7 +194,8 @@ updated_at:    {db_user.updated_at.strftime("%Y-%m-%d %H:%M:%S")}
 
 
 def mention_markdown_v2(user: User | UserData | Chat | ChatData) -> str:
-    if isinstance(user,(User,Chat)):
+    logger.debug(f"Get mention markdown for {user}")
+    if isinstance(user, (User, Chat)):
         try:
             return user.mention_markdown_v2()
         except TypeError:

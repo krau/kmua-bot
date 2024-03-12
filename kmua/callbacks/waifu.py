@@ -38,8 +38,10 @@ async def waifu_graph(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     msg_id = update.effective_message.id
     chat = update.effective_chat
-    await update.effective_message.reply_text(random.choice(common.loading_word))
-    await send_waifu_graph(chat, context, msg_id)
+    await asyncio.gather(
+        update.effective_message.reply_text(random.choice(common.loading_word)),
+        send_waifu_graph(chat, context, msg_id),
+    )
 
 
 async def send_waifu_graph(
@@ -60,14 +62,17 @@ async def send_waifu_graph(
                 )
             logger.debug(f"No user participated waifu in {chat.title}<{chat.id}>")
             return
-        user_info = {
-            user.id: {
+        user_info = (
+            {
+                "id": user.id,
                 "username": user.username or f"id: {user.id}",
                 "avatar": user.avatar_small_blob,
             }
             for user in participate_users
-        }
-        image_bytes = common.render_waifu_graph(relationships, user_info)
+        )
+        image_bytes = common.render_waifu_graph(
+            relationships, user_info, len(participate_users)
+        )
         logger.debug(f"image_size: {len(image_bytes)}")
         await context.bot.send_document(
             chat.id,
@@ -207,7 +212,9 @@ async def _get_chat_members_id_to_get_waifu(
     to_remove = set(married + common.fake_users_id + [user.id])
     group_member = [i for i in group_member if i not in to_remove]
     if not group_member:
-        await update.message.reply_text(text="你现在没有老婆, 因为咱的记录中找不到其他群友")  # noqa: E501
+        await update.message.reply_text(
+            text="你现在没有老婆, 因为咱的记录中找不到其他群友"
+        )  # noqa: E501
         return None
     return group_member
 
