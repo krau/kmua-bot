@@ -285,8 +285,10 @@ async def delete_quote_in_chat(update: Update, context: ContextTypes.DEFAULT_TYP
             sent_message = await quote_message.reply_text("已删除该语录")
             logger.info(f"Bot: {sent_message.text}")
         else:
-            await update.callback_query.answer("已删除该语录", show_alert=False)
-            await _chat_quote_manage(update, context)
+            await asyncio.gather(
+                update.callback_query.answer("已删除该语录", show_alert=False),
+                _chat_quote_manage(update, context),
+            )
     else:
         sent_message = await quote_message.reply_markdown_v2(
             "这条消息不在语录中哦\n_This message will be deleted in 10s_"

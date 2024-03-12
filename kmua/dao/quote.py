@@ -1,3 +1,4 @@
+import cachetools
 from sqlalchemy import func, or_
 from telegram import Chat, Message, User
 
@@ -60,9 +61,11 @@ def get_all_quotes_count() -> int:
     return _db.query(Quote).count()
 
 
+@cachetools.cached(cachetools.TTLCache(maxsize=1024, ttl=30))
 def query_quote_user_can_see_by_text(
     user: User | UserData, text: str, limit: int = 10
 ) -> list[Quote]:
+    print(user, text, limit)
     return (
         _db.query(Quote)
         .filter(
@@ -77,30 +80,6 @@ def query_quote_user_can_see_by_text(
             ),
             Quote.text.like(f"%{text}%"),
         )
-        .order_by(func.random())
-        .limit(limit)
-        .all()
-    )
-
-
-def query_user_quote_by_text(
-    user: User | UserData, text: str, limit: int = 10
-) -> list[Quote]:
-    return (
-        _db.query(Quote)
-        .filter(Quote.user_id == user.id, Quote.text.like(f"%{text}%"))
-        .order_by(func.random())
-        .limit(limit)
-        .all()
-    )
-
-
-def query_qer_quote_by_text(
-    user: User | UserData, text: str, limit: int = 10
-) -> list[Quote]:
-    return (
-        _db.query(Quote)
-        .filter(Quote.qer_id == user.id, Quote.text.like(f"%{text}%"))
         .order_by(func.random())
         .limit(limit)
         .all()
