@@ -12,12 +12,6 @@ _api_url = _api_url.removesuffix("/") if _api_url else None
 
 
 async def setu(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """
-    来张涩图
-
-    :param update: Update
-    :param context: Context
-    """
     logger.info(
         f"[{update.effective_chat.title}]({update.effective_user.name})"
         + f" {update.effective_message.text}"
@@ -34,7 +28,9 @@ async def setu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         async with httpx.AsyncClient() as client:
             resp = await client.get(url=f"{_api_url}/v1/artwork/random")
             if resp.status_code != 200:
-                await update.effective_message.reply_text(text="失败惹，请稍后再试", quote=True)
+                await update.effective_message.reply_text(
+                    text="失败惹，请稍后再试", quote=True
+                )
                 return
             sent_message = await update.effective_message.reply_photo(
                 photo=resp.json()["data"]["pictures"][0]["direct_url"],
@@ -57,5 +53,5 @@ async def setu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.error(f"setu error: {e.__class__.__name__}:{e}")
         await update.effective_message.reply_text(text="失败惹，请稍后再试", quote=True)
     finally:
-        await asyncio.sleep(30)
+        await asyncio.sleep(3)
         context.user_data["setu_cd"] = False
