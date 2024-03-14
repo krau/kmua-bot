@@ -19,8 +19,12 @@ def add_user(user: User | UserData | Chat | ChatData) -> UserData:
     :return: UserData object
     """
     if userdata := get_user_by_id(user.id):
-        userdata.username = user.username if not isinstance(user,ChatData) else userdata.username
-        userdata.full_name = user.full_name if not isinstance(user,(Chat, ChatData)) else user.title
+        userdata.username = (
+            user.username if not isinstance(user, ChatData) else userdata.username
+        )
+        userdata.full_name = (
+            user.full_name if not isinstance(user, (Chat, ChatData)) else user.title
+        )
         commit()
         return userdata
     userdata = None

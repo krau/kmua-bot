@@ -52,7 +52,9 @@ async def remake(update: Update, context: ContextTypes.DEFAULT_TYPE):
         + f" {update.effective_message.text}"
     )
     if common.random_unit(0.114):
-        sent_message = await update.effective_message.reply_text(text="重开失败!您没能出生!")
+        sent_message = await update.effective_message.reply_text(
+            text="重开失败!您没能出生!"
+        )
     else:
         text = (
             rf"重开成功\! 您出生在*{random.choice(_country)}*的*{random.choice(_birthplace)}*\! "

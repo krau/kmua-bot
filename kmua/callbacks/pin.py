@@ -6,7 +6,7 @@ from kmua import common, dao
 from kmua.logger import logger
 
 
-async def unpin_channel_pin(update:Update,_:ContextTypes.DEFAULT_TYPE):
+async def unpin_channel_pin(update: Update, _: ContextTypes.DEFAULT_TYPE):
     chat = update.effective_chat
     user = update.effective_user
     message = update.effective_message
@@ -23,7 +23,6 @@ async def unpin_channel_pin(update:Update,_:ContextTypes.DEFAULT_TYPE):
         except BadRequest as e:
             logger.warning(f"{e.__class__.__name__}:{e}")
             await message.reply_text("无法取消频道消息的置顶,请检查 Bot 权限")
-
 
 
 async def switch_unpin_channel_pin(update: Update, context: ContextTypes.DEFAULT_TYPE):

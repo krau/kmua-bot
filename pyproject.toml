@@ -37,6 +37,7 @@ cachetools = "^5.3.3"
 
 [tool.poetry.group.dev.dependencies]
 pylint = "^3.0.3"
+ruff = "^0.3.2"
 
 [build-system]
 requires = ["poetry-core"]

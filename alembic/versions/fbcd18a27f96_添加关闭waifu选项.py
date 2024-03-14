@@ -1,10 +1,11 @@
 """添加关闭waifu选项
 
 Revision ID: fbcd18a27f96
-Revises: 
+Revises:
 Create Date: 2023-12-10 11:35:45.231035
 
 """
+
 from typing import Sequence, Union
 
 import sqlalchemy as sa
