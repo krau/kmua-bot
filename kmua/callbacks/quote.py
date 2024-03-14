@@ -44,10 +44,7 @@ async def quote(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await message.reply_text("暂不支持在主话题外使用此功能")
         return
     quote_message = message.reply_to_message
-    quote_user = quote_message.sender_chat or quote_message.from_user
-    forward_from_user = quote_message.forward_from or quote_message.forward_from_chat
-    if forward_from_user:
-        quote_user = forward_from_user
+    quote_user = common.get_message_origin(quote_message)
     qer_user = message.sender_chat or user
     dao.add_user(quote_user)
     quote_message_link = common.get_message_common_link(quote_message)

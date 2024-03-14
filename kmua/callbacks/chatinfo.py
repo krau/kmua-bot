@@ -1,7 +1,11 @@
-from telegram import Update, Chat
+from telegram import (
+    Chat,
+    Update,
+)
 from telegram.constants import ParseMode
 from telegram.ext import ContextTypes
 
+from kmua import common
 from kmua.logger import logger
 
 
@@ -16,12 +20,7 @@ async def getid(update: Update, _: ContextTypes.DEFAULT_TYPE):
         + f" {message.text}"
     )
     if target_message := message.reply_to_message:
-        target = (
-            target_message.sender_chat
-            or target_message.forward_from
-            or target_message.forward_from_chat
-            or target_message.from_user
-        )
+        target = common.get_message_origin(target_message)
         await message.reply_text(
             text=f"""
 *Chat ID*: `{message.chat_id}`

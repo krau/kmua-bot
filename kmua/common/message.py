@@ -1,4 +1,4 @@
-from telegram import Message, Update
+from telegram import Chat, Message, Update, User
 from telegram.constants import ChatID, ChatType
 from telegram.ext import ContextTypes
 
@@ -47,3 +47,15 @@ def parse_message_link(link: str) -> tuple[int, int]:
         logger.error(f"无法解析链接: {link}")
         return None, None
     return chat_id, message_id
+
+
+def get_message_origin(message: Message) -> User | Chat | None:
+    if origin := message.forward_origin:
+        match origin.type:
+            case origin.USER:
+                return origin.sender_user
+            case origin.CHANNEL:
+                return origin.chat
+            case origin.CHAT:
+                return origin.sender_chat
+    return message.sender_chat or message.from_user
