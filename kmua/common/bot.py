@@ -1,16 +1,12 @@
 import os
 import platform
 import time
-from pathlib import Path
 
 import psutil
 
 from kmua import dao
-from kmua.config import data_dir, settings
 
-_database_path = Path(
-    data_dir / settings.get("db_url", "sqlite:///./data/kmua.db").split("/")[-1]
-)
+from .utils import db_path
 
 
 def get_bot_status() -> str:
@@ -21,8 +17,8 @@ Database Status:
     - Quotes: {dao.get_all_quotes_count()}
     - Associations: {dao.get_all_associations_count()}
     """
-    if settings.get("db_url").startswith("sqlite"):
-        db_status += f"- Size: {_database_path.stat().st_size / 1024 / 1024:.2f} MB"
+    if db_path:
+        db_status += f"- Size: {db_path.stat().st_size / 1024 / 1024:.2f} MB"
     db_status += "\n"
     pid = os.getpid()
     p = psutil.Process(pid)

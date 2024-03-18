@@ -5,27 +5,34 @@ from telegram.ext import ContextTypes
 
 from kmua import dao
 from kmua.logger import logger
-
+from kmua.common.utils import db_path
 from .waifu import send_waifu_graph
+from kmua.config import settings
 
 
-async def refresh_waifu_data(context: ContextTypes.DEFAULT_TYPE):
-    logger.debug("Start refreshing waifu data")
+async def clean_data(context: ContextTypes.DEFAULT_TYPE):
+    logger.debug("Start cleaning data")
     try:
-        context.bot_data["refeshing_waifu_data"] = True
+        context.bot_data["cleaning_data"] = True
         await asyncio.gather(
             *(send_waifu_graph(chat, context) for chat in dao.get_all_chats())
         )
     except Exception as err:
-        logger.error(
-            f"{err.__class__.__name__}: {err} happend when refreshing waifu data"
-        )
+        logger.error(f"{err.__class__.__name__}: {err} happend when cleaning data")
     finally:
         await asyncio.sleep(1)
         await dao.refresh_all_waifu_data()
+        if db_path:
+            size = db_path.stat().st_size / 1024 / 1024
+            if size > settings.get("max_db_size", 100):
+                logger.debug(f"Database size {size:.2f} MB is too large, cleaning...")
+                count = dao.clear_inactived_users_avatar(
+                    settings.get("avatar_expire", 1)
+                )
+                logger.debug(f"Cleaned {count} inactived users' avatar")
         gc.collect()
-        logger.success("数据已刷新: waifu_data")
-        context.bot_data["refeshing_waifu_data"] = False
+        logger.success("Data has been cleaned")
+        context.bot_data["cleaning_data"] = False
 
 
 async def delete_message(context: ContextTypes.DEFAULT_TYPE):

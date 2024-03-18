@@ -9,8 +9,7 @@ engine = create_engine(settings.DB_URL)
 _session = scoped_session(sessionmaker(autoflush=False, bind=engine))
 _db = _session()
 
-if not data_dir.exists():
-    data_dir.mkdir()
+data_dir.mkdir(exist_ok=True)
 
 logger.debug("Connecting to database...")
 

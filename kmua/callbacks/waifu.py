@@ -33,7 +33,7 @@ async def waifu_graph(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     if dao.get_chat_waifu_disabled(update.effective_chat):
         return
-    if context.bot_data.get("refeshing_waifu_data", False):
+    if context.bot_data.get("cleaning_data", False):
         return
 
     msg_id = update.effective_message.id

@@ -1,16 +1,17 @@
 import glob
 import json
 import os
-import pathlib
 import random
 import re
 from operator import attrgetter
+from pathlib import Path
 
 from telegram import (
     InlineKeyboardButton,
     InlineKeyboardMarkup,
 )
 
+from kmua.config import data_dir, settings
 from kmua.logger import logger
 
 back_home_markup = InlineKeyboardMarkup(
@@ -19,6 +20,12 @@ back_home_markup = InlineKeyboardMarkup(
             InlineKeyboardButton("返回", callback_data="back_home"),
         ]
     ]
+)
+
+db_path = (
+    Path(data_dir / settings.get("db_url", "sqlite:///./data/kmua.db").split("/")[-1])
+    if settings.get("db_url").startswith("sqlite")
+    else None
 )
 
 
@@ -54,12 +61,8 @@ def parse_arguments(text: str) -> list[str]:
 
 
 def _load_word_dict():
-    word_dict_path_internal = (
-        pathlib.Path(__file__).parent.parent / "resource" / "word_dicts"
-    )
-    word_dict_path_user = (
-        pathlib.Path(__file__).parent.parent.parent / "data" / "word_dicts"
-    )
+    word_dict_path_internal = Path(__file__).parent.parent / "resource" / "word_dicts"
+    word_dict_path_user = Path(__file__).parent.parent.parent / "data" / "word_dicts"
     word_dict = {}
     for file in glob.glob(f"{word_dict_path_internal}" + r"/*.json"):
         logger.debug(f"加载内置词库: {file}")

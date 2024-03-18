@@ -8,7 +8,7 @@ from kmua.config import settings
 from kmua.logger import logger
 
 from .chatdata import chat_data_manage
-from .jobs import refresh_waifu_data
+from .jobs import clean_data
 
 _manage_markup = InlineKeyboardMarkup(
     [[InlineKeyboardButton("Refresh bot info", callback_data="bot_data_refresh")]]
@@ -28,9 +28,10 @@ async def manage(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = """
 /set_bot_admin <user_id> - 将用户提升为bot管理员(全局)
 /leave_chat <chat_id> - 离开群组(同时删除群组数据)
-/refresh_waifu_data - 刷新 waifu_data
+/clean_data - 手动清理数据, 并刷新抽老婆数据
 /status - 查看 bot 状态
 /clear_inactive_user_avatar <days> - 清理不活跃用户的头像缓存
+/error_notice - 开启/关闭错误通知
 """
     await chat.send_message(text, reply_markup=_manage_markup)
 
@@ -158,14 +159,12 @@ async def leave_chat(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(f"离开群组失败: {e}")
 
 
-async def refresh_waifu_data_manually(
-    update: Update, context: ContextTypes.DEFAULT_TYPE
-):
+async def clean_data_manually(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     if not common.verify_user_can_manage_bot(user):
         return
-    await update.effective_message.reply_text("3s 后刷新 waifu_data")
-    context.job_queue.run_once(refresh_waifu_data, 3)
+    await update.effective_message.reply_text("3s 后开始清理数据...")
+    context.job_queue.run_once(clean_data, 3)
 
 
 _status_markup = InlineKeyboardMarkup(
@@ -184,7 +183,6 @@ async def status(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.effective_message.reply_text(
                 common.get_bot_status(), reply_markup=_status_markup
             )
-
             return
         await query.edit_message_text(
             common.get_bot_status(), reply_markup=_status_markup

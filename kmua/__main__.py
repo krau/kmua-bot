@@ -11,7 +11,7 @@ from telegram.ext import (
 )
 
 import kmua.dao._db as db
-from kmua.callbacks.jobs import refresh_waifu_data
+from kmua.callbacks.jobs import clean_data
 from kmua.config import settings
 from kmua.handlers import (
     callback_query_handlers,
@@ -76,7 +76,7 @@ def run():
     )
     job_queue = app.job_queue
     job_queue.run_daily(
-        refresh_waifu_data,
+        clean_data,
         time=datetime.time(4, 0, 0, 0, tzinfo=pytz.timezone("Asia/Shanghai")),
         name="refresh_waifu_data",
     )
