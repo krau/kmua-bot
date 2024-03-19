@@ -188,25 +188,79 @@ e.g:/ip google.com
 
 ---
 
-### /setqp
+### /setqp 
+
+格式: `/setqp <0,1>`
+
+设置群内 bot 主动发送随机语录的频率，参数为0~1之间的概率
+
+设置为1则是只要有人说话就主动发言，设置为0.01则是1%概率，设置为0等于关闭此功能。
 
 ---
 
 ### /switch_waifu
 
+在群内开关老婆功能
+
 ---
 
 ### /switch_delete_events
+
+在群内开关删除事件消息的功能 (bot 需要删除消息权限)
 
 ---
 
 ### /switch_unpin_channel_pin
 
+开关取消频道消息置顶的功能 (bot 需要置顶权限)
+
 ---
 
 ### /set_greet
 
+设置群组欢迎语
+
 ---
 
 ### /set_bot_admin
+
+格式: `/set_bot_admin <user_id>`
+
+在群组中设置bot管理员 (对于bot该用户将具有同等于群主的权限, 慎用)
+
+---
+
+### /leave_chat
+
+格式: `/leave_chat <chat_id>`
+
+离开群组，同时删除群组数据（无法挽回的操作）
+
+---
+
+### /clean_data
+
+手动清理数据, 并刷新抽老婆数据
+
+---
+
+### /status
+
+查看bot运行状态
+
+---
+
+### /clear_inactive_user_avatar
+
+格式: `/clear_inactive_user_avatar <days>`
+
+清理 days 天内不活跃用户的头像缓存
+
+---
+
+### /error_notice
+
+开启/关闭错误通知
+
+---
 
