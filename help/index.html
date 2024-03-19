@@ -1,0 +1,1049 @@
+
+<!doctype html>
+<html lang="zh" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="kmua-bot v2 官方文档">
+      
+      
+        <meta name="author" content="Krau">
+      
+      
+      
+        <link rel="prev" href="..">
+      
+      
+        <link rel="next" href="../self-host/">
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.5.3, mkdocs-material-9.5.14">
+    
+    
+      
+        <title>详细帮助 - kmua-bot v2</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.10ba22f1.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce((e,_)=>(e<<5)-e+_.charCodeAt(0),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+    
+  </head>
+  
+  
+    <body dir="ltr">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#_1" class="md-skip">
+          跳转至
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="页眉">
+    <a href=".." title="kmua-bot v2" class="md-header__button md-logo" aria-label="kmua-bot v2" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54Z"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3V6m0 5h18v2H3v-2m0 5h18v2H3v-2Z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            kmua-bot v2
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              详细帮助
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+    
+      <script>var media,input,key,value,palette=__md_get("__palette");if(palette&&palette.color){"(prefers-color-scheme)"===palette.color.media&&(media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']"),palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent"));for([key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      <label class="md-header__button md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.516 6.516 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5Z"/></svg>
+      </label>
+      <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="搜索" placeholder="搜索" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.516 6.516 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5Z"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11h12Z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="查找">
+        
+        <button type="reset" class="md-search__icon md-icon" title="清空当前内容" aria-label="清空当前内容" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12 19 6.41Z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            正在初始化搜索引擎
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/krau/kmua-bot" title="前往仓库" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.5.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2023 Fonticons, Inc.--><path d="M439.55 236.05 244 40.45a28.87 28.87 0 0 0-40.81 0l-40.66 40.63 51.52 51.52c27.06-9.14 52.68 16.77 43.39 43.68l49.66 49.66c34.23-11.8 61.18 31 35.47 56.69-26.49 26.49-70.21-2.87-56-37.34L240.22 199v121.85c25.3 12.54 22.26 41.85 9.08 55a34.34 34.34 0 0 1-48.55 0c-17.57-17.6-11.07-46.91 11.25-56v-123c-20.8-8.51-24.6-30.74-18.64-45L142.57 101 8.45 235.14a28.86 28.86 0 0 0 0 40.81l195.61 195.6a28.86 28.86 0 0 0 40.8 0l194.69-194.69a28.86 28.86 0 0 0 0-40.81z"/></svg>
+  </div>
+  <div class="md-source__repository">
+    krau/kmua-bot
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="导航栏" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="kmua-bot v2" class="md-nav__button md-logo" aria-label="kmua-bot v2" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54Z"/></svg>
+
+    </a>
+    kmua-bot v2
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/krau/kmua-bot" title="前往仓库" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.5.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2023 Fonticons, Inc.--><path d="M439.55 236.05 244 40.45a28.87 28.87 0 0 0-40.81 0l-40.66 40.63 51.52 51.52c27.06-9.14 52.68 16.77 43.39 43.68l49.66 49.66c34.23-11.8 61.18 31 35.47 56.69-26.49 26.49-70.21-2.87-56-37.34L240.22 199v121.85c25.3 12.54 22.26 41.85 9.08 55a34.34 34.34 0 0 1-48.55 0c-17.57-17.6-11.07-46.91 11.25-56v-123c-20.8-8.51-24.6-30.74-18.64-45L142.57 101 8.45 235.14a28.86 28.86 0 0 0 0 40.81l195.61 195.6a28.86 28.86 0 0 0 40.8 0l194.69-194.69a28.86 28.86 0 0 0 0-40.81z"/></svg>
+  </div>
+  <div class="md-source__repository">
+    krau/kmua-bot
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    简介
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  <span class="md-ellipsis">
+    详细帮助
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  <span class="md-ellipsis">
+    详细帮助
+  </span>
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="目录">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      目录
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      目前已知的支持用户组命令
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="目前已知的支持用户组命令">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#start" class="md-nav__link">
+    <span class="md-ellipsis">
+      /start
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#t" class="md-nav__link">
+    <span class="md-ellipsis">
+      /t
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#setu" class="md-nav__link">
+    <span class="md-ellipsis">
+      /setu
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#help" class="md-nav__link">
+    <span class="md-ellipsis">
+      /help
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#q" class="md-nav__link">
+    <span class="md-ellipsis">
+      /q
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#waifu" class="md-nav__link">
+    <span class="md-ellipsis">
+      /waifu
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#id" class="md-nav__link">
+    <span class="md-ellipsis">
+      /id
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#qrand" class="md-nav__link">
+    <span class="md-ellipsis">
+      /qrand
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#waifu_graph" class="md-nav__link">
+    <span class="md-ellipsis">
+      /waifu_graph
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ip" class="md-nav__link">
+    <span class="md-ellipsis">
+      /ip
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#d" class="md-nav__link">
+    <span class="md-ellipsis">
+      /d
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rua-rua" class="md-nav__link">
+    <span class="md-ellipsis">
+      //rua /$rua
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      目前已知的管理组命令
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="目前已知的管理组命令">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#setqp" class="md-nav__link">
+    <span class="md-ellipsis">
+      /setqp
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#switch_waifu" class="md-nav__link">
+    <span class="md-ellipsis">
+      /switch_waifu
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#switch_delete_events" class="md-nav__link">
+    <span class="md-ellipsis">
+      /switch_delete_events
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#switch_unpin_channel_pin" class="md-nav__link">
+    <span class="md-ellipsis">
+      /switch_unpin_channel_pin
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#set_greet" class="md-nav__link">
+    <span class="md-ellipsis">
+      /set_greet
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#set_bot_admin" class="md-nav__link">
+    <span class="md-ellipsis">
+      /set_bot_admin
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#leave_chat" class="md-nav__link">
+    <span class="md-ellipsis">
+      /leave_chat
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#clean_data" class="md-nav__link">
+    <span class="md-ellipsis">
+      /clean_data
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#status" class="md-nav__link">
+    <span class="md-ellipsis">
+      /status
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#clear_inactive_user_avatar" class="md-nav__link">
+    <span class="md-ellipsis">
+      /clear_inactive_user_avatar
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#error_notice" class="md-nav__link">
+    <span class="md-ellipsis">
+      /error_notice
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../self-host/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    部署指南
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../license/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    MIT License
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="目录">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      目录
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      目前已知的支持用户组命令
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="目前已知的支持用户组命令">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#start" class="md-nav__link">
+    <span class="md-ellipsis">
+      /start
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#t" class="md-nav__link">
+    <span class="md-ellipsis">
+      /t
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#setu" class="md-nav__link">
+    <span class="md-ellipsis">
+      /setu
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#help" class="md-nav__link">
+    <span class="md-ellipsis">
+      /help
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#q" class="md-nav__link">
+    <span class="md-ellipsis">
+      /q
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#waifu" class="md-nav__link">
+    <span class="md-ellipsis">
+      /waifu
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#id" class="md-nav__link">
+    <span class="md-ellipsis">
+      /id
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#qrand" class="md-nav__link">
+    <span class="md-ellipsis">
+      /qrand
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#waifu_graph" class="md-nav__link">
+    <span class="md-ellipsis">
+      /waifu_graph
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ip" class="md-nav__link">
+    <span class="md-ellipsis">
+      /ip
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#d" class="md-nav__link">
+    <span class="md-ellipsis">
+      /d
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rua-rua" class="md-nav__link">
+    <span class="md-ellipsis">
+      //rua /$rua
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      目前已知的管理组命令
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="目前已知的管理组命令">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#setqp" class="md-nav__link">
+    <span class="md-ellipsis">
+      /setqp
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#switch_waifu" class="md-nav__link">
+    <span class="md-ellipsis">
+      /switch_waifu
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#switch_delete_events" class="md-nav__link">
+    <span class="md-ellipsis">
+      /switch_delete_events
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#switch_unpin_channel_pin" class="md-nav__link">
+    <span class="md-ellipsis">
+      /switch_unpin_channel_pin
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#set_greet" class="md-nav__link">
+    <span class="md-ellipsis">
+      /set_greet
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#set_bot_admin" class="md-nav__link">
+    <span class="md-ellipsis">
+      /set_bot_admin
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#leave_chat" class="md-nav__link">
+    <span class="md-ellipsis">
+      /leave_chat
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#clean_data" class="md-nav__link">
+    <span class="md-ellipsis">
+      /clean_data
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#status" class="md-nav__link">
+    <span class="md-ellipsis">
+      /status
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#clear_inactive_user_avatar" class="md-nav__link">
+    <span class="md-ellipsis">
+      /clear_inactive_user_avatar
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#error_notice" class="md-nav__link">
+    <span class="md-ellipsis">
+      /error_notice
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+  
+  
+
+
+<h1 id="_1">详细帮助</h1>
+<p>~~怎么没人帮窝写文档a~~</p>
+<p>现在有了（</p>
+<hr />
+<h2 id="_2">目前已知的支持用户组命令</h2>
+<p>使用右侧栏进行关于命令的细节查看</p>
+<p>还有更多吗？</p>
+<hr />
+<h3 id="start">/start</h3>
+<p>提供最初始的帮助菜单</p>
+<p>开源仓库位置 完整的帮助</p>
+<p>个人数据 以及被Quote的内容管理</p>
+<p>抽老婆管理和一个Nya~</p>
+<p><img alt="帮助页内容" src="../images/-help.jpg" /></p>
+<p>每一个小功能内非常简单这边就不加说明了（</p>
+<hr />
+<h3 id="t">/t</h3>
+<p>常规格式：<strong>/t 头衔内容</strong></p>
+<ul>
+<li>简单快速易上手</li>
+</ul>
+<p><img alt="自己使用时" src="../images/-t_myself.jpg" /></p>
+<p>但有一点要注意 这个功能在对群组所有者使用时是无效的</p>
+<p><img alt="对群组所有者" src="../images/-t_admin.jpg" /></p>
+<ul>
+<li>不仅可以用于自己 还能赋予他人 一般通过<strong>回复 /t 内容</strong>用法</li>
+</ul>
+<p><img alt="土块" src="../images/-t_2other.jpg" /></p>
+<hr />
+<h3 id="setu">/setu</h3>
+<p>顾名思义 随机涩图 但是抽取范围有限 来源频道见按钮中的<a href="https://t.me/manyacg">Channel</a></p>
+<p>左侧按钮即可打开图片来源</p>
+<p><img alt="setu" src="../images/-setu.jpg" /></p>
+<p><em>这一项命令在私聊中似乎是无效的</em></p>
+<hr />
+<h3 id="help">/help</h3>
+<p>生成一条带有所有命令的简要参数信息 帮助用户更快上手</p>
+<p>左侧按钮可跳转至帮助页面 右侧则为开源仓库地址</p>
+<p><img alt="help lite" src="../images/-help_lite.jpg" /></p>
+<p>即使在群内 本条消息生成的内容也无任何差别</p>
+<ul>
+<li><em>使用如同Minecraft格式的 </em><em>/help <number></em><em> 不影响任何输出</em></li>
+</ul>
+<hr />
+<h3 id="q">/q</h3>
+<p>用法和Quoty Bot是一样的 但不存在转发给bot时自动生成 对消息回复/q即可</p>
+<p>在对所q消息置顶之后 kmua便会回复被/q的句子一句随机的应答语 并生成一张带有所q消息内容的图片</p>
+<p><img alt="名言记录" src="../images/-q.jpg" /></p>
+<p>其实 即使不对消息进行回复 kmua也会贴心的回复你/q的正确用法</p>
+<p><em>请回复一条消息</em></p>
+<hr />
+<h3 id="waifu">/waifu</h3>
+<p>抽取群老婆！抽取后则本日内结果不变</p>
+<p>左为移除右为结婚</p>
+<p><img alt="-waifu" src="../images/-waifu.jpg" /></p>
+<hr />
+<h3 id="id">/id</h3>
+<p><em>本部分无图例</em></p>
+<p>获取当前对话的ID和请求的用户ID 还可通过回复消息内容</p>
+<p>获取消息发送者的ID（<strong>回复 /id</strong>）</p>
+<p>或许有用处？</p>
+<hr />
+<h3 id="qrand">/qrand</h3>
+<p>随机抽取语录进行发送（范围为整个群中）</p>
+<p>在此前需要曾有已被记录的名言 否则将不进行任何输出<img alt="qrand" src="../images/qrand.png" /></p>
+<hr />
+<h3 id="waifu_graph">/waifu_graph</h3>
+<p>渲染群内的waifu关系图 如果数量较多则需要较长的等待时间</p>
+<p>此外 稍候的提示语是随机的 每一次均有不同</p>
+<p><img alt="image-20240127133802647" src="../images/waifu_graph.png" /></p>
+<hr />
+<h3 id="ip">/ip</h3>
+<p>简单易用易上手 /ip空格后接所需要请求的网址或ip</p>
+<p>所请求的内容不需要带任何协议头 也就是例如 tg:// http:// https:// ftp:// localhost:32767</p>
+<p>这些都不需要 只需后面的即可</p>
+<p>e.g:/ip google.com</p>
+<p><img alt="image-20240127140934306" src="../images/ip.png" /></p>
+<hr />
+<h3 id="d">/d</h3>
+<p>删除已有的语录记录</p>
+<p>简单易上手 只需要回复需要删除的语录发送/d即可</p>
+<p>该功能主要依靠消息发送者作为标记 便只能删除自己的语录</p>
+<p>也就是如果自己把别人的消息存入语录中 自己是无法通过/d去删除的（非常重要）</p>
+<p>但别人能够/d自己的消息移除语录</p>
+<p>无论回复平常的消息亦或者是他人被记录的语录 均会回复 <em>只能删除自己的语录哦</em></p>
+<p>但如果处于管理员状态下 /d的作用域会扩大一些 略有不同 在下方的管理员命令里了解更多</p>
+<p><img alt="image-20240127134648693" src="../images/-d.png" /></p>
+<hr />
+<h3 id="rua-rua">//rua   /$rua</h3>
+<p>为防止与别的命令互相冲突或是消息变命令而被过滤掉 </p>
+<p>两//和/$依旧可以发出行为命令 任意内容都可</p>
+<p>中文行为命令下不需要// 因为这并不会被标识为一条命令</p>
+<p>//与/$的作用相同 且$不能使用别的符号进行代替否则将无效化</p>
+<p>使用本命令需要对消息进行回复 或是只发送不回复 这样所指对象将是自己本身</p>
+<p>未来将加入使用提及下的行为命令</p>
+<p><em>reply:</em> //<action> <addition></p>
+<p><addition>为可选值 不输入并不影响</p>
+<p><img alt="image-20240127144829277" src="../images/action.png" /></p>
+<hr />
+<h2 id="_3">目前已知的管理组命令</h2>
+<hr />
+<h3 id="setqp">/setqp</h3>
+<p>格式: <code>/setqp &lt;0,1&gt;</code></p>
+<p>设置群内 bot 主动发送随机语录的频率，参数为0~1之间的概率</p>
+<p>设置为1则是只要有人说话就主动发言，设置为0.01则是1%概率，设置为0等于关闭此功能。</p>
+<hr />
+<h3 id="switch_waifu">/switch_waifu</h3>
+<p>在群内开关老婆功能</p>
+<hr />
+<h3 id="switch_delete_events">/switch_delete_events</h3>
+<p>在群内开关删除事件消息的功能 (bot 需要删除消息权限)</p>
+<hr />
+<h3 id="switch_unpin_channel_pin">/switch_unpin_channel_pin</h3>
+<p>开关取消频道消息置顶的功能 (bot 需要置顶权限)</p>
+<hr />
+<h3 id="set_greet">/set_greet</h3>
+<p>设置群组欢迎语</p>
+<hr />
+<h3 id="set_bot_admin">/set_bot_admin</h3>
+<p>格式: <code>/set_bot_admin &lt;user_id&gt;</code></p>
+<p>在群组中设置bot管理员 (对于bot该用户将具有同等于群主的权限, 慎用)</p>
+<hr />
+<h3 id="leave_chat">/leave_chat</h3>
+<p>格式: <code>/leave_chat &lt;chat_id&gt;</code></p>
+<p>离开群组，同时删除群组数据（无法挽回的操作）</p>
+<hr />
+<h3 id="clean_data">/clean_data</h3>
+<p>手动清理数据, 并刷新抽老婆数据</p>
+<hr />
+<h3 id="status">/status</h3>
+<p>查看bot运行状态</p>
+<hr />
+<h3 id="clear_inactive_user_avatar">/clear_inactive_user_avatar</h3>
+<p>格式: <code>/clear_inactive_user_avatar &lt;days&gt;</code></p>
+<p>清理 days 天内不活跃用户的头像缓存</p>
+<hr />
+<h3 id="error_notice">/error_notice</h3>
+<p>开启/关闭错误通知</p>
+<hr />
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      CC BY-NC-SA 4.0
+    </div>
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    <script id="__config" type="application/json">{"base": "..", "features": [], "search": "../assets/javascripts/workers/search.b8dbb3d2.min.js", "translations": {"clipboard.copied": "\u5df2\u590d\u5236", "clipboard.copy": "\u590d\u5236", "search.result.more.one": "\u5728\u8be5\u9875\u4e0a\u8fd8\u6709 1 \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.more.other": "\u5728\u8be5\u9875\u4e0a\u8fd8\u6709 # \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.none": "\u6ca1\u6709\u627e\u5230\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.one": "\u627e\u5230 1 \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.other": "# \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.placeholder": "\u952e\u5165\u4ee5\u5f00\u59cb\u641c\u7d22", "search.result.term.missing": "\u7f3a\u5c11", "select.version": "\u9009\u62e9\u5f53\u524d\u7248\u672c"}}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.bd41221c.min.js"></script>
+      
+    
+  </body>
+</html>
