@@ -78,7 +78,7 @@ def run():
     job_queue.run_daily(
         clean_data,
         time=datetime.time(4, 0, 0, 0, tzinfo=pytz.timezone("Asia/Shanghai")),
-        name="refresh_waifu_data",
+        name="clean_data",
     )
     app.add_handlers(
         {
@@ -98,9 +98,22 @@ def run():
         UpdateType.CHOSEN_INLINE_RESULT,
         UpdateType.INLINE_QUERY,
     ]
-    app.run_polling(
-        allowed_updates=allowed_updates, drop_pending_updates=True, close_loop=False
-    )
+    if settings.get("webhook"):
+        logger.info("running webhook...")
+        app.run_webhook(
+            listen=settings.listen,
+            port=settings.port,
+            secret_token=settings.secret_token,
+            url_path=settings.get("url_path", ""),
+            key=settings.get("key"),
+            cert=settings.get("cert"),
+            webhook_url=settings.webhook_url,
+            allowed_updates=allowed_updates,
+        )
+    else:
+        app.run_polling(
+            allowed_updates=allowed_updates, drop_pending_updates=True, close_loop=False
+        )
 
 
 run()
