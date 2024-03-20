@@ -89,7 +89,7 @@ set_bot_admin_globally_handler = CommandHandler(
     "set_bot_admin", manage.set_bot_admin_globally, filters=filters.ChatType.PRIVATE
 )
 leave_chat_handler = CommandHandler("leave_chat", manage.leave_chat)
-refresh_waifu_data_manually_handler = CommandHandler(
+clean_data_data_manually_handler = CommandHandler(
     "clean_data", manage.clean_data_manually
 )
 status_handler = CommandHandler("status", manage.status)
@@ -230,7 +230,7 @@ command_handlers = [
     set_bot_admin_in_chat_handler,
     set_bot_admin_globally_handler,
     leave_chat_handler,
-    refresh_waifu_data_manually_handler,
+    clean_data_data_manually_handler,
     status_handler,
     clear_inactive_user_avatar_handler,
     setu_handler,
