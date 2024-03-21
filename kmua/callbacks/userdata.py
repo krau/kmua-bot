@@ -256,7 +256,7 @@ async def _divorce_confirm(update: Update, _: ContextTypes.DEFAULT_TYPE):
     await query.edit_message_caption(
         caption="_愿你有一天和重要之人重逢_",
         parse_mode="MarkdownV2",
-        reply_markup=common.back_home_markup,
+        reply_markup=common.BACK_HOME_MARKUP,
     )
     logger.debug(
         f"{db_user.full_name}<{db_user.id}> divorced "
@@ -340,7 +340,7 @@ async def _qer_quote_manage(update: Update, _: ContextTypes.DEFAULT_TYPE):
     if quotes_count == 0:
         await query.edit_message_caption(
             caption="这里空空如也",
-            reply_markup=common.back_home_markup,
+            reply_markup=common.BACK_HOME_MARKUP,
         )
         return
     if page > max_page or page < 1:

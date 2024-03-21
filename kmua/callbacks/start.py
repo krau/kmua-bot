@@ -7,8 +7,8 @@ from kmua.logger import logger
 _start_bot_markup = InlineKeyboardMarkup(
     [
         [
-            InlineKeyboardButton("开源仓库", url="https://github.com/krau/kmua-bot"),
-            InlineKeyboardButton("详细帮助", url="https://krau.github.io/kmua-bot/"),
+            InlineKeyboardButton("开源仓库", url=common.OPEN_SOURCE_URL),
+            InlineKeyboardButton("详细帮助", url=common.DETAIL_HELP_URL),
         ],
         [
             InlineKeyboardButton("个人信息", callback_data="user_data_manage"),
@@ -67,12 +67,8 @@ async def _start_in_group(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 )
             ],
             [
-                InlineKeyboardButton(
-                    "Open source", url="https://github.com/krau/kmua-bot"
-                ),
-                InlineKeyboardButton(
-                    "Detail help", url="https://krau.github.io/kmua-bot/"
-                ),
+                InlineKeyboardButton("Open source", url=common.OPEN_SOURCE_URL),
+                InlineKeyboardButton("Detail help", url=common.DETAIL_HELP_URL),
             ],
         ]
     )

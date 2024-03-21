@@ -150,7 +150,7 @@ async def verify_user_can_manage_bot_in_chat(
 ) -> bool:
     """
     验证用户是否有在该聊天中管理bot的权限
-    可以管理bot的人包括：群主（和匿名管理员）、bot的全局管理员、在群中被群主授权的bot管理员
+    可以管理bot的人包括: 群主 (和匿名管理员)、bot的全局管理员、在群中被群主授权的bot管理员
     已在内部做 answer callback query 处理
     :return: bool
     """

@@ -4,9 +4,7 @@ import time
 
 import psutil
 
-from kmua import dao
-
-from .utils import db_path
+from kmua import common, dao
 
 
 def get_bot_status() -> str:
@@ -17,8 +15,8 @@ Database Status:
     - Quotes: {dao.get_all_quotes_count()}
     - Associations: {dao.get_all_associations_count()}
     """
-    if db_path:
-        db_status += f"- Size: {db_path.stat().st_size / 1024 / 1024:.2f} MB"
+    if common.DB_PATH and common.DB_PATH.exists() and common.DB_PATH.is_file():
+        db_status += f"- Size: {common.DB_PATH.stat().st_size / 1024 / 1024:.2f} MB"
     db_status += "\n"
     pid = os.getpid()
     p = psutil.Process(pid)

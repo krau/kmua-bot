@@ -131,6 +131,9 @@ set_title_permissions_callback_handler = CallbackQueryHandler(
 chat_quote_manage_handler = CallbackQueryHandler(
     quote.delete_quote_in_chat, pattern="chat_quote_manage|delete_quote_in_chat"
 )
+chat_quote_page_jump_handler = CallbackQueryHandler(
+    quote.chat_quote_page_jump, pattern="chat_quote_page_jump"
+)
 user_data_manage_handler = CallbackQueryHandler(
     userdata.user_data_manage, pattern="user_data_manage"
 )
@@ -200,6 +203,7 @@ callback_query_handlers = [
     user_quote_manage_handler,
     marry_waifu_handler,
     chat_quote_manage_handler,
+    chat_quote_page_jump_handler,
     set_title_permissions_callback_handler,
     start_callback_handler,
     remove_waifu_handler,

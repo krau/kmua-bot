@@ -3,9 +3,9 @@ import gc
 
 from telegram.ext import ContextTypes
 
-from kmua import dao
+from kmua import common, dao
 from kmua.logger import logger
-from kmua.common.utils import db_path
+
 from .waifu import send_waifu_graph
 from kmua.config import settings
 
@@ -22,8 +22,8 @@ async def clean_data(context: ContextTypes.DEFAULT_TYPE):
     finally:
         await asyncio.sleep(1)
         await dao.refresh_all_waifu_data()
-        if db_path:
-            size = db_path.stat().st_size / 1024 / 1024
+        if common.DB_PATH and common.DB_PATH.exists() and common.DB_PATH.is_file():
+            size = common.DB_PATH.stat().st_size / 1024 / 1024
             if size > settings.get("max_db_size", 100):
                 logger.debug(f"Database size {size:.2f} MB is too large, cleaning...")
                 count = dao.clear_inactived_users_avatar(

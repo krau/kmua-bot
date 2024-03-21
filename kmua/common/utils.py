@@ -2,31 +2,9 @@ import glob
 import json
 import os
 import random
-import re
-from operator import attrgetter
 from pathlib import Path
 
-from telegram import (
-    InlineKeyboardButton,
-    InlineKeyboardMarkup,
-)
-
-from kmua.config import data_dir, settings
 from kmua.logger import logger
-
-back_home_markup = InlineKeyboardMarkup(
-    [
-        [
-            InlineKeyboardButton("返回", callback_data="back_home"),
-        ]
-    ]
-)
-
-db_path = (
-    Path(data_dir / settings.get("db_url", "sqlite:///./data/kmua.db").split("/")[-1])
-    if settings.get("db_url").startswith("sqlite")
-    else None
-)
 
 
 def random_unit(probability: float) -> bool:
@@ -38,26 +16,6 @@ def random_unit(probability: float) -> bool:
     """
     assert 0 <= probability <= 1, "参数probability应该在[0,1]之间"
     return random.uniform(0, 1) < probability
-
-
-def sort_topn_bykey(data: dict, n: int, key: str) -> list:
-    """
-    将字典按照指定的key排序，取前n个
-
-    :param data: 字典
-    :param n: 取前n个
-    :param key: 指定的key
-    :return: 排序后的列表
-    """
-    return sorted(data.values(), key=attrgetter(key), reverse=True)[:n]
-
-
-def parse_arguments(text: str) -> list[str]:
-    pattern = r'"([^"]*)"|([^ ]+)'
-    arguments = re.findall(pattern, text)
-    parsed_arguments = [group[0] or group[1] for group in arguments]
-
-    return parsed_arguments
 
 
 def _load_word_dict():

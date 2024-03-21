@@ -45,12 +45,8 @@ Inline 模式可以查询语录
     help_markup = InlineKeyboardMarkup(
         [
             [
-                InlineKeyboardButton(
-                    "Detail help", url="https://krau.github.io/kmua-bot/"
-                ),
-                InlineKeyboardButton(
-                    "Open source", url="https://github.com/krau/kmua-bot"
-                ),
+                InlineKeyboardButton("Detail help", url=common.DETAIL_HELP_URL),
+                InlineKeyboardButton("Open source", url=common.OPEN_SOURCE_URL),
             ]
         ]
     )

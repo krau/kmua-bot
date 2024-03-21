@@ -305,30 +305,30 @@ async def _chat_quote_manage(update: Update, _: ContextTypes.DEFAULT_TYPE):
     此功能只应该在 verify_user_can_manage_bot_in_chat 通过时被调用
     """
     chat = update.effective_chat
+    user = update.effective_user
+    logger.info(f"[{chat.title}]({user.name})")
     message = update.effective_message
     page = (
         int(update.callback_query.data.split(" ")[-1]) if update.callback_query else 1
     )
-    page_size = 5
     quotes = dao.get_chat_quotes_page(
-        chat=update.effective_chat, page=page, page_size=page_size
+        chat=update.effective_chat, page=page, page_size=common.QUOTE_PAGE_SIZE
     )
     quotes_count = dao.get_chat_quotes_count(chat)
-    max_page = ceil(quotes_count / page_size)
+    max_page = ceil(quotes_count / common.QUOTE_PAGE_SIZE)
     if quotes_count == 0 and not update.callback_query:
         sent_message = await message.reply_text("本群还没有语录哦")
         logger.info(f"Bot: {sent_message.text}")
         return
     if quotes_count == 0 and update.callback_query:
-        await update.callback_query.edit_message_text(
-            text="已经没有语录啦",
-        )
+        await update.callback_query.edit_message_text("已经没有语录啦")
         return
     if (page > max_page or page < 1) and update.callback_query:
         await update.callback_query.answer("已经没有啦", show_alert=False, cache_time=5)
         return
-    text = f"共有 {quotes_count} 条语录; 当前页: {page}/{max_page}\n"
-    text += "点击序号删除语录\n\n"
+    text = (
+        f"共有 {quotes_count} 条语录; 当前页: {page}/{max_page}\n点击序号删除语录\n\n"
+    )
     keyboard, line = [], []
     for index, quote in enumerate(quotes):
         quote_content = (
@@ -340,7 +340,6 @@ async def _chat_quote_manage(update: Update, _: ContextTypes.DEFAULT_TYPE):
         text += (
             rf"{index+1}\. " f"[{quote_content}]({escape_markdown(quote.link,2)})\n\n"
         )
-        # 每行5个按钮
         line.append(
             InlineKeyboardButton(
                 index + 1,
@@ -355,7 +354,7 @@ async def _chat_quote_manage(update: Update, _: ContextTypes.DEFAULT_TYPE):
         ),
         InlineKeyboardButton(
             f"第{page}/{max_page}页",
-            callback_data="noop",
+            callback_data="chat_quote_page_jump 1",
         ),
         InlineKeyboardButton(
             "下一页",
@@ -376,6 +375,71 @@ async def _chat_quote_manage(update: Update, _: ContextTypes.DEFAULT_TYPE):
         reply_markup=reply_markup,
         disable_web_page_preview=True,
         parse_mode="MarkdownV2",
+    )
+
+
+async def chat_quote_page_jump(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """
+    语录管理页数跳转
+    """
+    user = update.effective_user
+    chat = update.effective_chat
+    if not await common.verify_user_can_manage_bot_in_chat(user, chat, update, context):
+        return
+    logger.info(f"[{chat.title}]({user.name})" + f" {update.callback_query.data}")
+    quotes_count = dao.get_chat_quotes_count(chat)
+    if quotes_count == 0:
+        await update.callback_query.edit_message_text("已经没有语录啦")
+        return
+    quote_page_count = ceil(quotes_count / common.QUOTE_PAGE_SIZE)
+    page_jump_page = int(update.callback_query.data.split(" ")[-1])
+    page_jump_max_page = ceil(quote_page_count / common.PAGE_JUMP_SIZE)
+
+    if page_jump_page < 1 or page_jump_page > page_jump_max_page:
+        await update.callback_query.answer("已经没有啦", show_alert=False, cache_time=5)
+        return
+
+    keyboard, line = [], []
+    for quote_page in range(
+        (page_jump_page - 1) * common.PAGE_JUMP_SIZE + 1,
+        (
+            page_jump_page * common.PAGE_JUMP_SIZE + 1
+            if page_jump_page * common.PAGE_JUMP_SIZE < quote_page_count
+            else quote_page_count + 1
+        ),
+    ):
+        if len(keyboard) == 4:
+            break
+        line.append(
+            InlineKeyboardButton(
+                quote_page,
+                callback_data=f"chat_quote_manage {quote_page}",
+            )
+        )
+        if len(line) == 5:
+            keyboard.append(line)
+            line = []
+    if line:
+        keyboard.append(line)
+    navigation_buttons = [
+        InlineKeyboardButton(
+            "上一页",
+            callback_data=f"chat_quote_page_jump {page_jump_page - 1}",
+        ),
+        InlineKeyboardButton(
+            f"第{page_jump_page}/{page_jump_max_page}页",
+            callback_data="chat_quote_page_jump 1",
+        ),
+        InlineKeyboardButton(
+            "下一页",
+            callback_data=f"chat_quote_page_jump {page_jump_page + 1}",
+        ),
+    ]
+    keyboard.append(navigation_buttons)
+    text = f"共有 {quotes_count} 条语录, {quote_page_count} 页\n点击页码跳转\n\n"
+    await update.callback_query.edit_message_text(
+        text=text,
+        reply_markup=InlineKeyboardMarkup(keyboard),
     )
 
 
