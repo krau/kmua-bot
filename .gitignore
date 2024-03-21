@@ -12,3 +12,4 @@ data.dev*
 data/data.pickle
 data/avatars/*
 data/*.db
+.python-version
