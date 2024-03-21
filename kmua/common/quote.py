@@ -87,7 +87,7 @@ def get_inline_query_result_cached_photo(quote: Quote) -> InlineQueryResultCache
     result = InlineQueryResultCachedPhoto(
         id=result_id,
         photo_file_id=quote.img,
-        title=quote.text[:10],
+        title=quote.text,
         reply_markup=InlineKeyboardMarkup(
             [
                 [
@@ -110,7 +110,7 @@ def get_inline_query_result_article(quote: Quote) -> InlineQueryResultArticle:
     qer_user_name = qer_user.full_name if qer_user else "<数据丢失>"
     result = InlineQueryResultArticle(
         id=result_id,
-        title=quote.text[:10],
+        title=quote.text,
         description=f"""
 For {quote_user_name} in {quote_chat_title}
 Create at {datetime.strftime(quote.created_at, '%Y-%m-%d %H:%M:%S')} by {qer_user_name}

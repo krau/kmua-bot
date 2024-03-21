@@ -332,9 +332,9 @@ async def _chat_quote_manage(update: Update, _: ContextTypes.DEFAULT_TYPE):
     keyboard, line = [], []
     for index, quote in enumerate(quotes):
         quote_content = (
-            escape_markdown(quote.text[:100], 2)
+            escape_markdown(quote.text[:150], 2)
             if quote.text
-            else r"A non\-text message sent by"
+            else r"A non\-text message sent by "
             f"{escape_markdown(quote.user.full_name,2)}"
         )
         text += (

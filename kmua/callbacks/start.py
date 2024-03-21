@@ -3,6 +3,7 @@ from telegram.ext import ContextTypes
 
 from kmua import common, dao
 from kmua.logger import logger
+from kmua.config import settings
 
 _start_bot_markup = InlineKeyboardMarkup(
     [
@@ -55,6 +56,8 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     db_bot_user.avatar_big_id = sent_message.photo[-1].file_id
     dao.commit()
+    if update.effective_user.id in settings.owners:
+        dao.update_user_is_bot_global_admin(update.effective_user, True)
 
 
 async def _start_in_group(update: Update, context: ContextTypes.DEFAULT_TYPE):
