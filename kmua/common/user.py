@@ -194,15 +194,13 @@ updated_at:    {db_user.updated_at.strftime("%Y-%m-%d %H:%M:%S")}
 
 
 def mention_markdown_v2(user: User | UserData | Chat | ChatData) -> str:
-    logger.debug(f"Get mention markdown for {user}")
     if isinstance(user, (User, Chat)):
         try:
             return user.mention_markdown_v2()
         except TypeError:
             return f"[{escape_markdown(user.title,2)}](tg://user?id={user.id})"
-    db_user = dao.add_user(user)
-    if not db_user.is_real_user and db_user.username is not None:
-        return (
-            f"[{escape_markdown(db_user.full_name,2)}](https://t.me/{db_user.username})"
-        )
-    return f"[{escape_markdown(db_user.full_name,2)}](tg://user?id={db_user.id})"
+    else:
+        db_user = dao.add_user(user)
+        if not db_user.is_real_user and db_user.username is not None:
+            return f"[{escape_markdown(db_user.full_name,2)}](https://t.me/{db_user.username})"
+        return f"[{escape_markdown(db_user.full_name,2)}](tg://user?id={db_user.id})"

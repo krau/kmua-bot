@@ -127,9 +127,9 @@ async def today_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if is_waifu_in_chat:
             dao.put_user_waifu_in_chat(user, chat, waifu)
         waifu_markup = common.get_waifu_markup(waifu, user)
-        text = common.get_waifu_text(waifu, is_got_waifu)
+        text = common.get_waifu_text(waifu, is_got_waifu, user)
         if user.id == waifu.married_waifu_id:
-            text = f"你和 {common.mention_markdown_v2(waifu)} 已经结婚了哦, 还想娶第二遍嘛?"
+            text = f"{common.mention_markdown_v2(user)}, 你和 {common.mention_markdown_v2(waifu)} 已经结婚了哦, 还想娶第二遍嘛?"
             waifu_markup = None
             if is_waifu_in_chat:
                 dao.put_user_waifu_in_chat(waifu, chat, user)
@@ -295,7 +295,7 @@ async def _remove_waifu_cancel(update: Update, context: ContextTypes.DEFAULT_TYP
     message = update.callback_query.message
     user = dao.get_user_by_id(user_id)
     waifu = dao.get_user_by_id(waifu_id)
-    text = common.get_waifu_text(waifu, False)
+    text = common.get_waifu_text(waifu, False, user)
     markup = common.get_waifu_markup(waifu, user)
     if message.photo:
         await message.edit_caption(
@@ -466,7 +466,7 @@ async def _cancel_marry_waifu(update: Update, _: ContextTypes.DEFAULT_TYPE):
         return
     db_waifu = dao.get_user_by_id(waifu_id)
     db_user = dao.get_user_by_id(user_id)
-    text = common.get_waifu_text(db_waifu, False)
+    text = common.get_waifu_text(db_waifu, False, db_user)
     await query.answer(
         text="o((>ω< ))o 你取消了这个求婚请求",
         cache_time=5,
