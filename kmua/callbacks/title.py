@@ -51,7 +51,7 @@ async def title(update: Update, context: ContextTypes.DEFAULT_TYPE):
             can_invite_users=title_permissions.get("can_invite_users"),
             can_edit_messages=title_permissions.get("can_edit_messages"),
             can_manage_topics=title_permissions.get("can_manage_topics"),
-            can_manage_video_chats=title_permissions.get("title_permissions"),
+            can_manage_video_chats=title_permissions.get("can_manage_video_chats"),
             can_pin_messages=title_permissions.get("can_pin_messages"),
             can_restrict_members=title_permissions.get("can_restrict_members"),
         )
