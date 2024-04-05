@@ -9,6 +9,7 @@ from sqlalchemy import (
     LargeBinary,
     String,
     func,
+    JSON,
 )
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
@@ -84,6 +85,7 @@ class ChatData(Base):
         secondaryjoin="UserData.id==UserChatAssociation.user_id",
     )
     greet = Column(String(4096), default=None)
+    title_permissions = Column(JSON, default={})
 
     quotes = relationship("Quote", back_populates="chat")
     created_at = Column(DateTime, default=func.now())
