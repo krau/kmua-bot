@@ -164,6 +164,9 @@ def update_chat_unpin_channel_pin_enabled(chat: Chat | ChatData, enabled: bool):
 
 def get_chat_title_permissions(chat: Chat | ChatData) -> dict:
     _db_chat = add_chat(chat)
+    if _db_chat.title_permissions is None:
+        _db_chat.title_permissions = {}
+        commit()
     return _db_chat.title_permissions
 
 
