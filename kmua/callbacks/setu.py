@@ -1,4 +1,5 @@
 import asyncio
+import random
 
 import httpx
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
@@ -9,6 +10,10 @@ from kmua.logger import logger
 
 _api_url: str = settings.get("manyacg_api")
 _api_url = _api_url.removesuffix("/") if _api_url else None
+_api_token: str = settings.get("manyacg_token")
+
+_MANYACG_CHANNEL = "manyacg"
+_MANYACG_BOT = "kirakabot"
 
 
 async def setu(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -26,26 +31,37 @@ async def setu(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     try:
         async with httpx.AsyncClient() as client:
-            resp = await client.get(url=f"{_api_url}/v1/artwork/random")
+            resp = await client.post(
+                url=f"{_api_url}/v1/artwork/random",
+                headers={"Authorization": f"Bearer {_api_token}"},
+            )
             if resp.status_code != 200:
                 await update.effective_message.reply_text(
                     text="失败惹，请稍后再试", quote=True
                 )
                 return
+            picture: dict = resp.json()["pictures"][
+                random.randint(0, len(resp.json()["pictures"]) - 1)
+            ]
+
             sent_message = await update.effective_message.reply_photo(
-                photo=resp.json()["data"]["pictures"][0]["direct_url"],
-                caption=resp.json()["data"]["title"],
+                photo=picture["thumbnail"],
+                caption=resp.json()["title"],
                 reply_markup=InlineKeyboardMarkup(
                     [
                         [
                             InlineKeyboardButton(
-                                "Source", url=resp.json()["data"]["source_url"]
+                                "Source",
+                                url=f"https://t.me/{_MANYACG_CHANNEL}/{picture['telegram_info']['message_id']}",
                             ),
-                            InlineKeyboardButton("Channel", url="https://t.me/manyacg"),
+                            InlineKeyboardButton(
+                                "Original File",
+                                url=f"https://t.me/{_MANYACG_BOT}/?start=file_{picture['telegram_info']['message_id']}",
+                            ),
                         ]
                     ]
                 ),
-                has_spoiler=resp.json()["data"]["r18"],
+                has_spoiler=resp.json()["r18"],
                 quote=True,
             )
             logger.info(f"Bot: {sent_message.caption}")
