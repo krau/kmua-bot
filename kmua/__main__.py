@@ -78,6 +78,8 @@ def run():
         .post_init(init_data)
         .post_stop(stop)
         .rate_limiter(rate_limiter)
+        .base_url(settings.get("base_url", "https://api.telegram.org/bot"))
+        .base_file_url(settings.get("base_file_url", "https://api.telegram.org/file/bot"))
         .build()
     )
     job_queue = app.job_queue
@@ -118,7 +120,9 @@ def run():
         )
     else:
         app.run_polling(
-            allowed_updates=allowed_updates, drop_pending_updates=True, close_loop=False
+            allowed_updates=allowed_updates,
+            drop_pending_updates=True,
+            close_loop=False,
         )
 
 
