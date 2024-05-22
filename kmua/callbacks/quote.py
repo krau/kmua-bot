@@ -137,7 +137,7 @@ async def set_quote_probability(update: Update, context: ContextTypes.DEFAULT_TY
     logger.info(f"[{chat.title}]({user.name})" + f" {message.text}")
     common.message_recorder(update, context)
 
-    if not await common.verify_user_is_chat_admin(user, chat, context):
+    if not await common.verify_user_can_manage_bot_in_chat(user, chat, context):
         sent_message = await message.reply_text("你没有权限哦")
         logger.info(f"Bot: {sent_message.text}")
         return
