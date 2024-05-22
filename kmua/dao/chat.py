@@ -1,3 +1,4 @@
+from sqlalchemy import func
 from telegram import Chat
 
 from kmua.dao._db import _db, commit
@@ -63,6 +64,15 @@ def get_chat_quotes(chat: Chat | ChatData) -> list[Quote]:
         add_chat(chat)
         return []
     return _db_chat.quotes
+
+
+def get_chat_random_quote(chat: Chat | ChatData) -> Quote | None:
+    return (
+        _db.query(Quote)
+        .filter(Quote.chat_id == chat.id)
+        .order_by(func.random())
+        .first()
+    )
 
 
 def get_chat_quotes_count(chat: Chat | ChatData) -> int:

@@ -14,7 +14,10 @@ def random_unit(probability: float) -> bool:
     :param probability: 概率
     :return: bool
     """
-    assert 0 <= probability <= 1, "参数probability应该在[0,1]之间"
+    if probability < 0:
+        return False
+    if probability > 1:
+        return True
     return random.uniform(0, 1) < probability
 
 

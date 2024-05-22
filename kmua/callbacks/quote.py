@@ -141,7 +141,7 @@ async def set_quote_probability(update: Update, context: ContextTypes.DEFAULT_TY
         sent_message = await message.reply_text("你没有权限哦")
         logger.info(f"Bot: {sent_message.text}")
         return
-    except_text = "概率是在[0,1]之间的浮点数,请检查输入"
+    except_text = "概率是小于1的小数哦\n如果设置为负则会禁用 /qrand 命令"
     if not context.args:
         sent_message = await message.reply_text(except_text)
         logger.info(f"Bot: {sent_message.text}")
@@ -158,7 +158,7 @@ async def set_quote_probability(update: Update, context: ContextTypes.DEFAULT_TY
         sent_message = await message.reply_text(except_text)
         logger.info(f"Bot: {sent_message.text}")
         return
-    if not (0 <= probability <= 1):
+    if probability > 1:
         sent_message = await message.reply_text(except_text)
         logger.info(f"Bot: {sent_message.text}")
         return
@@ -207,18 +207,17 @@ async def random_quote(update: Update, context: ContextTypes.DEFAULT_TYPE):
     pb = dao.get_chat_quote_probability(chat)
     flag = common.random_unit(pb)
     if message.text is not None:
-        if message.text.startswith("/qrand"):
+        if message.text.startswith("/qrand") and pb >= 0:
             flag = True
     if not flag:
         return
-    quotes = dao.get_chat_quotes(chat)
-    if not quotes:
+    quote = dao.get_chat_random_quote(chat)
+    if not quote:
         return
-    message_id = random.choice(quotes).message_id
     try:
         sent_message = await chat.forward_to(
             chat_id=chat.id,
-            message_id=message_id,
+            message_id=quote.message_id,
             message_thread_id=update.effective_message.message_thread_id,
         )
         logger.info(f"Bot: {sent_message.text}")
