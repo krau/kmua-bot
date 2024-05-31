@@ -1,6 +1,5 @@
 import contextlib
 import re
-import ipaddress
 
 import httpx
 from telegram import Update
