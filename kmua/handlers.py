@@ -116,6 +116,7 @@ switch_unpin_channel_pin_handler = CommandHandler(
     pin.switch_unpin_channel_pin,
     filters=filters.ChatType.GROUPS,
 )
+reset_contents_handler = CommandHandler("reset_contents", reply.reset_contents)
 
 
 # CallbackQueryHandlers
@@ -164,8 +165,8 @@ slash_handler = MessageHandler(kmua_filters.slash_filter, slash.slash)
 random_quote_handler = MessageHandler(
     (~filters.COMMAND & filters.ChatType.GROUPS), quote.random_quote
 )
-keyword_reply_handler = MessageHandler(
-    (~filters.COMMAND & kmua_filters.keyword_reply_filter), reply.keyword_reply
+reply_handler = MessageHandler(
+    (~filters.COMMAND & kmua_filters.reply_filter), reply.reply
 )
 track_chats_handler = ChatMemberHandler(
     chatmember.track_chats, ChatMemberHandler.MY_CHAT_MEMBER
@@ -243,6 +244,7 @@ command_handlers = [
     ip_handler,
     refresh_user_data_by_id_handler,
     switch_unpin_channel_pin_handler,
+    reset_contents_handler,
 ]
 
 chatdata_handlers = [
@@ -255,7 +257,7 @@ chatdata_handlers = [
 
 message_handlers = [
     bililink_convert_handler,
-    keyword_reply_handler,
+    reply_handler,
     sticker2img_handler,
     delete_event_message_handler,
     unpin_channel_pin_handler,

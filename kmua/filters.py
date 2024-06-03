@@ -121,7 +121,7 @@ class AutoForwardFilter(MessageFilter):
 
 mention_or_private_filter = MentionBotFilter() | filters.ChatType.PRIVATE
 slash_filter = SlashFilter() & TextLengthFilter(min_length=1, max_length=100)
-keyword_reply_filter = (
+reply_filter = (
     TextLengthFilter(min_length=1, max_length=200) & ~slash_filter
 ) & (ReplyBotFilter() | MentionBotFilter() | filters.ChatType.PRIVATE)
 service_message_filter = ServiceMessageFilter()
