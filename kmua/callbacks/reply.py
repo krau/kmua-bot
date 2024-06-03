@@ -99,7 +99,10 @@ async def reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
         )
         resp = await _model.generate_content_async(contents)
-        if resp.candidates[0].finish_reason is not FinishReason.STOP:
+        if resp.candidates[0].finish_reason not in (
+            FinishReason.STOP,
+            FinishReason.MAX_TOKENS,
+        ):
             logger.warning(f"Vertex AI finished unexpectedly: {resp}")
             contents.pop()
             await _keyword_reply(update, context, message_text)
