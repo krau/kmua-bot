@@ -75,6 +75,7 @@ async def reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if common.random_unit(0.2):
         await _keyword_reply_without_save(update, context, message_text)
+        return
 
     contents: bytes = _redis_client.get(f"kmua_contents_{update.effective_user.id}")
     if contents is None:
