@@ -69,9 +69,12 @@ async def reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await context.bot.send_chat_action(
         chat_id=update.effective_chat.id, action=ChatAction.TYPING
     )
-    if not (_enable_vertex and not_aonymous and common.random_unit(0.2)):
+    if not (_enable_vertex and not_aonymous):
         await _keyword_reply(update, context, message_text)
         return
+
+    if common.random_unit(0.2):
+        await _keyword_reply_without_save(update, context, message_text)
 
     contents: bytes = _redis_client.get(f"kmua_contents_{update.effective_user.id}")
     if contents is None:
@@ -80,11 +83,11 @@ async def reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await _keyword_reply(update, context, message_text)
         return
     contents: list[Content] = pickle.loads(contents)
-    if len(contents) <= 10:
+    if len(contents) <= 0:
         await _keyword_reply(update, context, message_text)
         return
     if context.user_data.get("vertex_block", False):
-        await _keyword_reply(update, context, message_text)
+        await _keyword_reply_without_save(update, context, message_text)
         return
     try:
         context.user_data["vertex_block"] = True
@@ -189,6 +192,20 @@ async def _keyword_reply(
     common.message_recorder(update, context)
     context.user_data["vertex_block"] = False
     return
+
+
+async def _keyword_reply_without_save(
+    update: Update, context: ContextTypes.DEFAULT_TYPE, message_text: str
+):
+    all_resplist = []
+    for keyword, resplist in common.word_dict.items():
+        if keyword in message_text:
+            all_resplist.extend(resplist)
+    if all_resplist:
+        await update.effective_message.reply_text(
+            text=random.choice(all_resplist),
+            quote=True,
+        )
 
 
 async def reset_contents(update: Update, _: ContextTypes.DEFAULT_TYPE):
