@@ -70,10 +70,6 @@ async def reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
         chat_id=update.effective_chat.id, action=ChatAction.TYPING
     )
     if not (_enable_vertex and not_aonymous):
-        await _keyword_reply(update, context, message_text)
-        return
-
-    if common.random_unit(0.2):
         await _keyword_reply_without_save(update, context, message_text)
         return
 
@@ -84,14 +80,14 @@ async def reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await _keyword_reply(update, context, message_text)
         return
     contents: list[Content] = pickle.loads(contents)
-    if len(contents) <= 10:
+    if len(contents) <= 2:
         await _keyword_reply(update, context, message_text)
         return
-    if context.user_data.get("vertex_block", False):
-        await _keyword_reply_without_save(update, context, message_text)
-        return
     try:
-        context.user_data["vertex_block"] = True
+        if context.bot_data.get("vertex_block", False):
+            await _keyword_reply_without_save(update, context, message_text)
+            return
+        context.bot_data["vertex_block"] = True
         contents.append(
             Content(
                 role="user",
@@ -124,22 +120,19 @@ async def reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
     except Exception as e:
         logger.error(f"Failed to generate content: {e}")
-        await _keyword_reply(update, context, message_text)
+        await _keyword_reply_without_save(update, context, message_text)
     finally:
-        if len(contents) > 20:
-            contents = contents[-20:]
+        if len(contents) > 10:
+            contents = contents[-10:]
             _redis_client.set(
                 f"kmua_contents_{update.effective_user.id}", pickle.dumps(contents)
             )
-        context.user_data["vertex_block"] = False
+        context.bot_data["vertex_block"] = False
 
 
 async def _keyword_reply(
     update: Update, context: ContextTypes.DEFAULT_TYPE, message_text: str
 ):
-    if context.user_data.get("vertex_block", False):
-        return
-    context.user_data["vertex_block"] = True
     sent_message = None
     all_resplist = []
     not_aonymous = update.effective_message.sender_chat is None
@@ -156,7 +149,7 @@ async def _keyword_reply(
             quote=True,
         )
         logger.info("Bot: " + sent_message.text)
-        if not_aonymous:
+        if not_aonymous and _enable_vertex:
             contents: bytes = _redis_client.get(
                 f"kmua_contents_{update.effective_user.id}"
             )
@@ -188,13 +181,12 @@ async def _keyword_reply(
                         parts=[Part.from_text(sent_message.text)],
                     )
                 )
-                if len(contents) > 20:
-                    contents = contents[-20:]
+                if len(contents) > 10:
+                    contents = contents[-10:]
                 _redis_client.set(
                     f"kmua_contents_{update.effective_user.id}", pickle.dumps(contents)
                 )
     common.message_recorder(update, context)
-    context.user_data["vertex_block"] = False
     return
 
 
@@ -213,5 +205,7 @@ async def _keyword_reply_without_save(
 
 
 async def reset_contents(update: Update, _: ContextTypes.DEFAULT_TYPE):
+    if not _enable_vertex:
+        return
     _redis_client.delete(f"kmua_contents_{update.effective_user.id}")
     await update.effective_message.reply_text("刚刚发生了什么...好像忘记了呢")
