@@ -83,7 +83,7 @@ async def reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await _keyword_reply(update, context, message_text)
         return
     contents: list[Content] = pickle.loads(contents)
-    if len(contents) <= 0:
+    if len(contents) <= 10:
         await _keyword_reply(update, context, message_text)
         return
     if context.user_data.get("vertex_block", False):
