@@ -33,6 +33,7 @@ _REDIS_URL = settings.get("redis_url", "redis://localhost:6379/0")
 _enable_vertex = all((_SYSTEM_INSTRUCTION, _PROJECT_ID, _LOCATION))
 _redis_client = None
 _model = None
+_preset_contents: list[Content] = []
 
 if _enable_vertex:
     try:
@@ -51,6 +52,21 @@ if _enable_vertex:
                 max_output_tokens=1024,
             ),
         )
+        for i, content in enumerate(settings.get("vertex_preset", [])):
+            if i % 2 == 0:
+                _preset_contents.append(
+                    Content(
+                        role="user",
+                        parts=[Part.from_text(content)],
+                    )
+                )
+            else:
+                _preset_contents.append(
+                    Content(
+                        role="model",
+                        parts=[Part.from_text(content)],
+                    )
+                )
     except Exception as e:
         logger.error(f"Failed to initialize Vertex AI: {e}")
         _enable_vertex = False
@@ -75,10 +91,8 @@ async def reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     contents: bytes = _redis_client.get(f"kmua_contents_{update.effective_user.id}")
     if contents is None:
-        contents = pickle.dumps([])
+        contents = pickle.dumps(_preset_contents)
         _redis_client.set(f"kmua_contents_{update.effective_user.id}", contents)
-        await _keyword_reply(update, context, message_text)
-        return
     contents: list[Content] = pickle.loads(contents)
     if len(contents) <= 2:
         await _keyword_reply(update, context, message_text)
@@ -122,8 +136,8 @@ async def reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.error(f"Failed to generate content: {e}")
         await _keyword_reply_without_save(update, context, message_text)
     finally:
-        if len(contents) > 10:
-            contents = contents[-10:]
+        if len(contents) > 16:
+            contents = contents[-16:]
             _redis_client.set(
                 f"kmua_contents_{update.effective_user.id}", pickle.dumps(contents)
             )
@@ -181,8 +195,8 @@ async def _keyword_reply(
                         parts=[Part.from_text(sent_message.text)],
                     )
                 )
-                if len(contents) > 10:
-                    contents = contents[-10:]
+                if len(contents) > 16:
+                    contents = contents[-16:]
                 _redis_client.set(
                     f"kmua_contents_{update.effective_user.id}", pickle.dumps(contents)
                 )
