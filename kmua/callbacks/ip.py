@@ -1,29 +1,11 @@
 import contextlib
-import re
+from urllib.parse import urlparse
 
 import httpx
 from telegram import Update
 from telegram.ext import ContextTypes
 
 from kmua.logger import logger
-
-_IPv4_REGEX = re.compile(
-    r"(?:(?:25[0-5]|2[0-4]\d|1\d{2}|[1-9]\d|\d)\.){3}(?:25[0-5]|2[0-4]\d|1\d{2}|[1-9]\d|\d)"
-)
-_IPv6_REGEX = re.compile(
-    r"(?:(?:[0-9A-Fa-f]{1,4}:){7}(?:[0-9A-Fa-f]{1,4}|:))|"
-    r"(?:(?:[0-9A-Fa-f]{1,4}:){6}(?::[0-9A-Fa-f]{1,4}|(?:(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(?:\.(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3})|:))|"
-    r"(?:(?:[0-9A-Fa-f]{1,4}:){5}(?:(?:(?::[0-9A-Fa-f]{1,4}){1,2})|:(?:(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(?:\.(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3})|:))|"
-    r"(?:(?:[0-9A-Fa-f]{1,4}:){4}(?:(?:(?::[0-9A-Fa-f]{1,4}){1,3})|(?:(?::[0-9A-Fa-f]{1,4})?:(?:(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(?:\.(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|"
-    r"(?:(?:[0-9A-Fa-f]{1,4}:){3}(?:(?:(?::[0-9A-Fa-f]{1,4}){1,4})|(?:(?::[0-9A-Fa-f]{1,4}){0,2}:(?:(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(?:\.(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|"
-    r"(?:(?:[0-9A-Fa-f]{1,4}:){2}(?:(?:(?::[0-9A-Fa-f]{1,4}){1,5})|(?:(?::[0-9A-Fa-f]{1,4}){0,3}:(?:(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(?:\.(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|"
-    r"(?:(?:[0-9A-Fa-f]{1,4}:){1}(?:(?:(?::[0-9A-Fa-f]{1,4}){1,6})|(?:(?::[0-9A-Fa-f]{1,4}){0,4}:(?:(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(?:\.(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|"
-    r"(?::(?:(?:(?::[0-9A-Fa-f]{1,4}){1,7})|(?:(?::[0-9A-Fa-f]{1,4}){,5}:(?:(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(?:\.(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))"
-)
-_DOMAIN_REGEX = re.compile(
-    r"(?:(?:[a-zA-Z0-9][a-zA-Z0-9\-]{0,61}[a-zA-Z0-9]\.)+)"
-    r"(?:[a-zA-Z0-9][a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])"
-)
 
 
 async def ipinfo(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -34,22 +16,19 @@ async def ipinfo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if context.user_data.get("ip_querying", False):
         return
     ip = None
-    if message.reply_to_message:
-        reply_message = message.reply_to_message
-        if reply_message.text:
-            ip = reply_message.text
-        elif reply_message.caption:
-            ip = reply_message.caption
-        else:
-            ip = None
+    if target_message := message.reply_to_message:
+        ip = target_message.text or target_message.caption
     if not ip:
         ip = context.args[0] if context.args else None
     if not ip:
         await message.reply_text("请提供要查询的 IP/域名")
         return
-    if not _IPv4_REGEX.match(ip) and not _IPv6_REGEX.match(ip) and not _DOMAIN_REGEX.match(ip):
-        await message.reply_text("请不要输入奇怪的东西")
+    ip = urlparse(ip)
+    ip = ip.hostname or ip.path or ip.netloc
+    if not ip:
+        await message.reply_text("请提供要查询的 IP/域名")
         return
+    logger.info(f"查询: {ip}")
     sent_message = await message.reply_text(f"正在查询: {ip}")
     try:
         context.user_data["ip_querying"] = True
