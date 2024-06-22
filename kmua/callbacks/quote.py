@@ -1,4 +1,5 @@
 import asyncio
+import pathlib
 import random
 import re
 from math import ceil
@@ -115,7 +116,11 @@ async def _generate_and_sned_quote_img(
         return None
     avatar = await common.get_big_avatar_bytes(quote_user.id, context)
     if not avatar:
-        return None
+        with open(
+            pathlib.Path(__file__).resolve().parent.parent / "resource" / "Akkarin.jpg",
+            "rb",
+        ) as f:
+            avatar = f.read()
     await update.effective_chat.send_action(ChatAction.UPLOAD_PHOTO)
     quote_img = common.generate_quote_img(
         avatar=avatar,

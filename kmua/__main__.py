@@ -79,7 +79,9 @@ def run():
         .post_stop(stop)
         .rate_limiter(rate_limiter)
         .base_url(settings.get("base_url", "https://api.telegram.org/bot"))
-        .base_file_url(settings.get("base_file_url", "https://api.telegram.org/file/bot"))
+        .base_file_url(
+            settings.get("base_file_url", "https://api.telegram.org/file/bot")
+        )
         .build()
     )
     job_queue = app.job_queue
