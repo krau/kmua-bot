@@ -25,10 +25,10 @@ async def setu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await _classify_setu(update, context)
         return
     if not _manyacg_api_url:
-        await update.effective_message.reply_text(text="咱才没有涩图呢")
+        await update.effective_message.reply_text(text="咱才没有涩图呢", quote=True)
         return
     if context.user_data.get("setu_cd", False):
-        await update.effective_message.reply_text(text="太快了, 不行!")
+        await update.effective_message.reply_text(text="太快了, 不行!", quote=True)
         return
     context.user_data["setu_cd"] = True
 
@@ -100,7 +100,7 @@ async def _classify_setu(update: Update, _: ContextTypes.DEFAULT_TYPE):
             )
             if resp.status_code != 200:
                 logger.error(f"nsfwjs error: {resp.json()}")
-                await sent_message.edit_text(text="失败惹，请稍后再试")
+                await sent_message.edit_text(text="失败惹，请稍后再试", quote=True)
                 return
             result: dict[str, float] = resp.json()
             await sent_message.delete()
