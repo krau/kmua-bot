@@ -1,16 +1,15 @@
-version: "3"
 services:
   kmua:
     image: ghcr.io/krau/kmua-bot:v2
-    container_name: kmua-main
+    container_name: kmua-bot
     restart: always
     volumes:
-      - ./data:/kmua/data # 不要修改此挂载
+      - ./data:/kmua/data
       - ./logs:/kmua/logs
     environment:
-      - TZ=Asia/Shanghai
-      - KMUA_TOKEN="你的token"
+    # 这是一个最简配置, 完整环境变量设置请参考文档
+    # https://krau.github.io/kmua-bot/self-host/
+      - TZ=Asia/Shanghai # 时区
+      - KMUA_TOKEN="token" # 机器人token
       - KMUA_OWNERS=[] # 主人id, 是一个数组
-      - KMUA_LOG_LEVEL="INFO"
-      - KMUA_DB_URL="sqlite:///./data/kmua.db"
-      - KMUA_BILILINK_CONVERT_API="" # 可选，用于转换b站链接
+    network_mode: host

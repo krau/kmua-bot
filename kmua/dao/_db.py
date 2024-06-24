@@ -5,7 +5,7 @@ from kmua.config import data_dir, settings
 from kmua.logger import logger
 from kmua.models.models import Base
 
-engine = create_engine(settings.DB_URL)
+engine = create_engine(settings.get("db_url", "sqlite:///./data/kmua.db"))
 _session = scoped_session(sessionmaker(autoflush=False, bind=engine))
 _db = _session()
 
