@@ -150,10 +150,10 @@ async def leave_chat(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except ValueError:
         await update.message.reply_text("请输入正确的群组ID")
         return
+    dao.delete_chat_data_and_quotes(to_leave_chat_id)
     try:
         if await context.bot.leave_chat(to_leave_chat_id):
             await update.message.reply_text("已离开群组")
-            dao.delete_chat_data_and_quotes(to_leave_chat_id)
         else:
             await update.message.reply_text("离开群组失败")
     except Exception as e:
