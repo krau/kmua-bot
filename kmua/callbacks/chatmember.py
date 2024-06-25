@@ -67,7 +67,6 @@ async def track_chats(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
 
         elif was_member and not is_member:
             logger.debug(f"{cause_name} 将bot移出群组 {chat.title}")
-            dao.delete_chat(chat)
 
     elif not was_member and is_member:
         logger.debug(f"{cause_name} 将bot添加到频道 {chat.title}")

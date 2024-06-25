@@ -117,7 +117,7 @@ switch_unpin_channel_pin_handler = CommandHandler(
     filters=filters.ChatType.GROUPS,
 )
 reset_contents_handler = CommandHandler("reset_contents", reply.reset_contents)
-
+fix_quotes_handler = CommandHandler("fix_quotes", manage.fix_quotes)
 
 # CallbackQueryHandlers
 start_callback_handler = CallbackQueryHandler(start.start, pattern="back_home")
@@ -245,6 +245,7 @@ command_handlers = [
     refresh_user_data_by_id_handler,
     switch_unpin_channel_pin_handler,
     reset_contents_handler,
+    fix_quotes_handler,
 ]
 
 chatdata_handlers = [

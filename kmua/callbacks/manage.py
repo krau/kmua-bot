@@ -242,3 +242,16 @@ async def error_notice_control(update: Update, context: ContextTypes.DEFAULT_TYP
     text += "错误通知"
     context.bot_data["error_notice"] = not is_enabled
     await update.message.reply_text(text)
+
+
+async def fix_quotes(update: Update, _: ContextTypes.DEFAULT_TYPE):
+    if update.effective_user.id not in settings.owners:
+        return
+    await update.message.reply_text("开始修复...")
+    quote_count, invalid_chat_count, failed_count = dao.fix_none_chat_id_quotes()
+    await update.message.reply_text(
+        f"修复完成\n"
+        f"共找到 {quote_count} 条没有 chat_id 的 quote\n"
+        f"无效 chat_id 数量: {invalid_chat_count}\n"
+        f"失败数量: {failed_count}"
+    )
