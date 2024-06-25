@@ -7,12 +7,11 @@ from kmua.models.models import ChatData
 from ._db import commit
 
 
-def delete_chat_data_and_quotes(chat: Chat | ChatData):
-    db_chat = chat_dao.get_chat_by_id(chat.id)
+def delete_chat_data_and_quotes(chat_id: int):
+    db_chat = chat_dao.get_chat_by_id(chat_id)
     if db_chat is None:
         return
-    for quote in db_chat.quotes:
-        quote_dao.delete_quote(quote)
+    quote_dao.delete_chat_quotes(db_chat)
     chat_dao.delete_chat(db_chat)
     commit()
 

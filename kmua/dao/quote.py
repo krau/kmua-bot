@@ -15,6 +15,11 @@ def delete_quote(quote: Quote):
     commit()
 
 
+def delete_chat_quotes(chat: Chat | ChatData):
+    _db.query(Quote).filter(Quote.chat_id == chat.id).delete()
+    commit()
+
+
 def delete_quote_by_link(link: str) -> bool:
     quote = get_quote_by_link(link)
     if quote is None:
