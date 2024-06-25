@@ -36,6 +36,7 @@ _model = None
 _preset_contents: list[Content] = []
 
 if _enable_vertex:
+    logger.debug("Initializing Vertex AI")
     try:
         vertexai.init(project=_PROJECT_ID, location=_LOCATION)
         _redis_client = redis.from_url(_REDIS_URL)
@@ -200,12 +201,11 @@ async def _keyword_reply(
                 _redis_client.set(
                     f"kmua_contents_{update.effective_user.id}", pickle.dumps(contents)
                 )
-    common.message_recorder(update, context)
     return
 
 
 async def _keyword_reply_without_save(
-    update: Update, context: ContextTypes.DEFAULT_TYPE, message_text: str
+    update: Update, _: ContextTypes.DEFAULT_TYPE, message_text: str
 ):
     all_resplist = []
     for keyword, resplist in common.word_dict.items():

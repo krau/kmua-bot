@@ -64,7 +64,6 @@ async def remake(update: Update, context: ContextTypes.DEFAULT_TYPE):
             text=text,
             parse_mode=ParseMode.MARKDOWN_V2,
         )
-    common.message_recorder(update, context)
     logger.info(f"Bot: {sent_message.text}")
     await asyncio.sleep(30)
     context.user_data["remake_cd"] = False

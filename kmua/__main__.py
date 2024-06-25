@@ -19,8 +19,9 @@ from kmua.handlers import (
     command_handlers,
     message_handlers,
     on_error,
-    other_handlers,
+    inline_query_handler_group,
 )
+from kmua.middlewares import before_middleware, after_middleware
 from kmua.logger import logger
 
 
@@ -92,11 +93,13 @@ def run():
     )
     app.add_handlers(
         {
+            -1: before_middleware,
             0: command_handlers,
             1: message_handlers,
             2: chatdata_handlers,
             3: callback_query_handlers,
-            4: other_handlers,
+            4: inline_query_handler_group,
+            100: after_middleware,
         }
     )
     app.add_error_handler(on_error)

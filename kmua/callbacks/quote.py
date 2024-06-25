@@ -32,7 +32,6 @@ async def quote(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat = update.effective_chat
     message = update.effective_message
     logger.info(f"[{chat.title}]({user.name})" + f" {message.text}")
-    common.message_recorder(update, context)
     if chat.type == ChatType.PRIVATE:
         return
     if context.args and context.args[0] != "nopin":
@@ -140,7 +139,6 @@ async def set_quote_probability(update: Update, context: ContextTypes.DEFAULT_TY
     chat = update.effective_chat
     message = update.effective_message
     logger.info(f"[{chat.title}]({user.name})" + f" {message.text}")
-    common.message_recorder(update, context)
 
     if not await common.verify_user_can_manage_bot_in_chat(user, chat, update, context):
         sent_message = await message.reply_text("你没有权限哦")
@@ -207,7 +205,6 @@ async def random_quote(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"[{chat.title}({chat.id})({chat.username})]<{user.name}>"
         + (f" {message.text}" if message.text else "<非文本消息>")
     )
-    common.message_recorder(update, context)
 
     pb = dao.get_chat_quote_probability(chat)
     flag = common.random_unit(pb)
@@ -240,7 +237,6 @@ async def delete_quote_in_chat(update: Update, context: ContextTypes.DEFAULT_TYP
     message = update.effective_message
     if not update.callback_query:
         logger.info(f"[{chat.title}]({user.name})" + f" {message.text}")
-    common.message_recorder(update, context)
     query_data = ""
     if update.callback_query:
         query_data = update.callback_query.data

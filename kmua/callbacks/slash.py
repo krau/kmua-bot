@@ -85,4 +85,3 @@ async def slash(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.effective_message.reply_markdown_v2(
         text, disable_web_page_preview=True
     )
-    common.message_recorder(update, context)

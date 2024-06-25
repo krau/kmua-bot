@@ -83,7 +83,7 @@ _nsfwjs_api_token = settings.get("nsfwjs_token")
 
 async def _classify_setu(update: Update, _: ContextTypes.DEFAULT_TYPE):
     target_message = update.effective_message.reply_to_message
-    if not (target_message.photo or target_message.document or _nsfwjs_api):
+    if not target_message.photo or not _nsfwjs_api:
         return
     try:
         async with httpx.AsyncClient() as client:

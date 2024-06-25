@@ -70,7 +70,6 @@ def get_all_quotes_count() -> int:
 def query_quote_user_can_see_by_text(
     user: User | UserData, text: str, limit: int = 10
 ) -> list[Quote]:
-    print(user, text, limit)
     return (
         _db.query(Quote)
         .filter(

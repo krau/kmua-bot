@@ -158,16 +158,33 @@ clear_inactive_user_avatar_confirm_handler = CallbackQueryHandler(
 )
 
 
-# others
-chat_migration_handler = MessageHandler(
-    filters.StatusUpdate.MIGRATE, chatdata.chat_migration
-)
+# MessageHandlers
 slash_handler = MessageHandler(kmua_filters.slash_filter, slash.slash)
+bililink_convert_handler = MessageHandler(
+    filters.ChatType.PRIVATE
+    & filters.Regex(r"b23.tv/[a-zA-Z0-9]+|bilibili.com/video/[a-zA-Z0-9]+"),
+    bilibili.bililink_convert,
+)
 random_quote_handler = MessageHandler(
     (~filters.COMMAND & filters.ChatType.GROUPS), quote.random_quote
 )
 reply_handler = MessageHandler(
     (~filters.COMMAND & kmua_filters.reply_filter), reply.reply
+)
+sticker2img_handler = MessageHandler(
+    (filters.Sticker.ALL & filters.ChatType.PRIVATE), sticker.sticker2img
+)
+delete_event_message_handler = MessageHandler(
+    (kmua_filters.service_message_filter & filters.ChatType.SUPERGROUP),
+    delete_events.delete_event_message,
+)
+unpin_channel_pin_handler = MessageHandler(
+    kmua_filters.auto_forward_filter, pin.unpin_channel_pin
+)
+
+# others
+chat_migration_handler = MessageHandler(
+    filters.StatusUpdate.MIGRATE, chatdata.chat_migration
 )
 track_chats_handler = ChatMemberHandler(
     chatmember.track_chats, ChatMemberHandler.MY_CHAT_MEMBER
@@ -178,26 +195,12 @@ member_left_handler = MessageHandler(
 member_join_handler = MessageHandler(
     filters.StatusUpdate.NEW_CHAT_MEMBERS, chatmember.on_member_join
 )
-sticker2img_handler = MessageHandler(
-    (filters.Sticker.ALL & filters.ChatType.PRIVATE), sticker.sticker2img
-)
 chat_title_update_handler = MessageHandler(
     filters.ChatType.GROUPS & filters.StatusUpdate.NEW_CHAT_TITLE,
     chatdata.chat_title_update,
 )
-bililink_convert_handler = MessageHandler(
-    filters.ChatType.PRIVATE
-    & filters.Regex(r"b23.tv/[a-zA-Z0-9]+|bilibili.com/video/[a-zA-Z0-9]+"),
-    bilibili.bililink_convert,
-)
 inline_query_handler = InlineQueryHandler(quote.inline_query_quote)
-delete_event_message_handler = MessageHandler(
-    (kmua_filters.service_message_filter & filters.ChatType.SUPERGROUP),
-    delete_events.delete_event_message,
-)
-unpin_channel_pin_handler = MessageHandler(
-    kmua_filters.auto_forward_filter, pin.unpin_channel_pin
-)
+
 
 callback_query_handlers = [
     user_data_manage_handler,
@@ -267,7 +270,7 @@ message_handlers = [
     random_quote_handler,
 ]
 
-other_handlers = [inline_query_handler]
+inline_query_handler_group = [inline_query_handler]
 
 
 async def on_error(update, context):

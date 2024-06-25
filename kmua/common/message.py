@@ -1,29 +1,6 @@
-from telegram import Chat, Message, Update, User
-from telegram.constants import ChatID, ChatType
-from telegram.ext import ContextTypes
+from telegram import Chat, Message, User
 
-from kmua import dao
 from kmua.logger import logger
-
-
-def message_recorder(update: Update, _: ContextTypes.DEFAULT_TYPE):
-    user = update.effective_user
-    chat = update.effective_chat
-    message = update.effective_message
-    if not user or not chat or not message:
-        return
-    if (
-        message.reply_to_message
-        or chat.type == ChatType.CHANNEL
-        or user.id == ChatID.SERVICE_CHAT
-    ):
-        return
-    if message.sender_chat:
-        user = message.sender_chat
-    db_user = dao.add_user(user)
-    if chat.type in (chat.GROUP, chat.SUPERGROUP):
-        dao.add_chat(chat)
-        dao.add_association_in_chat(chat, db_user)
 
 
 def get_message_common_link(message: Message) -> str | None:

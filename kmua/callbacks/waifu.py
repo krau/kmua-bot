@@ -112,9 +112,7 @@ async def today_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if context.user_data.get("waifu_waiting", False):
         return
     context.user_data["waifu_waiting"] = True
-
     waifu: UserData = None
-    common.message_recorder(update, context)
     try:
         await context.bot.send_chat_action(chat.id, ChatAction.TYPING)
         waifu, is_got_waifu = await _get_waifu_for_user(update, context, user, chat)

@@ -55,5 +55,4 @@ Inline 模式可以查询语录
         text=escape_markdown(help_text, 2),
         reply_markup=help_markup,
     )
-    common.message_recorder(update, context)
     logger.info("Bot: <help text>")
