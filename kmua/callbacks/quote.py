@@ -66,7 +66,7 @@ async def quote(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = ["好!", "让我康康是谁在说怪话!", "名入册焉"]
     tasks = [
         quote_message.reply_text(text=random.choice(text)),
-        _generate_and_sned_quote_img(update, context, quote_message, quote_user),
+        _generate_and_send_quote_img(update, context, quote_message, quote_user),
     ]
     if not (context.args and context.args[0] == "nopin"):
         tasks.append(_pin_quote_message(quote_message))
@@ -94,7 +94,7 @@ async def _pin_quote_message(quote_message: Message) -> bool:
         return False
 
 
-async def _generate_and_sned_quote_img(
+async def _generate_and_send_quote_img(
     update: Update,
     context: ContextTypes.DEFAULT_TYPE,
     quote_message: Message,
@@ -192,7 +192,7 @@ async def _unpin_messsage(
         return False
 
 
-async def random_quote(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def random_quote(update: Update, _: ContextTypes.DEFAULT_TYPE):
     """
     随机发送一条语录
     此功能不会在私聊中被调用, 已由 filters 过滤

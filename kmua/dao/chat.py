@@ -184,3 +184,14 @@ def update_chat_title_permissions(chat: Chat | ChatData, permissions: dict):
     _db_chat = add_chat(chat)
     _db_chat.title_permissions = permissions
     commit()
+
+
+def get_chat_message_search_enabled(chat: Chat | ChatData) -> bool:
+    _db_chat = add_chat(chat)
+    return _db_chat.message_search_enabled
+
+
+def update_chat_message_search_enabled(chat: Chat | ChatData, enabled: bool):
+    _db_chat = add_chat(chat)
+    _db_chat.message_search_enabled = enabled
+    commit()

@@ -8,7 +8,10 @@ license = "MIT"
 
 [tool.poetry.dependencies]
 python = "^3.11"
-python-telegram-bot = {extras = ["job-queue", "rate-limiter", "webhooks"], version = "^21.0.1"}
+python-telegram-bot = { extras = [
+    "job-queue",
+    "rate-limiter",
+], version = "^21.3" }
 dynaconf = "^3.2.3"
 graphviz = "^0.20.1"
 Pillow = "^10.3.0"
@@ -35,6 +38,7 @@ cachetools = "^5.3.3"
 google-cloud-aiplatform = "^1.53.0"
 redis = "^5.0.4"
 psutil = "^6.0.0"
+meilisearch = "^0.31.3"
 
 
 [tool.poetry.group.dev.dependencies]

@@ -11,7 +11,6 @@ from telegram.ext import (
 
 import kmua.filters as kmua_filters
 from kmua import dao
-
 from .callbacks import (
     bilibili,
     chatdata,
@@ -32,6 +31,7 @@ from .callbacks import (
     title,
     userdata,
     waifu,
+    search,
 )
 from .logger import logger
 
@@ -119,6 +119,16 @@ switch_unpin_channel_pin_handler = CommandHandler(
 reset_contents_handler = CommandHandler("reset_contents", reply.reset_contents)
 fix_quotes_handler = CommandHandler("fix_quotes", manage.fix_quotes)
 fix_chats_handler = CommandHandler("fix_chats", manage.fix_chats)
+enable_search_handler = CommandHandler(
+    "enable_search", search.enable_search, filters=filters.ChatType.GROUPS
+)
+disable_search_handler = CommandHandler(
+    "disable_search", search.disable_search, filters=filters.ChatType.GROUPS
+)
+message_search_handler = CommandHandler(
+    "search", search.search_message, filters=filters.ChatType.GROUPS
+)
+
 
 # CallbackQueryHandlers
 start_callback_handler = CallbackQueryHandler(start.start, pattern="back_home")
@@ -155,6 +165,12 @@ bot_data_refresh_handler = CallbackQueryHandler(
 status_refresh_handler = CallbackQueryHandler(manage.status, pattern="status_refresh")
 clear_inactive_user_avatar_confirm_handler = CallbackQueryHandler(
     manage.clear_inactive_user_avatar, pattern="clear_inactive_user_avatar"
+)
+delete_search_index_handler = CallbackQueryHandler(
+    search.delete_search_index, pattern="delete_search_index"
+)
+message_search_page_handler = CallbackQueryHandler(
+    search.search_message_page, pattern="message_search"
 )
 
 
@@ -217,6 +233,8 @@ callback_query_handlers = [
     bot_data_refresh_handler,
     status_refresh_handler,
     clear_inactive_user_avatar_confirm_handler,
+    delete_search_index_handler,
+    message_search_page_handler,
 ]
 
 command_handlers = [
@@ -251,6 +269,9 @@ command_handlers = [
     reset_contents_handler,
     fix_quotes_handler,
     fix_chats_handler,
+    enable_search_handler,
+    disable_search_handler,
+    message_search_handler,
 ]
 
 chatdata_handlers = [
