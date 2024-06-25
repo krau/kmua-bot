@@ -1,6 +1,7 @@
 from kmua.dao._db import _db, commit
 from kmua.models.models import ChatData, Quote
 from kmua.logger import logger
+from .chat_service import delete_chat_data_and_quotes
 
 
 def fix_none_chat_id_quotes() -> tuple[int, int, int]:
@@ -29,3 +30,11 @@ def fix_none_chat_id_quotes() -> tuple[int, int, int]:
         quote.chat_id = db_chat.id
         commit()
     return len(quotes), len(invalid_chat_ids), failed_count
+
+
+def delete_no_supergroup_chats() -> int:
+    chats = _db.query(ChatData).filter(ChatData.id > -1000000000000).all()
+    logger.debug(f"找到 {len(chats)} 个非超级群组")
+    for chat in chats:
+        delete_chat_data_and_quotes(chat.id)
+    return len(chats)

@@ -247,6 +247,7 @@ async def error_notice_control(update: Update, context: ContextTypes.DEFAULT_TYP
 async def fix_quotes(update: Update, _: ContextTypes.DEFAULT_TYPE):
     if update.effective_user.id not in settings.owners:
         return
+    logger.info(f"{update.effective_user.name} <fix_quotes>")
     await update.message.reply_text("开始修复...")
     quote_count, invalid_chat_count, failed_count = dao.fix_none_chat_id_quotes()
     await update.message.reply_text(
@@ -255,3 +256,12 @@ async def fix_quotes(update: Update, _: ContextTypes.DEFAULT_TYPE):
         f"无效 chat_id 数量: {invalid_chat_count}\n"
         f"失败数量: {failed_count}"
     )
+
+
+async def fix_chats(update: Update, _: ContextTypes.DEFAULT_TYPE):
+    if update.effective_user.id not in settings.owners:
+        return
+    logger.info(f"{update.effective_user.name} <fix_chats>")
+    await update.message.reply_text("开始修复...")
+    count = dao.delete_no_supergroup_chats()
+    await update.message.reply_text(f"修复完成\n共删除 {count} 个非超级群组")
