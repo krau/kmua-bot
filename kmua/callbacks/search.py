@@ -408,11 +408,11 @@ def _get_message_meili(
         if is_bot_command:
             continue
         try:
-            from_id = msg_export.get("from_id")
+            from_id: str = msg_export.get("from_id")
             if from_id.startswith("user"):
                 from_id = int(from_id.removeprefix("user"))
             elif from_id.startswith("channel"):
-                from_id = int(from_id.removeprefix("channel"))
+                from_id = int(f"-100{from_id.removeprefix('channel')}")
             else:
                 continue
             message_id = int(msg_export["id"])
