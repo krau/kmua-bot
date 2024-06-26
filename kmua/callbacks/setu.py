@@ -108,7 +108,6 @@ async def _classify_setu(update: Update, _: ContextTypes.DEFAULT_TYPE):
             for k, v in result.items():
                 result[k] = round(v * 100, 2)
             text = ""
-            logger.info(f"nsfwjs: {result}")
             match nsfw_class:
                 case "Drawing":
                     text = f"这是1张普通的插画! (大概有 {result[nsfw_class]}% 的可能性吧..."
@@ -123,7 +122,8 @@ async def _classify_setu(update: Update, _: ContextTypes.DEFAULT_TYPE):
                     )
                 case "Sexy":
                     text = f"这是一张比较涩的图片... (大概有 {result[nsfw_class]}% 的可能性吧...)"
-            await target_message.reply_text(text=text, quote=True)
+            sent_message = await target_message.reply_text(text=text, quote=True)
+            logger.info(f"Bot: {sent_message.text}")
     except Exception as e:
         logger.error(f"nsfwjs error: {e.__class__.__name__}:{e}")
         await update.effective_message.reply_text(text="失败惹，请稍后再试", quote=True)

@@ -28,11 +28,11 @@ _db = _session()
 
 data_dir.mkdir(exist_ok=True)
 
-logger.debug("Connecting to database...")
+logger.info("Connecting to database...")
 
 Base.metadata.create_all(bind=engine)
 
-logger.debug("Database connected")
+logger.success("Database connected")
 
 
 def commit():

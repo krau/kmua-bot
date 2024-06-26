@@ -11,7 +11,7 @@ from kmua.config import settings
 
 
 async def clean_data(context: ContextTypes.DEFAULT_TYPE):
-    logger.debug("Start cleaning data")
+    logger.info("Start cleaning data")
     try:
         context.bot_data["cleaning_data"] = True
         await asyncio.gather(

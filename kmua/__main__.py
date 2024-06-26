@@ -31,7 +31,7 @@ async def init_data(app: Application):
     """
     初始化数据
     """
-    logger.info("initing...")
+    logger.info("initing commands")
     await app.bot.set_my_commands(
         [
             ("start", "一键猫叫|召出菜单"),

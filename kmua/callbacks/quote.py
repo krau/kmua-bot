@@ -37,8 +37,7 @@ async def quote(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if context.args and context.args[0] != "nopin":
         return
     if not message.reply_to_message:
-        sent_message = await message.reply_text("请回复一条消息")
-        logger.info(f"Bot: {sent_message.text}")
+        await message.reply_text("请回复一条消息")
         return
     if message.is_topic_message:
         await message.reply_text("暂不支持在主话题外使用此功能")
@@ -55,7 +54,6 @@ async def quote(update: Update, context: ContextTypes.DEFAULT_TYPE):
         sent_message = await message.reply_markdown_v2(
             "这条消息已经在语录中了哦\n_This message will be deleted in 10s_"
         )
-        logger.info(f"Bot: {sent_message.text}")
         context.job_queue.run_once(
             delete_message,
             10,
@@ -141,35 +139,29 @@ async def set_quote_probability(update: Update, context: ContextTypes.DEFAULT_TY
     logger.info(f"[{chat.title}]({user.name})" + f" {message.text}")
 
     if not await common.verify_user_can_manage_bot_in_chat(user, chat, update, context):
-        sent_message = await message.reply_text("你没有权限哦")
-        logger.info(f"Bot: {sent_message.text}")
+        await message.reply_text("你没有权限哦")
         return
     except_text = "概率是小于1的小数哦\n如果设置为负则会禁用 /qrand 命令"
     if not context.args:
-        sent_message = await message.reply_text(except_text)
-        logger.info(f"Bot: {sent_message.text}")
+        await message.reply_text(except_text)
         return
     float_pattern = re.compile(r"^[-+]?[0-9]*\.?[0-9]+([eE][-+]?[0-9]+)?$")
     value = context.args[0]
     if not float_pattern.match(value) or len(value) > 8:
-        sent_message = await message.reply_text("请不要输入奇怪的东西> <")
-        logger.info(f"Bot: {sent_message.text}")
+        await message.reply_text("请不要输入奇怪的东西> <")
         return
     try:
         probability = float(value)
     except Exception:
-        sent_message = await message.reply_text(except_text)
-        logger.info(f"Bot: {sent_message.text}")
+        await message.reply_text(except_text)
         return
     if probability > 1:
-        sent_message = await message.reply_text(except_text)
-        logger.info(f"Bot: {sent_message.text}")
+        await message.reply_text(except_text)
         return
     dao.update_chat_quote_probability(chat, probability)
-    sent_message = await message.reply_text(
+    await message.reply_text(
         text=f"将本聊天的 random quote 的概率设为{probability}啦",
     )
-    logger.info(f"Bot: {sent_message.text}")
 
 
 async def _unpin_messsage(
@@ -201,9 +193,9 @@ async def random_quote(update: Update, _: ContextTypes.DEFAULT_TYPE):
     chat = update.effective_chat
     user = update.effective_user
     message = update.effective_message
-    logger.info(
-        f"[{chat.title}({chat.id})({chat.username})]<{user.name}>"
-        + (f" {message.text}" if message.text else "<非文本消息>")
+    logger.trace(
+        f"[{chat.title}]({user.name})"
+        + (f" {message.text}" if message.text else "none")
     )
 
     pb = dao.get_chat_quote_probability(chat)
@@ -222,7 +214,7 @@ async def random_quote(update: Update, _: ContextTypes.DEFAULT_TYPE):
             message_id=quote.message_id,
             message_thread_id=update.effective_message.message_thread_id,
         )
-        logger.info(f"Bot: {sent_message.text}")
+        logger.info(f"Bot forward message: {sent_message.text}")
     except Exception as e:
         logger.warning(f"{e.__class__.__name__}: {e}")
 
@@ -250,8 +242,7 @@ async def delete_quote_in_chat(update: Update, context: ContextTypes.DEFAULT_TYP
         return
     quote_message = message.reply_to_message
     if not quote_message:
-        sent_message = await message.reply_text("请回复要从语录中删除的消息")
-        logger.info(f"Bot: {sent_message.text}")
+        await message.reply_text("请回复要从语录中删除的消息")
         return
     quote_user = quote_message.sender_chat or quote_message.from_user
 
@@ -279,8 +270,7 @@ async def delete_quote_in_chat(update: Update, context: ContextTypes.DEFAULT_TYP
     await _unpin_messsage(message_id, chat_id, context)
     if dao.delete_quote_by_link(link):
         if not update.callback_query:
-            sent_message = await quote_message.reply_text("已删除该语录")
-            logger.info(f"Bot: {sent_message.text}")
+            await quote_message.reply_text("已删除该语录")
         else:
             await asyncio.gather(
                 update.callback_query.answer("已删除该语录", show_alert=False),
@@ -290,7 +280,6 @@ async def delete_quote_in_chat(update: Update, context: ContextTypes.DEFAULT_TYP
         sent_message = await quote_message.reply_markdown_v2(
             "这条消息不在语录中哦\n_This message will be deleted in 10s_"
         )
-        logger.info(f"Bot: {sent_message.text}")
         context.job_queue.run_once(
             delete_message,
             10,
@@ -306,7 +295,7 @@ async def _chat_quote_manage(update: Update, _: ContextTypes.DEFAULT_TYPE):
     """
     chat = update.effective_chat
     user = update.effective_user
-    logger.info(f"[{chat.title}]({user.name})")
+    logger.info(f"[{chat.title}]({user.name}) <chat_quote_manage>")
     message = update.effective_message
     page = (
         int(update.callback_query.data.split(" ")[-1]) if update.callback_query else 1
@@ -317,8 +306,7 @@ async def _chat_quote_manage(update: Update, _: ContextTypes.DEFAULT_TYPE):
     quotes_count = dao.get_chat_quotes_count(chat)
     max_page = ceil(quotes_count / common.QUOTE_PAGE_SIZE)
     if quotes_count == 0 and not update.callback_query:
-        sent_message = await message.reply_text("本群还没有语录哦")
-        logger.info(f"Bot: {sent_message.text}")
+        await message.reply_text("本群还没有语录哦")
         return
     if quotes_count == 0 and update.callback_query:
         await update.callback_query.edit_message_text("已经没有语录啦")

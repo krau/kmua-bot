@@ -60,7 +60,6 @@ async def send_waifu_graph(
                     "本群今日没有人抽过老婆哦",
                     reply_to_message_id=msg_id,
                 )
-            logger.debug(f"No user participated waifu in {chat.title}<{chat.id}>")
             return
         user_info = (
             {
@@ -74,7 +73,7 @@ async def send_waifu_graph(
             relationships, user_info, len(participate_users)
         )
         logger.debug(f"image_size: {len(image_bytes)}")
-        await context.bot.send_document(
+        sent_message = await context.bot.send_document(
             chat.id,
             document=image_bytes,
             caption=f"老婆关系图:\n {len(participate_users)} users",
@@ -83,7 +82,9 @@ async def send_waifu_graph(
             reply_to_message_id=msg_id,
             allow_sending_without_reply=True,
         )
-        logger.success(f"Send waifu graph for {chat.title}<{chat.id}>")
+        logger.success(
+            f"Send waifu graph for {chat.title}<{chat.id}>, size: {sent_message.document.file_size}"
+        )
     except Exception as err:
         error_info = f"{err.__class__.__name__}: {err}"
         logger.error(
