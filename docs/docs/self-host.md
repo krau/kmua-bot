@@ -60,6 +60,13 @@ services:
 - `KMUA_SECRET_TOKEN` - Webhook 验证 Token
 
 #### 扩展功能
+
+##### Redis
+
+Redis 可能是其他扩展功能的依赖
+
+- `KMUA_REDIS_URL` - Redis 连接地址
+
 ##### ManyACG (随机涩图)
 
 - `KMUA_MANYACG_API` - ManyACG API 地址
@@ -71,15 +78,21 @@ services:
 
 ##### Vertex AI (智能回复)
 
-该功能需要 Redis, 请自行部署.
+该功能需要 Redis
 
 - `KMUA_VERTEX_SYSTEM` - Vertex AI 系统提示词
 - `KMUA_VERTEX_PROJECT_ID` - Vertex AI 项目 ID
 - `KMUA_VERTEX_LOCATION` - Vertex AI 位置
 - `KMUA_VERTEX_MODEL` - Vertex AI 模型
-- `KMUA_REDIS_URL` - Redis 连接地址
 - `KMUA_VERTEX_PRESET` - (数组) 预设对话. 先用户后模型交替, 请确保数组长度为偶数且不超过16.
 - `GOOGLE_APPLICATION_CREDENTIALS` - Google Application Credentials 路径. 请将 JSON 文件挂载到容器内.
+
+##### Meilisearch (消息搜索)
+
+该功能需要 Redis
+
+- `KMUA_MEILISEARCH_API` - Meilisearch 地址
+- `KMUA_MEILISEARCH_KEY` - Meilisearch API Key
 
 ### 完整 .env 示例
 
@@ -109,6 +122,8 @@ KMUA_REDIS_URL = "redis://default:token@127.0.0.1:6379/"
 KMUA_VERTEX_MODEL = "gemini-1.0-pro"
 GOOGLE_APPLICATION_CREDENTIALS=/kmua/.secrets/.secret.json
 KMUA_VERTEX_PRESET = ["你好","喵~ 您好呀~ 今天天气真好呢~"]
+KMUA_MEILISEARCH_API = "localhost:7700"
+KMUA_MEILISEARCH_KEY = "112233"
 ```
 
 ## 源码运行
