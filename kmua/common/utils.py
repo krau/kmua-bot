@@ -1,5 +1,5 @@
 import glob
-import json
+import orjson
 import os
 import random
 from pathlib import Path
@@ -29,7 +29,7 @@ def _load_word_dict():
         logger.debug(f"loading word dict: {file}")
         try:
             with open(file, "r", encoding="utf-8") as f:
-                for k, v in json.load(f).items():
+                for k, v in orjson.loads(f.read()).items():
                     if k in word_dict:
                         word_dict[k].extend(v)
                     else:
@@ -44,7 +44,7 @@ def _load_word_dict():
             logger.debug(f"loading user word dict: {file}")
             try:
                 with open(file, "r", encoding="utf-8") as f:
-                    for k, v in json.load(f).items():
+                    for k, v in orjson.loads(f.read()).items():
                         if k in word_dict:
                             word_dict[k].extend(v)
                         else:

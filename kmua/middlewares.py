@@ -5,7 +5,7 @@ from telegram.constants import ChatID, ChatType
 from telegram.ext import ContextTypes, TypeHandler
 
 from kmua import common, dao
-from kmua.callbacks.search import update_index
+from kmua.callbacks.search import update_index_job
 from kmua.logger import logger
 
 
@@ -66,7 +66,7 @@ async def store_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     if not context.job_queue.get_jobs_by_name(f"update_index_{chat.id}"):
         context.job_queue.run_repeating(
-            update_index, 300, chat_id=chat.id, name=f"update_index_{chat.id}"
+            update_index_job, 300, chat_id=chat.id, name=f"update_index_{chat.id}"
         )
     for entity in message.entities:
         if entity.type == entity.BOT_COMMAND:

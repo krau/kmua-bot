@@ -128,6 +128,12 @@ disable_search_handler = CommandHandler(
 message_search_handler = CommandHandler(
     "search", search.search_message, filters=filters.ChatType.GROUPS
 )
+import_history_handler = CommandHandler(
+    "import_history", search.import_history, filters=filters.ChatType.GROUPS
+)
+update_index_handler = CommandHandler(
+    "update_index", search.update_index, filters=filters.ChatType.GROUPS
+)
 
 
 # CallbackQueryHandlers
@@ -272,6 +278,8 @@ command_handlers = [
     enable_search_handler,
     disable_search_handler,
     message_search_handler,
+    import_history_handler,
+    update_index_handler,
 ]
 
 chatdata_handlers = [
