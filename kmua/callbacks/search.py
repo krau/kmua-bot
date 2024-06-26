@@ -1,10 +1,12 @@
+import pickle
 from uuid import uuid4
-from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton
+
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import ContextTypes
-from kmua import common, dao
-from kmua.logger import logger
 from telegram.helpers import escape_markdown
 
+from kmua import common, dao
+from kmua.logger import logger
 
 _enable_search = common.meili_client is not None and common.redis_client is not None
 
@@ -85,10 +87,11 @@ async def search_message_page(update: Update, _: ContextTypes.DEFAULT_TYPE):
         f"[{update.effective_chat.title}]({update.effective_user.name}) <search message page>"
     )
     query_uuid, offset = update.callback_query.data.split(" ")[1:]
-    query = common.redis_client.get(f"kmua_cqdata_{query_uuid}")
+    query: bytes = common.redis_client.get(f"kmua_cqdata_{query_uuid}")
     if not query:
         await update.callback_query.answer("查询已过期", show_alert=True, cache_time=60)
         return
+    query = query.decode("utf-8")
     common.redis_client.expire(f"kmua_cqdata_{query_uuid}", 6000)
     offset = int(offset)
     try:
@@ -192,9 +195,12 @@ async def disable_search(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     chat = update.effective_chat
     user = update.effective_user
+    logger.info(f"[{chat.title}]({user.name}) <disable search>")
     if not await common.verify_user_can_manage_bot_in_chat(user, chat, update, context):
         await update.effective_message.reply_text("你没有权限哦")
         return
+    for job in context.job_queue.get_jobs_by_name(f"update_index_{chat.id}"):
+        job.schedule_removal()
     dao.update_chat_message_search_enabled(chat, False)
     await update.effective_message.reply_text(
         "已关闭搜索功能, 要删除此前的索引嘛?",
@@ -233,6 +239,7 @@ async def delete_search_index(update: Update, context: ContextTypes.DEFAULT_TYPE
             )
             return
         try:
+            common.redis_client.delete(f"kmua_chatmsg_{chat.id}")
             common.meili_client.delete_index(f"kmua_{chat.id}")
         except Exception as e:
             logger.error(f"delete index error: {e.__class__.__name__}: {e}")
@@ -247,3 +254,22 @@ async def delete_search_index(update: Update, context: ContextTypes.DEFAULT_TYPE
         await update.callback_query.edit_message_text(
             "已关闭搜索功能, 此前的索引数据保留"
         )
+
+
+async def update_index(context: ContextTypes.DEFAULT_TYPE):
+    logger.info(f"Start updating index for {context.job.chat_id}")
+    msg_cache = common.redis_client.lrange(f"kmua_chatmsg_{context.job.chat_id}", 0, -1)
+    if not msg_cache:
+        return
+    context.chat_data["updating_index"] = True
+    try:
+        messages: list[common.MessageInMeili] = [
+            pickle.loads(msg).to_dict() for msg in msg_cache
+        ]
+        common.meili_client.index(f"kmua_{context.job.chat_id}").add_documents(messages)
+        common.redis_client.delete(f"kmua_chatmsg_{context.job.chat_id}")
+    except Exception as e:
+        logger.error(f"load message error: {e.__class__.__name__}: {e}")
+        return
+    logger.info(f"Index updated for {context.job.chat_id}")
+    context.chat_data["updating_index"] = False

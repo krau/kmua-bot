@@ -1,4 +1,5 @@
 import meilisearch
+
 from kmua.config import settings
 from kmua.logger import logger
 

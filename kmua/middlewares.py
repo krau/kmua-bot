@@ -1,8 +1,12 @@
+import pickle
+
 from telegram import Update
+from telegram.constants import ChatID, ChatType
 from telegram.ext import ContextTypes, TypeHandler
+
 from kmua import common, dao
+from kmua.callbacks.search import update_index
 from kmua.logger import logger
-from telegram.constants import ChatType, ChatID
 
 
 async def store_data(update: Update, _: ContextTypes):
@@ -24,9 +28,7 @@ async def store_data(update: Update, _: ContextTypes):
 _enable_search = common.meili_client is not None and common.redis_client is not None
 
 
-async def store_message(update: Update, _: ContextTypes.DEFAULT_TYPE):
-    if not _enable_search:
-        return
+async def store_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     chat = update.effective_chat
     message = update.effective_message
@@ -62,13 +64,18 @@ async def store_message(update: Update, _: ContextTypes.DEFAULT_TYPE):
         return
     if not dao.get_chat_message_search_enabled(chat):
         return
+    if not context.job_queue.get_jobs_by_name(f"update_index_{chat.id}"):
+        context.job_queue.run_repeating(
+            update_index, 300, chat_id=chat.id, name=f"update_index_{chat.id}"
+        )
+    for entity in message.entities:
+        if entity.type == entity.BOT_COMMAND:
+            return
     if message.sender_chat:
         user = message.sender_chat
     message_type = common.MessageType.TEXT
     text = ""
     if message.text:
-        if message.text.startswith("/search"):
-            return
         text += message.text
     if message.caption:
         text += " " + message.caption
@@ -90,22 +97,44 @@ async def store_message(update: Update, _: ContextTypes.DEFAULT_TYPE):
     if not text:
         return
     try:
-        common.meili_client.index(f"kmua_{chat.id}").add_documents(
-            [
+        if context.chat_data.get("updating_index"):
+            if not context.chat_data.get("pending_messages"):
+                context.chat_data["pending_messages"] = []
+            context.chat_data["pending_messages"].append(
                 common.MessageInMeili(
-                    message_id=message.id,
-                    user_id=user.id,
+                    message_id=message.message_id,
                     text=text,
+                    user_id=user.id,
                     type=message_type,
-                ).to_dict()
-            ]
+                )
+            )
+            return
+        if context.chat_data.get("pending_messages"):
+            for pending_message in context.chat_data["pending_messages"]:
+                common.redis_client.rpush(
+                    f"kmua_chatmsg_{chat.id}", pickle.dumps(pending_message)
+                )
+            context.chat_data["pending_messages"] = []
+        common.redis_client.rpush(
+            f"kmua_chatmsg_{chat.id}",
+            pickle.dumps(
+                common.MessageInMeili(
+                    message_id=message.message_id,
+                    text=text,
+                    user_id=user.id,
+                    type=message_type,
+                )
+            ),
         )
     except Exception as e:
-        logger.warning(f"add document error: {e.__class__.__name__}: {e}")
+        logger.warning(f"saving message to failed: {e.__class__.__name__}: {e}")
 
 
 store_data_handler = TypeHandler(Update, store_data)
-add_message_handler = TypeHandler(Update, store_message)
 
 before_middleware = [store_data_handler]
-after_middleware = [add_message_handler]
+after_middleware = []
+
+if _enable_search:
+    store_message_handler = TypeHandler(Update, store_message)
+    after_middleware.append(store_message_handler)
