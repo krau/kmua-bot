@@ -257,7 +257,7 @@ async def delete_search_index(update: Update, context: ContextTypes.DEFAULT_TYPE
 
 
 async def update_index(context: ContextTypes.DEFAULT_TYPE):
-    logger.info(f"Start updating index for {context.job.chat_id}")
+    logger.debug(f"updating index for {context.job.chat_id}")
     msg_cache = common.redis_client.lrange(f"kmua_chatmsg_{context.job.chat_id}", 0, -1)
     if not msg_cache:
         return
@@ -266,10 +266,12 @@ async def update_index(context: ContextTypes.DEFAULT_TYPE):
         messages: list[common.MessageInMeili] = [
             pickle.loads(msg).to_dict() for msg in msg_cache
         ]
+        logger.debug(f"load {len(messages)} messages for {context.job.chat_id}")
         common.meili_client.index(f"kmua_{context.job.chat_id}").add_documents(messages)
         common.redis_client.delete(f"kmua_chatmsg_{context.job.chat_id}")
     except Exception as e:
         logger.error(f"load message error: {e.__class__.__name__}: {e}")
         return
+    finally:
+        context.chat_data["updating_index"] = False
     logger.info(f"Index updated for {context.job.chat_id}")
-    context.chat_data["updating_index"] = False
