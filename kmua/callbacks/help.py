@@ -33,6 +33,7 @@ async def help(update: Update, _: ContextTypes.DEFAULT_TYPE):
 /enable_search - 启用搜索功能
 /disable_search - 禁用搜索功能
 /import_history - 导入历史消息
+/index_stats - 查看索引统计
 /id - 获取聊天ID
 /set_greet - 设置群组欢迎语
 /ip - 查询IP/域名信息

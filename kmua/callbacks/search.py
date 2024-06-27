@@ -345,6 +345,36 @@ async def update_index(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.effective_message.reply_text("更新本群索引")
 
 
+async def index_stats(update: Update, _: ContextTypes.DEFAULT_TYPE):
+    if not _enable_search:
+        await update.effective_message.reply_text("没有接入这个功能哦")
+        return
+    if common.verify_user_can_manage_bot(update.effective_user):
+        try:
+            all_stats = common.meili_client.get_all_stats()
+            await update.effective_message.reply_text(
+                f"数据库大小: {all_stats['databaseSize'] / 1024 / 1024:.2f}MB\n"
+                f"已索引对话: {len(all_stats['indexes'])} 个\n"
+                f"最后更新时间: {all_stats['lastUpdate']}"
+            )
+        except Exception as e:
+            logger.error(f"get index stats error: {e.__class__.__name__}: {e}")
+            await update.effective_message.reply_text("出错了喵, 获取失败")
+        return
+    chat = update.effective_chat
+    if chat.type not in (chat.SUPERGROUP, chat.GROUP):
+        return
+    try:
+        index_stats = common.meili_client.index(f"kmua_{chat.id}").get_stats()
+        await update.effective_message.reply_text(
+            f"本群已索引 {index_stats.number_of_documents} 条消息"
+        )
+    except Exception as e:
+        logger.error(f"get index stats error: {e.__class__.__name__}: {e}")
+        await update.effective_message.reply_text("出错了喵, 获取失败")
+        return
+
+
 async def update_index_job(context: ContextTypes.DEFAULT_TYPE):
     if context.chat_data.get("updating_index"):
         logger.debug(f"index is updating for {context.job.chat_id}, skip")

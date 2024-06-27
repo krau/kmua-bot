@@ -193,11 +193,7 @@ async def random_quote(update: Update, _: ContextTypes.DEFAULT_TYPE):
     chat = update.effective_chat
     user = update.effective_user
     message = update.effective_message
-    logger.trace(
-        f"[{chat.title}]({user.name})"
-        + (f" {message.text}" if message.text else "none")
-    )
-
+    logger.trace(f"[{chat.title}]({user.name}) <random_quote>")
     pb = dao.get_chat_quote_probability(chat)
     flag = common.random_unit(pb)
     if message.text is not None:

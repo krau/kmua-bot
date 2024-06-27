@@ -134,6 +134,7 @@ import_history_handler = CommandHandler(
 update_index_handler = CommandHandler(
     "update_index", search.update_index, filters=filters.ChatType.GROUPS
 )
+index_stats_handler = CommandHandler("index_stats", search.index_stats)
 
 
 # CallbackQueryHandlers
@@ -280,6 +281,7 @@ command_handlers = [
     message_search_handler,
     import_history_handler,
     update_index_handler,
+    index_stats_handler,
 ]
 
 chatdata_handlers = [
