@@ -172,7 +172,6 @@ async def verify_user_can_manage_bot_in_chat(
 
 
 def get_user_info(user: User | UserData) -> str:
-    logger.debug(f"Get user info for {user.full_name}<{user.id}>")
     db_user = dao.add_user(user)
     info = f"""
 id:    {db_user.id}

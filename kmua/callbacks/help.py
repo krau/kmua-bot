@@ -29,6 +29,11 @@ async def help(update: Update, _: ContextTypes.DEFAULT_TYPE):
 /switch_waifu - 开关老婆功能
 /switch_delete_events - 开关删除事件消息的功能 (bot 需要删除消息权限)
 /switch_unpin_channel_pin - 开关取消频道消息置顶的功能 (bot 需要置顶权限)
+/search - 搜索群消息
+/enable_search - 启用搜索功能
+/disable_search - 禁用搜索功能
+/import_history - 导入历史消息
+/index_stats - 查看索引统计
 /id - 获取聊天ID
 /set_greet - 设置群组欢迎语
 /ip - 查询IP/域名信息
@@ -55,4 +60,3 @@ Inline 模式可以查询语录
         text=escape_markdown(help_text, 2),
         reply_markup=help_markup,
     )
-    logger.info("Bot: <help text>")

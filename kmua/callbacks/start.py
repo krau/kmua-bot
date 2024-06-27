@@ -74,8 +74,7 @@ async def _start_in_group(update: Update, context: ContextTypes.DEFAULT_TYPE):
             ],
         ]
     )
-    sent_message = await update.effective_message.reply_text(
+    await update.effective_message.reply_text(
         text="Nya!",
         reply_markup=start_bot_markup,
     )
-    logger.info(f"Bot:{sent_message.text}")

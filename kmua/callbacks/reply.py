@@ -1,7 +1,6 @@
 import pickle
 import random
 
-import redis
 import vertexai
 from telegram import (
     Update,
@@ -18,8 +17,7 @@ from vertexai.generative_models import (
     Part,
     SafetySetting,
 )
-from zhconv import convert
-
+import zhconv
 from kmua import common
 from kmua.config import settings
 from kmua.logger import logger
@@ -29,17 +27,15 @@ from .friendship import ohayo, oyasumi
 _SYSTEM_INSTRUCTION = settings.get("vertex_system")
 _PROJECT_ID = settings.get("vertex_project_id")
 _LOCATION = settings.get("vertex_location")
-_REDIS_URL = settings.get("redis_url", "redis://localhost:6379/0")
 _enable_vertex = all((_SYSTEM_INSTRUCTION, _PROJECT_ID, _LOCATION))
 _redis_client = None
 _model = None
 _preset_contents: list[Content] = []
 
-if _enable_vertex:
+if _enable_vertex and common.redis_client:
     logger.debug("Initializing Vertex AI")
     try:
         vertexai.init(project=_PROJECT_ID, location=_LOCATION)
-        _redis_client = redis.from_url(_REDIS_URL)
         _model = GenerativeModel(
             model_name=settings.get("vertex_model", "gemini-1.5-flash"),
             system_instruction=_SYSTEM_INSTRUCTION,
@@ -82,7 +78,7 @@ async def reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
     message_text = update.effective_message.text.replace(
         context.bot.username, ""
     ).lower()
-    message_text = convert(message_text, "zh-cn")
+    message_text = zhconv.convert(message_text, "zh-cn")
     await context.bot.send_chat_action(
         chat_id=update.effective_chat.id, action=ChatAction.TYPING
     )

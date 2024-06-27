@@ -1,5 +1,5 @@
 import glob
-import json
+import orjson
 import os
 import random
 from pathlib import Path
@@ -26,31 +26,35 @@ def _load_word_dict():
     word_dict_path_user = Path(__file__).parent.parent.parent / "data" / "word_dicts"
     word_dict = {}
     for file in glob.glob(f"{word_dict_path_internal}" + r"/*.json"):
-        logger.debug(f"加载内置词库: {file}")
+        logger.debug(f"loading word dict: {file}")
         try:
             with open(file, "r", encoding="utf-8") as f:
-                for k, v in json.load(f).items():
+                for k, v in orjson.loads(f.read()).items():
                     if k in word_dict:
                         word_dict[k].extend(v)
                     else:
                         word_dict[k] = v
         except Exception as e:
-            logger.error(f"加载词库失败: {file}: {e.__class__.__name__}: {e}")
+            logger.error(
+                f"loading word dict failed: {file}: {e.__class__.__name__}: {e}"
+            )
             continue
     if os.path.exists(word_dict_path_user):
         for file in glob.glob(f"{word_dict_path_user}" + r"/*.json"):
-            logger.debug(f"加载用户词库: {file}")
+            logger.debug(f"loading user word dict: {file}")
             try:
                 with open(file, "r", encoding="utf-8") as f:
-                    for k, v in json.load(f).items():
+                    for k, v in orjson.loads(f.read()).items():
                         if k in word_dict:
                             word_dict[k].extend(v)
                         else:
                             word_dict[k] = v
             except Exception as e:
-                logger.error(f"加载词库失败: {file}: {e.__class__.__name__}: {e}")
+                logger.error(
+                    f"loading user word dict failed: {file}: {e.__class__.__name__}: {e}"
+                )
                 continue
-    logger.debug(f"词库加载完成, 共加载词条: {len(word_dict)}")
+    logger.debug(f"successfully loaded word dict, total {len(word_dict)} words")
     return word_dict
 
 

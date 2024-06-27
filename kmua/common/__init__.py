@@ -6,3 +6,6 @@ from .message import *  # noqa
 from .quote import *  # noqa
 from .waifu import *  # noqa
 from .constants import *  # noqa
+from .meilisearch import *  # noqa
+from .dataclass import *  # noqa
+from .redis import *  # noqa

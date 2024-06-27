@@ -38,7 +38,6 @@ def get_chat_waifu_info_dict(
 
 
 def get_user_waifu_info(user: User | UserData) -> str:
-    logger.debug(f"Get user waifu info for {user.full_name}<{user.id}>")
     db_user = dao.add_user(user)
     text = f"""
 是否@你: {db_user.waifu_mention}

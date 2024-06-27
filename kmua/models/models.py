@@ -75,6 +75,7 @@ class ChatData(Base):
     waifu_disabled = Column(Boolean, default=False)
     delete_events_enabled = Column(Boolean, default=False)
     unpin_channel_pin_enabled = Column(Boolean, default=False)
+    message_search_enabled = Column(Boolean, default=False)
     quote_probability = Column(Float, default=0.001)
     title = Column(String(128), nullable=False)
     members = relationship(
