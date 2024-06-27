@@ -27,12 +27,13 @@ from .friendship import ohayo, oyasumi
 _SYSTEM_INSTRUCTION = settings.get("vertex_system")
 _PROJECT_ID = settings.get("vertex_project_id")
 _LOCATION = settings.get("vertex_location")
-_enable_vertex = all((_SYSTEM_INSTRUCTION, _PROJECT_ID, _LOCATION))
-_redis_client = None
+_enable_vertex = (
+    all((_SYSTEM_INSTRUCTION, _PROJECT_ID, _LOCATION)) and common.redis_client
+)
 _model = None
 _preset_contents: list[Content] = []
 
-if _enable_vertex and common.redis_client:
+if _enable_vertex:
     logger.debug("Initializing Vertex AI")
     try:
         vertexai.init(project=_PROJECT_ID, location=_LOCATION)
@@ -86,10 +87,12 @@ async def reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await _keyword_reply_without_save(update, context, message_text)
         return
 
-    contents: bytes = _redis_client.get(f"kmua_contents_{update.effective_user.id}")
+    contents: bytes = common.redis_client.get(
+        f"kmua_contents_{update.effective_user.id}"
+    )
     if contents is None:
         contents = pickle.dumps(_preset_contents)
-        _redis_client.set(f"kmua_contents_{update.effective_user.id}", contents)
+        common.redis_client.set(f"kmua_contents_{update.effective_user.id}", contents)
     contents: list[Content] = pickle.loads(contents)
     if len(contents) <= 2:
         await _keyword_reply(update, context, message_text)
@@ -126,7 +129,7 @@ async def reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 parts=[Part.from_text(resp.text)],
             )
         )
-        _redis_client.set(
+        common.redis_client.set(
             f"kmua_contents_{update.effective_user.id}", pickle.dumps(contents)
         )
     except Exception as e:
@@ -135,7 +138,7 @@ async def reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
     finally:
         if len(contents) > 16:
             contents = contents[-16:]
-            _redis_client.set(
+            common.redis_client.set(
                 f"kmua_contents_{update.effective_user.id}", pickle.dumps(contents)
             )
         context.bot_data["vertex_block"] = False
@@ -161,7 +164,7 @@ async def _keyword_reply(
         )
         logger.info("Bot: " + sent_message.text)
         if not_aonymous and _enable_vertex:
-            contents: bytes = _redis_client.get(
+            contents: bytes = common.redis_client.get(
                 f"kmua_contents_{update.effective_user.id}"
             )
             if contents is None:
@@ -175,7 +178,7 @@ async def _keyword_reply(
                         parts=[Part.from_text(sent_message.text)],
                     ),
                 ]
-                _redis_client.set(
+                common.redis_client.set(
                     f"kmua_contents_{update.effective_user.id}", pickle.dumps(contents)
                 )
             else:
@@ -194,7 +197,7 @@ async def _keyword_reply(
                 )
                 if len(contents) > 16:
                     contents = contents[-16:]
-                _redis_client.set(
+                common.redis_client.set(
                     f"kmua_contents_{update.effective_user.id}", pickle.dumps(contents)
                 )
     return
@@ -217,5 +220,5 @@ async def _keyword_reply_without_save(
 async def reset_contents(update: Update, _: ContextTypes.DEFAULT_TYPE):
     if not _enable_vertex:
         return
-    _redis_client.delete(f"kmua_contents_{update.effective_user.id}")
+    common.redis_client.delete(f"kmua_contents_{update.effective_user.id}")
     await update.effective_message.reply_text("刚刚发生了什么...好像忘记了呢")
