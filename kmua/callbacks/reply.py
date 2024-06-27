@@ -120,7 +120,6 @@ async def reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
             contents.pop()
             await _keyword_reply(update, context, message_text)
             return
-        logger.debug(f"Vertex AI response: {resp}")
         await update.effective_message.reply_text(
             text=resp.text,
             quote=True,
