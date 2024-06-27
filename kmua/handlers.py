@@ -135,7 +135,9 @@ update_index_handler = CommandHandler(
     "update_index", search.update_index, filters=filters.ChatType.GROUPS
 )
 index_stats_handler = CommandHandler("index_stats", search.index_stats)
-
+clear_all_contents_handler = CommandHandler(
+    "clear_all_contents", reply.clear_all_contents
+)
 
 # CallbackQueryHandlers
 start_callback_handler = CallbackQueryHandler(start.start, pattern="back_home")
@@ -282,6 +284,7 @@ command_handlers = [
     import_history_handler,
     update_index_handler,
     index_stats_handler,
+    clear_all_contents_handler,
 ]
 
 chatdata_handlers = [

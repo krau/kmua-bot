@@ -93,7 +93,9 @@ async def reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     if not contents:
         contents = pickle.dumps(_preset_contents)
-        common.redis_client.set(f"kmua_contents_{update.effective_user.id}", contents)
+        common.redis_client.set(
+            f"kmua_contents_{update.effective_user.id}", contents, ex=2 * 24 * 60 * 60
+        )
     contents: list[Content] = pickle.loads(contents)
     if len(contents) <= 2:
         await _keyword_reply(update, context, message_text)
@@ -131,7 +133,9 @@ async def reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
         )
         common.redis_client.set(
-            f"kmua_contents_{update.effective_user.id}", pickle.dumps(contents)
+            f"kmua_contents_{update.effective_user.id}",
+            pickle.dumps(contents),
+            ex=2 * 24 * 60 * 60,
         )
     except Exception as e:
         logger.error(f"Failed to generate content: {e}")
@@ -140,7 +144,9 @@ async def reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if len(contents) > 16:
             contents = contents[-16:]
             common.redis_client.set(
-                f"kmua_contents_{update.effective_user.id}", pickle.dumps(contents)
+                f"kmua_contents_{update.effective_user.id}",
+                pickle.dumps(contents),
+                ex=2 * 24 * 60 * 60,
             )
         context.bot_data["vertex_block"] = False
 
@@ -180,7 +186,9 @@ async def _keyword_reply(
                     ),
                 ]
                 common.redis_client.set(
-                    f"kmua_contents_{update.effective_user.id}", pickle.dumps(contents)
+                    f"kmua_contents_{update.effective_user.id}",
+                    pickle.dumps(contents),
+                    ex=2 * 24 * 60 * 60,
                 )
             else:
                 contents: list[Content] = pickle.loads(contents)
@@ -199,7 +207,9 @@ async def _keyword_reply(
                 if len(contents) > 16:
                     contents = contents[-16:]
                 common.redis_client.set(
-                    f"kmua_contents_{update.effective_user.id}", pickle.dumps(contents)
+                    f"kmua_contents_{update.effective_user.id}",
+                    pickle.dumps(contents),
+                    ex=2 * 24 * 60 * 60,
                 )
     return
 
@@ -223,3 +233,18 @@ async def reset_contents(update: Update, _: ContextTypes.DEFAULT_TYPE):
         return
     common.redis_client.delete(f"kmua_contents_{update.effective_user.id}")
     await update.effective_message.reply_text("刚刚发生了什么...好像忘记了呢")
+
+
+async def clear_all_contents(update: Update, _: ContextTypes.DEFAULT_TYPE):
+    if not _enable_vertex:
+        return
+    if not common.verify_user_can_manage_bot(update.effective_user):
+        return
+    try:
+        keys = common.redis_client.keys("kmua_contents_*")
+        for key in keys:
+            common.redis_client.delete(key)
+        await update.effective_message.reply_text("已清除所有用户的对话记录")
+    except Exception as e:
+        logger.error(f"Failed to clear all contents: {e}")
+        await update.effective_message.reply_text("清除失败")
