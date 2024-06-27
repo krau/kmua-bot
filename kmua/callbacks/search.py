@@ -163,6 +163,9 @@ async def enable_search(update: Update, context: ContextTypes.DEFAULT_TYPE):
         common.meili_client.index(f"kmua_{chat.id}").update_searchable_attributes(
             ["text"]
         )
+        common.meili_client.index(f"kmua_{chat.id}").update_filterable_attributes(
+            ["type", "user_id"]
+        )
     except Exception as e:
         logger.error(f"create index error: {e.__class__.__name__}: {e}")
         await update.effective_message.reply_text("出错了喵, 启用失败")
