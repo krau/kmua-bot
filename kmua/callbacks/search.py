@@ -29,13 +29,7 @@ async def search_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     logger.info(f"[{chat.title}]({update.effective_user.name}) search: {query}")
     try:
         result = common.meili_client.index(f"kmua_{chat.id}").search(
-            query,
-            {
-                "attributesToCrop": ["text"],
-                "cropLength": 30,
-                "offset": 0,
-                "limit": 10,
-            },
+            query, _get_search_params()
         )
     except Exception as e:
         logger.error(f"search error: {e.__class__.__name__}: {e}")
@@ -46,20 +40,11 @@ async def search_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     chat_id_str = str(chat.id).removeprefix("-100")
     text = ""
-    for hit in result["hits"]:
-        emoji = "💬"
-        match hit["type"]:
-            case common.MessageType.PHOTO.value:
-                emoji = "🖼️"
-            case common.MessageType.VIDEO.value:
-                emoji = "🎥"
-            case common.MessageType.AUDIO.value:
-                emoji = "🎵"
-            case common.MessageType.FILE.value:
-                emoji = "📄"
-        message_link = f"https://t.me/c/{chat_id_str}/{hit['message_id']}"
-        formatted_text = hit["_formatted"]["text"].replace("\n\n", "\n")
-        text += f"{escape_markdown(emoji,2)} [{escape_markdown(formatted_text,2)}]({message_link})\n\n"
+    for hit_text in _get_hit_text(result["hits"], chat_id_str):
+        text += hit_text
+    if not text:
+        await update.callback_query.answer("没有更多结果了", cache_time=60)
+        return
     uuid = uuid4()
     common.redis_client.set(f"kmua_cqdata_{uuid}", query, ex=6000)
     reply_markup = InlineKeyboardMarkup(
@@ -104,13 +89,7 @@ async def search_message_page(update: Update, _: ContextTypes.DEFAULT_TYPE):
     offset = int(offset)
     try:
         result = common.meili_client.index(f"kmua_{update.effective_chat.id}").search(
-            query,
-            {
-                "attributesToCrop": ["text"],
-                "cropLength": 30,
-                "offset": offset,
-                "limit": 10,
-            },
+            query, _get_search_params(offset)
         )
     except Exception as e:
         logger.error(f"search error: {e.__class__.__name__}: {e}")
@@ -123,20 +102,11 @@ async def search_message_page(update: Update, _: ContextTypes.DEFAULT_TYPE):
         return
     chat_id_str = str(update.effective_chat.id).removeprefix("-100")
     text = ""
-    for hit in result["hits"]:
-        emoji = "💬"
-        match hit["type"]:
-            case common.MessageType.PHOTO.value:
-                emoji = "🖼️"
-            case common.MessageType.VIDEO.value:
-                emoji = "🎥"
-            case common.MessageType.AUDIO.value:
-                emoji = "🎵"
-            case common.MessageType.FILE.value:
-                emoji = "📄"
-        message_link = f"https://t.me/c/{chat_id_str}/{hit['message_id']}"
-        formatted_text = hit["_formatted"]["text"].replace("\n\n", "\n")
-        text += f"{escape_markdown(emoji,2)} [{escape_markdown(formatted_text,2)}]({message_link})\n\n"
+    for hit_text in _get_hit_text(result["hits"], chat_id_str):
+        text += hit_text
+    if not text:
+        await update.callback_query.answer("没有更多结果了", cache_time=60)
+        return
     reply_markup = (
         InlineKeyboardMarkup(
             [
@@ -155,6 +125,10 @@ async def search_message_page(update: Update, _: ContextTypes.DEFAULT_TYPE):
                     InlineKeyboardButton(
                         "上一页",
                         callback_data=f"message_search {query_uuid} {offset-10}",
+                    ),
+                    InlineKeyboardButton(
+                        f"第 {offset//10+1} 页",
+                        callback_data="noop",
                     ),
                     InlineKeyboardButton(
                         "下一页",
@@ -444,3 +418,45 @@ def _get_message_meili(
             text=full_text,
             type=message_type,
         )
+
+
+def _get_message_type_emoji(type: int) -> str:
+    match type:
+        case common.MessageType.PHOTO.value:
+            return "🖼️"
+        case common.MessageType.VIDEO.value:
+            return "🎥"
+        case common.MessageType.AUDIO.value:
+            return "🎵"
+        case common.MessageType.FILE.value:
+            return "📄"
+        case _:
+            return "💬"
+
+
+def _get_hit_text(hits: list[dict], chat_id: str) -> Generator[str, None, None]:
+    for hit in hits:
+        if hit["_rankingScore"] <= 0.1:
+            # TODO: meilisearch 1.9 之后将会支持 rankingScoreThreshold 参数, 可在请求时直接过滤
+            break
+        emoji = _get_message_type_emoji(hit["type"])
+        message_link = f"https://t.me/c/{chat_id}/{hit['message_id']}"
+        formatted_text = hit["_formatted"]["text"].replace("\n", " ")
+        formatted_text = f"{escape_markdown(emoji,2)} [{escape_markdown(formatted_text,2)}]({message_link})\n\n"
+        user_id: int = hit["user_id"]
+        if db_user := dao.get_user_by_id(user_id):
+            user_text = escape_markdown(f"[{db_user.full_name}]:\n", 2)
+        else:
+            user_text = escape_markdown(f"[{user_id}]:\n", 2)
+        yield f"{user_text}{formatted_text}"
+
+
+def _get_search_params(offset: int = 0) -> dict:
+    return {
+        "attributesToCrop": ["text"],
+        "cropLength": 30,
+        "offset": offset,
+        "limit": 10,
+        "matchingStrategy": "all",
+        "showRankingScore": True,
+    }
