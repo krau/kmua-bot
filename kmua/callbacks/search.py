@@ -423,6 +423,8 @@ def _get_message_meili(
             else:
                 continue
             message_id = int(msg_export["id"])
+            if message_id < 0:  # 普通群组的消息 id 为负
+                continue
         except ValueError:
             logger.warning(
                 f"invalid message id or from_id: {msg_export['id']}, {msg_export['from_id']}"
