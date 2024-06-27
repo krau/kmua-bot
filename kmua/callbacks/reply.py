@@ -2,6 +2,7 @@ import pickle
 import random
 
 import vertexai
+import zhconv
 from telegram import (
     Update,
 )
@@ -17,7 +18,7 @@ from vertexai.generative_models import (
     Part,
     SafetySetting,
 )
-import zhconv
+
 from kmua import common
 from kmua.config import settings
 from kmua.logger import logger
@@ -90,7 +91,7 @@ async def reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
     contents: bytes = common.redis_client.get(
         f"kmua_contents_{update.effective_user.id}"
     )
-    if contents is None:
+    if not contents:
         contents = pickle.dumps(_preset_contents)
         common.redis_client.set(f"kmua_contents_{update.effective_user.id}", contents)
     contents: list[Content] = pickle.loads(contents)
@@ -167,7 +168,7 @@ async def _keyword_reply(
             contents: bytes = common.redis_client.get(
                 f"kmua_contents_{update.effective_user.id}"
             )
-            if contents is None:
+            if not contents:
                 contents = [
                     Content(
                         role="user",
