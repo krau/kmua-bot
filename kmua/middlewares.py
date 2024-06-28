@@ -80,8 +80,9 @@ async def store_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if message.caption:
         text += " " + message.caption
     if message.document:
-        text += " " + message.document.file_name
         message_type = common.MessageType.FILE
+        if message.document.file_name:
+            text += " " + message.document.file_name
     if message.photo:
         message_type = common.MessageType.PHOTO
     if message.video:
