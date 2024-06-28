@@ -279,6 +279,7 @@ async def import_history(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     context.chat_data["importing_history"] = True
     try:
+        sent_message = await message.reply_text("正在下载文件...")
         history_file = await target_message.document.get_file()
 
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -288,22 +289,24 @@ async def import_history(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 history_raw: dict[str, Any] = orjson.loads(f.read())
 
         if not history_raw:
-            await message.reply_text("导入失败, 请检查文件格式")
+            await sent_message.edit_text("导入失败, 请检查文件格式")
             return
 
         chat_id = "-100" + str(history_raw["id"])
         if chat_id != str(chat.id):
-            await message.reply_text("导入失败, 文件中的历史记录不属于此群")
+            await sent_message.edit_text("导入失败, 文件中的历史记录不属于此群")
             return
         if history_raw["type"] not in ("private_supergroup", "public_supergroup"):
-            await message.reply_text("导入失败, 非超级群组历史记录")
+            await sent_message.edit_text("导入失败, 非超级群组历史记录")
             return
         history_raw_messages: list = history_raw.get("messages")
         if not history_raw_messages:
-            await message.reply_text("文件中没有消息记录")
+            await sent_message.edit_text("文件中没有消息记录")
             return
 
-        await message.reply_text(f"正在导入历史消息, 共 {len(history_raw_messages)} 条")
+        await sent_message.edit_text(
+            f"正在导入历史消息, 共 {len(history_raw_messages)} 条"
+        )
 
         count = 0
         for msg in _get_message_meili(history_raw_messages):
