@@ -88,6 +88,9 @@ async def set_bot_admin_in_chat(update: Update, context: ContextTypes.DEFAULT_TY
     else:
         await message.reply_text("请输入正确的用户ID, 或者回复一条消息")
         return
+    if to_promote_user_id == user.id:
+        await message.reply_text("不能对自己使用")
+        return
     db_user = dao.get_user_by_id(to_promote_user_id)
     if not db_user:
         await message.reply_text("该用户不存在")
