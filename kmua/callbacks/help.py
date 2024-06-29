@@ -10,12 +10,8 @@ from kmua import common
 from kmua.logger import logger
 
 
-async def help(update: Update, _: ContextTypes.DEFAULT_TYPE):
-    logger.info(
-        f"[{update.effective_chat.title}]({update.effective_user.name})"
-        + f" {update.effective_message.text}"
-    )
-    help_text = """
+_help_text = """
+<blockquote expandable="true">
 /start - 开始使用|打开菜单
 /help - 显示此帮助信息
 /waifu - 今天的群友老婆!
@@ -38,6 +34,8 @@ async def help(update: Update, _: ContextTypes.DEFAULT_TYPE):
 /set_greet - 设置群组欢迎语
 /ip - 查询IP/域名信息
 /set_bot_admin - 在群组中设置bot管理员 (对于bot该用户将具有同等于群主的权限, 慎用)
+</blockquote>
+↑ 点击展开详细命令说明
 
 对其他人使用 "/"命令 即可对其施法
 使用反斜杠可攻受互换
@@ -47,16 +45,26 @@ async def help(update: Update, _: ContextTypes.DEFAULT_TYPE):
 
 Inline 模式可以查询语录
 """
-    help_markup = InlineKeyboardMarkup(
+
+
+_help_markup = InlineKeyboardMarkup(
+    [
         [
-            [
-                InlineKeyboardButton("Detail help", url=common.DETAIL_HELP_URL),
-                InlineKeyboardButton("Open source", url=common.OPEN_SOURCE_URL),
-            ]
+            InlineKeyboardButton("Detail help", url=common.DETAIL_HELP_URL),
+            InlineKeyboardButton("Open source", url=common.OPEN_SOURCE_URL),
         ]
+    ]
+)
+
+
+async def help(update: Update, _: ContextTypes.DEFAULT_TYPE):
+    logger.info(
+        f"[{update.effective_chat.title}]({update.effective_user.name})"
+        + f" {update.effective_message.text}"
     )
+
     message = update.effective_message
-    await message.reply_markdown_v2(
-        text=escape_markdown(help_text, 2),
-        reply_markup=help_markup,
+    await message.reply_html(
+        text=_help_text,
+        reply_markup=_help_markup,
     )
