@@ -221,7 +221,7 @@ async def _divorce_ask(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if "divorce_confirm" in query.data:
         await _divorce_confirm(update, context)
         return
-    db_user = dao.get_user_by_id(update.effective_user.id)
+    db_user = dao.add_user(update.effective_user)
     if not db_user.is_married:
         await query.answer("可是...你还没有结婚呀qwq", show_alert=True, cache_time=15)
         return
@@ -243,7 +243,7 @@ async def _divorce_ask(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def _divorce_confirm(update: Update, _: ContextTypes.DEFAULT_TYPE):
-    db_user = dao.get_user_by_id(update.effective_user.id)
+    db_user = dao.add_user(update.effective_user)
     query = update.callback_query
     married_waifu = dao.get_user_by_id(db_user.married_waifu_id)
     db_user.is_married = False
