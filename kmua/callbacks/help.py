@@ -4,11 +4,9 @@ from telegram import (
     Update,
 )
 from telegram.ext import ContextTypes
-from telegram.helpers import escape_markdown
 
 from kmua import common
 from kmua.logger import logger
-
 
 _help_text = """
 <blockquote expandable="true">
