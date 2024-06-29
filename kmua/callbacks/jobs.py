@@ -36,10 +36,13 @@ async def clean_data(context: ContextTypes.DEFAULT_TYPE):
 
 
 async def delete_message(context: ContextTypes.DEFAULT_TYPE):
-    await context.bot.delete_message(
-        chat_id=context.job.chat_id,
-        message_id=context.job.data["message_id"],
-    )
+    try:
+        await context.bot.delete_message(
+            chat_id=context.job.chat_id,
+            message_id=context.job.data["message_id"],
+        )
+    except Exception as err:
+        logger.warning(f"{err.__class__.__name__}: {err} happend when deleting message")
 
 
 async def send_message(context: ContextTypes.DEFAULT_TYPE):

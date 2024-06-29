@@ -1,5 +1,6 @@
 import asyncio
 
+from telegram import Update
 from telegram.ext import (
     CallbackQueryHandler,
     ChatMemberHandler,
@@ -11,6 +12,7 @@ from telegram.ext import (
 
 import kmua.filters as kmua_filters
 from kmua import dao
+
 from .callbacks import (
     bilibili,
     chatdata,
@@ -24,6 +26,7 @@ from .callbacks import (
     quote,
     remake,
     reply,
+    search,
     setu,
     slash,
     start,
@@ -31,7 +34,6 @@ from .callbacks import (
     title,
     userdata,
     waifu,
-    search,
 )
 from .logger import logger
 
@@ -307,16 +309,16 @@ message_handlers = [
 inline_query_handler_group = [inline_query_handler]
 
 
-async def on_error(update, context):
+async def on_error(update: Update, context):
     """
     出现未被处理的错误时回调
     """
     error = context.error
     # 如果聊天限制了 bot 发送消息, 忽略
     if error.__class__.__name__ == "BadRequest":
-        if error.message == "Chat_write_forbidden":
+        if "Chat_write_forbidden" in error.message:
             return
-        if error.message == "There is no caption in the message to edit":
+        if "There is no caption in the message to edit" in error.message:
             if update.callback_query:
                 await update.callback_query.answer(
                     "请使用 /start 重新召出菜单", show_alert=True, cache_time=600
@@ -328,8 +330,14 @@ async def on_error(update, context):
                     "请...请慢一点> <", show_alert=True, cache_time=1
                 )
             return
-        if "Not enough rights to send" in error.message:
+        if (
+            "Not enough rights to send" in error.message
+            or "Message to be replied not found" in error.message
+        ):
             return
+    elif error.__class__.__name__ == "TimedOut":
+        logger.warning(f"Timeout error\n{update}")
+        return
     elif error.__class__.__name__ == "Forbidden":
         if "bot was kicked from the supergroup chat" in error.message:
             return
