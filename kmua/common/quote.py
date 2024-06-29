@@ -130,13 +130,13 @@ Create at {datetime.strftime(quote.created_at, '%Y-%m-%d %H:%M:%S')} by {qer_use
     return result
 
 
-def generate_quote_img(avatar: bytes, text: str, name: str) -> bytes:
+async def generate_quote_img(avatar: bytes, text: str, name: str) -> bytes:
     text = text.replace("\n", " ")
     script_dir = Path(__file__).resolve().parent
     font_path = str(script_dir.parent / "resource" / "TsukuA.ttc")
-    base_img_path = str(script_dir.parent / "resource" / "base.png")
+    base_img_path = str(script_dir.parent / "resource" / "quote_base.png")
 
-    img_width, img_height = 1200, 630
+    img_width, img_height = 1200, 640
     font_size = 42
     name_font_size = 24
 

@@ -26,3 +26,10 @@ DB_PATH = (
     if settings.get("db_url").startswith("sqlite")
     else None
 )
+
+DEFAULT_BIG_AVATAR_PATH = (
+    Path(__file__).resolve().parent.parent / "resource" / "Akkarin.jpg"
+)
+DEFAULT_SMALL_AVATAR_PATH = (
+    Path(__file__).resolve().parent.parent / "resource" / "Akkarin_small.png"
+)

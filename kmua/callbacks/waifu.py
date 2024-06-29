@@ -61,18 +61,20 @@ async def send_waifu_graph(
                     reply_to_message_id=msg_id,
                 )
             return
+
+        with open(common.DEFAULT_SMALL_AVATAR_PATH, "rb") as f:
+            default_avatar = f.read()
         user_info = (
             {
                 "id": user.id,
-                "username": user.username or f"id: {user.id}",
-                "avatar": user.avatar_small_blob,
+                "username": user.username or f"{user.id}",
+                "avatar": user.avatar_small_blob or default_avatar,
             }
             for user in participate_users
         )
         image_bytes = common.render_waifu_graph(
             relationships, user_info, len(participate_users)
         )
-        logger.debug(f"image_size: {len(image_bytes)}")
         sent_message = await context.bot.send_document(
             chat.id,
             document=image_bytes,
