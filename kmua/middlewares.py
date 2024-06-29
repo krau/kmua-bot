@@ -36,9 +36,6 @@ async def store_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     if chat.type not in (ChatType.GROUP, ChatType.SUPERGROUP):
         return
-    message = update.effective_message
-    if not message:
-        return
     if not (
         message.text
         or message.caption

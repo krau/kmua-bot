@@ -16,6 +16,8 @@ def replace_special_char(text: str):
 
 
 async def slash(update: Update, _: ContextTypes.DEFAULT_TYPE):
+    if update.message_reaction:
+        return
     logger.info(
         f"[{update.effective_chat.title}]({update.effective_user.name})"
         + f" {update.effective_message.text}"
@@ -38,9 +40,7 @@ async def slash(update: Update, _: ContextTypes.DEFAULT_TYPE):
     is_backslash = (
         False
         if message.text.startswith("/")
-        else True
-        if message.text.startswith("\\")
-        else None
+        else True if message.text.startswith("\\") else None
     )
     if is_backslash is None:
         return

@@ -96,10 +96,6 @@ _service_message_attr = [
 
 
 class ServiceMessageFilter(MessageFilter):
-    """
-    Filter service messages.
-    """
-
     def filter(self, message: Message) -> bool | FilterDataDict | None:
         if any(getattr(message, attr) for attr in _service_message_attr):
             return True
@@ -107,10 +103,6 @@ class ServiceMessageFilter(MessageFilter):
 
 
 class AutoForwardFilter(MessageFilter):
-    """
-    Filter messages that are auto forwarded.
-    """
-
     def filter(self, message: Message) -> bool | FilterDataDict | None:
         if message.chat.type not in [message.chat.GROUP, message.chat.SUPERGROUP]:
             return False

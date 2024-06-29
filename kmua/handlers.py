@@ -59,7 +59,7 @@ help_handler = CommandHandler(
     "help", help.help, filters=kmua_filters.mention_or_private_filter
 )
 error_notice_control_handler = CommandHandler(
-    "error_notice", manage.error_notice_control
+    "error_notice", manage.error_notice_control, filters=filters.ChatType.PRIVATE
 )
 remake_handler = CommandHandler("remake", remake.remake)
 
@@ -143,7 +143,6 @@ clear_all_contents_handler = CommandHandler(
 
 # CallbackQueryHandlers
 start_callback_handler = CallbackQueryHandler(start.start, pattern="back_home")
-
 remove_waifu_handler = CallbackQueryHandler(waifu.remove_waifu, pattern="remove_waifu")
 user_waifu_manage_handler = CallbackQueryHandler(
     userdata.user_waifu_manage, pattern="user_waifu_manage|set_waifu_mention|divorce"
@@ -186,7 +185,9 @@ message_search_page_handler = CallbackQueryHandler(
 
 
 # MessageHandlers
-slash_handler = MessageHandler(kmua_filters.slash_filter, slash.slash)
+slash_handler = MessageHandler(
+    kmua_filters.slash_filter, slash.slash, filters=~filters.UpdateType.EDITED
+)
 bililink_convert_handler = MessageHandler(
     filters.ChatType.PRIVATE
     & filters.Regex(r"b23.tv/[a-zA-Z0-9]+|bilibili.com/video/[a-zA-Z0-9]+"),
@@ -196,7 +197,8 @@ random_quote_handler = MessageHandler(
     (~filters.COMMAND & filters.ChatType.GROUPS), quote.random_quote
 )
 reply_handler = MessageHandler(
-    (~filters.COMMAND & kmua_filters.reply_filter), reply.reply
+    (~filters.COMMAND & kmua_filters.reply_filter & ~filters.UpdateType.EDITED),
+    reply.reply,
 )
 sticker2img_handler = MessageHandler(
     (filters.Sticker.ALL & filters.ChatType.PRIVATE), sticker.sticker2img

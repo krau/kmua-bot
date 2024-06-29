@@ -124,6 +124,7 @@ def run():
         UpdateType.MY_CHAT_MEMBER,
         UpdateType.CHOSEN_INLINE_RESULT,
         UpdateType.INLINE_QUERY,
+        UpdateType.EDITED_MESSAGE,
     ]
     if settings.get("webhook"):
         logger.info("running webhook...")
