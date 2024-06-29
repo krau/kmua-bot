@@ -68,6 +68,24 @@ class UserData(Base):
         ),
     )
 
+    def __str__(self):
+        return f"""
+id: {self.id}
+username: {self.username}
+full_name: {self.full_name}
+头像缓存id(大尺寸): {True if self.avatar_big_id else None}
+头像(大尺寸): {True if self.avatar_big_blob else None}
+头像(小尺寸): {True if self.avatar_small_blob else None}
+已结婚: {self.is_married}
+已结婚的老婆id: {self.married_waifu_id}
+是否允许被老婆提及: {self.waifu_mention}
+是否为bot: {self.is_bot}
+是否为真实用户: {self.is_real_user}
+是否为bot全局管理: {self.is_bot_global_admin}
+created_at: {self.created_at.strftime("%Y-%m-%d %H:%M:%S")}
+updated_at: {self.updated_at.strftime("%Y-%m-%d %H:%M:%S")}
+"""
+
 
 class ChatData(Base):
     __tablename__ = "chat_data"
