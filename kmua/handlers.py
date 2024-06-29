@@ -186,7 +186,7 @@ message_search_page_handler = CallbackQueryHandler(
 
 # MessageHandlers
 slash_handler = MessageHandler(
-    kmua_filters.slash_filter, slash.slash, filters=~filters.UpdateType.EDITED
+    kmua_filters.slash_filter & ~filters.UpdateType.EDITED, slash.slash
 )
 bililink_convert_handler = MessageHandler(
     filters.ChatType.PRIVATE
