@@ -2,7 +2,7 @@ import pickle
 
 from telegram import Update
 from telegram.constants import ChatID, ChatType
-from telegram.ext import ContextTypes, TypeHandler
+from telegram.ext import ContextTypes, MessageHandler, filters
 
 from kmua import common, dao
 from kmua.callbacks.search import update_index_job
@@ -131,11 +131,13 @@ async def store_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.warning(f"saving message to failed: {e.__class__.__name__}: {e}")
 
 
-store_data_handler = TypeHandler(Update, store_data)
+store_data_handler = MessageHandler(
+    ~filters.ChatType.CHANNEL & ~filters.Chat(ChatID.SERVICE_CHAT), store_data
+)
 
 before_middleware = [store_data_handler]
 after_middleware = []
 
 if _enable_search:
-    store_message_handler = TypeHandler(Update, store_message)
+    store_message_handler = MessageHandler(filters.ChatType.GROUPS, store_message)
     after_middleware.append(store_message_handler)
