@@ -138,16 +138,6 @@ async def reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
     except Exception as e:
         logger.error(f"Failed to generate content: {e}")
-        if (
-            "Please ensure that multiturn requests alternate between user and model"
-            in e
-        ):
-            contents.pop()
-            common.redis_client.set(
-                f"kmua_contents_{update.effective_user.id}",
-                pickle.dumps(contents),
-                ex=2 * 24 * 60 * 60,
-            )
         await _keyword_reply_without_save(update, context, message_text)
     finally:
         if len(contents) > 16:
