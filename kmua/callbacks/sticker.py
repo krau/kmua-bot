@@ -7,12 +7,12 @@ from kmua.logger import logger
 
 async def sticker2img(update: Update, context: ContextTypes.DEFAULT_TYPE):
     logger.info(f"sticker2img {update.effective_user.name}")
-    if update.message.sticker is None:
+    if update.effective_message.sticker is None:
         return
     await context.bot.send_chat_action(
         chat_id=update.effective_chat.id, action=ChatAction.UPLOAD_DOCUMENT
     )
-    sticker = update.message.sticker
+    sticker = update.effective_message.sticker
 
     file = None
     ext_name = "png"
@@ -26,7 +26,7 @@ async def sticker2img(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     if sticker.is_video:
         ext_name = "mp4"
-    sent_message = await update.message.reply_document(
+    sent_message = await update.effective_message.reply_document(
         document=file,
         filename=f"{sticker.file_size}.{ext_name}",
         disable_content_type_detection=True,

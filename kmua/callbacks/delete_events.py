@@ -37,13 +37,13 @@ async def delete_event_message(update: Update, _: ContextTypes.DEFAULT_TYPE):
     if not dao.get_chat_delete_events_enabled(chat):
         return
     logger.info(f"[{chat.title}] delete event message")
-    if update.message:
+    if update.effective_message:
         try:
-            await update.message.delete()
+            await update.effective_message.delete()
         except Exception as e:
             msg = f"delete event message failed: {e.__class__.__name__}:{e}"
             logger.warning(msg)
-            await update.message.reply_text(
+            await update.effective_message.reply_text(
                 msg
                 + "\n请检查是否赋予 bot 删除消息权限, 或使用 /switch_delete_events 关闭该功能",
                 quote=True,

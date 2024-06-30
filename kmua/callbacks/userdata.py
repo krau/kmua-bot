@@ -112,7 +112,7 @@ async def refresh_user_data_by_id(update: Update, context: ContextTypes.DEFAULT_
     具有 bot 全局管理权限可刷新任意数据
     否则只能刷新 user.is_real_user 为 False 的用户数据
     """
-    logger.info(f"({update.effective_user.name}): {update.message.text}")
+    logger.info(f"({update.effective_user.name}): {update.effective_message.text}")
     if not context.args:
         await update.effective_message.reply_text("请输入用户 id")
         return

@@ -122,7 +122,7 @@ async def today_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if not waifu:
             return
         if waifu.is_married and user.id != waifu.married_waifu_id:
-            await update.effective_message.reply_text("你没能抽到老婆, 再试一次吧~")
+            await message.reply_text("你没能抽到老婆, 再试一次吧~")
             return
         is_waifu_in_chat = dao.check_user_in_chat(waifu, chat)
         if is_waifu_in_chat:
@@ -137,13 +137,13 @@ async def today_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         photo_to_send = await _get_photo_to_send(waifu, context)
 
         if photo_to_send is None:
-            await update.message.reply_markdown_v2(
+            await message.reply_markdown_v2(
                 text=text,
                 reply_markup=waifu_markup,
             )
             return
         try:
-            sent_message = await update.message.reply_photo(
+            sent_message = await message.reply_photo(
                 photo=photo_to_send,
                 caption=text,
                 parse_mode="MarkdownV2",
@@ -154,7 +154,7 @@ async def today_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE):
             logger.info(f"Bot: {text}")
         except Exception as e:
             logger.error(f"Can not send photo: {e.__class__.__name__}: {e}")
-            await update.message.reply_markdown_v2(
+            await message.reply_markdown_v2(
                 text=text,
                 reply_markup=waifu_markup,
             )
@@ -201,7 +201,7 @@ async def _get_waifu_for_user(
             retry += 1
             waifu_id = random.choice(group_member)
             await asyncio.sleep(3)
-    await update.message.reply_text(text="你没能抽到老婆, 稍后再试一次吧~")
+    await update.effective_message.reply_text(text="你没能抽到老婆, 稍后再试一次吧~")
     return None, False
 
 
@@ -213,7 +213,7 @@ async def _get_chat_members_id_to_get_waifu(
     to_remove = set(married + common.fake_users_id + [user.id])
     group_member = [i for i in group_member if i not in to_remove]
     if not group_member:
-        await update.message.reply_text(
+        await update.effective_message.reply_text(
             text="你现在没有老婆, 因为咱的记录中找不到其他群友"
         )  # noqa: E501
         return None

@@ -151,7 +151,7 @@ async def set_title_permissions(update: Update, context: ContextTypes.DEFAULT_TY
 编辑动态: {title_permissions.get("can_edit_stories", False)}
 删除动态: {title_permissions.get("can_delete_stories", False)}
 """
-    await update.message.reply_text(
+    await message.reply_text(
         text=text,
         reply_markup=_title_permissions_markup,
     )
