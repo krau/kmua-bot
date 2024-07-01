@@ -31,6 +31,7 @@ _help_text = """
 /id - 获取聊天ID
 /set_greet - 设置群组欢迎语
 /ip - 查询IP/域名信息
+/sr - 超分图片
 /set_bot_admin - 在群组中设置bot管理员 (对于bot该用户将具有同等于群主的权限, 慎用)
 </blockquote>
 ↑ 点击展开详细命令说明
