@@ -136,7 +136,7 @@ def run():
     else:
         app.run_polling(
             allowed_updates=allowed_updates,
-            drop_pending_updates=True,
+            drop_pending_updates=settings.get("drop_pending_updates", False),
             close_loop=False,
         )
 
