@@ -138,7 +138,7 @@ async def super_resolute(update: Update, context: ContextTypes.DEFAULT_TYPE):
         _check_super_resolute_result,
         interval=30,
         first=0,
-        last=300,
+        last=settings.get("real_esrgan_timeout", 600),
         chat_id=chat.id,
         user_id=user.id,
         data={"task_id": task_id, "message_id": target_message.message_id},
