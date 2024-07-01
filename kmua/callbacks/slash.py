@@ -40,7 +40,9 @@ async def slash(update: Update, _: ContextTypes.DEFAULT_TYPE):
     is_backslash = (
         False
         if message.text.startswith("/")
-        else True if message.text.startswith("\\") else None
+        else True
+        if message.text.startswith("\\")
+        else None
     )
     if is_backslash is None:
         return

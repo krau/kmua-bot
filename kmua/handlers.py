@@ -20,6 +20,7 @@ from .callbacks import (
     chatmember,
     delete_events,
     help,
+    image,
     ip,
     manage,
     pin,
@@ -139,6 +140,9 @@ update_index_handler = CommandHandler(
 index_stats_handler = CommandHandler("index_stats", search.index_stats)
 clear_all_contents_handler = CommandHandler(
     "clear_all_contents", reply.clear_all_contents
+)
+sr_handler = CommandHandler(
+    "sr", image.super_resolute, filters=~filters.UpdateType.EDITED
 )
 
 # CallbackQueryHandlers
@@ -289,6 +293,7 @@ command_handlers = [
     update_index_handler,
     index_stats_handler,
     clear_all_contents_handler,
+    sr_handler,
 ]
 
 chatdata_handlers = [
