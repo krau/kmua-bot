@@ -16,6 +16,7 @@ if _enabled:
     httpx_cilent = httpx.AsyncClient(
         base_url=_real_esrgan_api,
         headers={"X-Token": _real_esrgan_token, "User-Agent": "kmua/2.3.3"},
+        timeout=60,
     )
 
 
