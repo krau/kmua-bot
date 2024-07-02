@@ -15,7 +15,7 @@
 docker compose up -d
 ```
 
-### 高级设置
+### 详细设置
 
 如果你有更多需求, 请使用以下 `docker-compose.yml`.
 
@@ -50,6 +50,7 @@ services:
 
 - `KMUA_BASE_URL` - Bot API 地址, 默认 `https://api.telegram.org/bot` (官方)
 - `KMUA_BASE_FILE_URL` - Bot 文件 API 地址, 默认 `https://api.telegram.org/file/bot`
+- `KMUA_DROP_PENDING_UPDATES` - 是否丢弃未处理的更新, 默认 `false`
 
 #### Webhook
 
@@ -58,6 +59,9 @@ services:
 - `KMUA_PORT` - Webhook 监听端口
 - `KMUA_WEBHOOK_URL` - Webhook URL
 - `KMUA_SECRET_TOKEN` - Webhook 验证 Token
+- `KMUA_URL_PATH` - Webhook URL Path
+- `KMUA_KEY` - Webhook Key
+- `KMUA_CERT` - Webhook Cert
 
 #### 扩展功能
 
@@ -87,6 +91,11 @@ Redis 可能是其他扩展功能的依赖
 - `KMUA_VERTEX_PRESET` - (数组) 预设对话. 先用户后模型交替, 请确保数组长度为偶数且不超过16.
 - `GOOGLE_APPLICATION_CREDENTIALS` - Google Application Credentials 路径. 请将 JSON 文件挂载到容器内.
 
+##### NSFW 图像分类
+
+- `KMUA_NSFWJS_API` - NSFWJS API 地址
+- `KMUA_NSFWJS_TOKEN` - NSFWJS API Token
+
 ##### Meilisearch (消息搜索)
 
 该功能需要 Redis
@@ -94,27 +103,37 @@ Redis 可能是其他扩展功能的依赖
 - `KMUA_MEILISEARCH_API` - Meilisearch 地址
 - `KMUA_MEILISEARCH_KEY` - Meilisearch API Key
 
+##### 图像超分辨率
+
+该功能可选 Redis (缓存下载结果 id)
+
+- `KMUA_REAL_ESRGAN_API` - Real-ESRGAN API 地址
+- `KMUA_REAL_ESRGAN_TOKEN` - Real-ESRGAN API Token
+
 ### 完整 .env 示例
 
 ```dotenv
+TZ = Asia/Shanghai
 KMUA_TOKEN = "token"
 KMUA_OWNERS = [114514]
 KMUA_LOG_LEVEL = "INFO"
-KMUA_DB_URL = "sqlite:///./data/kmua.db"
-KMUA_BILILINK_CONVERT_API = "http://1.2.3.4:39080"
 KMUA_LOG_RETENTION_DAYS = 8
-KMUA_MANYACG_API = "http://1.0.1.0:39120"
-KMUA_MANYACG_TOKEN = "token"
-KMUA_LOG_RETENTION_DAYS=7
+KMUA_DB_URL = "sqlite:///./data/kmua.db"
+KMUA_DROP_PENDING_UPDATES = false
 KMUA_WEBHOOK = false
+KMUA_URL_PATH = "/webhook"
+KMUA_KEY = "/kmua/.secrets/key.pem"
+KMUA_CERT = "/kmua/.secrets/cert.pem"
 KMUA_LISTEN = "127.0.0.1"
 KMUA_PORT = 39391
 KMUA_SECRET_TOKEN = "qwqowo"
 KMUA_WEBHOOK_URL = "https://kmua.kmua.com"
-TZ = Asia/Shanghai
 KMUA_MAX_DB_SIZE=200
 KMUA_BASE_URL = "https://api.telegram.org/bot"
 KMUA_BASE_FILE_URL = "https://api.telegram.org/file/bot"
+KMUA_MANYACG_API = "http://1.0.1.0:39120"
+KMUA_MANYACG_TOKEN = "token"
+KMUA_BILILINK_CONVERT_API = "http://1.2.3.4:39080"
 KMUA_VERTEX_SYSTEM= "你是一只名字叫kmua的可爱的猫娘."
 KMUA_VERTEX_PROJECT_ID = "project-id"
 KMUA_VERTEX_LOCATION = "jp-central1"
@@ -124,6 +143,10 @@ GOOGLE_APPLICATION_CREDENTIALS=/kmua/.secrets/.secret.json
 KMUA_VERTEX_PRESET = ["你好","喵~ 您好呀~ 今天天气真好呢~"]
 KMUA_MEILISEARCH_API = "localhost:7700"
 KMUA_MEILISEARCH_KEY = "112233"
+KMUA_NSFWJS_API = "http://nsfwjs.api.com"
+KMUA_NSFWJS_TOKEN = "token"
+KMUA_REAL_ESRGAN_API = "http://real-esrgan.api.com"
+KMUA_REAL_ESRGAN_TOKEN = "token"
 ```
 
 ## 源码运行
