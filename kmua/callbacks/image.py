@@ -99,8 +99,8 @@ async def super_resolute(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     photo_file: File = None
+    sent_message = await message.reply_text("正在下载图片...")
     try:
-        sent_message = await message.reply_text("正在下载图片...")
         if target_message.photo:
             photo_file = await target_message.photo[-1].get_file()
         elif target_message.document and target_message.document.mime_type.startswith(
