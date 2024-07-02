@@ -8,22 +8,25 @@ theme:
   name: material
   language: zh
   highlightjs: true
-  palette: 
-    primary: cyan
+  palette:
     - media: "(prefers-color-scheme)"
       toggle:
         icon: material/brightness-auto
         name: 切换主题
     - media: "(prefers-color-scheme: light)"
       scheme: default
+      primary: cyan
       toggle:
         icon: material/brightness-7
         name: 暗色模式
     - media: "(prefers-color-scheme: dark)"
       scheme: slate
+      primary: blue grey
       toggle:
         icon: material/brightness-4
         name: 亮色模式
+
+
 
 plugins:
   - optimize
