@@ -1,7 +1,7 @@
 <div align="center">
+<img src="https://t.me/i/userpic/320/kmuav2bot.jpg" alt="kmua" width="240">
 
 # kmua bot
-<img src="https://t.me/i/userpic/320/kmuav2bot.jpg" alt="kmua" width="240">
 
 干啥啥不行，喵喵第一名
 </div>
