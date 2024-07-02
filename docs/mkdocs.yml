@@ -26,11 +26,6 @@ theme:
         icon: material/brightness-4
         name: 亮色模式
 
-
-
-plugins:
-  - optimize
-
 nav:
   - index.md
   - help.md
