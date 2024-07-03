@@ -245,7 +245,6 @@ callback_query_handlers = [
     set_title_permissions_callback_handler,
     start_callback_handler,
     remove_waifu_handler,
-    slash_handler,
     user_waifu_manage_handler,
     bot_data_refresh_handler,
     status_refresh_handler,
@@ -307,6 +306,7 @@ chatdata_handlers = [
 message_handlers = [
     bililink_convert_handler,
     reply_handler,
+    slash_handler,
     sticker2img_handler,
     delete_event_message_handler,
     unpin_channel_pin_handler,
