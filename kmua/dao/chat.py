@@ -1,8 +1,25 @@
+import json
+from typing import Any
 from sqlalchemy import func
+import sqlalchemy
 from telegram import Chat
-
+from sqlalchemy.sql import update
 from kmua.dao._db import _db, commit
 from kmua.models.models import ChatData, Quote, UserData
+
+
+def _get_stmt(chat_id: int, key: str, value: Any) -> sqlalchemy.sql.Update:
+    return (
+        update(ChatData)
+        .where(ChatData.id == chat_id)
+        .values(
+            config=func.json_set(
+                ChatData.config,
+                key,
+                value,
+            )
+        )
+    )
 
 
 def get_chat_by_id(chat_id: int) -> ChatData | None:
@@ -46,7 +63,7 @@ def get_chat_quote_probability(chat: Chat | ChatData) -> float:
     if _db_chat is None:
         add_chat(chat)
         return 0.001
-    return _db_chat.quote_probability
+    return _db_chat.config.get("quote_probability", 0.001)
 
 
 def update_chat_quote_probability(chat: Chat | ChatData, probability: float):
@@ -54,16 +71,8 @@ def update_chat_quote_probability(chat: Chat | ChatData, probability: float):
     if _db_chat is None:
         add_chat(chat)
         _db_chat = get_chat_by_id(chat.id)
-    _db_chat.quote_probability = probability
+    _db.execute(_get_stmt(chat.id, "$.quote_probability", probability))
     commit()
-
-
-def get_chat_quotes(chat: Chat | ChatData) -> list[Quote]:
-    _db_chat = get_chat_by_id(chat.id)
-    if _db_chat is None:
-        add_chat(chat)
-        return []
-    return _db_chat.quotes
 
 
 def get_chat_random_quote(chat: Chat | ChatData) -> Quote | None:
@@ -89,24 +98,6 @@ def get_chat_quotes_page(
         .limit(page_size)
         .all()
     )
-
-
-def get_chat_quotes_message_id(chat: Chat | ChatData) -> list[int]:
-    quotes = get_chat_quotes(chat)
-    return [quote.message_id for quote in quotes]
-
-
-def get_chat_bots(chat: Chat | ChatData) -> list[UserData]:
-    """
-    获取 chat 中的 bot
-    """
-    _db_chat = add_chat(chat)
-    return [user for user in _db_chat.members if user.is_bot]
-
-
-def get_chat_bots_id(chat: Chat | ChatData) -> list[int]:
-    bots = get_chat_bots(chat)
-    return [bot.id for bot in bots]
 
 
 def get_chat_users_without_bots(chat: Chat | ChatData) -> list[UserData]:
@@ -141,57 +132,61 @@ def get_all_chats_count() -> int:
 
 def get_chat_waifu_disabled(chat: Chat | ChatData) -> bool:
     _db_chat = add_chat(chat)
-    return _db_chat.waifu_disabled
+    return _db_chat.config.get("waifu_disabled", False)
 
 
 def update_chat_waifu_disabled(chat: Chat | ChatData, disabled: bool):
-    _db_chat = add_chat(chat)
-    _db_chat.waifu_disabled = disabled
+    add_chat(chat)
+    _db.execute(_get_stmt(chat.id, "$.waifu_disabled", disabled))
     commit()
 
 
 def get_chat_delete_events_enabled(chat: Chat | ChatData) -> bool:
     _db_chat = add_chat(chat)
-    return _db_chat.delete_events_enabled
+    return _db_chat.config.get("delete_events_enabled", False)
 
 
 def update_chat_delete_events_enabled(chat: Chat | ChatData, enabled: bool):
-    _db_chat = add_chat(chat)
-    _db_chat.delete_events_enabled = enabled
+    add_chat(chat)
+    _db.execute(_get_stmt(chat.id, "$.delete_events_enabled", enabled))
     commit()
 
 
 def get_chat_unpin_channel_pin_enabled(chat: Chat | ChatData) -> bool:
     _db_chat = add_chat(chat)
-    return _db_chat.unpin_channel_pin_enabled
+    return _db_chat.config.get("unpin_channel_pin_enabled", False)
 
 
 def update_chat_unpin_channel_pin_enabled(chat: Chat | ChatData, enabled: bool):
-    _db_chat = add_chat(chat)
-    _db_chat.unpin_channel_pin_enabled = enabled
+    add_chat(chat)
+    _db.execute(_get_stmt(chat.id, "$.unpin_channel_pin_enabled", enabled))
     commit()
 
 
 def get_chat_title_permissions(chat: Chat | ChatData) -> dict:
     _db_chat = add_chat(chat)
-    if _db_chat.title_permissions is None:
-        _db_chat.title_permissions = {}
+    if _db_chat.config.get("title_permissions") is None:
+        _db.execute(_get_stmt(chat.id, "$.title_permissions", "{}"))
         commit()
-    return _db_chat.title_permissions
+    return json.loads(_db_chat.config["title_permissions"])
 
 
 def update_chat_title_permissions(chat: Chat | ChatData, permissions: dict):
-    _db_chat = add_chat(chat)
-    _db_chat.title_permissions = permissions
+    add_chat(chat)
+    _db.execute(
+        _get_stmt(
+            chat.id, "$.title_permissions", json.dumps(permissions, ensure_ascii=False)
+        )
+    )
     commit()
 
 
 def get_chat_message_search_enabled(chat: Chat | ChatData) -> bool:
     _db_chat = add_chat(chat)
-    return _db_chat.message_search_enabled
+    return _db_chat.config.get("message_search_enabled", False)
 
 
 def update_chat_message_search_enabled(chat: Chat | ChatData, enabled: bool):
-    _db_chat = add_chat(chat)
-    _db_chat.message_search_enabled = enabled
+    add_chat(chat)
+    _db.execute(_get_stmt(chat.id, "$.message_search_enabled", enabled))
     commit()
