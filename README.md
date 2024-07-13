@@ -7,6 +7,6 @@
 </div>
 
 
-## [文档](https://krau.github.io/kmua-bot/)
+## [文档](https://kmua.unv.app)
 
 demo: [@kmuav2bot](https://t.me/kmuav2bot)
