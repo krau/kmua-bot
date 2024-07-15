@@ -168,7 +168,12 @@ def get_chat_title_permissions(chat: Chat | ChatData) -> dict:
     if _db_chat.config.get("title_permissions") is None:
         _db.execute(_get_stmt(chat.id, "$.title_permissions", "{}"))
         commit()
-    return json.loads(_db_chat.config["title_permissions"])
+    if isinstance(_db_chat.config["title_permissions"], str):
+        return json.loads(_db_chat.config["title_permissions"])
+    elif isinstance(_db_chat.config["title_permissions"], dict):
+        return _db_chat.config["title_permissions"]
+    else:
+        return {}
 
 
 def update_chat_title_permissions(chat: Chat | ChatData, permissions: dict):

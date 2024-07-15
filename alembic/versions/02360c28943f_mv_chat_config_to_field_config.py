@@ -41,7 +41,7 @@ def upgrade() -> None:
                 "waifu_enabled": chat.waifu_disabled != 1,
                 "delete_events_enabled": chat.delete_events_enabled == 1,
                 "unpin_channel_pin_enabled": chat.unpin_channel_pin_enabled == 1,
-                "title_permissions": json.loads(chat.title_permissions or "{}"),
+                "title_permissions": json.loads(chat.title_permissions or "\{\}"),
                 "greeting": chat.greet,
                 "quote_probability": chat.quote_probability or 0.001,
                 "message_search_enabled": chat.message_search_enabled == 1,
