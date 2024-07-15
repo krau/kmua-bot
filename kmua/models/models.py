@@ -90,24 +90,30 @@ updated_at: {self.updated_at.strftime("%Y-%m-%d %H:%M:%S")}
 
 @dataclass
 class ChatConfig:
-    waifu_disabled: bool = False
+    waifu_enabled: bool = True
     delete_events_enabled: bool = False
     unpin_channel_pin_enabled: bool = False
     message_search_enabled: bool = False
     quote_probability: float = 0.001
+    quote_pin_message: bool = True
     title_permissions: dict = None
     greeting: str = None
+    ai_reply: bool = True
+    setu_enabled: bool = True
 
     @staticmethod
     def from_dict(data: dict):
         return ChatConfig(
-            waifu_disabled=data.get("waifu_disabled", False),
+            waifu_enabled=data.get("waifu_enabled", True),
             delete_events_enabled=data.get("delete_events_enabled", False),
             unpin_channel_pin_enabled=data.get("unpin_channel_pin_enabled", False),
             message_search_enabled=data.get("message_search_enabled", False),
             quote_probability=data.get("quote_probability", 0.001),
+            quote_pin_message=data.get("quote_pin_message", False),
             title_permissions=data.get("title_permissions", {}),
             greeting=data.get("greeting", None),
+            ai_reply=data.get("ai_reply", True),
+            setu_enabled=data.get("setu_enabled", True),
         )
 
     def to_dict(self):

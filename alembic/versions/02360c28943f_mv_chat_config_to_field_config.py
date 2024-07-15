@@ -38,7 +38,7 @@ def upgrade() -> None:
         ).fetchall()
         for chat in chats:
             config = {
-                "waifu_disabled": chat.waifu_disabled == 1,
+                "waifu_enabled": chat.waifu_disabled == 1,
                 "delete_events_enabled": chat.delete_events_enabled == 1,
                 "unpin_channel_pin_enabled": chat.unpin_channel_pin_enabled == 1,
                 "title_permissions": json.loads(chat.title_permissions or "{}"),
@@ -94,7 +94,7 @@ def downgrade() -> None:
                 "UPDATE chat_data SET waifu_disabled = :waifu_disabled, delete_events_enabled = :delete_events_enabled, unpin_channel_pin_enabled = :unpin_channel_pin_enabled, title_permissions = :title_permissions, greet = :greet, quote_probability = :quote_probability, message_search_enabled = :message_search_enabled WHERE id = :id",
             ),
             {
-                "waifu_disabled": config["waifu_disabled"],
+                "waifu_disabled": not config["waifu_enabled"],
                 "delete_events_enabled": config["delete_events_enabled"],
                 "unpin_channel_pin_enabled": config["unpin_channel_pin_enabled"],
                 "title_permissions": json.dumps(config["title_permissions"]),

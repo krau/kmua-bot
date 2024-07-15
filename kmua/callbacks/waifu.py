@@ -111,6 +111,7 @@ async def today_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         + f" {message.text}"
     )
     if dao.get_chat_waifu_disabled(chat):
+        await message.reply_text("本群已禁用 waifu 功能")
         return
     if context.user_data.get("waifu_waiting", False):
         return

@@ -5,7 +5,7 @@ import sqlalchemy
 from telegram import Chat
 from sqlalchemy.sql import update
 from kmua.dao._db import _db, commit
-from kmua.models.models import ChatData, Quote, UserData
+from kmua.models.models import ChatData, Quote, UserData, ChatConfig
 
 
 def _get_stmt(chat_id: int, key: str, value: Any) -> sqlalchemy.sql.Update:
@@ -132,12 +132,12 @@ def get_all_chats_count() -> int:
 
 def get_chat_waifu_disabled(chat: Chat | ChatData) -> bool:
     _db_chat = add_chat(chat)
-    return _db_chat.config.get("waifu_disabled", False)
+    return not _db_chat.config.get("waifu_enabled", False)
 
 
 def update_chat_waifu_disabled(chat: Chat | ChatData, disabled: bool):
     add_chat(chat)
-    _db.execute(_get_stmt(chat.id, "$.waifu_disabled", disabled))
+    _db.execute(_get_stmt(chat.id, "$.waifu_enabled", not disabled))
     commit()
 
 
@@ -189,4 +189,15 @@ def get_chat_message_search_enabled(chat: Chat | ChatData) -> bool:
 def update_chat_message_search_enabled(chat: Chat | ChatData, enabled: bool):
     add_chat(chat)
     _db.execute(_get_stmt(chat.id, "$.message_search_enabled", enabled))
+    commit()
+
+
+def get_chat_config(chat: Chat | ChatData) -> ChatConfig:
+    _db_chat = add_chat(chat)
+    return ChatConfig.from_dict(_db_chat.config)
+
+
+def update_chat_config(chat: Chat | ChatData, config: ChatConfig):
+    _db_chat = add_chat(chat)
+    _db_chat.config = config.to_dict()
     commit()
