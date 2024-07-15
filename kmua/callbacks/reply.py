@@ -19,7 +19,7 @@ from vertexai.generative_models import (
     SafetySetting,
 )
 
-from kmua import common
+from kmua import common, dao
 from kmua.config import settings
 from kmua.logger import logger
 
@@ -87,6 +87,15 @@ async def reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not (_enable_vertex and not_aonymous):
         await _keyword_reply_without_save(update, context, message_text)
         return
+
+    if update.effective_chat.type in (
+        update.effective_chat.GROUP,
+        update.effective_chat.SUPERGROUP,
+    ):
+        chat_config = dao.get_chat_config(update.effective_chat)
+        if not chat_config.ai_reply:
+            await _keyword_reply_without_save(update, context, message_text)
+            return
 
     contents: bytes = common.redis_client.get(
         f"kmua_contents_{update.effective_user.id}"

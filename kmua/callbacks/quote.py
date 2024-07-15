@@ -65,7 +65,11 @@ async def quote(update: Update, context: ContextTypes.DEFAULT_TYPE):
         quote_message.reply_text(text=random.choice(text)),
         _generate_and_send_quote_img(update, context, quote_message, quote_user),
     ]
-    if not (context.args and context.args[0] == "nopin"):
+    chat_config = dao.get_chat_config(chat)
+    if (
+        not (context.args and context.args[0] == "nopin")
+        and chat_config.quote_pin_message
+    ):
         tasks.append(_pin_quote_message(quote_message))
     results = await asyncio.gather(*tasks)
     dao.add_quote(

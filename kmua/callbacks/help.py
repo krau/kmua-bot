@@ -12,24 +12,21 @@ _help_text = """
 <blockquote expandable="true">
 /start - 开始使用|打开菜单
 /help - 显示此帮助信息
+/config - 更改 bot 在群组中的设置 (开关某些功能)
 /waifu - 今天的群友老婆!
 /waifu_graph - 老婆关系图!
 /q - 记录语录
 /d - 删除语录|管理群语录
 /qrand - 随机语录
-/setqp - 设置主动发送语录的概率
+/setqp - 设置随机主动发送语录的概率
 /t - 获取头衔|互赠头衔
-/setu - 来点色图 (/ω＼*) (如无响应就是没启用)
-/switch_waifu - 开关老婆功能
-/switch_delete_events - 开关删除事件消息的功能 (bot 需要删除消息权限)
-/switch_unpin_channel_pin - 开关取消频道消息置顶的功能 (bot 需要置顶权限)
+/sett - 更改 /t 命令所赋予的权限
+/setu - 来点色图 (/ω＼*)
 /search - 搜索群消息
-/enable_search - 启用搜索功能
-/disable_search - 禁用搜索功能
 /import_history - 导入历史消息
 /index_stats - 查看索引统计
-/id - 获取聊天ID
 /set_greet - 设置群组欢迎语
+/id - 获取聊天ID
 /ip - 查询IP/域名信息
 /sr - 超分图片
 /reset_contents - 重置对话内容

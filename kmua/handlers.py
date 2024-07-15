@@ -15,6 +15,7 @@ from kmua import dao
 
 from .callbacks import (
     bilibili,
+    chatconfig,
     chatdata,
     chatinfo,
     chatmember,
@@ -117,7 +118,7 @@ refresh_user_data_by_id_handler = CommandHandler(
 switch_unpin_channel_pin_handler = CommandHandler(
     "switch_unpin_channel_pin",
     pin.switch_unpin_channel_pin,
-    filters=filters.ChatType.GROUPS,
+    filters=filters.ChatType.GROUPS & kmua_filters.mention_bot_filter,
 )
 reset_contents_handler = CommandHandler("reset_contents", reply.reset_contents)
 fix_quotes_handler = CommandHandler("fix_quotes", manage.fix_quotes)
@@ -143,6 +144,9 @@ clear_all_contents_handler = CommandHandler(
 )
 sr_handler = CommandHandler(
     "sr", image.super_resolute, filters=~filters.UpdateType.EDITED
+)
+config_chat_handler = CommandHandler(
+    "config", chatconfig.config_chat_cmd, filters=filters.ChatType.GROUPS
 )
 
 # CallbackQueryHandlers
@@ -185,6 +189,9 @@ delete_search_index_handler = CallbackQueryHandler(
 )
 message_search_page_handler = CallbackQueryHandler(
     search.search_message_page, pattern="message_search"
+)
+config_chat_callback_handler = CallbackQueryHandler(
+    chatconfig.config_chat_callback, pattern="config_chat"
 )
 
 
@@ -235,24 +242,6 @@ chat_title_update_handler = MessageHandler(
 inline_query_handler = InlineQueryHandler(quote.inline_query_quote)
 
 
-callback_query_handlers = [
-    user_data_manage_handler,
-    user_data_refresh_handler,
-    user_quote_manage_handler,
-    marry_waifu_handler,
-    chat_quote_manage_handler,
-    chat_quote_page_jump_handler,
-    set_title_permissions_callback_handler,
-    start_callback_handler,
-    remove_waifu_handler,
-    user_waifu_manage_handler,
-    bot_data_refresh_handler,
-    status_refresh_handler,
-    clear_inactive_user_avatar_confirm_handler,
-    delete_search_index_handler,
-    message_search_page_handler,
-]
-
 command_handlers = [
     start_handler,
     today_waifu_handler,
@@ -293,7 +282,28 @@ command_handlers = [
     index_stats_handler,
     clear_all_contents_handler,
     sr_handler,
+    config_chat_handler,
 ]
+
+callback_query_handlers = [
+    user_data_manage_handler,
+    user_data_refresh_handler,
+    user_quote_manage_handler,
+    marry_waifu_handler,
+    chat_quote_manage_handler,
+    chat_quote_page_jump_handler,
+    set_title_permissions_callback_handler,
+    start_callback_handler,
+    remove_waifu_handler,
+    user_waifu_manage_handler,
+    bot_data_refresh_handler,
+    status_refresh_handler,
+    clear_inactive_user_avatar_confirm_handler,
+    delete_search_index_handler,
+    message_search_page_handler,
+    config_chat_callback_handler,
+]
+
 
 chatdata_handlers = [
     track_chats_handler,

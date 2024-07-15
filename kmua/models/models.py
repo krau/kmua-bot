@@ -1,15 +1,16 @@
+from dataclasses import asdict, dataclass
+
 from sqlalchemy import (
+    JSON,
     BigInteger,
     Boolean,
     CheckConstraint,
     Column,
     DateTime,
-    Float,
     ForeignKey,
     LargeBinary,
     String,
     func,
-    JSON,
 )
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
@@ -87,14 +88,41 @@ updated_at: {self.updated_at.strftime("%Y-%m-%d %H:%M:%S")}
 """
 
 
+@dataclass
+class ChatConfig:
+    waifu_enabled: bool = True
+    delete_events_enabled: bool = False
+    unpin_channel_pin_enabled: bool = False
+    message_search_enabled: bool = False
+    quote_probability: float = 0.001
+    quote_pin_message: bool = True
+    title_permissions: dict = None
+    greeting: str = None
+    ai_reply: bool = True
+    setu_enabled: bool = True
+
+    @staticmethod
+    def from_dict(data: dict):
+        return ChatConfig(
+            waifu_enabled=data.get("waifu_enabled", True),
+            delete_events_enabled=data.get("delete_events_enabled", False),
+            unpin_channel_pin_enabled=data.get("unpin_channel_pin_enabled", False),
+            message_search_enabled=data.get("message_search_enabled", False),
+            quote_probability=data.get("quote_probability", 0.001),
+            quote_pin_message=data.get("quote_pin_message", False),
+            title_permissions=data.get("title_permissions", {}),
+            greeting=data.get("greeting", None),
+            ai_reply=data.get("ai_reply", True),
+            setu_enabled=data.get("setu_enabled", True),
+        )
+
+    def to_dict(self):
+        return asdict(self)
+
+
 class ChatData(Base):
     __tablename__ = "chat_data"
     id = Column(BigInteger, primary_key=True, index=True, autoincrement=False)
-    waifu_disabled = Column(Boolean, default=False)
-    delete_events_enabled = Column(Boolean, default=False)
-    unpin_channel_pin_enabled = Column(Boolean, default=False)
-    message_search_enabled = Column(Boolean, default=False)
-    quote_probability = Column(Float, default=0.001)
     title = Column(String(128), nullable=False)
     members = relationship(
         "UserData",
@@ -103,8 +131,7 @@ class ChatData(Base):
         primaryjoin="ChatData.id==UserChatAssociation.chat_id",
         secondaryjoin="UserData.id==UserChatAssociation.user_id",
     )
-    greet = Column(String(4096), default=None)
-    title_permissions = Column(JSON, default={})
+    config = Column(JSON, default=asdict(ChatConfig()))
 
     quotes = relationship("Quote", back_populates="chat")
     created_at = Column(DateTime, default=func.now())

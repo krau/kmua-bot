@@ -1,10 +1,10 @@
-import asyncio
 import random
 
 import httpx
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import ContextTypes
 
+from kmua import dao
 from kmua.config import settings
 from kmua.logger import logger
 
@@ -17,8 +17,9 @@ _MANYACG_BOT = "kirakabot"
 
 
 async def setu(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    chat = update.effective_chat
     logger.info(
-        f"[{update.effective_chat.title}]({update.effective_user.name})"
+        f"[{chat.title}]({update.effective_user.name})"
         + f" {update.effective_message.text}"
     )
     if update.effective_message.reply_to_message:
@@ -27,6 +28,14 @@ async def setu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not _manyacg_api_url:
         await update.effective_message.reply_text(text="咱才没有涩图呢", quote=True)
         return
+
+    if (
+        chat.type in (chat.GROUP, chat.SUPERGROUP)
+        and not dao.get_chat_config(chat).setu_enabled
+    ):
+        await update.effective_message.reply_text(text="这里不允许涩图哦", quote=True)
+        return
+
     if context.user_data.get("setu_cd", False):
         await update.effective_message.reply_text(text="太快了, 不行!", quote=True)
         return
@@ -72,7 +81,6 @@ async def setu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.error(f"setu error: {e.__class__.__name__}:{e}")
         await update.effective_message.reply_text(text="失败惹，请稍后再试", quote=True)
     finally:
-        await asyncio.sleep(3)
         context.user_data["setu_cd"] = False
 
 
