@@ -104,10 +104,10 @@ async def on_member_join(update: Update, _: ContextTypes.DEFAULT_TYPE):
     logger.debug(f"{joined_user} 加入了群聊 {chat.title} ")
     if joined_user.is_bot:
         return
-    db_chat = dao.add_chat(chat)
-    greet = db_chat.greet
-    if greet:
-        greet = greet.format(
+    chat_config = dao.get_chat_config(chat)
+
+    if chat_config.greeting:
+        greet = chat_config.greeting.format(
             user=joined_user.full_name,
             chat=chat.title,
         )

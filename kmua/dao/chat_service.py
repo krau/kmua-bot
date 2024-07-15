@@ -32,9 +32,3 @@ def update_chat_title(chat: Chat | ChatData, title: str):
         return
     db_chat.title = title
     commit()
-
-
-def update_chat_greet(chat: Chat | ChatData, greeting: str):
-    db_chat = chat_dao.add_chat(chat)
-    db_chat.greet = greeting
-    commit()

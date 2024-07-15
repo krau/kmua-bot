@@ -192,6 +192,12 @@ def update_chat_message_search_enabled(chat: Chat | ChatData, enabled: bool):
     commit()
 
 
+def update_chat_greet(chat: Chat | ChatData, greet: str):
+    add_chat(chat)
+    _db.execute(_get_stmt(chat.id, "$.greeting", greet))
+    commit()
+
+
 def get_chat_config(chat: Chat | ChatData) -> ChatConfig:
     _db_chat = add_chat(chat)
     return ChatConfig.from_dict(_db_chat.config)
