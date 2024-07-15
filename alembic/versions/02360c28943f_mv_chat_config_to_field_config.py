@@ -38,7 +38,7 @@ def upgrade() -> None:
         ).fetchall()
         for chat in chats:
             config = {
-                "waifu_enabled": chat.waifu_disabled == 1,
+                "waifu_enabled": chat.waifu_disabled != 1,
                 "delete_events_enabled": chat.delete_events_enabled == 1,
                 "unpin_channel_pin_enabled": chat.unpin_channel_pin_enabled == 1,
                 "title_permissions": json.loads(chat.title_permissions or "{}"),
