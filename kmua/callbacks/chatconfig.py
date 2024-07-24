@@ -49,6 +49,10 @@ def _get_chat_config_reply_markup(chat_config: ChatConfig):
                     f"解除频道置顶 {"✔️" if chat_config.unpin_channel_pin_enabled else "❌"}",
                     callback_data="config_chat toggle unpin_channel_pin_enabled",
                 ),
+                InlineKeyboardButton(
+                    f"转换b23短链 {"✔️" if chat_config.convert_b23_enabled else "❌"}",
+                    callback_data="config_chat toggle convert_b23_enabled",
+                ),
             ],
             [
                 InlineKeyboardButton("保存设置✅", callback_data="config_chat save"),
@@ -102,6 +106,8 @@ async def config_chat_callback(update: Update, context: ContextTypes.DEFAULT_TYP
                 chat_config.ai_reply = not chat_config.ai_reply
             case "setu_enabled":
                 chat_config.setu_enabled = not chat_config.setu_enabled
+            case "convert_b23_enabled":
+                chat_config.convert_b23_enabled = not chat_config.convert_b23_enabled
             case _:
                 await query.answer("未知操作, 不可以干坏事哦")
                 return

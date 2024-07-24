@@ -200,8 +200,7 @@ slash_handler = MessageHandler(
     kmua_filters.slash_filter & ~filters.UpdateType.EDITED, slash.slash
 )
 bililink_convert_handler = MessageHandler(
-    filters.ChatType.PRIVATE
-    & filters.Regex(r"b23.tv/[a-zA-Z0-9]+|bilibili.com/video/[a-zA-Z0-9]+"),
+    filters.Regex(r"b23.tv/[a-zA-Z0-9]+|bilibili.com/video/[a-zA-Z0-9]+"),
     bilibili.bililink_convert,
 )
 random_quote_handler = MessageHandler(

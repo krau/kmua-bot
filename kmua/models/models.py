@@ -100,6 +100,7 @@ class ChatConfig:
     greeting: str = None
     ai_reply: bool = True
     setu_enabled: bool = True
+    convert_b23_enabled: bool = True
 
     @staticmethod
     def from_dict(data: dict):
@@ -114,6 +115,7 @@ class ChatConfig:
             greeting=data.get("greeting", None),
             ai_reply=data.get("ai_reply", True),
             setu_enabled=data.get("setu_enabled", True),
+            convert_b23_enabled=data.get("convert_b23_enabled", False),
         )
 
     def to_dict(self):
