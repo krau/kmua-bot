@@ -68,6 +68,7 @@ async def config_chat_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     message = update.effective_message
     if not await common.verify_user_can_manage_bot_in_chat(user, chat, update, context):
         await message.reply_text(text="你没有权限哦")
+        return
     chat_config = dao.get_chat_config(chat)
     await message.reply_text(
         text="点击按钮修改群组设置哦\n",
