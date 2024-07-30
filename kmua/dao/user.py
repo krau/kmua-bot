@@ -36,6 +36,8 @@ def add_user(user: User | Chat | ChatFullInfo | ChatData | UserData) -> UserData
     elif isinstance(user, User):
         username = user.username
         full_name = user.full_name
+        is_bot = user.is_bot
+        is_real_user = not is_bot
     elif isinstance(user, Chat):
         username = user.username
         full_name = user.title
