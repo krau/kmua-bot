@@ -53,13 +53,16 @@ def upgrade() -> None:
         print(f"migrated {len(chats)} chats")
     except Exception as e:
         print(e)
-    op.drop_column("chat_data", "unpin_channel_pin_enabled")
-    op.drop_column("chat_data", "waifu_disabled")
-    op.drop_column("chat_data", "title_permissions")
-    op.drop_column("chat_data", "delete_events_enabled")
-    op.drop_column("chat_data", "message_search_enabled")
-    op.drop_column("chat_data", "greet")
-    op.drop_column("chat_data", "quote_probability")
+    try:
+        op.drop_column("chat_data", "unpin_channel_pin_enabled")
+        op.drop_column("chat_data", "waifu_disabled")
+        op.drop_column("chat_data", "title_permissions")
+        op.drop_column("chat_data", "delete_events_enabled")
+        op.drop_column("chat_data", "message_search_enabled")
+        op.drop_column("chat_data", "greet")
+        op.drop_column("chat_data", "quote_probability")
+    except Exception:
+        print("column already dropped")
 
     # ### end Alembic commands ###
 
