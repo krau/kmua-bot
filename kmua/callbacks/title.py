@@ -46,7 +46,7 @@ async def title(update: Update, context: ContextTypes.DEFAULT_TYPE):
             can_manage_video_chats=title_permissions.get("can_manage_video_chats"),
         )
         await context.bot.set_chat_administrator_custom_title(
-            chat_id=update.effective_chat.id,
+            chat_id=chat.id,
             user_id=target_user.id,
             custom_title=custom_title,
         )
@@ -138,21 +138,8 @@ async def set_title_permissions(update: Update, context: ContextTypes.DEFAULT_TY
         await message.reply_text("你没有权限哦")
         return
     title_permissions = dao.get_chat_title_permissions(chat)
-    text = f"""点击按钮修改 /t 命令所赋予的权限, 默认不赋予任何额外权限.
-当前设置:
-
-修改信息: {title_permissions.get("can_change_info", False)}
-删除消息: {title_permissions.get("can_delete_messages", False)}
-封禁用户: {title_permissions.get("can_restrict_members", False)}
-邀请用户: {title_permissions.get("can_invite_users", False)}
-置顶消息: {title_permissions.get("can_pin_messages", False)}
-管理视频聊天: {title_permissions.get("can_manage_video_chats", False)}
-发布动态: {title_permissions.get("can_post_stories", False)}
-编辑动态: {title_permissions.get("can_edit_stories", False)}
-删除动态: {title_permissions.get("can_delete_stories", False)}
-"""
     await message.reply_text(
-        text=text,
+        text=_get_permissions_text(title_permissions),
         reply_markup=_title_permissions_markup,
     )
 
@@ -190,18 +177,22 @@ async def set_title_permissions_callback(
         data[permission] = not data[permission]
     dao.update_chat_title_permissions(chat, data)
     await update.callback_query.message.edit_text(
-        text=f"""点击按钮修改 /t 命令所赋予的权限, 默认不赋予任何权限
-当前设置:
-
-修改信息: {data.get("can_change_info", False)}
-删除消息: {data.get("can_delete_messages", False)}
-封禁用户: {data.get("can_restrict_members", False)}
-邀请用户: {data.get("can_invite_users", False)}
-置顶消息: {data.get("can_pin_messages", False)}
-管理视频聊天: {data.get("can_manage_video_chats", False)}
-发布动态: {data.get("can_post_stories", False)}
-编辑动态: {data.get("can_edit_stories", False)}
-删除动态: {data.get("can_delete_stories", False)}
-""",
+        text=_get_permissions_text(data),
         reply_markup=_title_permissions_markup,
     )
+
+
+def _get_permissions_text(permissions: dict[str, bool]) -> str:
+    return f"""点击按钮修改 /t 命令所赋予的权限, 默认不赋予任何额外权限
+当前设置:
+
+修改信息: {permissions.get("can_change_info", False)}
+删除消息: {permissions.get("can_delete_messages", False)}
+封禁用户: {permissions.get("can_restrict_members", False)}
+邀请用户: {permissions.get("can_invite_users", False)}
+置顶消息: {permissions.get("can_pin_messages", False)}
+管理视频聊天: {permissions.get("can_manage_video_chats", False)}
+发布动态: {permissions.get("can_post_stories", False)}
+编辑动态: {permissions.get("can_edit_stories", False)}
+删除动态: {permissions.get("can_delete_stories", False)}
+"""
