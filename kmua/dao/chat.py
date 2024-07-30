@@ -1,5 +1,5 @@
 import json
-from typing import Any
+from typing import Any, Generator
 from sqlalchemy import func
 import sqlalchemy
 from telegram import Chat
@@ -34,11 +34,15 @@ def add_chat(chat: Chat | ChatData) -> ChatData:
     :return: ChatData object
     """
     if chatdata := get_chat_by_id(chat.id):
+        chatdata.title = chat.title
+        chatdata.username = chat.username
+        commit()
         return chatdata
     _db.add(
         ChatData(
             id=chat.id,
             title=chat.title,
+            username=chat.username,
         )
     )
     commit()
@@ -100,14 +104,15 @@ def get_chat_quotes_page(
     )
 
 
-def get_chat_users_without_bots(chat: Chat | ChatData) -> list[UserData]:
+def get_chat_users_without_bots(
+    chat: Chat | ChatData,
+) -> Generator[UserData, None, None]:
     _db_chat = add_chat(chat)
-    return [user for user in _db_chat.members if not user.is_bot]
+    return (user for user in _db_chat.members if not user.is_bot)
 
 
 def get_chat_users_without_bots_id(chat: Chat | ChatData) -> list[int]:
-    users = get_chat_users_without_bots(chat)
-    return [user.id for user in users]
+    return [user.id for user in get_chat_users_without_bots(chat)]
 
 
 def get_all_chats() -> list[ChatData]:
