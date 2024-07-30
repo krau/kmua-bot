@@ -119,8 +119,9 @@ async def today_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     waifu: UserData = None
     try:
         await context.bot.send_chat_action(chat.id, ChatAction.TYPING)
-        waifu, is_got_waifu = await _get_waifu_for_user(update, context, user, chat)
+        waifu, is_got_waifu = _get_waifu_for_user(user, chat)
         if not waifu:
+            await message.reply_text("你现在没有老婆, 因为咱的记录中找不到其他群友")
             return
         if waifu.is_married and user.id != waifu.married_waifu_id:
             await message.reply_text("你没能抽到老婆, 再试一次吧~")
@@ -174,9 +175,7 @@ async def today_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         context.user_data["waifu_waiting"] = False
 
 
-async def _get_waifu_for_user(
-    update: Update, context: ContextTypes.DEFAULT_TYPE, user: User, chat: Chat
-) -> tuple[UserData, bool]:
+def _get_waifu_for_user(user: User, chat: Chat) -> tuple[UserData, bool]:
     """
     Get a waifu for user
 
@@ -184,41 +183,7 @@ async def _get_waifu_for_user(
     """
     if waifu := dao.get_user_waifu_in_chat(user, chat):
         return waifu, True
-    group_member = await _get_chat_members_id_to_get_waifu(update, context, user, chat)
-    if not group_member:
-        return None, False
-    waifu_id = random.choice(group_member)
-    while (retry := 0) < 3:
-        try:
-            if waifu := dao.get_user_by_id(waifu_id):
-                return waifu, False
-            waifu_chat = await context.bot.get_chat(waifu_id)
-            waifu = dao.add_user(waifu_chat)
-            return waifu, False
-        except Exception as e:
-            logger.error(
-                f"Can not get chat for {waifu_id}: {e.__class__.__name__}: {e}"
-            )
-            retry += 1
-            waifu_id = random.choice(group_member)
-            await asyncio.sleep(3)
-    await update.effective_message.reply_text(text="你没能抽到老婆, 稍后再试一次吧~")
-    return None, False
-
-
-async def _get_chat_members_id_to_get_waifu(
-    update: Update, _: ContextTypes.DEFAULT_TYPE, user: User, chat: Chat
-) -> list[int]:
-    group_member = dao.get_chat_users_without_bots_id(chat)
-    married = dao.get_chat_married_users_id(chat)
-    to_remove = set(married + common.fake_users_id + [user.id])
-    group_member = [i for i in group_member if i not in to_remove]
-    if not group_member:
-        await update.effective_message.reply_text(
-            text="你现在没有老婆, 因为咱的记录中找不到其他群友"
-        )  # noqa: E501
-        return None
-    return group_member
+    return dao.take_waifu_for_user_in_chat(user, chat), False
 
 
 async def _get_photo_to_send(

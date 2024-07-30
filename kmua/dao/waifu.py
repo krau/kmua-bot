@@ -1,7 +1,8 @@
 from itertools import chain
+import random
 
 from telegram import Chat, User
-
+from telegram.constants import ChatID
 import kmua.dao.association as association_dao
 import kmua.dao.chat as chat_dao
 import kmua.dao.user as user_dao
@@ -32,18 +33,23 @@ def _get_user_waifu_in_chat_common(
 def get_user_waifu_in_chat(
     user: User | UserData, chat: Chat | ChatData
 ) -> UserData | None:
-    waifu = _get_user_waifu_in_chat_common(user, chat)
-    if waifu is None:
-        db_user = user_dao.get_user_by_id(user.id)
-        if db_user.married_waifu_id is not None:
-            return user_dao.get_user_by_id(db_user.married_waifu_id)
-        return None
-    return waifu
+    """获取 user 在 chat 中的 waifu
+
+    如果没有 waifu, 但 is_married 为 True, 则返回 married_waifu
+    """
+    db_user = user_dao.add_user(user)
+    if db_user.married_waifu_id is not None:
+        return user_dao.get_user_by_id(db_user.married_waifu_id)
+    return _get_user_waifu_in_chat_common(user, chat)
 
 
 def get_user_waifu_in_chat_exclude_married(
     user: User | UserData, chat: Chat | ChatData
 ) -> UserData | None:
+    """获取 user 在 chat 中的 waifu
+
+    不考虑 married_waifu
+    """
     return _get_user_waifu_in_chat_common(user, chat)
 
 
@@ -52,10 +58,6 @@ def get_user_waifu_of_in_chat(
 ) -> list[UserData] | None:
     """
     获取 user 被 chat 中的哪些人选为了 waifu
-
-    :param user: User or UserData object
-    :param chat: Chat or ChatData object
-    :return: list of UserData object
     """
     db_user = user_dao.get_user_by_id(user.id)
     if db_user is None:
@@ -168,10 +170,7 @@ def get_chat_users_was_waifu(chat: Chat | ChatData) -> list[UserData]:
 
 def get_chat_user_participated_waifu(chat: Chat | ChatData) -> list[UserData]:
     """
-    获取 chat 中参与了抽老婆活动的人
-
-    :param chat: Chat or ChatData object
-    :return: list of UserData object
+    获取 chat 中参与了抽老婆的人
     """
     db_chat = chat_dao.add_chat(chat)
     associations = (
@@ -248,3 +247,35 @@ def get_user_waifus_of_with_chat(
         )
         for association in associations
     ]
+
+
+def take_waifu_for_user_in_chat(
+    user: User | UserData, chat: Chat | ChatData
+) -> UserData:
+    """为 user 在 chat 中抽取一个 waifu
+
+    如果要获取 user 当前的 waifu, 请使用 get_user_waifu_in_chat
+
+    Arguments:
+        user -- User to get waifu for
+        chat -- Chat to get waifu in
+
+    Returns:
+        UserData -- Waifu for user in chat
+    """
+    chat_dao.add_chat(chat)
+    user_dao.add_user(user)
+    members = chat_dao.get_chat_users_without_bots(chat)
+    members = [
+        userdata
+        for userdata in members
+        if not (
+            userdata.id == user.id
+            or userdata.is_married
+            or userdata.id
+            in (ChatID.FAKE_CHANNEL, ChatID.ANONYMOUS_ADMIN, ChatID.SERVICE_CHAT)
+        )
+    ]
+    if not members:
+        return None
+    return random.choice(members)
