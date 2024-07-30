@@ -95,9 +95,9 @@ async def verify_user_is_chat_admin(
     if chat.type == ChatType.PRIVATE:
         return False
     admins = await context.bot.get_chat_administrators(chat_id=chat.id)
-    if user.id not in [admin.user.id for admin in admins]:
-        return False
-    return True
+    if user.id in [admin.user.id for admin in admins]:
+        return True
+    return False
 
 
 async def verify_user_is_chat_owner(
@@ -177,13 +177,13 @@ def get_user_info(user: User | UserData) -> str:
 
 
 def mention_markdown_v2(user: User | UserData | Chat | ChatData) -> str:
-    if isinstance(user, User) or isinstance(user, Chat):
-        try:
-            return user.mention_markdown_v2()
-        except TypeError:
-            return f"[{escape_markdown(user.title,2)}](tg://user?id={user.id})"
-    else:
+    if isinstance(user, (UserData, ChatData)):
         db_user = dao.add_user(user)
         if not db_user.is_real_user and db_user.username is not None:
             return f"[{escape_markdown(db_user.full_name,2)}](https://t.me/{db_user.username})"
         return f"[{escape_markdown(db_user.full_name,2)}](tg://user?id={db_user.id})"
+    else:
+        try:
+            return user.mention_markdown_v2()
+        except TypeError:
+            return f"[{escape_markdown(user.title,2)}](tg://user?id={user.id})"
