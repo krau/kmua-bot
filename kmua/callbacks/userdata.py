@@ -1,7 +1,13 @@
 import re
 from math import ceil
 
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup, InputMediaPhoto, Update
+from telegram import (
+    InlineKeyboardButton,
+    InlineKeyboardMarkup,
+    InputMediaPhoto,
+    Message,
+    Update,
+)
 from telegram.ext import ContextTypes
 from telegram.helpers import escape_markdown
 
@@ -226,8 +232,10 @@ async def _divorce_ask(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.answer("可是...你还没有结婚呀qwq", show_alert=True, cache_time=15)
         return
     married_waifu = dao.get_user_by_id(db_user.married_waifu_id)
-
-    if query.message.photo and married_waifu.avatar_big_id:
+    if not query.message.is_accessible:
+        return
+    query_message: Message = query.message
+    if query_message.photo and married_waifu.avatar_big_id:
         await query.edit_message_media(
             media=InputMediaPhoto(
                 media=married_waifu.avatar_big_id,

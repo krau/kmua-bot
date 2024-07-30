@@ -1,6 +1,6 @@
 import re
 
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Message, Update
 from telegram.error import BadRequest
 from telegram.ext import ContextTypes
 from telegram.helpers import escape_markdown
@@ -176,7 +176,11 @@ async def set_title_permissions_callback(
     if permission in data:
         data[permission] = not data[permission]
     dao.update_chat_title_permissions(chat, data)
-    await update.callback_query.message.edit_text(
+    query_message = update.callback_query.message
+    if not query_message.is_accessible:
+        return
+    query_message: Message
+    await query_message.edit_text(
         text=_get_permissions_text(data),
         reply_markup=_title_permissions_markup,
     )

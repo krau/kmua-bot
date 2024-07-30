@@ -1,9 +1,9 @@
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Message, Update
 from telegram.ext import ContextTypes
 
 from kmua import common, dao
-from kmua.logger import logger
 from kmua.config import settings
+from kmua.logger import logger
 
 _start_bot_markup = InlineKeyboardMarkup(
     [
@@ -33,7 +33,11 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     if update.callback_query:
-        if update.callback_query.message.photo:
+        query_message = update.callback_query.message
+        if not query_message.is_accessible:
+            return
+        query_message: Message
+        if query_message.photo:
             await update.callback_query.edit_message_caption(
                 caption="Nya~",
                 reply_markup=_start_bot_markup,

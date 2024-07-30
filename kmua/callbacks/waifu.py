@@ -1,7 +1,7 @@
 import asyncio
 import random
 
-from telegram import Chat, Update, User
+from telegram import Chat, Message, Update, User
 from telegram.constants import ChatAction
 from telegram.ext import ContextTypes
 from telegram.helpers import escape_markdown
@@ -210,6 +210,9 @@ async def remove_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     waifu_id = int(query_data[1])
     user_id = int(query_data[2])
     message = update.callback_query.message
+    if not message.is_accessible:
+        return
+    message: Message
     user = dao.get_user_by_id(user_id)
     waifu = dao.get_user_by_id(waifu_id)
     if not user or not waifu:
@@ -231,6 +234,9 @@ async def _remove_waifu_confirm(update: Update, context: ContextTypes.DEFAULT_TY
     waifu_id = int(query_data[1])
     user_id = int(query_data[2])
     message = update.callback_query.message
+    if not message.is_accessible:
+        return
+    message: Message
     user = dao.get_user_by_id(user_id)
     waifu = dao.get_user_by_id(waifu_id)
     if not user or not waifu:
@@ -260,6 +266,9 @@ async def _remove_waifu_cancel(update: Update, context: ContextTypes.DEFAULT_TYP
     waifu_id = int(query_data[1])
     user_id = int(query_data[2])
     message = update.callback_query.message
+    if not message.is_accessible:
+        return
+    message: Message
     user = dao.get_user_by_id(user_id)
     waifu = dao.get_user_by_id(waifu_id)
     text = common.get_waifu_text(waifu, False, user)
@@ -296,6 +305,9 @@ async def marry_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     db_waifu = dao.get_user_by_id(waifu_id)
     db_user = dao.get_user_by_id(user_id)
     message = query.message
+    if not message.is_accessible:
+        return
+    message: Message
     if not db_waifu.is_real_user:
         await query.answer(
             text="＞﹏＜ Ta 不是真实用户哦.(不支持与匿名管理, 频道身份等结婚)",
@@ -349,6 +361,9 @@ async def _agree_marry_waifu(update: Update, _: ContextTypes.DEFAULT_TYPE):
     db_waifu = dao.get_user_by_id(waifu_id)
     db_user = dao.get_user_by_id(user_id)
     message = query.message
+    if not message.is_accessible:
+        return
+    message: Message
     if now_user.id != waifu_id:
         await query.answer(
             text="(￣ε(#￣) 别人的事情咱不要打扰呢", show_alert=True, cache_time=60
@@ -394,6 +409,9 @@ async def _refuse_marry_waifu(update: Update, _: ContextTypes.DEFAULT_TYPE):
     waifu_id = int(query_data[1])
     db_waifu = dao.get_user_by_id(waifu_id)
     message = query.message
+    if not message.is_accessible:
+        return
+    message: Message
     if now_user.id != waifu_id:
         await query.answer(
             text="(￣ε(#￣) 别人的事情咱不要打扰呢", show_alert=True, cache_time=60
@@ -424,6 +442,9 @@ async def _cancel_marry_waifu(update: Update, _: ContextTypes.DEFAULT_TYPE):
     waifu_id = int(query_data[1])
     user_id = int(query_data[2])
     message = query.message
+    if not message.is_accessible:
+        return
+    message: Message
     if now_user.id not in (waifu_id, user_id):
         await query.answer(
             text="(￣ε(#￣) 别人的事情咱不要打扰呢",
