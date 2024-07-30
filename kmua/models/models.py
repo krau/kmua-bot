@@ -42,6 +42,14 @@ class UserData(Base):
     avatar_big_blob = Column(LargeBinary(65536), default=None)
     avatar_big_id = Column(String(128), default=None)
 
+    is_married = Column(Boolean, default=False)
+    married_waifu_id = Column(BigInteger, default=None)
+    waifu_mention = Column(Boolean, default=True)
+
+    is_bot = Column(Boolean, default=False)
+    is_real_user = Column(Boolean, default=True)  # 频道身份, bot, 匿名用户等 为 False
+    is_bot_global_admin = Column(Boolean, default=False)
+
     chats = relationship(
         "ChatData",
         secondary=UserChatAssociation.__tablename__,
@@ -51,14 +59,6 @@ class UserData(Base):
     )
 
     quotes = relationship("Quote", back_populates="user")
-
-    is_married = Column(Boolean, default=False)
-    married_waifu_id = Column(BigInteger, default=None)
-    waifu_mention = Column(Boolean, default=True)
-
-    is_bot = Column(Boolean, default=False)
-    is_real_user = Column(Boolean, default=True)  # 频道身份, bot, 匿名用户等 为 False
-    is_bot_global_admin = Column(Boolean, default=False)
 
     created_at = Column(DateTime, default=func.now())
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
@@ -126,6 +126,7 @@ class ChatData(Base):
     __tablename__ = "chat_data"
     id = Column(BigInteger, primary_key=True, index=True, autoincrement=False)
     title = Column(String(128), nullable=False)
+    username = Column(String(64), nullable=True)
     members = relationship(
         "UserData",
         secondary=UserChatAssociation.__tablename__,
