@@ -43,6 +43,9 @@ async def quote(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     quote_message = message.reply_to_message
     quote_user = common.get_message_origin(quote_message)
+    if not quote_user:
+        await message.reply_text("不知道这条消息是谁发的呢...")
+        return
     qer_user = message.sender_chat or user
     dao.add_user(quote_user)
     quote_message_link = common.get_message_common_link(quote_message)
@@ -72,6 +75,9 @@ async def quote(update: Update, context: ContextTypes.DEFAULT_TYPE):
     ):
         tasks.append(_pin_quote_message(quote_message))
     results = await asyncio.gather(*tasks)
+    if not results[1]:
+        logger.warning(f"Failed to generate quote image for {quote_message_link}")
+        return
     dao.add_quote(
         chat=chat,
         user=quote_user,
