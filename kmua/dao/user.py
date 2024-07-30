@@ -1,7 +1,8 @@
 import datetime
 
 from sqlalchemy import text
-from telegram import Chat, User
+from telegram import Chat, ChatFullInfo, User
+from telegram.constants import ChatType
 
 from kmua.dao._db import _db, commit
 from kmua.models.models import ChatData, Quote, UserData
@@ -11,46 +12,51 @@ def get_user_by_id(user_id: int) -> UserData | None:
     return _db.query(UserData).filter(UserData.id == user_id).first()
 
 
-def add_user(user: User | UserData | Chat | ChatData) -> UserData:
+def add_user(user: User | Chat | ChatFullInfo | ChatData | UserData) -> UserData:
     """
     添加用户，如果用户已存在则返回已存在的用户
-    如果传递的是 Chat 或 ChatData 对象，full_name 为 chat.title
+    如果传递的是 Chat 或 ChatData 对象, full_name 为 chat.title
 
     :return: UserData object
     """
+    username = None
+    full_name = None
+    is_real_user = True
+    is_bot = False
+    if isinstance(user, UserData):
+        return user
+    elif isinstance(user, ChatData):
+        username = user.username
+        full_name = user.title
+        is_real_user = False
+    elif isinstance(user, ChatFullInfo):
+        username = user.username
+        full_name = user.effective_name
+        is_real_user = user.type in (ChatType.PRIVATE, ChatType.SENDER)
+    elif isinstance(user, User):
+        username = user.username
+        full_name = user.full_name
+    elif isinstance(user, Chat):
+        username = user.username
+        full_name = user.title
+        is_real_user = user.type in (ChatType.PRIVATE, ChatType.SENDER)
+    else:
+        raise ValueError(f"Invalid user type {type(user)}")
+
     if userdata := get_user_by_id(user.id):
-        userdata.username = (
-            user.username if not isinstance(user, ChatData) else userdata.username
-        )
-        userdata.full_name = (
-            user.full_name if not isinstance(user, (Chat, ChatData)) else user.title
-        )
+        userdata.username = username
+        userdata.full_name = full_name
+        userdata.is_real_user = is_real_user
+        userdata.is_bot = is_bot
         commit()
         return userdata
-    userdata = None
-    if isinstance(user, (Chat, ChatData)):
-        userdata = UserData(
-            id=user.id,
-            username=user.username,
-            full_name=user.title,
-            waifu_mention=True,
-            is_real_user=False,
-        )
-    elif isinstance(user, User) and user.is_bot:
-        userdata = UserData(
-            id=user.id,
-            username=user.username,
-            full_name=user.full_name,
-            is_real_user=False,
-            is_bot=True,
-            waifu_mention=True,
-        )
-    elif isinstance(user, User):
-        userdata = UserData(
-            id=user.id,
-            username=user.username,
-            full_name=user.full_name,
-        )
+    userdata = UserData(
+        id=user.id,
+        username=username,
+        full_name=full_name,
+        is_real_user=is_real_user,
+        is_bot=is_bot,
+    )
     _db.add(userdata)
     commit()
     return get_user_by_id(user.id)
