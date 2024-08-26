@@ -4,15 +4,15 @@ import httpx
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import ContextTypes
 
-from kmua import dao
+from kmua import config, dao
 from kmua.config import settings
 from kmua.logger import logger
 
 _manyacg_api_url: str = settings.get("manyacg_api")
 _manyacg_api_url = _manyacg_api_url.removesuffix("/") if _manyacg_api_url else None
 
-_MANYACG_CHANNEL = "manyacg"
-_MANYACG_BOT = "kirakabot"
+_MANYACG_CHANNEL = config.settings.get("manyacg_channel", "manyacg")
+_MANYACG_BOT = config.settings.get("manyacg_bot", "kirakabot")
 
 
 async def setu(update: Update, context: ContextTypes.DEFAULT_TYPE):
