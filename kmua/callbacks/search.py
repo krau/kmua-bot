@@ -8,7 +8,7 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import ContextTypes
 from telegram.helpers import escape_markdown
 
-from kmua import common, dao
+from kmua import common, config, dao
 from kmua.logger import logger
 
 _enable_search = common.meili_client is not None and common.redis_client is not None
@@ -149,6 +149,9 @@ async def search_message_page(update: Update, _: ContextTypes.DEFAULT_TYPE):
 async def enable_search(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not _enable_search:
         await update.effective_message.reply_text("没有接入这个功能哦")
+        return
+    if not config.settings.get("meilisearch_new_index", True):
+        await update.effective_message.reply_text("服务器...被〇满♡了, 暂时无法使用...")
         return
     chat = update.effective_chat
     user = update.effective_user
