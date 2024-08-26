@@ -396,6 +396,7 @@ async def update_index_job(context: ContextTypes.DEFAULT_TYPE):
         common.redis_client.delete(f"kmua_chatmsg_{context.job.chat_id}")
     except Exception as e:
         logger.error(f"load message error: {e.__class__.__name__}: {e}")
+        common.redis_client.delete(f"kmua_chatmsg_{context.job.chat_id}")
         return
     finally:
         context.chat_data["updating_index"] = False
