@@ -10,7 +10,6 @@ from kmua.logger import logger
 
 _manyacg_api_url: str = settings.get("manyacg_api")
 _manyacg_api_url = _manyacg_api_url.removesuffix("/") if _manyacg_api_url else None
-_manyacg_api_token: str = settings.get("manyacg_token")
 
 _MANYACG_CHANNEL = "manyacg"
 _MANYACG_BOT = "kirakabot"
@@ -44,36 +43,35 @@ async def setu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         async with httpx.AsyncClient() as client:
             resp = await client.post(
-                url=f"{_manyacg_api_url}/v1/artwork/random",
-                headers={"Authorization": f"Bearer {_manyacg_api_token}"},
+                url=f"{_manyacg_api_url}/api/v1/artwork/random",
             )
             if resp.status_code != 200:
                 await update.effective_message.reply_text(
                     text="失败惹，请稍后再试", quote=True
                 )
                 return
-            picture: dict = resp.json()["pictures"][
-                random.randint(0, len(resp.json()["pictures"]) - 1)
+            picture: dict = resp.json()["data"][0]["pictures"][
+                random.randint(0, len(resp.json()["data"][0]["pictures"]) - 1)
             ]
 
             sent_message = await update.effective_message.reply_photo(
-                photo=picture["thumbnail"],
-                caption=resp.json()["title"],
+                photo=picture["regular"],
+                caption=resp.json()["data"][0]["title"],
                 reply_markup=InlineKeyboardMarkup(
                     [
                         [
                             InlineKeyboardButton(
-                                "Source",
-                                url=f"https://t.me/{_MANYACG_CHANNEL}/{picture['telegram_info']['message_id']}",
+                                "Detail",
+                                url=f"https://t.me/{_MANYACG_CHANNEL}/",
                             ),
                             InlineKeyboardButton(
                                 "Original File",
-                                url=f"https://t.me/{_MANYACG_BOT}/?start=file_{picture['telegram_info']['message_id']}",
+                                url=f"https://t.me/{_MANYACG_BOT}/?start=file_{picture['id']}",
                             ),
                         ]
                     ]
                 ),
-                has_spoiler=resp.json()["r18"],
+                has_spoiler=resp.json()["data"][0]["r18"],
                 quote=True,
             )
             logger.info(f"Bot: {sent_message.caption}")
