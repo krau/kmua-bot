@@ -395,7 +395,10 @@ async def update_index_job(context: ContextTypes.DEFAULT_TYPE):
             pickle.loads(msg).to_dict() for msg in msg_cache
         ]
         logger.debug(f"load {len(messages)} messages for {context.job.chat_id}")
-        common.meili_client.index(f"kmua_{context.job.chat_id}").add_documents(messages)
+        common.meili_client.index(f"kmua_{context.job.chat_id}").add_documents(
+            documents=messages,
+            primary_key="message_id",
+        )
         common.redis_client.delete(f"kmua_chatmsg_{context.job.chat_id}")
     except Exception as e:
         logger.error(f"load message error: {e.__class__.__name__}: {e}")

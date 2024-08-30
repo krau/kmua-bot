@@ -1,10 +1,10 @@
 [tool.poetry]
 name = "kmua"
-version = "2.6.5"
+version = "2.7.7"
 description = "A Telegram Bot"
 authors = ["krau <me@krau.top>"]
 readme = "README.md"
-license = "MIT"
+license = "AGPL-3.0"
 
 [tool.poetry.dependencies]
 python = "^3.11"

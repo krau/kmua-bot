@@ -999,13 +999,13 @@ files = [
 
 [[package]]
 name = "meilisearch"
-version = "0.31.4"
+version = "0.31.5"
 description = "The python client for Meilisearch API."
 optional = false
 python-versions = ">=3.8"
 files = [
-    {file = "meilisearch-0.31.4-py3-none-any.whl", hash = "sha256:a36f345334689e1880a72f22babadd49a4b583f260a47fe7794b4030760ea759"},
-    {file = "meilisearch-0.31.4.tar.gz", hash = "sha256:c4d578640d073e2d6106b4d653f55d698d2520b51db57e3ce7375707e15c86d1"},
+    {file = "meilisearch-0.31.5-py3-none-any.whl", hash = "sha256:2d3b9c2b398901c8760f1c974b12c4825f6fb33342c5a0b0c27202e85a1b0581"},
+    {file = "meilisearch-0.31.5.tar.gz", hash = "sha256:04c2d2b6b3b7b95326c5c0c0f3eccda42b9d3eefe415ea3014310646a75f2743"},
 ]
 
 [package.dependencies]
@@ -1596,20 +1596,20 @@ files = [
 
 [[package]]
 name = "redis"
-version = "5.0.7"
+version = "5.0.8"
 description = "Python client for Redis database and key-value store"
 optional = false
 python-versions = ">=3.7"
 files = [
-    {file = "redis-5.0.7-py3-none-any.whl", hash = "sha256:0e479e24da960c690be5d9b96d21f7b918a98c0cf49af3b6fafaa0753f93a0db"},
-    {file = "redis-5.0.7.tar.gz", hash = "sha256:8f611490b93c8109b50adc317b31bfd84fff31def3475b92e7e80bf39f48175b"},
+    {file = "redis-5.0.8-py3-none-any.whl", hash = "sha256:56134ee08ea909106090934adc36f65c9bcbbaecea5b21ba704ba6fb561f8eb4"},
+    {file = "redis-5.0.8.tar.gz", hash = "sha256:0c5b10d387568dfe0698c6fad6615750c24170e548ca2deac10c649d463e9870"},
 ]
 
 [package.dependencies]
 async-timeout = {version = ">=4.0.3", markers = "python_full_version < \"3.11.3\""}
 
 [package.extras]
-hiredis = ["hiredis (>=1.0.0)"]
+hiredis = ["hiredis (>1.0.0)"]
 ocsp = ["cryptography (>=36.0.1)", "pyopenssl (==20.0.1)", "requests (>=2.26.0)"]
 
 [[package]]
