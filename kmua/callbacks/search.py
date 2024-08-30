@@ -84,7 +84,7 @@ async def search_message_page(update: Update, _: ContextTypes.DEFAULT_TYPE):
     if not query:
         await update.callback_query.answer("查询已过期", show_alert=True, cache_time=60)
         return
-    query = query.decode("utf-8")
+    query: str = query.decode("utf-8")
     common.redis_client.expire(f"kmua_cqdata_{query_uuid}", 6000)
     offset = int(offset)
     try:
@@ -481,9 +481,6 @@ def _get_message_type_emoji(type: int) -> str:
 
 def _get_hit_text(hits: list[dict], chat_id: str) -> Generator[str, None, None]:
     for hit in hits:
-        if hit["_rankingScore"] <= 0.1:
-            # TODO: meilisearch 1.9 之后将会支持 rankingScoreThreshold 参数, 可在请求时直接过滤
-            break
         emoji = _get_message_type_emoji(hit["type"])
         message_link = f"https://t.me/c/{chat_id}/{hit['message_id']}"
         formatted_text = hit["_formatted"]["text"].replace("\n", " ")
@@ -504,4 +501,5 @@ def _get_search_params(offset: int = 0) -> dict:
         "limit": 10,
         "matchingStrategy": "all",
         "showRankingScore": True,
+        "rankingScoreThreshold": 0.1,
     }
