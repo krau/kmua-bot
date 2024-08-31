@@ -1,10 +1,16 @@
 import glob
-import orjson
 import os
 import random
 from pathlib import Path
 
+import orjson
+
 from kmua.logger import logger
+
+
+def escape_html(text: str) -> str:
+    # https://core.telegram.org/bots/api#html-style
+    return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
 
 def random_unit(probability: float) -> bool:

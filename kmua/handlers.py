@@ -148,6 +148,9 @@ sr_handler = CommandHandler(
 config_chat_handler = CommandHandler(
     "config", chatconfig.config_chat_cmd, filters=filters.ChatType.GROUPS
 )
+caption_handler = CommandHandler(
+    "caption", image.caption, filters=~filters.UpdateType.EDITED
+)
 
 # CallbackQueryHandlers
 start_callback_handler = CallbackQueryHandler(start.start, pattern="back_home")
@@ -282,6 +285,7 @@ command_handlers = [
     clear_all_contents_handler,
     sr_handler,
     config_chat_handler,
+    caption_handler,
 ]
 
 callback_query_handlers = [

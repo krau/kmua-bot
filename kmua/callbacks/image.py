@@ -1,7 +1,10 @@
+import random
 import re
 
 import httpx
+from httpx_sse import aconnect_sse
 from telegram import File, Update
+from telegram.constants import ParseMode
 from telegram.ext import ContextTypes
 from telegram.helpers import escape_markdown
 
@@ -11,8 +14,8 @@ from kmua.logger import logger
 
 _real_esrgan_api = settings.get("real_esrgan_api")
 _real_esrgan_token = settings.get("real_esrgan_token")
-_enabled = _real_esrgan_api and _real_esrgan_token
-if _enabled:
+_enabled_sr = _real_esrgan_api and _real_esrgan_token
+if _enabled_sr:
     httpx_cilent = httpx.AsyncClient(
         base_url=_real_esrgan_api,
         headers={"X-Token": _real_esrgan_token, "User-Agent": "kmua/2.3.3"},
@@ -21,7 +24,7 @@ if _enabled:
 
 
 async def super_resolute(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not _enabled:
+    if not _enabled_sr:
         await update.effective_message.reply_text("没有启用该功能呢")
         return
     chat = update.effective_chat
@@ -64,7 +67,7 @@ async def super_resolute(update: Update, context: ContextTypes.DEFAULT_TYPE):
             case "processing":
                 await message.reply_text("这张图片正在处理中...")
             case "success":
-                _clean_jobs(context, task_id)
+                _clean_sr_jobs(context, task_id)
                 await message.reply_text("正在下载超分结果...")
                 try:
                     resp = await httpx_cilent.get(f"/result/{task_id}/download")
@@ -159,11 +162,11 @@ async def _check_super_resolute_result(context: ContextTypes.DEFAULT_TYPE):
     if resp.status_code != 200:
         logger.warning(f"check super resolute result failed. code: {resp.status_code}")
         if resp.status_code == 404:
-            _clean_jobs(context, task_id)
+            _clean_sr_jobs(context, task_id)
         return
     result = resp.json().get("result")
     if result.get("status") == "failed":
-        _clean_jobs(context, task_id)
+        _clean_sr_jobs(context, task_id)
         await context.bot.send_message(
             chat_id=chat_id,
             text="这张图片处理失败了...",
@@ -173,7 +176,7 @@ async def _check_super_resolute_result(context: ContextTypes.DEFAULT_TYPE):
     if result.get("status") != "success":
         return
 
-    _clean_jobs(context, task_id)
+    _clean_sr_jobs(context, task_id)
 
     try:
         resp = await httpx_cilent.get(f"/result/{task_id}/download")
@@ -216,8 +219,78 @@ async def _check_super_resolute_result(context: ContextTypes.DEFAULT_TYPE):
         return
 
 
-def _clean_jobs(context: ContextTypes.DEFAULT_TYPE, task_id: str):
+def _clean_sr_jobs(context: ContextTypes.DEFAULT_TYPE, task_id: str):
     for job in context.job_queue.get_jobs_by_name(
         f"check_super_resolute_result_{task_id}"
     ):
         job.schedule_removal()
+
+
+_joy_caption_api: str = settings.get("joy_caption_api").removesuffix("/")
+
+
+async def caption(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not _joy_caption_api:
+        await update.effective_message.reply_text("没有启用该功能呢")
+        return
+    chat = update.effective_chat
+    user = update.effective_user
+    message = update.effective_message
+    logger.info(f"[{chat.title}]({user.name})<caption>")
+    target_message = message.reply_to_message
+    if not (target_message and (target_message.photo or target_message.document)):
+        await message.reply_text("请回复一张图片")
+        return
+    photo_file: File = None
+    sent_message = await target_message.reply_text("少女看图写话中...", quote=True)
+    try:
+        if target_message.photo:
+            photo_file = await target_message.photo[-1].get_file()
+        elif target_message.document and target_message.document.mime_type.startswith(
+            "image"
+        ):
+            if target_message.document.file_size > 20 * 1024 * 1024:
+                await sent_message.edit_text("文件太大了! 不行!")
+                return
+            photo_file = await target_message.document.get_file()
+        else:
+            await sent_message.edit_text("请回复一张图片")
+            return
+        photo_bytes = bytes(await photo_file.download_as_bytearray())
+    except Exception as e:
+        logger.error(e)
+        await sent_message.edit_text("下载图片失败")
+        return
+    try:
+        async with httpx.AsyncClient(timeout=60) as client:
+            response = await client.post(
+                f"{_joy_caption_api}/upload?upload_id={random.randint(100000, 999999)}",
+                files={"files": ("image.jpg", photo_bytes, "image/jpeg")},
+            )
+            if response.status_code != 200:
+                raise Exception(f"upload failed: {response.status_code}")
+            file_path = response.json()[0]
+            response = await client.post(
+                f"{_joy_caption_api}/call/stream_chat",
+                json={"data": [{"path": f"{_joy_caption_api}/file={file_path}"}]},
+            )
+            if response.status_code != 200:
+                raise Exception(f"call failed: {response.status_code}")
+            event_id = response.json().get("event_id")
+            async with aconnect_sse(
+                client=client,
+                url=f"{_joy_caption_api}/call/stream_chat/{event_id}",
+                method="GET",
+            ) as event_source:
+                async for event in event_source.aiter_sse():
+                    if event.event == "complete":
+                        result = event.json()[0]
+                        await sent_message.edit_text(
+                            parse_mode=ParseMode.HTML,
+                            text=f"""<blockquote expandable>{common.escape_html(result)}</blockquote>""",
+                        )
+                        break
+    except Exception as e:
+        logger.error(e)
+        await sent_message.edit_text("服务器坏掉了喵, 生成失败")
+        return
