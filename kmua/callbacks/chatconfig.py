@@ -7,6 +7,7 @@ from telegram import (
 from telegram.ext import ContextTypes
 
 from kmua import common, dao
+from kmua.config import settings
 from kmua.logger import logger
 from kmua.models.models import ChatConfig
 
@@ -98,6 +99,10 @@ async def config_chat_callback(update: Update, context: ContextTypes.DEFAULT_TYP
                     not chat_config.unpin_channel_pin_enabled
                 )
             case "message_search_enabled":
+                if not settings.get("meilisearch_new_index", True):
+                    if not chat_config.message_search_enabled:
+                        await query.answer("服务器...被〇满♡了, 暂时无法使用...")
+                        return
                 chat_config.message_search_enabled = (
                     not chat_config.message_search_enabled
                 )
