@@ -2,7 +2,9 @@ import random
 
 import httpx
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
+from telegram.constants import ParseMode
 from telegram.ext import ContextTypes
+from telegram.helpers import escape_markdown
 
 from kmua import config, dao
 from kmua.config import settings
@@ -60,13 +62,13 @@ async def setu(update: Update, context: ContextTypes.DEFAULT_TYPE):
             random.randint(0, len(artwork["pictures"]) - 1)
         ]
         detail_link = (
-            f"https://t.me/{_MANYACG_CHANNEL}/{picture['telegram_info']['message_id']}"
-            if picture["telegram_info"]["message_id"] != 0
+            f"https://t.me/{_MANYACG_CHANNEL}/{picture['message_id']}"
+            if picture["message_id"] != 0
             else f"https://{_manyacg_api_url}/artwork/{artwork['id']}"
         )
         sent_message = await update.effective_message.reply_photo(
             photo=picture["regular"],
-            caption=resp.json()["data"][0]["title"],
+            caption=f"[{escape_markdown(artwork['title'])}]({artwork['source_url']})\n",
             reply_markup=InlineKeyboardMarkup(
                 [
                     [
@@ -83,6 +85,7 @@ async def setu(update: Update, context: ContextTypes.DEFAULT_TYPE):
             ),
             has_spoiler=resp.json()["data"][0]["r18"],
             quote=True,
+            parse_mode=ParseMode.MARKDOWN_V2,
         )
         logger.info(f"Bot: {sent_message.caption}")
     except Exception as e:
