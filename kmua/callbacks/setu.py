@@ -5,6 +5,7 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.constants import ParseMode
 from telegram.ext import ContextTypes
 from telegram.helpers import escape_markdown
+from telegram.error import TimedOut
 
 from kmua import config, dao
 from kmua.config import settings
@@ -52,11 +53,13 @@ async def setu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         resp = await httpx_client.post(
             url="/api/v1/artwork/random",
         )
+    except Exception as e:
+        logger.error(f"setu error: {e.__class__.__name__}:{e}")
+        await update.effective_message.reply_text(text="失败惹，请稍后再试", quote=True)
+        return
+    try:
         if resp.status_code != 200:
-            await update.effective_message.reply_text(
-                text="失败惹，请稍后再试", quote=True
-            )
-            return
+            raise Exception(f"status_code: {resp.status_code}")
         artwork: dict = resp.json()["data"][0]
         picture: dict = artwork["pictures"][
             random.randint(0, len(artwork["pictures"]) - 1)
@@ -88,6 +91,8 @@ async def setu(update: Update, context: ContextTypes.DEFAULT_TYPE):
             parse_mode=ParseMode.MARKDOWN_V2,
         )
         logger.info(f"Bot: {sent_message.caption}")
+    except TimedOut:
+        pass
     except Exception as e:
         logger.error(f"setu error: {e.__class__.__name__}:{e}")
         await update.effective_message.reply_text(text="失败惹，请稍后再试", quote=True)
