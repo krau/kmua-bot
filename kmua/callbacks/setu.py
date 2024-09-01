@@ -11,6 +11,12 @@ from kmua.logger import logger
 _manyacg_api_url: str = settings.get("manyacg_api")
 _manyacg_api_url = _manyacg_api_url.removesuffix("/") if _manyacg_api_url else None
 
+if _manyacg_api_url:
+    httpx_client = httpx.AsyncClient(
+        base_url=_manyacg_api_url,
+        timeout=30,
+    )
+
 _MANYACG_CHANNEL = config.settings.get("manyacg_channel", "manyacg")
 _MANYACG_BOT = config.settings.get("manyacg_bot", "kirakabot")
 
@@ -41,40 +47,44 @@ async def setu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["setu_cd"] = True
 
     try:
-        async with httpx.AsyncClient() as client:
-            resp = await client.post(
-                url=f"{_manyacg_api_url}/api/v1/artwork/random",
+        resp = await httpx_client.post(
+            url="/api/v1/artwork/random",
+        )
+        if resp.status_code != 200:
+            await update.effective_message.reply_text(
+                text="失败惹，请稍后再试", quote=True
             )
-            if resp.status_code != 200:
-                await update.effective_message.reply_text(
-                    text="失败惹，请稍后再试", quote=True
-                )
-                return
-            picture: dict = resp.json()["data"][0]["pictures"][
-                random.randint(0, len(resp.json()["data"][0]["pictures"]) - 1)
-            ]
-
-            sent_message = await update.effective_message.reply_photo(
-                photo=picture["regular"],
-                caption=resp.json()["data"][0]["title"],
-                reply_markup=InlineKeyboardMarkup(
+            return
+        artwork: dict = resp.json()["data"][0]
+        picture: dict = artwork["pictures"][
+            random.randint(0, len(artwork["pictures"]) - 1)
+        ]
+        detail_link = (
+            f"https://t.me/{_MANYACG_CHANNEL}/{picture['telegram_info']['message_id']}"
+            if picture["telegram_info"]["message_id"] != 0
+            else f"https://{_manyacg_api_url}/artwork/{artwork['id']}"
+        )
+        sent_message = await update.effective_message.reply_photo(
+            photo=picture["regular"],
+            caption=resp.json()["data"][0]["title"],
+            reply_markup=InlineKeyboardMarkup(
+                [
                     [
-                        [
-                            InlineKeyboardButton(
-                                "Detail",
-                                url=f"https://t.me/{_MANYACG_CHANNEL}/",
-                            ),
-                            InlineKeyboardButton(
-                                "Original File",
-                                url=f"https://t.me/{_MANYACG_BOT}/?start=file_{picture['id']}",
-                            ),
-                        ]
+                        InlineKeyboardButton(
+                            "详情",
+                            url=detail_link,
+                        ),
+                        InlineKeyboardButton(
+                            "原图",
+                            url=f"https://t.me/{_MANYACG_BOT}/?start=file_{picture['id']}",
+                        ),
                     ]
-                ),
-                has_spoiler=resp.json()["data"][0]["r18"],
-                quote=True,
-            )
-            logger.info(f"Bot: {sent_message.caption}")
+                ]
+            ),
+            has_spoiler=resp.json()["data"][0]["r18"],
+            quote=True,
+        )
+        logger.info(f"Bot: {sent_message.caption}")
     except Exception as e:
         logger.error(f"setu error: {e.__class__.__name__}:{e}")
         await update.effective_message.reply_text(text="失败惹，请稍后再试", quote=True)
