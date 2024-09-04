@@ -10,7 +10,7 @@ from kmua import common
 from kmua.logger import logger
 
 
-def replace_special_char(text: str):
+def _replace_char(text: str):
     text = text.replace("$", "").replace("/", "").replace("\\", "")
     return text
 
@@ -18,14 +18,18 @@ def replace_special_char(text: str):
 async def slash(update: Update, _: ContextTypes.DEFAULT_TYPE):
     if update.message_reaction:
         return
+    message = update.effective_message
+    if message.text.startswith("/"):
+        if not message.text.startswith("//"):
+            if re.match(r"^/[a-zA-Z0-9]+", message.text):
+                return
     logger.info(
         f"[{update.effective_chat.title}]({update.effective_user.name})"
-        + f" {update.effective_message.text}"
+        + f" {message.text}"
     )
     cmd1 = ""
     cmd2 = ""
     text = ""
-    message = update.effective_message
     this_user = message.sender_chat if message.sender_chat else message.from_user
     this_mention = common.mention_markdown_v2(this_user)
     replied_user = None
@@ -40,20 +44,16 @@ async def slash(update: Update, _: ContextTypes.DEFAULT_TYPE):
     is_backslash = (
         False
         if message.text.startswith("/")
-        else True
-        if message.text.startswith("\\")
-        else None
+        else True if message.text.startswith("\\") else None
     )
     if is_backslash is None:
         return
     is_one_cmd = len(message.text.split(" ")) == 1
-    cmd1 = escape_markdown(replace_special_char(message.text.split(" ")[0][1:]), 2)
+    cmd1 = escape_markdown(_replace_char(message.text.split(" ")[0][1:]), 2)
     if not cmd1:
         return
     if not is_one_cmd:
-        cmd2 = escape_markdown(
-            replace_special_char(" ".join(message.text.split(" ")[1:])), 2
-        )
+        cmd2 = escape_markdown(_replace_char(" ".join(message.text.split(" ")[1:])), 2)
         text = (
             (
                 rf"{replied_mention} {cmd1} {this_mention} {cmd2} \!"
