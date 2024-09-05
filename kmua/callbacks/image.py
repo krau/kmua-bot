@@ -226,7 +226,7 @@ def _clean_sr_jobs(context: ContextTypes.DEFAULT_TYPE, task_id: str):
         job.schedule_removal()
 
 
-_joy_caption_api: str = settings.get("joy_caption_api").removesuffix("/")
+_joy_caption_api: str = settings.get("joy_caption_api", "").removesuffix("/")
 
 
 async def caption(update: Update, context: ContextTypes.DEFAULT_TYPE):
