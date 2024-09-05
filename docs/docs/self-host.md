@@ -74,7 +74,6 @@ Redis 可能是其他扩展功能的依赖
 ##### ManyACG (随机涩图)
 
 - `KMUA_MANYACG_API` - ManyACG API 地址
-- `KMUA_MANYACG_TOKEN` - ManyACG api token
 
 ##### Bilibili link (b 站链接转换)
 
@@ -102,13 +101,18 @@ Redis 可能是其他扩展功能的依赖
 
 - `KMUA_MEILISEARCH_API` - Meilisearch 地址
 - `KMUA_MEILISEARCH_KEY` - Meilisearch API Key
+- `KMUA_MEILISEARCH_NEW_INDEX` - 是否允许创建新的索引, 默认 `true`
 
 ##### 图像超分辨率
 
 该功能可选 Redis (缓存下载结果 id)
 
-- `KMUA_REAL_ESRGAN_API` - Real-ESRGAN API 地址
-- `KMUA_REAL_ESRGAN_TOKEN` - Real-ESRGAN API Token
+- `KMUA_SUPER_RESOLUTION_API` - super resolution API 地址
+- `KMUA_SUPER_RESOLUTION_TOKEN` - super resolution API Token
+
+##### 图像 Caption
+
+- `KMUA_JOY_CAPTION_API` - [JoyCaption](https://huggingface.co/spaces/fancyfeast/joy-caption-pre-alpha) API 地址
 
 ### 完整 .env 示例
 
@@ -132,7 +136,6 @@ KMUA_MAX_DB_SIZE=200
 KMUA_BASE_URL = "https://api.telegram.org/bot"
 KMUA_BASE_FILE_URL = "https://api.telegram.org/file/bot"
 KMUA_MANYACG_API = "http://1.0.1.0:39120"
-KMUA_MANYACG_TOKEN = "token"
 KMUA_BILILINK_CONVERT_API = "http://1.2.3.4:39080"
 KMUA_VERTEX_SYSTEM= "你是一只名字叫kmua的可爱的猫娘."
 KMUA_VERTEX_PROJECT_ID = "project-id"
@@ -143,10 +146,12 @@ GOOGLE_APPLICATION_CREDENTIALS=/kmua/.secrets/.secret.json
 KMUA_VERTEX_PRESET = ["你好","喵~ 您好呀~ 今天天气真好呢~"]
 KMUA_MEILISEARCH_API = "localhost:7700"
 KMUA_MEILISEARCH_KEY = "112233"
+KMUA_MEILISEARCH_NEW_INDEX = true
 KMUA_NSFWJS_API = "http://nsfwjs.api.com"
 KMUA_NSFWJS_TOKEN = "token"
-KMUA_REAL_ESRGAN_API = "http://real-esrgan.api.com"
-KMUA_REAL_ESRGAN_TOKEN = "token"
+KMUA_SUPER_RESOLUTION_API = "http://sr.api.com"
+KMUA_SUPER_RESOLUTION_TOKEN = "token"
+KMUA_JOY_CAPTION_API = "https://fancyfeast-joy-caption-pre-alpha.hf.space"
 ```
 
 ## 源码运行
