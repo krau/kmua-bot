@@ -1,23 +1,12 @@
 import pickle
 import random
 
-import vertexai
 import zhconv
 from telegram import (
     Update,
 )
 from telegram.constants import ChatAction
 from telegram.ext import ContextTypes
-from vertexai.generative_models import (
-    Content,
-    FinishReason,
-    GenerationConfig,
-    GenerativeModel,
-    HarmBlockThreshold,
-    HarmCategory,
-    Part,
-    SafetySetting,
-)
 
 from kmua import common, dao
 from kmua.config import settings
@@ -32,10 +21,23 @@ _enable_vertex = (
     all((_SYSTEM_INSTRUCTION, _PROJECT_ID, _LOCATION)) and common.redis_client
 )
 _model = None
-_preset_contents: list[Content] = []
 
 if _enable_vertex:
     logger.debug("Initializing Vertex AI")
+    import vertexai
+    from vertexai.generative_models import (
+        Content,
+        FinishReason,
+        GenerationConfig,
+        GenerativeModel,
+        HarmBlockThreshold,
+        HarmCategory,
+        Part,
+        SafetySetting,
+    )
+
+    _preset_contents: list[Content] = []
+
     try:
         vertexai.init(project=_PROJECT_ID, location=_LOCATION)
         _model = GenerativeModel(
