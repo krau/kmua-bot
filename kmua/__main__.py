@@ -127,6 +127,7 @@ def run():
             cert=settings.get("cert"),
             webhook_url=settings.webhook_url,
             allowed_updates=allowed_updates,
+            drop_pending_updates=settings.get("drop_pending_updates", False),
         )
     else:
         app.run_polling(
