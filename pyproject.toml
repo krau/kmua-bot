@@ -11,6 +11,7 @@ python = "^3.11"
 python-telegram-bot = { extras = [
     "job-queue",
     "rate-limiter",
+    "webhook",
 ], version = "^21.3" }
 dynaconf = "^3.2.3"
 graphviz = "^0.20.1"
@@ -44,8 +45,8 @@ httpx-sse = "^0.4.0"
 
 
 [tool.poetry.group.dev.dependencies]
-pylint = "^3.0.3"
-ruff = "^0.3.2"
+pylint = "^3.2.7"
+ruff = "^0.6.4"
 
 [build-system]
 requires = ["poetry-core"]
