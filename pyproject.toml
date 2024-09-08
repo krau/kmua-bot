@@ -8,11 +8,7 @@ license = "AGPL-3.0"
 
 [tool.poetry.dependencies]
 python = "^3.11"
-python-telegram-bot = { extras = [
-    "job-queue",
-    "rate-limiter",
-    "webhook",
-], version = "^21.3" }
+python-telegram-bot = {extras = ["all"], version = "^21.5"}
 dynaconf = "^3.2.3"
 graphviz = "^0.20.1"
 Pillow = "^10.3.0"
