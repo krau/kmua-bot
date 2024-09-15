@@ -9,5 +9,4 @@ logs/
 .vscode
 settings.dev*
 data/**
-.python-version
 .secret*
