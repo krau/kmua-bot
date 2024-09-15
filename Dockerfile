@@ -1,5 +1,5 @@
-FROM python:3.12.4-slim-bookworm
+FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim
 COPY . /kmua
 WORKDIR /kmua
-RUN apt-get update && apt-get install graphviz -y && pip install poetry && poetry install --without dev
-ENTRYPOINT [ "poetry", "run", "python", "-m","kmua"]
+RUN apt-get update && apt-get install graphviz -y && uv sync --frozen --no-dev
+ENTRYPOINT ["uv", "run", "python", "-m", "kmua"]
