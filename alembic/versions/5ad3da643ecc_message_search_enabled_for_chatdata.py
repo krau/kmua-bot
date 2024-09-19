@@ -24,50 +24,82 @@ def upgrade() -> None:
     op.add_column(
         "chat_data", sa.Column("message_search_enabled", sa.Boolean(), nullable=True)
     )
-    # op.alter_column('chat_data', 'id',
-    #            existing_type=sa.INTEGER(),
-    #            type_=sa.BigInteger(),
-    #            existing_nullable=False,
-    #            autoincrement=False)
-    # op.alter_column('quotes', 'chat_id',
-    #            existing_type=sa.INTEGER(),
-    #            type_=sa.BigInteger(),
-    #            existing_nullable=True)
-    # op.alter_column('quotes', 'message_id',
-    #            existing_type=sa.INTEGER(),
-    #            type_=sa.BigInteger(),
-    #            existing_nullable=False)
-    # op.alter_column('quotes', 'user_id',
-    #            existing_type=sa.INTEGER(),
-    #            type_=sa.BigInteger(),
-    #            existing_nullable=True)
-    # op.alter_column('quotes', 'qer_id',
-    #            existing_type=sa.INTEGER(),
-    #            type_=sa.BigInteger(),
-    #            existing_nullable=True)
-    # op.alter_column('user_chat_association', 'user_id',
-    #            existing_type=sa.INTEGER(),
-    #            type_=sa.BigInteger(),
-    #            existing_nullable=False,
-    #            autoincrement=False)
-    # op.alter_column('user_chat_association', 'chat_id',
-    #            existing_type=sa.INTEGER(),
-    #            type_=sa.BigInteger(),
-    #            existing_nullable=False,
-    #            autoincrement=False)
-    # op.alter_column('user_chat_association', 'waifu_id',
-    #            existing_type=sa.INTEGER(),
-    #            type_=sa.BigInteger(),
-    #            existing_nullable=True)
-    # op.alter_column('user_data', 'id',
-    #            existing_type=sa.INTEGER(),
-    #            type_=sa.BigInteger(),
-    #            existing_nullable=False,
-    #            autoincrement=False)
-    # op.alter_column('user_data', 'married_waifu_id',
-    #            existing_type=sa.INTEGER(),
-    #            type_=sa.BigInteger(),
-    #            existing_nullable=True)
+
+    if op.get_bind().dialect.name == "mysql":
+        op.alter_column(
+            "chat_data",
+            "id",
+            existing_type=sa.INTEGER(),
+            type_=sa.BigInteger(),
+            existing_nullable=False,
+            autoincrement=False,
+        )
+        op.alter_column(
+            "quotes",
+            "chat_id",
+            existing_type=sa.INTEGER(),
+            type_=sa.BigInteger(),
+            existing_nullable=True,
+        )
+        op.alter_column(
+            "quotes",
+            "message_id",
+            existing_type=sa.INTEGER(),
+            type_=sa.BigInteger(),
+            existing_nullable=False,
+        )
+        op.alter_column(
+            "quotes",
+            "user_id",
+            existing_type=sa.INTEGER(),
+            type_=sa.BigInteger(),
+            existing_nullable=True,
+        )
+        op.alter_column(
+            "quotes",
+            "qer_id",
+            existing_type=sa.INTEGER(),
+            type_=sa.BigInteger(),
+            existing_nullable=True,
+        )
+        op.alter_column(
+            "user_chat_association",
+            "user_id",
+            existing_type=sa.INTEGER(),
+            type_=sa.BigInteger(),
+            existing_nullable=False,
+            autoincrement=False,
+        )
+        op.alter_column(
+            "user_chat_association",
+            "chat_id",
+            existing_type=sa.INTEGER(),
+            type_=sa.BigInteger(),
+            existing_nullable=False,
+            autoincrement=False,
+        )
+        op.alter_column(
+            "user_chat_association",
+            "waifu_id",
+            existing_type=sa.INTEGER(),
+            type_=sa.BigInteger(),
+            existing_nullable=True,
+        )
+        op.alter_column(
+            "user_data",
+            "id",
+            existing_type=sa.INTEGER(),
+            type_=sa.BigInteger(),
+            existing_nullable=False,
+            autoincrement=False,
+        )
+        op.alter_column(
+            "user_data",
+            "married_waifu_id",
+            existing_type=sa.INTEGER(),
+            type_=sa.BigInteger(),
+            existing_nullable=True,
+        )
     # ### end Alembic commands ###
 
 
@@ -80,45 +112,72 @@ def downgrade() -> None:
         type_=sa.INTEGER(),
         existing_nullable=True,
     )
-    # op.alter_column('user_data', 'id',
-    #            existing_type=sa.BigInteger(),
-    #            type_=sa.INTEGER(),
-    #            existing_nullable=False,
-    #            autoincrement=False)
-    # op.alter_column('user_chat_association', 'waifu_id',
-    #            existing_type=sa.BigInteger(),
-    #            type_=sa.INTEGER(),
-    #            existing_nullable=True)
-    # op.alter_column('user_chat_association', 'chat_id',
-    #            existing_type=sa.BigInteger(),
-    #            type_=sa.INTEGER(),
-    #            existing_nullable=False,
-    #            autoincrement=False)
-    # op.alter_column('user_chat_association', 'user_id',
-    #            existing_type=sa.BigInteger(),
-    #            type_=sa.INTEGER(),
-    #            existing_nullable=False,
-    #            autoincrement=False)
-    # op.alter_column('quotes', 'qer_id',
-    #            existing_type=sa.BigInteger(),
-    #            type_=sa.INTEGER(),
-    #            existing_nullable=True)
-    # op.alter_column('quotes', 'user_id',
-    #            existing_type=sa.BigInteger(),
-    #            type_=sa.INTEGER(),
-    #            existing_nullable=True)
-    # op.alter_column('quotes', 'message_id',
-    #            existing_type=sa.BigInteger(),
-    #            type_=sa.INTEGER(),
-    #            existing_nullable=False)
-    # op.alter_column('quotes', 'chat_id',
-    #            existing_type=sa.BigInteger(),
-    #            type_=sa.INTEGER(),
-    #            existing_nullable=True)
-    # op.alter_column('chat_data', 'id',
-    #            existing_type=sa.BigInteger(),
-    #            type_=sa.INTEGER(),
-    #            existing_nullable=False,
-    #            autoincrement=False)
-    # op.drop_column('chat_data', 'message_search_enabled')
+    op.alter_column(
+        "user_data",
+        "id",
+        existing_type=sa.BigInteger(),
+        type_=sa.INTEGER(),
+        existing_nullable=False,
+        autoincrement=False,
+    )
+    op.alter_column(
+        "user_chat_association",
+        "waifu_id",
+        existing_type=sa.BigInteger(),
+        type_=sa.INTEGER(),
+        existing_nullable=True,
+    )
+    op.alter_column(
+        "user_chat_association",
+        "chat_id",
+        existing_type=sa.BigInteger(),
+        type_=sa.INTEGER(),
+        existing_nullable=False,
+        autoincrement=False,
+    )
+    op.alter_column(
+        "user_chat_association",
+        "user_id",
+        existing_type=sa.BigInteger(),
+        type_=sa.INTEGER(),
+        existing_nullable=False,
+        autoincrement=False,
+    )
+    op.alter_column(
+        "quotes",
+        "qer_id",
+        existing_type=sa.BigInteger(),
+        type_=sa.INTEGER(),
+        existing_nullable=True,
+    )
+    op.alter_column(
+        "quotes",
+        "user_id",
+        existing_type=sa.BigInteger(),
+        type_=sa.INTEGER(),
+        existing_nullable=True,
+    )
+    op.alter_column(
+        "quotes",
+        "message_id",
+        existing_type=sa.BigInteger(),
+        type_=sa.INTEGER(),
+        existing_nullable=False,
+    )
+    op.alter_column(
+        "quotes",
+        "chat_id",
+        existing_type=sa.BigInteger(),
+        type_=sa.INTEGER(),
+        existing_nullable=True,
+    )
+    op.alter_column(
+        "chat_data",
+        "id",
+        existing_type=sa.BigInteger(),
+        type_=sa.INTEGER(),
+        existing_nullable=False,
+        autoincrement=False,
+    )
+    op.drop_column("chat_data", "message_search_enabled")
     # ### end Alembic commands ###

@@ -25,6 +25,7 @@ dependencies = [
     "google-cloud-aiplatform>=1.66.0",
     "pilmoji>=2.0.4",
     "emoji==2.11",
+    "mysql-connector-python>=9.0.0",
 ]
 
 [tool.uv]

@@ -572,6 +572,7 @@ dependencies = [
     { name = "httpx-sse" },
     { name = "loguru" },
     { name = "meilisearch" },
+    { name = "mysql-connector-python" },
     { name = "orjson" },
     { name = "pillow" },
     { name = "pilmoji" },
@@ -600,6 +601,7 @@ requires-dist = [
     { name = "httpx-sse", specifier = ">=0.4.0" },
     { name = "loguru", specifier = ">=0.7.2" },
     { name = "meilisearch", specifier = ">=0.31.5" },
+    { name = "mysql-connector-python", specifier = ">=9.0.0" },
     { name = "orjson", specifier = ">=3.10.7" },
     { name = "pillow", specifier = ">=10.3.0" },
     { name = "pilmoji", specifier = ">=2.0.4" },
@@ -668,6 +670,20 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/7a/f7/965fa0bc54ac5b0813ba1fc5843425316479301b20e09fc1360bd745387e/meilisearch-0.31.5.tar.gz", hash = "sha256:04c2d2b6b3b7b95326c5c0c0f3eccda42b9d3eefe415ea3014310646a75f2743", size = 23019 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/c8/7f/7451eccf5c9660c7426c1d67d53473fe5bdcc1cfb63e3c09f882f16381d6/meilisearch-0.31.5-py3-none-any.whl", hash = "sha256:2d3b9c2b398901c8760f1c974b12c4825f6fb33342c5a0b0c27202e85a1b0581", size = 23622 },
+]
+
+[[package]]
+name = "mysql-connector-python"
+version = "9.0.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/f3/ec/3c94822a25548613949ea23444fe335ca9ad96e9155832ce57fdcf37c3c5/mysql-connector-python-9.0.0.tar.gz", hash = "sha256:8a404db37864acca43fd76222d1fbc7ff8d17d4ce02d803289c2141c2693ce9e", size = 302316 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/17/0c/c0fa64f15fde771a477fd7d3977f8587c5a17db32ea6f4e59a87098c8196/mysql_connector_python-9.0.0-cp312-cp312-macosx_13_0_arm64.whl", hash = "sha256:9199d6ecc81576602990178f0c2fb71737c53a598c8a2f51e1097a53fcfaee40", size = 13355713 },
+    { url = "https://files.pythonhosted.org/packages/a5/9c/95baabae0d4be3c5bead3c6c8abc4859b8d54a5f42a1585d7a47b3d3cc61/mysql_connector_python-9.0.0-cp312-cp312-macosx_13_0_x86_64.whl", hash = "sha256:b267a6c000b7f98e6436a9acefa5582a9662e503b0632a2562e3093a677f6845", size = 14168935 },
+    { url = "https://files.pythonhosted.org/packages/de/06/e104312845f9e25bb107574510b1c70e13bd9c1be2c794a3f528a5bc956d/mysql_connector_python-9.0.0-cp312-cp312-manylinux_2_17_aarch64.whl", hash = "sha256:ac92b2f2a9307ac0c4aafdfcf7ecf01ec92dfebd9140f8c95353adfbf5822cd4", size = 18937982 },
+    { url = "https://files.pythonhosted.org/packages/5a/7f/3d7776ca4234d0e6bffb6011532411adcbd80859c385c59d6e651c272b42/mysql_connector_python-9.0.0-cp312-cp312-manylinux_2_17_x86_64.whl", hash = "sha256:ced1fa55e653d28f66c4f3569ed524d4d92098119dcd80c2fa026872a30eba55", size = 19276407 },
+    { url = "https://files.pythonhosted.org/packages/a1/70/618c9795fcf31768f59060db89bba7cafe9ae180064cb5206948c8c33295/mysql_connector_python-9.0.0-cp312-cp312-win_amd64.whl", hash = "sha256:ca8349fe56ce39498d9b5ca8eabba744774e94d85775259f26a43a03e8825429", size = 14342613 },
+    { url = "https://files.pythonhosted.org/packages/98/26/5d223645a5ff16e0e462128473e950fdbbb90d210b7ca59a1b3a5dca7b0b/mysql_connector_python-9.0.0-py2.py3-none-any.whl", hash = "sha256:016d81bb1499dee8b77c82464244e98f10d3671ceefb4023adc559267d1fad50", size = 372965 },
 ]
 
 [[package]]
