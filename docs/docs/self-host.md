@@ -79,17 +79,6 @@ Redis 可能是其他扩展功能的依赖
 
 - `KMUA_BILILINK_CONVERT_API` - Bilibili 链接转换 API 地址
 
-##### Vertex AI (智能回复)
-
-该功能需要 Redis
-
-- `KMUA_VERTEX_SYSTEM` - Vertex AI 系统提示词
-- `KMUA_VERTEX_PROJECT_ID` - Vertex AI 项目 ID
-- `KMUA_VERTEX_LOCATION` - Vertex AI 位置
-- `KMUA_VERTEX_MODEL` - Vertex AI 模型
-- `KMUA_VERTEX_PRESET` - (数组) 预设对话. 先用户后模型交替, 请确保数组长度为偶数且不超过16.
-- `GOOGLE_APPLICATION_CREDENTIALS` - Google Application Credentials 路径. 请将 JSON 文件挂载到容器内.
-
 ##### NSFW 图像分类
 
 - `KMUA_NSFWJS_API` - NSFWJS API 地址
