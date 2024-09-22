@@ -22,11 +22,13 @@ dependencies = [
     "psutil>=6.0.0",
     "meilisearch>=0.31.5",
     "orjson>=3.10.7",
-    "google-cloud-aiplatform>=1.66.0",
     "pilmoji>=2.0.4",
     "emoji==2.11",
     "mysql-connector-python>=9.0.0",
 ]
 
 [tool.uv]
-dev-dependencies = ["ruff>=0.6.5"]
+dev-dependencies = [
+    "nuitka>=2.4.8",
+    "ruff>=0.6.5",
+]
