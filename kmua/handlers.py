@@ -39,13 +39,19 @@ from .callbacks import (
 )
 from .logger import logger
 
+
+async def noop(update, context):
+    pass
+
+
+# to pass edited messages (and reactions)
+edited_handler = MessageHandler(filters.UpdateType.EDITED, noop)
+
 # CommandHandlers
 start_handler = CommandHandler(
     "start", start.start, filters=kmua_filters.mention_or_private_filter
 )
-
 title_handler = CommandHandler("t", title.title, filters=filters.ChatType.GROUPS)
-
 quote_handler = CommandHandler("q", quote.quote, filters=filters.ChatType.GROUPS)
 set_quote_probability_handler = CommandHandler(
     "setqp", quote.set_quote_probability, filters=filters.ChatType.GROUPS
@@ -142,15 +148,11 @@ index_stats_handler = CommandHandler("index_stats", search.index_stats)
 clear_all_contents_handler = CommandHandler(
     "clear_all_contents", reply.clear_all_contents
 )
-sr_handler = CommandHandler(
-    "sr", image.super_resolute, filters=~filters.UpdateType.EDITED
-)
+sr_handler = CommandHandler("sr", image.super_resolute)
 config_chat_handler = CommandHandler(
     "config", chatconfig.config_chat_cmd, filters=filters.ChatType.GROUPS
 )
-caption_handler = CommandHandler(
-    "caption", image.caption, filters=~filters.UpdateType.EDITED
-)
+caption_handler = CommandHandler("caption", image.caption)
 
 # CallbackQueryHandlers
 start_callback_handler = CallbackQueryHandler(start.start, pattern="back_home")
@@ -199,9 +201,7 @@ config_chat_callback_handler = CallbackQueryHandler(
 
 
 # MessageHandlers
-slash_handler = MessageHandler(
-    kmua_filters.slash_filter & ~filters.UpdateType.EDITED, slash.slash
-)
+slash_handler = MessageHandler(kmua_filters.slash_filter, slash.slash)
 bililink_convert_handler = MessageHandler(
     filters.Regex(r"b23.tv/[a-zA-Z0-9]+|bilibili.com/video/[a-zA-Z0-9]+"),
     bilibili.bililink_convert,
@@ -210,7 +210,7 @@ random_quote_handler = MessageHandler(
     (~filters.COMMAND & filters.ChatType.GROUPS), quote.random_quote
 )
 reply_handler = MessageHandler(
-    (~filters.COMMAND & kmua_filters.reply_filter & ~filters.UpdateType.EDITED),
+    (~filters.COMMAND & kmua_filters.reply_filter),
     reply.reply,
 )
 sticker2img_handler = MessageHandler(
@@ -245,6 +245,7 @@ inline_query_handler = InlineQueryHandler(quote.inline_query_quote)
 
 
 command_handlers = [
+    edited_handler,
     start_handler,
     today_waifu_handler,
     waifu_graph_handler,
@@ -317,6 +318,7 @@ chatdata_handlers = [
 ]
 
 message_handlers = [
+    edited_handler,
     bililink_convert_handler,
     reply_handler,
     slash_handler,
