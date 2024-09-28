@@ -76,12 +76,10 @@ async def reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 "content": message_text,
             }
         )
-        logger.debug(f"OpenAI contents: {contents}")
         resp = common.openai_client.chat.completions.create(
             model=common.openai_model,
             messages=contents,
         )
-        logger.debug(f"OpenAI response: {resp}")
         if resp.choices[0].finish_reason not in ("stop", "length"):
             logger.warning(f"OpenAI finished unexpectedly: {resp}")
             contents.pop()
