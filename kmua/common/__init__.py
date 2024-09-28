@@ -9,3 +9,4 @@ from .constants import *  # noqa
 from .meilisearch import *  # noqa
 from .dataclass import *  # noqa
 from .redis import *  # noqa
+from .openai import *  # noqa

@@ -25,6 +25,7 @@ dependencies = [
     "pilmoji>=2.0.4",
     "emoji==2.11",
     "mysql-connector-python>=9.0.0",
+    "openai>=1.47.1",
 ]
 
 [tool.uv]

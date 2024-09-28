@@ -5,9 +5,9 @@ meili_client = None
 meili_api = settings.get("meilisearch_api")
 meili_key = settings.get("meilisearch_key")
 if meili_api and meili_key:
+    logger.debug("initing meilisearch client...")
     import meilisearch
 
-    logger.debug("initing meilisearch client...")
     try:
         meili_client = meilisearch.Client(
             meili_api,
