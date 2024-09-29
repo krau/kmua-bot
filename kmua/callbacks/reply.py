@@ -11,6 +11,10 @@ from telegram.constants import ChatAction
 from telegram.ext import ContextTypes
 
 from kmua import common, dao
+from kmua.callbacks.ip import ipinfo
+from kmua.callbacks.remake import remake
+from kmua.callbacks.setu import setu
+from kmua.callbacks.waifu import today_waifu
 from kmua.config import settings
 from kmua.logger import logger
 
@@ -28,12 +32,25 @@ for i, message in enumerate(settings.get("openai_preset", [])):
     )
 
 
+_enable_ai_decision = all(
+    (
+        _enable_openai,
+        settings.get("ai_decision", False),
+        settings.get("ai_decision_system"),
+    )
+)
+_ai_decision_system_message = {
+    "role": "system",
+    "content": settings.get("ai_decision_system"),
+}
+
+
 async def reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
     logger.info(
         f"[{update.effective_chat.title}]({update.effective_user.name})"
         + f" {update.effective_message.text}"
     )
-    not_aonymous = update.effective_message.sender_chat is None
+    is_aonymous = update.effective_message.sender_chat is not None
     message_text = update.effective_message.text.replace(
         context.bot.username, ""
     ).lower()
@@ -41,7 +58,51 @@ async def reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await context.bot.send_chat_action(
         chat_id=update.effective_chat.id, action=ChatAction.TYPING
     )
-    if not (_enable_openai and not_aonymous):
+    if not _enable_openai:
+        await _keyword_reply_without_save(update, context, message_text)
+        return
+
+    no_decision = True
+    if _enable_ai_decision:
+        resp = common.openai_client.chat.completions.create(
+            model=common.openai_model,
+            messages=[
+                _ai_decision_system_message,
+                {"role": "user", "content": message_text},
+            ],
+        )
+        if resp.choices[0].finish_reason in ("stop", "length"):
+            resp_text = resp.choices[0].message.content
+            logger.debug(f"AI decision: {resp_text}")
+            if "setu" in resp_text:
+                await setu(update, context)
+                no_decision = False
+            elif "waifu" in resp_text:
+                if update.effective_chat.type in (
+                    update.effective_chat.GROUP,
+                    update.effective_chat.SUPERGROUP,
+                ):
+                    await today_waifu(update, context)
+                    no_decision = False
+            elif "ip" in resp_text:
+                address = resp_text.split(" ")[-1]
+                if address:
+                    context.user_data["ip_query"] = address
+                await ipinfo(update, context)
+                no_decision = False
+            elif "remake" in resp_text:
+                await remake(update, context)
+                no_decision = False
+            else:
+                no_decision = True
+        else:
+            logger.warning(f"OpenAI finished unexpectedly: {resp}")
+            no_decision = True
+
+    if not no_decision:  # 如果已决策, 不再回复.
+        return
+
+    if is_aonymous:
         await _keyword_reply_without_save(update, context, message_text)
         return
 

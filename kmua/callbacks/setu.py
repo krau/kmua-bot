@@ -3,9 +3,9 @@ import random
 import httpx
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.constants import ParseMode
+from telegram.error import TimedOut
 from telegram.ext import ContextTypes
 from telegram.helpers import escape_markdown
-from telegram.error import TimedOut
 
 from kmua import config, dao
 from kmua.config import settings
@@ -23,6 +23,10 @@ if _manyacg_api_url:
 _MANYACG_CHANNEL = config.settings.get("manyacg_channel", "manyacg")
 _MANYACG_BOT = config.settings.get("manyacg_bot", "kirakabot")
 
+_nsfwjs_api: str = settings.get("nsfwjs_api")
+_nsfwjs_api = _nsfwjs_api.removesuffix("/") if _nsfwjs_api else None
+_nsfwjs_api_token = settings.get("nsfwjs_token")
+
 
 async def setu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat = update.effective_chat
@@ -31,8 +35,9 @@ async def setu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         + f" {update.effective_message.text}"
     )
     if update.effective_message.reply_to_message:
-        await _classify_setu(update, context)
-        return
+        if update.effective_message.reply_to_message.photo is not None and _nsfwjs_api:
+            await _classify_setu(update, context)
+            return
     if not _manyacg_api_url:
         await update.effective_message.reply_text(text="咱才没有涩图呢", quote=True)
         return
@@ -67,11 +72,11 @@ async def setu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         detail_link = (
             f"https://t.me/{_MANYACG_CHANNEL}/{picture['message_id']}"
             if picture["message_id"] != 0
-            else f"https://{_manyacg_api_url}/artwork/{artwork['id']}"
+            else f"{_manyacg_api_url}/artwork/{artwork['id']}"
         )
         sent_message = await update.effective_message.reply_photo(
             photo=picture["regular"],
-            caption=f"[{escape_markdown(artwork['title'])}]({artwork['source_url']})\n",
+            caption=f"这是你要的涩图\n[{escape_markdown(artwork['title'])}]({artwork['source_url']})\n",
             reply_markup=InlineKeyboardMarkup(
                 [
                     [
@@ -98,11 +103,6 @@ async def setu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.effective_message.reply_text(text="失败惹，请稍后再试", quote=True)
     finally:
         context.user_data["setu_cd"] = False
-
-
-_nsfwjs_api: str = settings.get("nsfwjs_api")
-_nsfwjs_api = _nsfwjs_api.removesuffix("/") if _nsfwjs_api else None
-_nsfwjs_api_token = settings.get("nsfwjs_token")
 
 
 async def _classify_setu(update: Update, _: ContextTypes.DEFAULT_TYPE):

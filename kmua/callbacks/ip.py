@@ -21,6 +21,8 @@ async def ipinfo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not ip:
         ip = context.args[0] if context.args else None
     if not ip:
+        ip = context.user_data.get("ip_query")
+    if not ip:
         await message.reply_text("请提供要查询的 IP/域名")
         return
     ip = urlparse(ip)
@@ -40,6 +42,7 @@ async def ipinfo(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await sent_message.edit_text(f"查询失败: {e.__class__.__name__}: {e}")
     finally:
         context.user_data["ip_querying"] = False
+        context.user_data["ip_query"] = None
 
 
 async def _get_ip_info(url: str) -> str:

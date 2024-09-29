@@ -4,8 +4,8 @@ from kmua.logger import logger
 openai_client = None
 openai_api = settings.get("openai_api", "").removesuffix("/")
 openai_key = settings.get("openai_key")
-openai_model = settings.get("openai_model")
-openai_system = settings.get("openai_system")
+openai_model = settings.get("openai_model", "gpt-4o-mini")
+openai_system = settings.get("openai_system", "你是一只叫kmua的可爱猫娘")
 
 if all((openai_api, openai_key, openai_model)):
     logger.debug("initing openai client...")
