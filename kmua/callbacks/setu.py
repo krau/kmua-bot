@@ -35,7 +35,7 @@ async def setu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         + f" {update.effective_message.text}"
     )
     if update.effective_message.reply_to_message:
-        if update.effective_message.reply_to_message.photo is not None and _nsfwjs_api:
+        if update.effective_message.reply_to_message.photo and _nsfwjs_api:
             await _classify_setu(update, context)
             return
     if not _manyacg_api_url:
