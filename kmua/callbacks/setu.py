@@ -76,7 +76,7 @@ async def setu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         sent_message = await update.effective_message.reply_photo(
             photo=picture["regular"],
-            caption=f"这是你要的涩图\n[{escape_markdown(artwork['title'])}]({artwork['source_url']})\n",
+            caption=f"这是你要的涩图\n[{escape_markdown(artwork['title'],2)}]({artwork['source_url']})\n",
             reply_markup=InlineKeyboardMarkup(
                 [
                     [
