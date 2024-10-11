@@ -56,7 +56,7 @@ async def setu(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     try:
         resp = await httpx_client.post(
-            url="/api/v1/artwork/random",
+            url="/artwork/random",
         )
     except Exception as e:
         logger.error(f"setu error: {e.__class__.__name__}:{e}")
@@ -69,11 +69,7 @@ async def setu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         picture: dict = artwork["pictures"][
             random.randint(0, len(artwork["pictures"]) - 1)
         ]
-        detail_link = (
-            f"https://t.me/{_MANYACG_CHANNEL}/{picture['message_id']}"
-            if picture["message_id"] != 0
-            else f"{_manyacg_api_url}/artwork/{artwork['id']}"
-        )
+        detail_link = f"https://t.me/{_MANYACG_CHANNEL}/{picture['message_id']}"
         sent_message = await update.effective_message.reply_photo(
             photo=picture["regular"],
             caption=f"这是你要的涩图\n[{escape_markdown(artwork['title'],2)}]({artwork['source_url']})\n",
