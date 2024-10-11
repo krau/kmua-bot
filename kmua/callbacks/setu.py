@@ -20,7 +20,7 @@ if _manyacg_api_url:
         timeout=30,
     )
 
-_MANYACG_CHANNEL = config.settings.get("manyacg_channel", "manyacg")
+_MANYACG_CHANNEL = config.settings.get("manyacg_channel", "moreacg")
 _MANYACG_BOT = config.settings.get("manyacg_bot", "kirakabot")
 
 _nsfwjs_api: str = settings.get("nsfwjs_api")
@@ -63,7 +63,7 @@ async def setu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.effective_message.reply_text(text="失败惹，请稍后再试", quote=True)
         return
     try:
-        if resp.status_code != 200:
+        if resp.status_code >= 400:
             raise Exception(f"status_code: {resp.status_code}")
         artwork: dict = resp.json()["data"][0]
         picture: dict = artwork["pictures"][
