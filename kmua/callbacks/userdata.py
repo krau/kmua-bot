@@ -250,7 +250,7 @@ async def _divorce_ask(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 
-async def _divorce_confirm(update: Update, _: ContextTypes.DEFAULT_TYPE):
+async def _divorce_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE):
     db_user = dao.add_user(update.effective_user)
     query = update.callback_query
     married_waifu = dao.get_user_by_id(db_user.married_waifu_id)
@@ -269,6 +269,10 @@ async def _divorce_confirm(update: Update, _: ContextTypes.DEFAULT_TYPE):
     logger.debug(
         f"{db_user.full_name}<{db_user.id}> divorced "
         + f"{married_waifu.full_name}<{married_waifu.id}>"
+    )
+    await context.bot.send_message(
+        chat_id=married_waifu.id,
+        text=f"{db_user.full_name} 和你解除了关系 QAQ...",
     )
 
 

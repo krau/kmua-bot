@@ -87,7 +87,7 @@ full_name: {self.full_name}
 头像(小尺寸): {True if self.avatar_small_blob else None}
 已结婚: {self.is_married}
 已结婚的老婆id: {self.married_waifu_id}
-是否允许被老婆提及: {self.waifu_mention}
+是否允许被提及: {self.waifu_mention}
 是否为bot: {self.is_bot}
 是否为真实用户: {self.is_real_user}
 是否为bot全局管理: {self.is_bot_global_admin}
