@@ -11,7 +11,7 @@ certifi==2024.12.14
 cffi==1.17.1 ; python_full_version >= '3.13' or platform_python_implementation != 'PyPy'
 charset-normalizer==3.4.1
 colorama==0.4.6 ; sys_platform == 'win32'
-cryptography==44.0.0
+cryptography==44.0.1
 distro==1.9.0
 dynaconf==3.2.7
 emoji==2.11.0
