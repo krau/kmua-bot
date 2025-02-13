@@ -42,6 +42,9 @@ async def quote(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await message.reply_text("暂不支持在主话题外使用此功能")
         return
     quote_message = message.reply_to_message
+    if len(quote_message.text) > 200:
+        await message.reply_text("请不要插入这么长的东西> <")
+        return
     quote_user = common.get_message_origin(quote_message)
     if not quote_user:
         await message.reply_text("不知道这条消息是谁发的呢...")
@@ -119,10 +122,6 @@ async def _generate_and_send_quote_img(
     if not quote_message.text:
         return None
     if len(quote_message.text) > 200:
-        # 提示用户输入过长
-        await update.effective_message.reply_text(
-            "请不要插入这么长的东西> <"
-        )
         return None
     avatar = await common.get_big_avatar_bytes(quote_user.id, context)
     if not avatar:
