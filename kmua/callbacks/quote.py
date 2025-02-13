@@ -160,7 +160,7 @@ async def set_quote_probability(update: Update, context: ContextTypes.DEFAULT_TY
     float_pattern = re.compile(r"^[-+]?[0-9]*\.?[0-9]+([eE][-+]?[0-9]+)?$")
     value = context.args[0]
     if not float_pattern.match(value) or len(value) > 8:
-        await message.reply_text("请不要输入奇怪的东西> <")
+        await message.reply_text("请不要插入奇怪的东西> <")
         return
     try:
         probability = float(value)
@@ -331,10 +331,11 @@ async def _chat_quote_manage(update: Update, _: ContextTypes.DEFAULT_TYPE):
             escape_markdown(quote.text[:150], 2)
             if quote.text
             else r"A non\-text message sent by "
-            f"{escape_markdown(quote.user.full_name,2)}"
+            f"{escape_markdown(quote.user.full_name, 2)}"
         )
         text += (
-            rf"{index+1}\. " f"[{quote_content}]({escape_markdown(quote.link,2)})\n\n"
+            rf"{index + 1}\. "
+            f"[{quote_content}]({escape_markdown(quote.link, 2)})\n\n"
         )
         line.append(
             InlineKeyboardButton(

@@ -50,7 +50,7 @@ async def title(update: Update, context: ContextTypes.DEFAULT_TYPE):
             user_id=target_user.id,
             custom_title=custom_title,
         )
-        text = f"好, 你现在是{escape_markdown(custom_title,2)}啦"
+        text = f"好, 你现在是{escape_markdown(custom_title, 2)}啦"
         if message.reply_to_message:
             text = (
                 f"{common.mention_markdown_v2(user)}"

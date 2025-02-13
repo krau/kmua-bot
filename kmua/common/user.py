@@ -113,20 +113,20 @@ async def verify_user_is_chat_owner(
             chat_id=chat.id, user_id=user.id
         )
         if chat_member.status == ChatMemberStatus.OWNER:
-            dao.update_user_is_bot_admin_in_chat(user, chat, True)
+            # dao.update_user_is_bot_admin_in_chat(user, chat, True)
             return True
         if update.callback_query:
             await update.callback_query.answer(
                 "你没有执行此操作的权限", show_alert=True, cache_time=15
             )
-            dao.update_user_is_bot_admin_in_chat(user, chat, False)
+            # dao.update_user_is_bot_admin_in_chat(user, chat, False)
     except Exception as err:
         logger.warning(f"{err.__class__.__name__}: {err}")
         if update.callback_query:
             await update.callback_query.answer(
                 (
                     "无法获取成员信息, 如果开启了隐藏群成员, 请赋予 bot 管理员权限\n"
-                    f"错误信息: {err.__class__.__name__}: {err}"
+                    f"错误信息: {err.__class__.__name__}"
                 ),
                 show_alert=True,
                 cache_time=15,
@@ -180,10 +180,10 @@ def mention_markdown_v2(user: User | UserData | Chat | ChatData) -> str:
     if isinstance(user, (UserData, ChatData)):
         db_user = dao.add_user(user)
         if not db_user.is_real_user and db_user.username is not None:
-            return f"[{escape_markdown(db_user.full_name,2)}](https://t.me/{db_user.username})"
-        return f"[{escape_markdown(db_user.full_name,2)}](tg://user?id={db_user.id})"
+            return f"[{escape_markdown(db_user.full_name, 2)}](https://t.me/{db_user.username})"
+        return f"[{escape_markdown(db_user.full_name, 2)}](tg://user?id={db_user.id})"
     else:
         try:
             return user.mention_markdown_v2()
         except TypeError:
-            return f"[{escape_markdown(user.title,2)}](tg://user?id={user.id})"
+            return f"[{escape_markdown(user.title, 2)}](tg://user?id={user.id})"

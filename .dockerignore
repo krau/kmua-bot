@@ -1,3 +1,4 @@
 *settings*
 .github/
 docs/
+.venv/

@@ -113,7 +113,7 @@ def get_inline_query_result_article(quote: Quote) -> InlineQueryResultArticle:
         title=quote.text,
         description=f"""
 For {quote_user_name} in {quote_chat_title}
-Create at {datetime.strftime(quote.created_at, '%Y-%m-%d %H:%M:%S')} by {qer_user_name}
+Create at {datetime.strftime(quote.created_at, "%Y-%m-%d %H:%M:%S")} by {qer_user_name}
 """,
         input_message_content=InputTextMessageContent(quote.text),
         reply_markup=InlineKeyboardMarkup(

@@ -24,7 +24,8 @@ _help_text = """
 /setu - 来点色图 (/ω＼*)
 /search - 搜索群消息
 /import_history - 导入历史消息
-/index_stats - 查看索引统计
+/index_stats - 查看本群消息索引统计
+/update_index - 立即更新本群消息索引
 /set_greet - 设置群组欢迎语
 /id - 获取聊天ID
 /ip - 查询IP/域名信息
@@ -32,6 +33,7 @@ _help_text = """
 /caption - 图像caption标注
 /reset_contents - 重置对话内容
 /set_bot_admin - 在群组中设置bot管理员 (对于bot该用户将具有同等于群主的权限, 慎用)
+/info - 获取群组数据
 </blockquote>
 ↑ 点击展开详细命令说明
 

@@ -19,7 +19,7 @@ def get_chat_waifu_relationships(
     chat: Chat | ChatData,
 ) -> Generator[tuple[int, int], None, None]:
     logger.debug(f"Get chat waifu relationships for {chat.title}<{chat.id}>")
-    members = dao.get_chat_user_participated_waifu(chat)
+    members, _ = dao.get_chat_user_participated_waifu_data(chat)
     for member in members:
         waifu = dao.get_user_waifu_in_chat_exclude_married(member, chat)
         if waifu:
@@ -45,22 +45,24 @@ def get_user_waifu_info(user: User | UserData) -> str:
 已婚老婆id: {db_user.married_waifu_id}
 """
     waifus_with_chat = dao.get_user_waifus_with_chat(user)
+    waifus_with_chat_list = list(waifus_with_chat)
     if not waifus_with_chat:
         text += "\n你今天还没有老婆哦"
     else:
-        if len(waifus_with_chat) > 233:
-            waifus_with_chat = waifus_with_chat[:233]
+        if len(waifus_with_chat_list) > 233:
+            waifus_with_chat_list = waifus_with_chat_list[:233]
         text += "\n你今天的老婆们(最多显示233条):\n"
-        for waifu, chat in waifus_with_chat:
+        for waifu, chat in waifus_with_chat_list:
             text += f"{waifu.full_name} ({chat.title})\n"
     waifus_of_with_chat = dao.get_user_waifus_of_with_chat(user)
+    waifus_of_with_chat_list = list(waifus_of_with_chat)
     if not waifus_of_with_chat:
         text += "\n今天还没有人把你当老婆哦"
     else:
-        if len(waifus_of_with_chat) > 233:
-            waifus_of_with_chat = waifus_of_with_chat[:233]
+        if len(waifus_of_with_chat_list) > 233:
+            waifus_of_with_chat_list = waifus_of_with_chat_list[:233]
         text += "\n你今天是以下人的老婆(最多显示233条):\n"
-        for waifu_of, chat in waifus_of_with_chat:
+        for waifu_of, chat in waifus_of_with_chat_list:
             text += f"{waifu_of.full_name} ({chat.title})\n"
     return text
 
@@ -100,9 +102,9 @@ def get_waifu_text(
             )
             if waifu.waifu_mention
             else (
-                rf"你今天已经抽过老婆了\! {escape_markdown(waifu.full_name,2)} 是你今天的老婆\!"
+                rf"你今天已经抽过老婆了\! {escape_markdown(waifu.full_name, 2)} 是你今天的老婆\!"
                 if is_got_waifu
-                else rf"你今天的群幼老婆是 {escape_markdown(waifu.full_name,2)} \!"
+                else rf"你今天的群幼老婆是 {escape_markdown(waifu.full_name, 2)} \!"
             )
         )
     return (
@@ -113,14 +115,14 @@ def get_waifu_text(
         )
         if waifu.waifu_mention
         else (
-            rf"{mention_markdown_v2(user)}, 你今天已经抽过老婆了\! {escape_markdown(waifu.full_name,2)} 是你今天的老婆\!"
+            rf"{mention_markdown_v2(user)}, 你今天已经抽过老婆了\! {escape_markdown(waifu.full_name, 2)} 是你今天的老婆\!"
             if is_got_waifu
-            else rf"{mention_markdown_v2(user)}, 你今天的群幼老婆是 {escape_markdown(waifu.full_name,2)} \!"
+            else rf"{mention_markdown_v2(user)}, 你今天的群幼老婆是 {escape_markdown(waifu.full_name, 2)} \!"
         )
     )
 
 
-def render_waifu_graph(
+async def render_waifu_graph(
     relationships: Generator[tuple[int, int], None, None],
     user_info: Generator[dict[str, Any], None, None],
     length: int = 0,

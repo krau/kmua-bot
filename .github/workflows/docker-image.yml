@@ -1,4 +1,4 @@
-name: Build and publish docker container
+name: Build and Publish Docker Image
 
 on:
   push:
@@ -10,11 +10,13 @@ on:
       - "README.md"
       - "LICENSE"
       - ".github/**"
+      - "docker-compose.yml"
+      - "settings.toml"
   workflow_dispatch:
 
 jobs:
   publish:
-    name: Publish container image
+    name: Build and Publish Docker Image
     runs-on: ubuntu-latest
     env:
       TZ: Asia/Shanghai
@@ -29,11 +31,9 @@ jobs:
           images: ghcr.io/${{ github.repository }}
           tags: |
             type=ref,event=branch
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=semver,pattern={{major}}
             type=sha
           labels: |
+            org.opencontainers.image.title=kmua-bot
             org.opencontainers.image.description=${{ github.event.head_commit.message }}
 
       - name: Set up Docker Buildx
@@ -50,7 +50,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and push
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           context: .
           push: ${{ github.actor != 'dependabot[bot]' }}

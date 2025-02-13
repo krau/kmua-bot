@@ -4,14 +4,6 @@ from kmua.dao._db import _db, commit
 from kmua.models.models import ChatData, UserChatAssociation, UserData
 
 
-def get_association_in_chat(chat: Chat | ChatData) -> list[UserChatAssociation]:
-    return (
-        _db.query(UserChatAssociation)
-        .filter(UserChatAssociation.chat_id == chat.id)
-        .all()
-    )
-
-
 def get_association_in_chat_by_user(
     chat: Chat | ChatData, user: User | UserData | Chat | ChatData
 ) -> UserChatAssociation | None:

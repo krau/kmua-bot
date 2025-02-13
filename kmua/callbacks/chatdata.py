@@ -7,13 +7,12 @@ from kmua import common, dao
 from kmua.logger import logger
 
 
-async def chat_data_manage(update: Update, _: ContextTypes.DEFAULT_TYPE):
+async def chat_data_info(update: Update, _: ContextTypes.DEFAULT_TYPE):
     chat = update.effective_chat
     logger.info(f"chat_data_manage: {chat.title}")
     message = update.effective_message
     text = common.get_chat_info(chat)
     await message.reply_text(text=text)
-    # TODO
 
 
 async def chat_title_update(update: Update, _: ContextTypes.DEFAULT_TYPE):

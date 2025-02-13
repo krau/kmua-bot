@@ -7,7 +7,6 @@ from kmua import common, dao
 from kmua.config import settings
 from kmua.logger import logger
 
-from .chatdata import chat_data_manage
 from .jobs import clean_data
 
 _manage_markup = InlineKeyboardMarkup(
@@ -18,7 +17,6 @@ _manage_markup = InlineKeyboardMarkup(
 async def manage(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat = update.effective_chat
     if chat.type in (chat.GROUP, chat.SUPERGROUP):
-        await chat_data_manage(update, context)
         return
     if not common.verify_user_can_manage_bot(update.effective_user):
         return
@@ -32,6 +30,8 @@ async def manage(update: Update, context: ContextTypes.DEFAULT_TYPE):
 /status - 查看 bot 状态
 /clear_inactive_user_avatar <days> - 清理不活跃用户的头像缓存
 /error_notice - 开启/关闭错误通知
+/update_index - 更新所有消息索引
+/clear_all_contents - 清空所有对话内容
 """
     await chat.send_message(text, reply_markup=_manage_markup)
 

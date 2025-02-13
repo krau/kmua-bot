@@ -1,6 +1,7 @@
 from kmua.dao._db import _db, commit
-from kmua.models.models import ChatData, Quote
 from kmua.logger import logger
+from kmua.models.models import ChatData, Quote
+
 from .chat_service import delete_chat_data_and_quotes
 
 

@@ -1,8 +1,10 @@
-from itertools import chain
 import random
+from itertools import chain
+from typing import Generator
 
 from telegram import Chat, User
 from telegram.constants import ChatID
+
 import kmua.dao.association as association_dao
 import kmua.dao.chat as chat_dao
 import kmua.dao.user as user_dao
@@ -77,17 +79,19 @@ def get_user_waifu_of_in_chat(
     ]
 
 
-def get_chat_married_users(chat: Chat | ChatData) -> list[UserData]:
+def get_chat_married_users(
+    chat: Chat | ChatData,
+) -> Generator[UserData, None, None] | None:
     db_chat = chat_dao.get_chat_by_id(chat.id)
     if db_chat is None:
         chat_dao.add_chat(chat)
-        return []
-    return [user for user in db_chat.members if user.is_married]
+        return None
+    return (user for user in db_chat.members if user.is_married)
 
 
-def get_chat_married_users_id(chat: Chat) -> list[int]:
+def get_chat_married_users_id(chat: Chat) -> Generator[int, None, None]:
     married_user = get_chat_married_users(chat)
-    return [user.id for user in married_user]
+    return (user.id for user in married_user)
 
 
 def get_user_married_waifu(user: User) -> UserData | None:
@@ -126,7 +130,7 @@ def refresh_user_waifu_in_chat(user: User | UserData, chat: Chat | ChatData):
     commit()
 
 
-def get_chat_users_has_waifu(chat: Chat | ChatData) -> list[UserData]:
+def get_chat_users_has_waifu(chat: Chat | ChatData) -> Generator[UserData, None, None]:
     """
     获取 chat 中有 waifu 的人
 
@@ -142,12 +146,12 @@ def get_chat_users_has_waifu(chat: Chat | ChatData) -> list[UserData]:
         )
         .all()
     )
-    return [
+    return (
         user_dao.get_user_by_id(association.user_id) for association in associations
-    ]
+    )
 
 
-def get_chat_users_was_waifu(chat: Chat | ChatData) -> list[UserData]:
+def get_chat_users_was_waifu(chat: Chat | ChatData) -> Generator[UserData, None, None]:
     """
     获取 chat 中被选为 waifu 的人
 
@@ -163,14 +167,16 @@ def get_chat_users_was_waifu(chat: Chat | ChatData) -> list[UserData]:
         )
         .all()
     )
-    return [
+    return (
         user_dao.get_user_by_id(association.waifu_id) for association in associations
-    ]
+    )
 
 
-def get_chat_user_participated_waifu(chat: Chat | ChatData) -> list[UserData]:
+def get_chat_user_participated_waifu_data(
+    chat: Chat | ChatData,
+) -> tuple[Generator[UserData, None, None], int]:
     """
-    获取 chat 中参与了抽老婆的人
+    获取 chat 中参与了抽老婆的用户生成器和参与人数
     """
     db_chat = chat_dao.add_chat(chat)
     associations = (
@@ -181,14 +187,18 @@ def get_chat_user_participated_waifu(chat: Chat | ChatData) -> list[UserData]:
         )
         .all()
     )
-    users_id_has_waifu = [association.user_id for association in associations]
-    users_id_was_waifu = [
+
+    users_id_participated = {association.user_id for association in associations} | {
         association.waifu_id
         for association in associations
         if association.waifu_id is not None
-    ]
-    users_id_participated = list(set(chain(users_id_has_waifu, users_id_was_waifu)))
-    return [user_dao.get_user_by_id(user_id) for user_id in users_id_participated]
+    }
+
+    def user_generator():
+        for user_id in users_id_participated:
+            yield user_dao.get_user_by_id(user_id)
+
+    return user_generator(), len(users_id_participated)
 
 
 async def refresh_all_waifu_data():
@@ -204,49 +214,44 @@ def refresh_user_all_waifu(user: User | UserData):
     commit()
 
 
-def get_user_waifus(user: User | UserData) -> list[UserData]:
+def get_user_waifus(user: User | UserData) -> Generator[UserData, None, None]:
     db_user = user_dao.add_user(user)
     associations = association_dao.get_associations_of_user(db_user)
-    return [
-        user_dao.get_user_by_id(association.waifu_id)
-        for association in associations
-        if association.waifu_id is not None
-    ]
+    for association in associations:
+        if association.waifu_id is not None:
+            yield user_dao.get_user_by_id(association.waifu_id)
 
 
-def get_user_waifus_with_chat(user: User | UserData) -> list[tuple[UserData, ChatData]]:
+def get_user_waifus_with_chat(
+    user: User | UserData,
+) -> Generator[tuple[UserData, ChatData], None, None]:
     db_user = user_dao.add_user(user)
     associations = association_dao.get_associations_of_user(db_user)
-    return [
-        (
-            user_dao.get_user_by_id(association.waifu_id),
-            chat_dao.get_chat_by_id(association.chat_id),
-        )
-        for association in associations
-        if association.waifu_id is not None
-    ]
+    for association in associations:
+        if association.waifu_id is not None:
+            yield (
+                user_dao.get_user_by_id(association.waifu_id),
+                chat_dao.get_chat_by_id(association.chat_id),
+            )
 
 
-def get_user_waifus_of(user: User | UserData) -> list[UserData]:
+def get_user_waifus_of(user: User | UserData) -> Generator[UserData, None, None]:
     db_user = user_dao.add_user(user)
     associations = association_dao.get_associations_of_user_waifu_of(db_user)
-    return [
-        user_dao.get_user_by_id(association.user_id) for association in associations
-    ]
+    for association in associations:
+        yield user_dao.get_user_by_id(association.user_id)
 
 
 def get_user_waifus_of_with_chat(
     user: User | UserData,
-) -> list[tuple[UserData, ChatData]]:
+) -> Generator[tuple[UserData, ChatData], None, None]:
     db_user = user_dao.add_user(user)
     associations = association_dao.get_associations_of_user_waifu_of(db_user)
-    return [
-        (
+    for association in associations:
+        yield (
             user_dao.get_user_by_id(association.user_id),
             chat_dao.get_chat_by_id(association.chat_id),
         )
-        for association in associations
-    ]
 
 
 def take_waifu_for_user_in_chat(
@@ -266,7 +271,7 @@ def take_waifu_for_user_in_chat(
     chat_dao.add_chat(chat)
     user_dao.add_user(user)
     members = chat_dao.get_chat_users_without_bots(chat)
-    members = [
+    filtered_members = (
         userdata
         for userdata in members
         if not (
@@ -275,7 +280,8 @@ def take_waifu_for_user_in_chat(
             or userdata.id
             in (ChatID.FAKE_CHANNEL, ChatID.ANONYMOUS_ADMIN, ChatID.SERVICE_CHAT)
         )
-    ]
-    if not members:
+    )
+    filtered_members_list = list(filtered_members)
+    if not filtered_members_list:
         return None
-    return random.choice(members)
+    return random.choice(filtered_members_list)

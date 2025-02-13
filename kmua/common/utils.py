@@ -67,6 +67,11 @@ def _load_word_dict():
 word_dict = _load_word_dict()
 ohayo_word = word_dict.get("早", ["早安", "早上好", "早上好呀", "早上好哦"])
 oyasumi_word = word_dict.get("晚安", ["晚安", "晚安呀", "晚安哦", "晚安喵"])
+default_resplist = [
+    "咱不懂...",
+    "喵喵?",
+    "我是个小笨蛋...",
+]
 
 loading_word = [
     "少女祈祷中",

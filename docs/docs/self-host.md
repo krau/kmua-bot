@@ -28,7 +28,6 @@ services:
     volumes:
       - ./data:/kmua/data
       - ./logs:/kmua/logs
-      - ./.secrets:/kmua/.secrets
     env_file:
       - .env
     network_mode: host
@@ -44,7 +43,11 @@ services:
 - `KMUA_LOG_RETENTION_DAYS` - 日志保留天数
 - `KMUA_DB_URL` - 数据库连接地址, 默认 `sqlite:///./data/kmua.db`
 - `KMUA_MAX_DB_SIZE` - sqlite 数据库文件最大大小, 到达后自动清理头像缓存, 默认 100MB
-- `TZ` - 时区, 默认 `Asia/Shanghai`.
+- `KMUA_AVATAR_EXPIRE` - 头像缓存过期时间, 默认 1 天
+- `TZ` - 时区, 默认 `Asia/Shanghai`
+- `KMUA_HEALTH_CHECK_ENABLE` - 是否启用健康检查, 默认 `False`
+- `KMUA_HEALTH_CHECK_PORT` - 健康检查API监听端口, 默认 `39848`
+- `KMUA_HEALTH_CHECK_HOST` - 健康检查API监听地址, 默认 `0.0.0.0`
 
 #### Bot API
 
@@ -71,25 +74,10 @@ Redis 可能是其他扩展功能的依赖
 
 - `KMUA_REDIS_URL` - Redis 连接地址
 
-##### ManyACG (随机涩图)
+##### ManyACG (随机涩图/解析插画)
 
-- `KMUA_MANYACG_API` - ManyACG API 地址
-- `KMUA_MANYACG_TOKEN` - ManyACG api token
-
-##### Bilibili link (b 站链接转换)
-
-- `KMUA_BILILINK_CONVERT_API` - Bilibili 链接转换 API 地址
-
-##### Vertex AI (智能回复)
-
-该功能需要 Redis
-
-- `KMUA_VERTEX_SYSTEM` - Vertex AI 系统提示词
-- `KMUA_VERTEX_PROJECT_ID` - Vertex AI 项目 ID
-- `KMUA_VERTEX_LOCATION` - Vertex AI 位置
-- `KMUA_VERTEX_MODEL` - Vertex AI 模型
-- `KMUA_VERTEX_PRESET` - (数组) 预设对话. 先用户后模型交替, 请确保数组长度为偶数且不超过16.
-- `GOOGLE_APPLICATION_CREDENTIALS` - Google Application Credentials 路径. 请将 JSON 文件挂载到容器内.
+- `KMUA_MANYACG_API` - ManyACG API 地址, 默认 https://api.manyacg.top/v1
+- `KMUA_MANYACG_API_KEY` - ManyACG API Key, 配置后可解析插画链接
 
 ##### NSFW 图像分类
 
@@ -102,13 +90,20 @@ Redis 可能是其他扩展功能的依赖
 
 - `KMUA_MEILISEARCH_API` - Meilisearch 地址
 - `KMUA_MEILISEARCH_KEY` - Meilisearch API Key
+- `KMUA_MEILISEARCH_NEW_INDEX` - 是否允许创建新的索引, 默认 `true`
+- `KMUA_MEILISEARCH_UPDATE_INTERVAL` - 更新索引间隔, 默认 300 , 单位秒
+- `KMUA_MEILISEARCH_MAX_IMPORT_FILE_SIZE` - 最大导入历史记录文件大小, 默认 20, 单位 MB
 
 ##### 图像超分辨率
 
 该功能可选 Redis (缓存下载结果 id)
 
-- `KMUA_REAL_ESRGAN_API` - Real-ESRGAN API 地址
-- `KMUA_REAL_ESRGAN_TOKEN` - Real-ESRGAN API Token
+- `KMUA_SUPER_RESOLUTION_API` - super resolution API 地址
+- `KMUA_SUPER_RESOLUTION_TOKEN` - super resolution API Token
+
+##### 图像 Caption
+
+- `KMUA_JOY_CAPTION_API` - [JoyCaption](https://huggingface.co/spaces/fancyfeast/joy-caption-pre-alpha) API 地址
 
 ### 完整 .env 示例
 
@@ -132,7 +127,6 @@ KMUA_MAX_DB_SIZE=200
 KMUA_BASE_URL = "https://api.telegram.org/bot"
 KMUA_BASE_FILE_URL = "https://api.telegram.org/file/bot"
 KMUA_MANYACG_API = "http://1.0.1.0:39120"
-KMUA_MANYACG_TOKEN = "token"
 KMUA_BILILINK_CONVERT_API = "http://1.2.3.4:39080"
 KMUA_VERTEX_SYSTEM= "你是一只名字叫kmua的可爱的猫娘."
 KMUA_VERTEX_PROJECT_ID = "project-id"
@@ -143,10 +137,12 @@ GOOGLE_APPLICATION_CREDENTIALS=/kmua/.secrets/.secret.json
 KMUA_VERTEX_PRESET = ["你好","喵~ 您好呀~ 今天天气真好呢~"]
 KMUA_MEILISEARCH_API = "localhost:7700"
 KMUA_MEILISEARCH_KEY = "112233"
+KMUA_MEILISEARCH_NEW_INDEX = true
 KMUA_NSFWJS_API = "http://nsfwjs.api.com"
 KMUA_NSFWJS_TOKEN = "token"
-KMUA_REAL_ESRGAN_API = "http://real-esrgan.api.com"
-KMUA_REAL_ESRGAN_TOKEN = "token"
+KMUA_SUPER_RESOLUTION_API = "http://sr.api.com"
+KMUA_SUPER_RESOLUTION_TOKEN = "token"
+KMUA_JOY_CAPTION_API = "https://fancyfeast-joy-caption-pre-alpha.hf.space"
 ```
 
 ## 源码运行

@@ -125,7 +125,7 @@ async def refresh_user_data_by_id(update: Update, context: ContextTypes.DEFAULT_
 
     chat_id = context.args[0]
     if not re.match(r"^-?\d+$", chat_id):
-        await update.effective_message.reply_text("请不要输入奇怪的东西")
+        await update.effective_message.reply_text("请不要插入奇怪的东西")
         return
 
     user = update.effective_user
@@ -250,7 +250,7 @@ async def _divorce_ask(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 
-async def _divorce_confirm(update: Update, _: ContextTypes.DEFAULT_TYPE):
+async def _divorce_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE):
     db_user = dao.add_user(update.effective_user)
     query = update.callback_query
     married_waifu = dao.get_user_by_id(db_user.married_waifu_id)
@@ -269,6 +269,10 @@ async def _divorce_confirm(update: Update, _: ContextTypes.DEFAULT_TYPE):
     logger.debug(
         f"{db_user.full_name}<{db_user.id}> divorced "
         + f"{married_waifu.full_name}<{married_waifu.id}>"
+    )
+    await context.bot.send_message(
+        chat_id=married_waifu.id,
+        text=f"{db_user.full_name} 和你解除了关系 QAQ...",
     )
 
 
@@ -317,7 +321,8 @@ async def _user_quote_manage(update: Update, _: ContextTypes.DEFAULT_TYPE):
             else r"A non\-text message"
         )
         text += (
-            rf"{index + 1}\. " f"[{quote_content}]({escape_markdown(quote.link,2)})\n\n"
+            rf"{index + 1}\. "
+            f"[{quote_content}]({escape_markdown(quote.link, 2)})\n\n"
         )
 
         line.append(
@@ -363,7 +368,8 @@ async def _qer_quote_manage(update: Update, _: ContextTypes.DEFAULT_TYPE):
             else r"A non\-text message"
         )
         text += (
-            rf"{index + 1}\. " f"[{quote_content}]({escape_markdown(quote.link,2)})\n\n"
+            rf"{index + 1}\. "
+            f"[{quote_content}]({escape_markdown(quote.link, 2)})\n\n"
         )
     keyboard = []
     keyboard.append(common.get_qer_quote_navigation_buttons(page))

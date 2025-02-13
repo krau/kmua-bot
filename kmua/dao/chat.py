@@ -1,11 +1,14 @@
 import json
+import random
 from typing import Any, Generator
-from sqlalchemy import func
+
 import sqlalchemy
-from telegram import Chat
+from sqlalchemy import func
 from sqlalchemy.sql import update
+from telegram import Chat
+
 from kmua.dao._db import _db, commit
-from kmua.models.models import ChatData, Quote, UserData, ChatConfig
+from kmua.models.models import ChatConfig, ChatData, Quote, UserData
 
 
 def _get_stmt(chat_id: int, key: str, value: Any) -> sqlalchemy.sql.Update:
@@ -57,9 +60,9 @@ def get_chat_members(chat: Chat | ChatData) -> list[UserData]:
     return _db_chat.members
 
 
-def get_chat_members_id(chat: Chat | ChatData) -> list[int]:
+def get_chat_members_id(chat: Chat | ChatData) -> Generator[int, None, None]:
     members = get_chat_members(chat)
-    return [member.id for member in members]
+    return (member.id for member in members)
 
 
 def get_chat_quote_probability(chat: Chat | ChatData) -> float:
@@ -80,11 +83,12 @@ def update_chat_quote_probability(chat: Chat | ChatData, probability: float):
 
 
 def get_chat_random_quote(chat: Chat | ChatData) -> Quote | None:
+    count = _db.query(Quote).filter(Quote.chat_id == chat.id).count()
+    if count == 0:
+        return None
+    random_offset = random.randint(0, count - 1)
     return (
-        _db.query(Quote)
-        .filter(Quote.chat_id == chat.id)
-        .order_by(func.random())
-        .first()
+        _db.query(Quote).filter(Quote.chat_id == chat.id).offset(random_offset).first()
     )
 
 
@@ -111,16 +115,16 @@ def get_chat_users_without_bots(
     return (user for user in _db_chat.members if not user.is_bot)
 
 
-def get_chat_users_without_bots_id(chat: Chat | ChatData) -> list[int]:
-    return [user.id for user in get_chat_users_without_bots(chat)]
+def get_chat_users_without_bots_id(chat: Chat | ChatData) -> Generator[int, None, None]:
+    return (user.id for user in get_chat_users_without_bots(chat))
 
 
 def get_all_chats() -> list[ChatData]:
     return _db.query(ChatData).all()
 
 
-def get_all_chats_id() -> list[int]:
-    return [chat.id for chat in get_all_chats()]
+def get_all_chats_id() -> Generator[int, None, None]:
+    return (chat.id for chat in get_all_chats())
 
 
 def delete_chat(chat: Chat | ChatData):

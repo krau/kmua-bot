@@ -21,12 +21,20 @@ Base = declarative_base()
 class UserChatAssociation(Base):
     __tablename__ = "user_chat_association"
     user_id = Column(
-        BigInteger, ForeignKey("user_data.id"), primary_key=True, autoincrement=False
+        BigInteger,
+        ForeignKey("user_data.id"),
+        primary_key=True,
+        autoincrement=False,
+        index=True,
     )
     chat_id = Column(
-        BigInteger, ForeignKey("chat_data.id"), primary_key=True, autoincrement=False
+        BigInteger,
+        ForeignKey("chat_data.id"),
+        primary_key=True,
+        autoincrement=False,
+        index=True,
     )
-    waifu_id = Column(BigInteger, ForeignKey("user_data.id"), default=None)
+    waifu_id = Column(BigInteger, ForeignKey("user_data.id"), default=None, index=True)
     is_bot_admin = Column(Boolean, default=False)
 
     created_at = Column(DateTime, default=func.now())
@@ -36,15 +44,15 @@ class UserChatAssociation(Base):
 class UserData(Base):
     __tablename__ = "user_data"
     id = Column(BigInteger, primary_key=True, index=True, autoincrement=False)
-    username = Column(String(32))
-    full_name = Column(String(128), nullable=False)
+    username = Column(String(64))
+    full_name = Column(String(256), nullable=False)
     avatar_small_blob = Column(LargeBinary(65536), default=None)
     avatar_big_blob = Column(LargeBinary(65536), default=None)
-    avatar_big_id = Column(String(128), default=None)
+    avatar_big_id = Column(String(256), default=None)
 
     is_married = Column(Boolean, default=False)
-    married_waifu_id = Column(BigInteger, default=None)
-    waifu_mention = Column(Boolean, default=True)
+    married_waifu_id = Column(BigInteger, default=None, index=True)
+    waifu_mention = Column(Boolean, default=False)
 
     is_bot = Column(Boolean, default=False)
     is_real_user = Column(Boolean, default=True)  # 频道身份, bot, 匿名用户等 为 False
@@ -79,7 +87,7 @@ full_name: {self.full_name}
 头像(小尺寸): {True if self.avatar_small_blob else None}
 已结婚: {self.is_married}
 已结婚的老婆id: {self.married_waifu_id}
-是否允许被老婆提及: {self.waifu_mention}
+是否允许被提及: {self.waifu_mention}
 是否为bot: {self.is_bot}
 是否为真实用户: {self.is_real_user}
 是否为bot全局管理: {self.is_bot_global_admin}
@@ -101,6 +109,7 @@ class ChatConfig:
     ai_reply: bool = True
     setu_enabled: bool = True
     convert_b23_enabled: bool = True
+    parse_artwork_enabled: bool = True
 
     @staticmethod
     def from_dict(data: dict):
@@ -116,6 +125,7 @@ class ChatConfig:
             ai_reply=data.get("ai_reply", True),
             setu_enabled=data.get("setu_enabled", True),
             convert_b23_enabled=data.get("convert_b23_enabled", False),
+            parse_artwork_enabled=data.get("parse_artwork_enabled", True),
         )
 
     def to_dict(self):
@@ -125,7 +135,7 @@ class ChatConfig:
 class ChatData(Base):
     __tablename__ = "chat_data"
     id = Column(BigInteger, primary_key=True, index=True, autoincrement=False)
-    title = Column(String(128), nullable=False)
+    title = Column(String(256), nullable=False)
     username = Column(String(64), nullable=True)
     members = relationship(
         "UserData",
@@ -143,13 +153,13 @@ class ChatData(Base):
 
 class Quote(Base):
     __tablename__ = "quotes"
-    chat_id = Column(BigInteger, ForeignKey("chat_data.id"))
-    message_id = Column(BigInteger, nullable=False)
-    link = Column(String(128), nullable=False, primary_key=True)
-    user_id = Column(BigInteger, ForeignKey("user_data.id"))
-    qer_id = Column(BigInteger)  # 使用 q 的人
+    chat_id = Column(BigInteger, ForeignKey("chat_data.id"), index=True)
+    message_id = Column(BigInteger, nullable=False, index=True)
+    link = Column(String(256), nullable=False, primary_key=True)
+    user_id = Column(BigInteger, ForeignKey("user_data.id"), index=True)
+    qer_id = Column(BigInteger, index=True)  # 使用 q 的人
     text = Column(String(4096), nullable=True, default=None)
-    img = Column(String(128), nullable=True, default=None, comment="图片的 file id")
+    img = Column(String(256), nullable=True, default=None, comment="图片的 file id")
     created_at = Column(DateTime, default=func.now())
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
 

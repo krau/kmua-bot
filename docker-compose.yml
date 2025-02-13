@@ -8,7 +8,7 @@ services:
       - ./logs:/kmua/logs
     environment:
     # 这是一个最简配置, 完整环境变量设置请参考文档
-    # https://krau.github.io/kmua-bot/self-host/
+    # https://kmua.unv.app/self-host/
       - TZ=Asia/Shanghai # 时区
       - KMUA_TOKEN="token" # 机器人token
       - KMUA_OWNERS=[] # 主人id, 是一个数组

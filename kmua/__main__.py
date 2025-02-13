@@ -1,6 +1,8 @@
 import datetime
+import json
+import threading
+from http.server import BaseHTTPRequestHandler, HTTPServer
 
-import pytz
 import uvloop
 from telegram.constants import UpdateType
 from telegram.ext import (
@@ -27,10 +29,28 @@ from kmua.logger import logger
 from kmua.middlewares import after_middleware, before_middleware
 
 
+class HealthCheckHandler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(200)
+        self.end_headers()
+        self.wfile.write(
+            json.dumps({"status": "ok", "message": "kmua is running"}).encode("utf-8")
+        )
+
+    def log_message(self, format, *args):
+        return
+
+
+def run_server():
+    server_address = (
+        settings.get("health_check_host", "0.0.0.0"),
+        settings.get("health_check_port", 39848),
+    )
+    httpd = HTTPServer(server_address, HealthCheckHandler)
+    httpd.serve_forever()
+
+
 async def init_data(app: Application):
-    """
-    初始化数据
-    """
     logger.info("initing commands")
     await app.bot.set_my_commands(
         [
@@ -41,6 +61,9 @@ async def init_data(app: Application):
             ("d", "删除语录|管理群语录"),
             ("qrand", "随机语录"),
             ("t", "获取头衔|互赠头衔"),
+            ("id", "获取聊天ID"),
+            ("ip", "获取IP信息"),
+            ("setu", "随机涩图"),
             ("config", "更改群组设置"),
             ("help", "帮助|更多功能"),
         ]
@@ -49,9 +72,6 @@ async def init_data(app: Application):
 
 
 async def stop(app: Application):
-    """
-    关闭数据库连接
-    """
     logger.debug("close database connection...")
     db.commit()
     db.close()
@@ -60,13 +80,13 @@ async def stop(app: Application):
     logger.success("stopped bot")
 
 
-def run():
+def run_bot():
     """
     启动bot
     """
     uvloop.install()
     token = settings.token
-    defaults = Defaults(tzinfo=pytz.timezone("Asia/Shanghai"))
+    defaults = Defaults(tzinfo=datetime.timezone(datetime.timedelta(hours=8)))
     rate_limiter = AIORateLimiter()
     persistence_input = PersistenceInput(
         bot_data=True, chat_data=True, user_data=False, callback_data=False
@@ -92,7 +112,13 @@ def run():
     job_queue = app.job_queue
     job_queue.run_daily(
         clean_data,
-        time=datetime.time(4, 0, 0, 0, tzinfo=pytz.timezone("Asia/Shanghai")),
+        time=datetime.time(
+            4,
+            0,
+            0,
+            0,
+            datetime.timezone(datetime.timedelta(hours=8)),
+        ),
         name="clean_data",
     )
     app.add_handlers(
@@ -127,6 +153,7 @@ def run():
             cert=settings.get("cert"),
             webhook_url=settings.webhook_url,
             allowed_updates=allowed_updates,
+            drop_pending_updates=settings.get("drop_pending_updates", False),
         )
     else:
         app.run_polling(
@@ -136,4 +163,8 @@ def run():
         )
 
 
-run()
+if __name__ == "__main__":
+    if settings.get("health_check_enable"):
+        logger.info("running health check server...")
+        threading.Thread(target=run_server, daemon=True).start()
+    run_bot()

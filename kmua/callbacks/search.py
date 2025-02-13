@@ -16,7 +16,6 @@ _enable_search = common.meili_client is not None and common.redis_client is not 
 
 async def search_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not _enable_search:
-        await update.effective_message.reply_text("没有接入这个功能哦")
         return
     chat = update.effective_chat
     if not dao.get_chat_message_search_enabled(chat):
@@ -113,7 +112,7 @@ async def search_message_page(update: Update, _: ContextTypes.DEFAULT_TYPE):
                 [
                     InlineKeyboardButton(
                         "下一页",
-                        callback_data=f"message_search {query_uuid} {offset+10}",
+                        callback_data=f"message_search {query_uuid} {offset + 10}",
                     ),
                 ]
             ]
@@ -124,15 +123,15 @@ async def search_message_page(update: Update, _: ContextTypes.DEFAULT_TYPE):
                 [
                     InlineKeyboardButton(
                         "上一页",
-                        callback_data=f"message_search {query_uuid} {offset-10}",
+                        callback_data=f"message_search {query_uuid} {offset - 10}",
                     ),
                     InlineKeyboardButton(
-                        f"第 {offset//10+1} 页",
+                        f"第 {offset // 10 + 1} 页",
                         callback_data="noop",
                     ),
                     InlineKeyboardButton(
                         "下一页",
-                        callback_data=f"message_search {query_uuid} {offset+10}",
+                        callback_data=f"message_search {query_uuid} {offset + 10}",
                     ),
                 ]
             ]
@@ -273,7 +272,10 @@ async def import_history(update: Update, context: ContextTypes.DEFAULT_TYPE):
     ):
         await message.reply_text("请回复一个导出的json历史记录文件")
         return
-    if target_message.document.file_size > 20 * 1024 * 1024:
+    if (
+        target_message.document.file_size
+        > config.settings.get("meilisearch_max_import_file_size", 20) * 1024 * 1024
+    ):
         await message.reply_text("太大了, 不行!")
         return
 
@@ -383,18 +385,18 @@ async def index_stats(update: Update, _: ContextTypes.DEFAULT_TYPE):
 
 async def update_index_job(context: ContextTypes.DEFAULT_TYPE):
     if context.chat_data.get("updating_index"):
-        logger.debug(f"index is updating for {context.job.chat_id}, skip")
+        logger.trace(f"index is updating for {context.job.chat_id}, skip")
     msg_cache = common.redis_client.lrange(f"kmua_chatmsg_{context.job.chat_id}", 0, -1)
     if not msg_cache:
-        logger.debug(f"no message to update for {context.job.chat_id}")
+        logger.trace(f"no message to update for {context.job.chat_id}")
         return
-    logger.debug(f"updating index for {context.job.chat_id}")
+    logger.trace(f"updating index for {context.job.chat_id}")
     context.chat_data["updating_index"] = True
     try:
         messages: list[common.MessageInMeili] = [
             pickle.loads(msg).to_dict() for msg in msg_cache
         ]
-        logger.debug(f"load {len(messages)} messages for {context.job.chat_id}")
+        logger.trace(f"load {len(messages)} messages for {context.job.chat_id}")
         common.meili_client.index(f"kmua_{context.job.chat_id}").add_documents(
             documents=messages,
             primary_key="message_id",
@@ -406,7 +408,7 @@ async def update_index_job(context: ContextTypes.DEFAULT_TYPE):
         return
     finally:
         context.chat_data["updating_index"] = False
-    logger.info(f"Index updated for {context.job.chat_id}")
+    logger.trace(f"Index updated for {context.job.chat_id}")
 
 
 def _get_message_meili(
@@ -456,7 +458,7 @@ def _get_message_meili(
                         full_text += f" {file_name}"
         if msg_export.get("photo"):
             message_type = common.MessageType.PHOTO
-        full_text += f" {msg_export.get("title", "")}"
+        full_text += f" {msg_export.get('title', '')}"
         yield common.MessageInMeili(
             message_id=message_id,
             user_id=from_id,
@@ -484,7 +486,7 @@ def _get_hit_text(hits: list[dict], chat_id: str) -> Generator[str, None, None]:
         emoji = _get_message_type_emoji(hit["type"])
         message_link = f"https://t.me/c/{chat_id}/{hit['message_id']}"
         formatted_text = hit["_formatted"]["text"].replace("\n", " ")
-        formatted_text = f"{escape_markdown(emoji,2)} [{escape_markdown(formatted_text,2)}]({message_link})\n\n"
+        formatted_text = f"{escape_markdown(emoji, 2)} [{escape_markdown(formatted_text, 2)}]({message_link})\n\n"
         user_id: int = hit["user_id"]
         if db_user := dao.get_user_by_id(user_id):
             user_text = escape_markdown(f"[{db_user.full_name}]:\n", 2)

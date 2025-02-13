@@ -145,7 +145,10 @@ def clear_inactived_users_avatar(days: int) -> int:
     )
     commit()
     _db.flush()
-    _db.execute(text("VACUUM"))
+    if _db.bind.dialect.name == "sqlite":
+        _db.execute(text("VACUUM"))
+    else:
+        _db.execute(text("OPTIMIZE TABLE user_data"))
     commit()
     _db.flush()
     return count

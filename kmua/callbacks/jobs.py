@@ -4,19 +4,18 @@ import gc
 from telegram.ext import ContextTypes
 
 from kmua import common, dao
+from kmua.config import settings
 from kmua.logger import logger
+from kmua.models.models import ChatData
 
 from .waifu import send_waifu_graph
-from kmua.config import settings
 
 
 async def clean_data(context: ContextTypes.DEFAULT_TYPE):
     logger.info("Start cleaning data")
     try:
         context.bot_data["cleaning_data"] = True
-        await asyncio.gather(
-            *(send_waifu_graph(chat, context) for chat in dao.get_all_chats())
-        )
+        await _send_waifu_graphs(dao.get_all_chats(), context)
     except Exception as err:
         logger.error(f"{err.__class__.__name__}: {err} happend when cleaning data")
     finally:
@@ -30,9 +29,27 @@ async def clean_data(context: ContextTypes.DEFAULT_TYPE):
                     settings.get("avatar_expire", 1)
                 )
                 logger.debug(f"Cleaned {count} inactived users' avatar")
+        else:
+            count = dao.clear_inactived_users_avatar(settings.get("avatar_expire", 1))
+            logger.debug(f"Cleaned {count} inactived users' avatar")
         gc.collect()
         logger.success("Data has been cleaned")
         context.bot_data["cleaning_data"] = False
+
+
+async def _send_waifu_graphs(
+    chats: list[ChatData], context: ContextTypes.DEFAULT_TYPE, max_concurrent: int = 10
+):
+    semaphore = asyncio.Semaphore(max_concurrent)
+
+    async def send_with_semaphore(chat: ChatData):
+        async with semaphore:
+            return await send_waifu_graph(chat, context)
+
+    await asyncio.gather(
+        *(send_with_semaphore(chat) for chat in chats),
+        return_exceptions=True,
+    )
 
 
 async def delete_message(context: ContextTypes.DEFAULT_TYPE):

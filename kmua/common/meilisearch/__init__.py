@@ -1,5 +1,3 @@
-import meilisearch
-
 from kmua.config import settings
 from kmua.logger import logger
 
@@ -8,6 +6,8 @@ meili_api = settings.get("meilisearch_api")
 meili_key = settings.get("meilisearch_key")
 if meili_api and meili_key:
     logger.debug("initing meilisearch client...")
+    import meilisearch
+
     try:
         meili_client = meilisearch.Client(
             meili_api,
