@@ -119,6 +119,10 @@ async def _generate_and_send_quote_img(
     if not quote_message.text:
         return None
     if len(quote_message.text) > 200:
+        # 提示用户输入过长
+        await update.effective_message.reply_text(
+            "输入内容过长，请限制在200字符以内哦~"
+        )
         return None
     avatar = await common.get_big_avatar_bytes(quote_user.id, context)
     if not avatar:
