@@ -86,7 +86,9 @@ def run_bot():
     """
     uvloop.install()
     token = settings.token
-    defaults = Defaults(tzinfo=datetime.timezone(datetime.timedelta(hours=8)))
+    defaults = Defaults(
+        tzinfo=datetime.timezone(datetime.timedelta(hours=8)), do_quote=True
+    )
     rate_limiter = AIORateLimiter()
     persistence_input = PersistenceInput(
         bot_data=True, chat_data=True, user_data=False, callback_data=False
