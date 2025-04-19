@@ -11,6 +11,7 @@ from telegram.ext import ContextTypes
 from telegram.helpers import escape_markdown
 
 from kmua import config, dao
+from kmua.common.redis import redis_client
 from kmua.common.utils import escape_html
 from kmua.config import settings
 from kmua.logger import logger
@@ -174,6 +175,38 @@ ARTWORK_ALL_REGEX = [
 ]
 
 
+async def prepare_media(
+    client: httpx.AsyncClient,
+    picture: dict,
+) -> str | bytes:
+    image_url = picture["original"]
+
+    cache: bytes | None = (
+        redis_client.get(f"kmua_file_id_{image_url}") if redis_client else None
+    )
+    if cache is not None:
+        return cache.decode("utf-8")
+
+    pic_bytes: bytes = (await client.get(image_url)).content
+
+    # resize image if size > 10M or exceeds width/height limitation
+    if (
+        len(pic_bytes) > 1024 * 1024 * 10
+        or picture["width"] + picture["height"] > 10000
+    ):
+        image = Image.open(io.BytesIO(pic_bytes))
+        max_size = 2560
+        ratio = max_size / max(image.width, image.height)
+        if ratio < 1:
+            new_size = (int(image.width * ratio), int(image.height * ratio))
+            image = image.resize(new_size, Image.Resampling.LANCZOS)
+        output = io.BytesIO()
+        image.convert("RGB").save(output, format="JPEG", quality=90)
+        pic_bytes = output.getvalue()
+        output.close()
+        return pic_bytes
+
+
 async def parse_artwork(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not _manyacg_api_key:
         return
@@ -222,32 +255,24 @@ async def parse_artwork(update: Update, context: ContextTypes.DEFAULT_TYPE):
             caption += f"\n这个作品有{artwork_pictures_count}张图片哦"
         async with httpx.AsyncClient() as client:
             for picture in artwork_pictures:
-                pic_bytes: bytes = (await client.get(picture["original"])).content
-                if (
-                    len(pic_bytes) > 1024 * 1024 * 10
-                    or picture["width"] + picture["height"] > 10000
-                ):
-                    image = Image.open(io.BytesIO(pic_bytes))
-                    max_size = 2560
-                    ratio = max_size / max(image.width, image.height)
-                    if ratio < 1:
-                        new_size = (int(image.width * ratio), int(image.height * ratio))
-                        image = image.resize(new_size, Image.Resampling.LANCZOS)
-                    output = io.BytesIO()
-                    image.convert("RGB").save(output, format="JPEG", quality=90)
-                    pic_bytes = output.getvalue()
-                    output.close()
+                photo = await prepare_media(client, picture)
                 media.append(
                     InputMediaPhoto(
-                        media=pic_bytes,
+                        media=photo,
                         has_spoiler=artwork_r18,
                         caption=caption if picture["index"] == 0 else None,
                         parse_mode=ParseMode.HTML,
                     )
                 )
-        await update.effective_message.reply_media_group(
+        messages = await update.effective_message.reply_media_group(
             media=media,
             parse_mode=ParseMode.HTML,
         )
+
+        if redis_client is not None:
+            for idx, photo in enumerate(messages[0].photo):
+                image_url = artwork_pictures[idx]["original"]
+                redis_client.set(f"kmua_file_id_{image_url}", photo.file_id)
+
     except Exception as e:
         logger.error(f"parse_artwork error: {e.__class__.__name__}:{e}")
