@@ -175,7 +175,7 @@ ARTWORK_ALL_REGEX = [
 ]
 
 
-async def prepare_media_cached(
+async def prepare_media(
     client: httpx.AsyncClient,
     picture: dict,
 ) -> str | bytes:
@@ -255,7 +255,7 @@ async def parse_artwork(update: Update, context: ContextTypes.DEFAULT_TYPE):
             caption += f"\n这个作品有{artwork_pictures_count}张图片哦"
         async with httpx.AsyncClient() as client:
             for picture in artwork_pictures:
-                photo = await prepare_media_cached(client, picture)
+                photo = await prepare_media(client, picture)
                 media.append(
                     InputMediaPhoto(
                         media=photo,
