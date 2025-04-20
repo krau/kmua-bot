@@ -248,11 +248,14 @@ async def parse_artwork(update: Update, context: ContextTypes.DEFAULT_TYPE):
     artwork_r18 = artwork["data"]["r18"]
     artwork_pictures = artwork["data"]["pictures"][:10]
     artwork_pictures_count = len(artwork["data"]["pictures"])
+    cache_id = artwork["data"]["cache_id"]
     try:
         media = []
         caption = f"<a href='{artwork_source_url}'>{escape_html(artwork_title)}</a>\n<blockquote expandable=true>{escape_html(artwork_description)}</blockquote>"
         if artwork_pictures_count > 10:
             caption += f"\n这个作品有{artwork_pictures_count}张图片哦"
+            if cache_id:
+                caption += f" <a href='https://t.me/{_MANYACG_BOT}/?start=info_{cache_id}'>→点击查看</a>"
         async with httpx.AsyncClient() as client:
             for picture in artwork_pictures:
                 photo = await prepare_media(client, picture)
