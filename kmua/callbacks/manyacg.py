@@ -270,9 +270,12 @@ async def parse_artwork(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
         if redis_client is not None:
-            for idx, photo in enumerate(messages[0].photo):
+            for idx, msg in enumerate(messages):
                 image_url = artwork_pictures[idx]["original"]
-                redis_client.set(f"kmua_file_id_{image_url}", photo.file_id)
+                photo_file_id = msg.photo[-1].file_id
+                redis_client.set(
+                    f"kmua_file_id_{image_url}", photo_file_id, ex=86400 * 2
+                )
 
     except Exception as e:
         logger.error(f"parse_artwork error: {e.__class__.__name__}:{e}")
