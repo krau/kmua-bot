@@ -204,7 +204,7 @@ async def prepare_media(
         image.convert("RGB").save(output, format="JPEG", quality=90)
         pic_bytes = output.getvalue()
         output.close()
-        return pic_bytes
+    return pic_bytes
 
 
 async def parse_artwork(update: Update, context: ContextTypes.DEFAULT_TYPE):
