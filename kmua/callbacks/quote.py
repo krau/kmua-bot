@@ -195,6 +195,11 @@ async def _unpin_messsage(
 
 
 async def random_quote(update: Update, _: ContextTypes.DEFAULT_TYPE):
+    """
+    随机发送一条语录
+    此功能不会在私聊中被调用, 已由 filters 过滤
+    私聊中的消息将直接由 keyword_reply_handler 处理
+    """
     chat = update.effective_chat
     user = update.effective_user
     message = update.effective_message
