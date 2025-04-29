@@ -199,38 +199,45 @@ async def random_quote(update: Update, _: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     message = update.effective_message
     logger.trace(f"[{chat.title}]({user.name}) <random_quote>")
-    
     pb = dao.get_chat_quote_probability(chat)
     flag = common.random_unit(pb)
     if message.text is not None:
         if message.text.startswith("/qrand") and pb >= 0:
             flag = True
+            
     if not flag:
         return
     
     quote = dao.get_chat_random_quote(chat)
     if not quote:
         return
-    
+        
     try:
-        text = f"{escape_markdown(quote.text, 2)}\n\n" if quote.text else ""
-        text += f"[原始消息链接]({escape_markdown(quote.link, 2)})"
+        keyboard = [
+            [InlineKeyboardButton(
+                "Source", 
+                url=quote.link  
+            )]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
         
         if quote.img:
             sent_message = await chat.send_photo(
                 photo=quote.img,
-                caption=text,
-                parse_mode=ParseMode.MARKDOWN_V2,
+                reply_markup=reply_markup,
                 message_thread_id=update.effective_message.message_thread_id
             )
+            
         else:
+            text = escape_markdown(quote.text, 2) if quote.text else "完了，忘了要说什么了"
             sent_message = await chat.send_message(
                 text=text,
                 parse_mode=ParseMode.MARKDOWN_V2,
+                reply_markup=reply_markup,
                 disable_web_page_preview=True,
                 message_thread_id=update.effective_message.message_thread_id
             )
-        
+
         logger.info(f"Bot sent quote: {sent_message.text or 'IMAGE'}")
 
     except Exception as e:
