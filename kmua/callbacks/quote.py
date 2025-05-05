@@ -215,12 +215,28 @@ async def random_quote(update: Update, _: ContextTypes.DEFAULT_TYPE):
     if not quote:
         return
     try:
-        sent_message = await chat.forward_to(
+        user_text = (
+            quote.user.full_name
+            if len(quote.user.full_name) <= 16
+            else quote.user.full_name[:16] + "..."
+            if quote.user.full_name
+            else quote.user_id
+        )
+        await chat.copy_message(
             chat_id=chat.id,
             message_id=quote.message_id,
-            message_thread_id=update.effective_message.message_thread_id,
+            message_thread_id=message.message_thread_id,
+            reply_markup=InlineKeyboardMarkup(
+                [
+                    [
+                        InlineKeyboardButton(
+                            text=user_text,
+                            url=quote.link,
+                        )
+                    ]
+                ]
+            ),
         )
-        logger.info(f"Bot forward message: {sent_message.text}")
     except Exception as e:
         logger.warning(f"{e.__class__.__name__}: {e}")
 
