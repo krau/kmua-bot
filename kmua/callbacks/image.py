@@ -242,7 +242,7 @@ async def caption(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await message.reply_text("请回复一张图片")
         return
     photo_file: File = None
-    sent_message = await target_message.reply_text("少女看图写话中...", quote=True)
+    sent_message = await target_message.reply_text("少女看图写话中...")
     try:
         if target_message.photo:
             photo_file = await target_message.photo[-1].get_file()

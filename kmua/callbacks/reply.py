@@ -138,10 +138,7 @@ async def reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
             contents.pop()
             await _keyword_reply(update, context, message_text)
             return
-        await update.effective_message.reply_text(
-            text=resp.choices[0].message.content,
-            quote=True,
-        )
+        await update.effective_message.reply_text(text=resp.choices[0].message.content)
         logger.info("Bot: " + resp.choices[0].message.content)
         contents.append(
             {
@@ -193,13 +190,11 @@ async def _keyword_reply(
                 await oyasumi(update, context)
     if not all_resplist:
         await update.effective_message.reply_text(
-            text=random.choice(common.default_resplist),
-            quote=True,
+            text=random.choice(common.default_resplist)
         )
         return
     sent_message = await update.effective_message.reply_text(
-        text=random.choice(all_resplist),
-        quote=True,
+        text=random.choice(all_resplist)
     )
     logger.info("Bot: " + sent_message.text)
     if not (_enable_openai and not_aonymous):
@@ -258,14 +253,10 @@ async def _keyword_reply_without_save(
             if keyword == "晚安":
                 await oyasumi(update, context)
     if all_resplist:
-        await update.effective_message.reply_text(
-            text=random.choice(all_resplist),
-            quote=True,
-        )
+        await update.effective_message.reply_text(text=random.choice(all_resplist))
     else:
         await update.effective_message.reply_text(
-            text=random.choice(common.default_resplist),
-            quote=True,
+            text=random.choice(common.default_resplist)
         )
 
 

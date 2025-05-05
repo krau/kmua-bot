@@ -45,18 +45,18 @@ async def setu(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await _classify_setu(update, context)
             return
     if not _manyacg_api_url:
-        await update.effective_message.reply_text(text="咱才没有涩图呢", quote=True)
+        await update.effective_message.reply_text(text="咱才没有涩图呢")
         return
 
     if (
         chat.type in (chat.GROUP, chat.SUPERGROUP)
         and not dao.get_chat_config(chat).setu_enabled
     ):
-        await update.effective_message.reply_text(text="这里不允许涩图哦", quote=True)
+        await update.effective_message.reply_text(text="这里不允许涩图哦")
         return
 
     if context.user_data.get("setu_cd", False):
-        await update.effective_message.reply_text(text="太快了, 不行!", quote=True)
+        await update.effective_message.reply_text(text="太快了, 不行!")
         return
     context.user_data["setu_cd"] = True
 
@@ -66,7 +66,7 @@ async def setu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
     except Exception as e:
         logger.error(f"setu error: {e.__class__.__name__}:{e}")
-        await update.effective_message.reply_text(text="失败惹，请稍后再试", quote=True)
+        await update.effective_message.reply_text(text="失败惹，请稍后再试")
         return
     try:
         if resp.status_code >= 400:
@@ -94,7 +94,6 @@ async def setu(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 ]
             ),
             has_spoiler=resp.json()["data"][0]["r18"],
-            quote=True,
             parse_mode=ParseMode.MARKDOWN_V2,
         )
         logger.info(f"Bot: {sent_message.caption}")
@@ -102,7 +101,7 @@ async def setu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         pass
     except Exception as e:
         logger.error(f"setu error: {e.__class__.__name__}:{e}")
-        await update.effective_message.reply_text(text="失败惹，请稍后再试", quote=True)
+        await update.effective_message.reply_text(text="失败惹，请稍后再试")
     finally:
         context.user_data["setu_cd"] = False
 
@@ -113,9 +112,7 @@ async def _classify_setu(update: Update, _: ContextTypes.DEFAULT_TYPE):
         return
     try:
         async with httpx.AsyncClient() as client:
-            sent_message = await target_message.reply_text(
-                text="少女看涩图中...", quote=True
-            )
+            sent_message = await target_message.reply_text(text="少女看涩图中...")
             file = await target_message.photo[-1].get_file()
             file_bytes = bytes(await file.download_as_bytearray())
             resp = await client.post(
@@ -126,7 +123,7 @@ async def _classify_setu(update: Update, _: ContextTypes.DEFAULT_TYPE):
             )
             if resp.status_code != 200:
                 logger.error(f"nsfwjs error: {resp.json()}")
-                await sent_message.edit_text(text="失败惹，请稍后再试", quote=True)
+                await sent_message.edit_text(text="失败惹，请稍后再试")
                 return
             result: dict[str, float] = resp.json()
             await sent_message.delete()
@@ -148,11 +145,11 @@ async def _classify_setu(update: Update, _: ContextTypes.DEFAULT_TYPE):
                     )
                 case "Sexy":
                     text = f"这是一张比较涩的图片... (大概有 {result[nsfw_class]}% 的可能性吧...)"
-            sent_message = await target_message.reply_text(text=text, quote=True)
+            sent_message = await target_message.reply_text(text=text)
             logger.info(f"Bot: {sent_message.text}")
     except Exception as e:
         logger.error(f"nsfwjs error: {e.__class__.__name__}:{e}")
-        await update.effective_message.reply_text(text="失败惹，请稍后再试", quote=True)
+        await update.effective_message.reply_text(text="失败惹，请稍后再试")
 
 
 PIXIV_REGEX = re.compile(

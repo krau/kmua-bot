@@ -20,10 +20,7 @@ async def switch_delete_events(update: Update, context: ContextTypes.DEFAULT_TYP
         return
     delete_events_enabled = dao.get_chat_delete_events_enabled(chat)
     dao.update_chat_delete_events_enabled(chat, not delete_events_enabled)
-    await message.reply_text(
-        f"Delete events enabled: {not delete_events_enabled}",
-        quote=True,
-    )
+    await message.reply_text(f"Delete events enabled: {not delete_events_enabled}")
 
 
 async def delete_event_message(update: Update, _: ContextTypes.DEFAULT_TYPE):
@@ -45,6 +42,5 @@ async def delete_event_message(update: Update, _: ContextTypes.DEFAULT_TYPE):
             logger.warning(msg)
             await update.effective_message.reply_text(
                 msg
-                + "\n请检查是否赋予 bot 删除消息权限, 或使用 /switch_delete_events 关闭该功能",
-                quote=True,
+                + "\n请检查是否赋予 bot 删除消息权限, 或使用 /switch_delete_events 关闭该功能"
             )

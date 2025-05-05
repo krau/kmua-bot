@@ -33,11 +33,10 @@ async def switch_unpin_channel_pin(update: Update, context: ContextTypes.DEFAULT
     message = update.effective_message
     logger.info(f"[{chat.title}]({user.name}) {message.text}")
     if not await common.verify_user_can_manage_bot_in_chat(user, chat, update, context):
-        await message.reply_text("你没有权限哦", quote=True)
+        await message.reply_text("你没有权限哦")
         return
     unpin_channel_pin_enabled = dao.get_chat_unpin_channel_pin_enabled(chat)
     dao.update_chat_unpin_channel_pin_enabled(chat, not unpin_channel_pin_enabled)
     await message.reply_text(
-        f"Unpin channel pin enabled: {not unpin_channel_pin_enabled}",
-        quote=True,
+        f"Unpin channel pin enabled: {not unpin_channel_pin_enabled}"
     )

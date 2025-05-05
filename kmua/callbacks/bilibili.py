@@ -42,6 +42,6 @@ async def _b23_convert(update: Update, _: ContextTypes, b23code: str, is_group: 
         text = real_url
         if is_group:
             text += f"\n来自 {update.effective_user.name} 发送的 b23 短链接, 已经帮你转换了哦"
-        await message.reply_text(text, quote=True)
+        await message.reply_text(text)
     else:
         logger.error(f"b23 convert error: {resp.status_code}")
