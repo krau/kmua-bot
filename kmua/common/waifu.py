@@ -91,32 +91,32 @@ def get_marry_markup(waifu_id: int, user_id: int) -> InlineKeyboardMarkup:
 
 
 def get_waifu_text(
-    waifu: User | UserData, is_got_waifu: bool, user: User | UserData = None
+    waifu: User | UserData, got_waifu: bool, user: User | UserData = None
 ) -> str:
     if not user:
         return (
             (
                 rf"你今天已经抽过老婆了\! {mention_markdown_v2(waifu)} 是你今天的老婆\!"
-                if is_got_waifu
+                if got_waifu
                 else rf"你今天的群幼老婆是 {mention_markdown_v2(waifu)} \!"
             )
-            if waifu.waifu_mention
+            if waifu.waifu_mention or not waifu.is_real_user
             else (
                 rf"你今天已经抽过老婆了\! {escape_markdown(waifu.full_name, 2)} 是你今天的老婆\!"
-                if is_got_waifu
+                if got_waifu
                 else rf"你今天的群幼老婆是 {escape_markdown(waifu.full_name, 2)} \!"
             )
         )
     return (
         (
             rf"{mention_markdown_v2(user)}, 你今天已经抽过老婆了\! {mention_markdown_v2(waifu)} 是你今天的老婆\!"
-            if is_got_waifu
+            if got_waifu
             else rf"{mention_markdown_v2(user)}, 你今天的群幼老婆是 {mention_markdown_v2(waifu)} \!"
         )
-        if waifu.waifu_mention
+        if waifu.waifu_mention or not waifu.is_real_user
         else (
             rf"{mention_markdown_v2(user)}, 你今天已经抽过老婆了\! {escape_markdown(waifu.full_name, 2)} 是你今天的老婆\!"
-            if is_got_waifu
+            if got_waifu
             else rf"{mention_markdown_v2(user)}, 你今天的群幼老婆是 {escape_markdown(waifu.full_name, 2)} \!"
         )
     )
@@ -198,11 +198,11 @@ def get_waifu_markup(
         [
             [
                 InlineKeyboardButton(
-                    text="remove",
+                    text="移除(管理员)",
                     callback_data=f"remove_waifu {waifu.id} {user.id}",
                 ),
                 InlineKeyboardButton(
-                    text="marry",
+                    text="娶老婆!",
                     callback_data=f"marry_waifu {waifu.id} {user.id}",
                 ),
             ]
