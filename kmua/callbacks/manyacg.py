@@ -61,9 +61,7 @@ async def setu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["setu_cd"] = True
 
     try:
-        resp = await httpx_client.post(
-            url="/artwork/random",
-        )
+        resp = await httpx_client.get(url="/artwork/random", params={"r18": 2})
     except Exception as e:
         logger.error(f"setu error: {e.__class__.__name__}:{e}")
         await update.effective_message.reply_text(text="失败惹，请稍后再试")
