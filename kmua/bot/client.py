@@ -8,4 +8,5 @@ client = Client(
     api_hash=app_config.api_hash,
     bot_token=app_config.token,
     workdir=app_config.workdir,
+    plugins={"root": "kmua.plugins"},
 )
