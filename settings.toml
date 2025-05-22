@@ -1,4 +1,4 @@
-token = ''
-owners = []
+token = '123'
+owners = [123]
 log_level = 'INFO'
-db_url = 'sqlite:///./data/kmua.db'
+db_url = 'sqlite+aiosqlite:///./data/kmua.db'

@@ -5,7 +5,15 @@ description = "A Telegram Bot"
 readme = "README.md"
 license = "AGPL-3.0"
 requires-python = ">=3.13"
-dependencies = []
+dependencies = [
+    "aiosqlite>=0.21.0",
+    "dynaconf>=3.2.11",
+    "kurigram>=2.2.3",
+    "pydantic>=2.11.4",
+    "sqlalchemy[asyncio]>=2.0.41",
+    "tgcrypto>=1.2.5",
+    "uvloop>=0.21.0",
+]
 
 [tool.uv]
 dev-dependencies = ["ruff>=0.9.3"]
