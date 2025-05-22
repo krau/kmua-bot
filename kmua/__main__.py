@@ -38,6 +38,7 @@ async def init_bot(client: Client = client):
 @client.on_stop()
 async def stop_bot(client: Client = client):
     logger.info(i18n.t("log.stopping", locale=app_config.lang))
+    await db.close_db()
     logger.success(i18n.t("log.exit", locale=app_config.lang))
 
 

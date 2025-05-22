@@ -49,6 +49,7 @@ class UserData(Base):
     avatar_small_blob = Column(LargeBinary(65536), default=None)
     avatar_big_blob = Column(LargeBinary(65536), default=None)
     avatar_big_id = Column(String(256), default=None)
+    lang = Column(String(16), default="zh-CN")
 
     is_married = Column(Boolean, default=False)
     married_waifu_id = Column(BigInteger, default=None, index=True)
@@ -159,7 +160,7 @@ class Quote(Base):
     user_id = Column(BigInteger, ForeignKey("user_data.id"), index=True)
     qer_id = Column(BigInteger, index=True)  # 使用 q 的人
     text = Column(String(4096), nullable=True, default=None)
-    img = Column(String(256), nullable=True, default=None, comment="图片的 file id")
+    img = Column(String(256), nullable=True, default=None)
     created_at = Column(DateTime, default=func.now())
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
 

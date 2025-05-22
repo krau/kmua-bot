@@ -38,3 +38,8 @@ async def init_db() -> None:
     logger.info(i18n.t("log.db_initing", locale=app_config.lang))
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+
+
+async def close_db() -> None:
+    logger.info(i18n.t("log.db_closing", locale=app_config.lang))
+    await engine.dispose()
