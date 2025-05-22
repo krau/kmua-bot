@@ -11,6 +11,7 @@ dependencies = [
     "kurigram>=2.2.3",
     "loguru>=0.7.3",
     "pydantic>=2.11.4",
+    "pyyaml>=6.0.2",
     "sqlalchemy[asyncio]>=2.0.41",
     "tgcrypto>=1.2.5",
     "uvloop>=0.21.0",

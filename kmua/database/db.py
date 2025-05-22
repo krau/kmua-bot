@@ -2,7 +2,9 @@ from collections.abc import AsyncGenerator
 
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
+from kmua import i18n
 from kmua.config import app_config
+from kmua.logger import logger
 
 from .models import Base
 
@@ -26,5 +28,6 @@ async def get_db() -> AsyncGenerator:
 
 
 async def init_db() -> None:
+    logger.info(i18n.t("log.db_initing", locale=app_config.lang))
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)

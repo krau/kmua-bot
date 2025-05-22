@@ -3,28 +3,35 @@ from pyrogram.types import BotCommand
 
 from kmua import i18n
 from kmua.bot.client import client
+from kmua.config import app_config
 from kmua.database import db
 from kmua.logger import logger
 
 
 async def init_bot(client: Client = client):
-    logger.info(i18n.t("log.initing", locale="zh-CN"))
+    logger.info(i18n.t("log.initing", locale=app_config.lang))
     await client.set_bot_commands(
         [
-            BotCommand("start", "一键猫叫|召出菜单"),
-            BotCommand("waifu", "今日老婆!"),
-            BotCommand("waifu_graph", "老婆关系图!"),
-            BotCommand("q", "记录语录"),
-            BotCommand("d", "删除语录|管理群语录"),
-            BotCommand("qrand", "随机语录"),
-            BotCommand("t", "获取头衔|互赠头衔"),
-            BotCommand("id", "获取聊天ID"),
-            BotCommand("ip", "获取IP信息"),
-            BotCommand("setu", "随机涩图"),
-            BotCommand("config", "更改群组设置"),
-            BotCommand("help", "帮助|更多功能"),
+            BotCommand(
+                "start",
+                i18n.t("bot.cmd.start", locale=app_config.lang),
+            ),
+            BotCommand("waifu", i18n.t("bot.cmd.waifu", locale=app_config.lang)),
+            BotCommand(
+                "waifu_graph", i18n.t("bot.cmd.waifu_graph", locale=app_config.lang)
+            ),
+            BotCommand("q", i18n.t("bot.cmd.q", locale=app_config.lang)),
+            BotCommand("d", i18n.t("bot.cmd.d", locale=app_config.lang)),
+            BotCommand("qrand", i18n.t("bot.cmd.qrand", locale=app_config.lang)),
+            BotCommand("t", i18n.t("bot.cmd.t", locale=app_config.lang)),
+            BotCommand("id", i18n.t("bot.cmd.id", locale=app_config.lang)),
+            BotCommand("ip", i18n.t("bot.cmd.ip", locale=app_config.lang)),
+            BotCommand("setu", i18n.t("bot.cmd.setu", locale=app_config.lang)),
+            BotCommand("config", i18n.t("bot.cmd.config", locale=app_config.lang)),
+            BotCommand("help", i18n.t("bot.cmd.help", locale=app_config.lang)),
         ]
     )
+    logger.success(i18n.t("log.inited", locale=app_config.lang))
 
 
 async def main():

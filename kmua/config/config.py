@@ -14,6 +14,7 @@ class _AppConfig(pydantic.BaseModel):
     api_hash: str = "452b0359b988148995f22ff0f4229750"
     log_retention_days: int = 30
     log_level: str = "INFO"
+    lang: str = "zh-CN"
 
     workdir: Path = Path(__file__).resolve().parent.parent.parent / "data"
 

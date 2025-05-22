@@ -1,0 +1,14 @@
+bot:
+  cmd:
+    start: 一键猫叫|召出菜单
+    waifu: 今日老婆!
+    waifu_graph: 老婆关系图!
+    q: 记录语录
+    d: 删除语录|管理群语录
+    qrand: 随机语录
+    t: 获取头衔|互赠头衔
+    id: 获取聊天ID
+    ip: 获取IP信息
+    setu: 随机涩图
+    config: 更改群组设置
+    help: 帮助|更多功能
