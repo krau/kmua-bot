@@ -1,13 +1,11 @@
-import contextlib
-from asyncio import current_task
+from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 
 from sqlalchemy.ext.asyncio import (
-    async_scoped_session,
+    AsyncSession,
     async_sessionmaker,
     create_async_engine,
 )
-from sqlalchemy.ext.asyncio.session import AsyncSession
 
 from kmua import i18n
 from kmua.config import app_config
@@ -15,14 +13,25 @@ from kmua.logger import logger
 
 from .models import Base
 
-engine = create_async_engine(app_config.db_url, echo=False, future=True)
+engine = create_async_engine(app_config.db_url, echo=app_config.debug, future=True)
 
 AsyncSessionFactory = async_sessionmaker(
-    engine,
-    autoflush=False,
-    expire_on_commit=False,
+    bind=engine, autoflush=False, expire_on_commit=False
 )
-async_session = async_scoped_session(AsyncSessionFactory, scopefunc=current_task)
+
+
+@asynccontextmanager
+async def get_session() -> AsyncGenerator[AsyncSession, None]:
+    async with AsyncSessionFactory() as ss:
+        try:
+            yield ss
+            await ss.commit()
+        except Exception as e:
+            logger.exception(f"Session error: {e}")
+            await ss.rollback()
+            raise
+        finally:
+            await ss.close()
 
 
 async def init_db() -> None:

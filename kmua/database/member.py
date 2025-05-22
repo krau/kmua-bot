@@ -1,11 +1,11 @@
-from .db import async_session
+from .db import get_session
 from .models import ChatData, UserChatAssociation, UserData
 
 
 async def add_member_in_chat(
     chat: ChatData, user: UserData, waifu: UserData | None
 ) -> UserChatAssociation:
-    async with async_session() as session:
+    async with get_session() as session:
         async with session.begin():
             if data := await session.get(UserChatAssociation, (user.id, chat.id)):
                 return data

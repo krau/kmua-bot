@@ -17,6 +17,7 @@ class _AppConfig(pydantic.BaseModel):
     lang: str = "zh-CN"
 
     workdir: Path = Path(__file__).resolve().parent.parent.parent / "data"
+    debug: bool = False
 
 
 _T = TypeVar("_T", bound=pydantic.BaseModel)

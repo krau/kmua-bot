@@ -8,6 +8,7 @@ from kmua.database import db
 from kmua.logger import logger
 
 
+@client.on_start()
 async def init_bot(client: Client = client):
     logger.info(i18n.t("log.initing", locale=app_config.lang))
     await client.set_bot_commands(
@@ -34,10 +35,15 @@ async def init_bot(client: Client = client):
     logger.success(i18n.t("log.inited", locale=app_config.lang))
 
 
+@client.on_stop()
+async def stop_bot(client: Client = client):
+    logger.info(i18n.t("log.stopping", locale=app_config.lang))
+    logger.success(i18n.t("log.exit", locale=app_config.lang))
+
+
 async def main():
     await db.init_db()
     await client.start()
-    await init_bot(client)
     await idle()
     await client.stop()
 

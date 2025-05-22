@@ -1,12 +1,12 @@
 from pyrogram.enums import ChatType
 from pyrogram.types import Chat, User
 
-from .db import async_session
+from .db import get_session
 from .models import UserData
 
 
 async def get_user_by_id(id: int) -> UserData | None:
-    async with async_session() as session:
+    async with get_session() as session:
         user = await session.get(UserData, id)
         if user is None:
             return None
@@ -33,7 +33,7 @@ async def upsert_user(user: User | Chat) -> UserData:
         is_real_user = user.type == ChatType.PRIVATE
     else:
         raise TypeError("user must be User or Chat")
-    async with async_session() as session:
+    async with get_session() as session:
         async with session.begin():
             user_data = await session.get(UserData, user.id)
             if user_data is None:
@@ -51,4 +51,4 @@ async def upsert_user(user: User | Chat) -> UserData:
                 user_data.is_bot = is_bot  # type: ignore
                 user_data.is_real_user = is_real_user  # type: ignore
                 session.expunge(user_data)
-        return user_data
+            return user_data

@@ -1,12 +1,11 @@
 from pyrogram.types import Chat
 
-from kmua.database.models import ChatData
-
-from .db import async_session
+from .db import get_session
+from .models import ChatData
 
 
 async def upsert_chat(chat: Chat) -> ChatData:
-    async with async_session() as session:
+    async with get_session() as session:
         async with session.begin():
             chat_data = await session.get(ChatData, chat.id)
             if chat_data is None:
@@ -20,4 +19,4 @@ async def upsert_chat(chat: Chat) -> ChatData:
                 chat_data.title = chat.title  # type: ignore
                 chat_data.username = chat.username  # type: ignore
                 session.expunge(chat_data)
-        return chat_data
+            return chat_data
