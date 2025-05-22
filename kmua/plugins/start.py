@@ -23,12 +23,26 @@ _start_bot_markup = InlineKeyboardMarkup(
 )
 
 
-@Client.on_message(filters.command("start"), group=0)
+@Client.on_message(filters.command("start") & filters.private, group=0)
 async def start(client: Client, message: Message):
-    if message.chat.type != ChatType.PRIVATE:
-        if client.me.username not in message.text:
-            return
     db_bot_user = await database.get_user_by_id(client.me.id)
     if not db_bot_user:
         db_bot_user = await database.upsert_user(await client.get_me())
     await message.reply(text="Nya~", reply_markup=_start_bot_markup)
+
+
+@Client.on_message(filters.command("start") & filters.group, group=0)
+async def start_group(client: Client, message: Message):
+    await message.reply(
+        text="请私聊咱使用哦~",
+        reply_markup=InlineKeyboardMarkup(
+            [
+                [
+                    InlineKeyboardButton(
+                        "PM me nya~",
+                        url=f"https://t.me/{client.me.username}?start=start",
+                    )
+                ]
+            ]
+        ),
+    )
