@@ -71,11 +71,11 @@ class UserData(Base):
     created_at = Column(DateTime, default=func.now())
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
 
-    __table_args__ = (
-        CheckConstraint(
-            "is_married = 0 OR (is_married = 1 AND married_waifu_id IS NOT NULL)"
-        ),
-    )
+    # __table_args__ = (
+    #     CheckConstraint(
+    #         "is_married = 0 OR (is_married = 1 AND married_waifu_id IS NOT NULL)"
+    #     ),
+    # )
 
     def __str__(self):
         return f"""

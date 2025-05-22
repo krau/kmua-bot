@@ -45,7 +45,7 @@ async def main():
     await db.init_db()
     await client.start()
     await idle()
-    await client.stop()
+    await client.stop()  # type: ignore
 
 
 if __name__ == "__main__":

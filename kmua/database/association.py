@@ -2,7 +2,7 @@ from .db import get_session
 from .models import ChatData, UserChatAssociation, UserData
 
 
-async def add_member_in_chat(
+async def add_association_in_chat(
     chat: ChatData, user: UserData, waifu: UserData | None
 ) -> UserChatAssociation:
     async with get_session() as session:

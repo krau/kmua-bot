@@ -7,6 +7,7 @@ license = "AGPL-3.0"
 requires-python = ">=3.13"
 dependencies = [
     "aiosqlite>=0.21.0",
+    "asyncpg>=0.30.0",
     "dynaconf>=3.2.11",
     "kurigram>=2.2.3",
     "loguru>=0.7.3",
@@ -16,9 +17,6 @@ dependencies = [
     "tgcrypto>=1.2.5",
     "uvloop>=0.21.0",
 ]
-
-[tool.uv]
-dev-dependencies = ["ruff>=0.9.3"]
 
 [tool.ruff]
 lint.select = ["I"]
