@@ -1,7 +1,7 @@
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 
-import alembic
+import alembic.command
 import alembic.config
 import pathlib
 from sqlalchemy.ext.asyncio import (

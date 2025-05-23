@@ -10,7 +10,7 @@ async def get_user_by_id(id: int) -> UserData | None:
         user = await session.get(UserData, id)
         if user is None:
             return None
-        return user
+    return user
 
 
 async def upsert_user(user: User | Chat) -> UserData:
@@ -37,23 +37,22 @@ async def upsert_user(user: User | Chat) -> UserData:
     else:
         raise TypeError("user must be User or Chat")
     async with get_session() as session:
-        async with session.begin():
-            user_data = await session.get(UserData, user.id)
-            if user_data is None:
-                user_data = UserData(
-                    id=user.id,
-                    username=username,
-                    full_name=full_name,
-                    is_bot=is_bot,
-                    is_real_user=is_real_user,
-                )
-                session.add(user_data)
-            else:
-                user_data.username = username  # type: ignore
-                user_data.full_name = full_name  # type: ignore
-                user_data.is_bot = is_bot  # type: ignore
-                user_data.is_real_user = is_real_user  # type: ignore
-            return user_data
+        user_data = await session.get(UserData, user.id)
+        if user_data is None:
+            user_data = UserData(
+                id=user.id,
+                username=username,
+                full_name=full_name,
+                is_bot=is_bot,
+                is_real_user=is_real_user,
+            )
+            session.add(user_data)
+        else:
+            user_data.username = username  # type: ignore
+            user_data.full_name = full_name  # type: ignore
+            user_data.is_bot = is_bot  # type: ignore
+            user_data.is_real_user = is_real_user  # type: ignore
+    return user_data
 
 
 async def get_user_config(user: int | UserData | User) -> UserConfig:
@@ -72,12 +71,10 @@ async def get_user_config(user: int | UserData | User) -> UserConfig:
 
 async def update_user_config(user_id: int, config: UserConfig) -> UserConfig:
     async with get_session() as session:
-        async with session.begin():
-            user_data = await session.get(UserData, user_id)
-            if user_data is None:
-                raise ValueError(f"User with id {user_id} not found")
+        user_data = await session.get(UserData, user_id)
+        if user_data is None:
+            raise ValueError(f"User with id {user_id} not found")
 
-            user_data.config = config
-            await session.commit()
+        user_data.user_config = config
 
-            return user_data.user_config
+    return user_data.user_config
