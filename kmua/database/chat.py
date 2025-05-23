@@ -32,7 +32,7 @@ async def get_chat_by_id(chat_id: int) -> ChatData | None:
 
 async def get_chat_config(chat: int | ChatData | Chat) -> ChatConfig:
     if isinstance(chat, ChatData):
-        return ChatConfig.from_dict(chat.config)
+        return chat.chat_config
     elif isinstance(chat, Chat):
         chat_data = await upsert_chat(chat)
     elif isinstance(chat, int):
@@ -41,18 +41,38 @@ async def get_chat_config(chat: int | ChatData | Chat) -> ChatConfig:
         raise TypeError("chat must be int, ChatData or Chat")
     if chat_data is None:
         raise ValueError("Chat not found")
-    return ChatConfig.from_dict(chat_data.config)
+    return chat_data.chat_config
 
 
-async def update_chat_config(chat: int | ChatData | Chat, config: ChatConfig):
+async def update_chat_config(
+    chat: int | ChatData | Chat, config: ChatConfig
+) -> ChatConfig:
+    chat_id = 0
     if isinstance(chat, ChatData):
-        chat_data = chat
+        chat_id = chat.id
     elif isinstance(chat, Chat):
-        chat_data = await upsert_chat(chat)
+        chat_id = chat.id
     elif isinstance(chat, int):
-        chat_data = await get_chat_by_id(chat)
+        chat_id = chat
     else:
         raise TypeError("chat must be int, ChatData or Chat")
-    if chat_data is None:
-        raise ValueError("Chat not found")
-    chat_data.config = config.to_dict()
+
+    async with get_session() as session:
+        async with session.begin():
+            chat_data = await session.get(ChatData, chat_id)
+            if chat_data is None:
+                if isinstance(chat, Chat):
+                    chat_data = ChatData(
+                        id=chat.id,
+                        title=chat.title,
+                        username=chat.username,
+                    )
+                    session.add(chat_data)
+                    await session.flush()
+                else:
+                    raise ValueError(f"Chat with id {chat_id} not found")
+
+            chat_data.chat_config = config
+            await session.commit()
+
+            return chat_data.chat_config

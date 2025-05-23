@@ -19,9 +19,23 @@ bot:
     user_quote: 语录管理
     user_waifu: 老婆管理
     start_noop: 喵喵喵喵
-    pm_me: "打开私聊"
+    pm_me: 打开私聊
+    chat_config:
+      waifu: 每日老婆
+      delete_events: 删除事件
+      message_search: 消息搜索
+      quote_pin_message: 语录置顶
+      ai_reply: AI回复
+      setu_enabled: 随机涩图
+      unpin_channel_pin_enabled: 解除频道置顶
+      convert_b23_enabled: 转换b23短链
+      parse_artwork_enabled: 解析插画链接
+      save: 保存设置
   msg:
-    private_start: "Nya~"
-    group_start: "请私聊咱使用哦~"
-    lang_changed: "语言已更改为 {lang}"
-    no_permission_group: "你没有权限更改该群组中 bot 的设置哦"
+    private_start: Nya~
+    group_start: 请私聊咱使用哦
+    lang_changed: 语言已更改为 {lang}
+    no_permission_group: 你没有权限更改该群组中 bot 的设置哦
+    group_config: 点击按钮更改群组设置哦
+    unknown_operation: 未知操作, 不可以干坏事哦
+    group_config_saved: 群组设置已保存~

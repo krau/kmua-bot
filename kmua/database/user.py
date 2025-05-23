@@ -67,13 +67,17 @@ async def get_user_config(user: int | UserData | User) -> UserConfig:
         raise TypeError("user must be int, UserData or User")
     if user_data is None:
         raise ValueError("user not found")
-    return UserConfig.from_dict(user_data.config)
+    return user_data.user_config
 
 
-async def update_user_config(user_id: int, config: UserConfig):
+async def update_user_config(user_id: int, config: UserConfig) -> UserConfig:
     async with get_session() as session:
         async with session.begin():
             user_data = await session.get(UserData, user_id)
             if user_data is None:
-                raise ValueError("user not found")
-            user_data.config = config.to_dict()
+                raise ValueError(f"User with id {user_id} not found")
+
+            user_data.config = config
+            await session.commit()
+
+            return user_data.user_config

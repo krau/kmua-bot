@@ -58,32 +58,33 @@ async def slash(client: Client, message: Message):
     if not cmd1:
         return
     if not is_one_cmd:
+        # TODO: i18n
         cmd2 = html.escape(_replace_char(" ".join(message.text.split(" ")[1:])), 2)
         text = (
             (
-                rf"{replied_mention} {cmd1} {this_mention} {cmd2} !"
+                f"{replied_mention} {cmd1} {this_mention} {cmd2} !"
                 if replied_user
-                else rf"{this_mention} {cmd1}自己{cmd2} !"
+                else f"{this_mention} {cmd1}自己{cmd2} !"
             )
             if is_reverse
             else (
-                rf"{this_mention} {cmd1} {replied_mention} {cmd2} !"
+                f"{this_mention} {cmd1} {replied_mention} {cmd2} !"
                 if replied_user
-                else rf"{this_mention} {cmd1}自己{cmd2} !"
+                else f"{this_mention} {cmd1}自己{cmd2} !"
             )
         )
     else:
         text = (
             (
-                rf"{this_mention} 被 {replied_mention} {cmd1}了 !"
+                f"{this_mention} 被 {replied_mention} {cmd1}了 !"
                 if replied_user
-                else rf"{this_mention} 被自己{cmd1}了 !"
+                else f"{this_mention} 被自己{cmd1}了 !"
             )
             if is_reverse
             else (
-                rf"{this_mention} {cmd1}了 {replied_mention} !"
+                f"{this_mention} {cmd1}了 {replied_mention} !"
                 if replied_user
-                else rf"{this_mention} {cmd1}了自己 !"
+                else f"{this_mention} {cmd1}了自己 !"
             )
         )
     # 在中英文之间加空格
