@@ -40,6 +40,18 @@ class UserChatAssociation(Base):
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
 
 
+@dataclass
+class UserConfig:
+    lang: str = "zh-CN"
+
+    @staticmethod
+    def from_dict(data: dict):
+        return UserConfig(lang=data.get("lang", "zh-CN"))
+
+    def to_dict(self):
+        return asdict(self)
+
+
 class UserData(Base):
     __tablename__ = "user_data"
     id = Column(BigInteger, primary_key=True, index=True, autoincrement=False)
@@ -48,7 +60,7 @@ class UserData(Base):
     avatar_small_blob = Column(LargeBinary(65536), default=None)
     avatar_big_blob = Column(LargeBinary(65536), default=None)
     avatar_big_id = Column(String(256), default=None)
-    lang = Column(String(16), default="zh-CN")
+    config = Column(JSON, default=asdict(UserConfig()))
 
     is_married = Column(Boolean, default=False)
     married_waifu_id = Column(BigInteger, default=None, index=True)
@@ -110,6 +122,7 @@ class ChatConfig:
     setu_enabled: bool = True
     convert_b23_enabled: bool = True
     parse_artwork_enabled: bool = True
+    lang: str = "zh-CN"
 
     @staticmethod
     def from_dict(data: dict):
@@ -126,6 +139,7 @@ class ChatConfig:
             setu_enabled=data.get("setu_enabled", True),
             convert_b23_enabled=data.get("convert_b23_enabled", False),
             parse_artwork_enabled=data.get("parse_artwork_enabled", True),
+            lang=data.get("lang", "zh-CN"),
         )
 
     def to_dict(self):

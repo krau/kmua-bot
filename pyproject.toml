@@ -7,6 +7,7 @@ license = "AGPL-3.0"
 requires-python = ">=3.13"
 dependencies = [
     "aiosqlite>=0.21.0",
+    "alembic>=1.16.1",
     "asyncpg>=0.30.0",
     "dynaconf>=3.2.11",
     "kurigram>=2.2.3",
