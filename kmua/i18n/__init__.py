@@ -96,7 +96,7 @@ class I18n:
 
         return translation if translation is not None else key
 
-    def get_available_locales(self) -> list:
+    def get_available_locales(self) -> list[str]:
         return list(self.available_locales)
 
     def set_default_locale(self, locale: str):

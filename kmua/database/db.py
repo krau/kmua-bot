@@ -20,7 +20,7 @@ from .models import Base
 engine = create_async_engine(app_config.db_url, echo=app_config.debug, future=True)
 
 AsyncSessionFactory = async_sessionmaker(
-    bind=engine, autoflush=False, expire_on_commit=False
+    bind=engine, autoflush=True, expire_on_commit=False
 )
 
 

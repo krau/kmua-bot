@@ -18,7 +18,6 @@ async def upsert_chat(chat: Chat) -> ChatData:
             else:
                 chat_data.title = chat.title  # type: ignore
                 chat_data.username = chat.username  # type: ignore
-                session.expunge(chat_data)
             return chat_data
 
 
@@ -28,7 +27,6 @@ async def get_chat_by_id(chat_id: int) -> ChatData | None:
             chat_data = await session.get(ChatData, chat_id)
             if chat_data is None:
                 return None
-            session.expunge(chat_data)
             return chat_data
 
 
