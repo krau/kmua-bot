@@ -23,3 +23,5 @@ bot:
   msg:
     private_start: "Nya~"
     group_start: "请私聊咱使用哦~"
+    lang_changed: "语言已更改为 {lang}"
+    no_permission_group: "你没有权限更改该群组中 bot 的设置哦"

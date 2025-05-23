@@ -42,3 +42,17 @@ async def get_chat_config(chat: int | ChatData | Chat) -> ChatConfig:
     if chat_data is None:
         raise ValueError("Chat not found")
     return ChatConfig.from_dict(chat_data.config)
+
+
+async def update_chat_config(chat: int | ChatData | Chat, config: ChatConfig):
+    if isinstance(chat, ChatData):
+        chat_data = chat
+    elif isinstance(chat, Chat):
+        chat_data = await upsert_chat(chat)
+    elif isinstance(chat, int):
+        chat_data = await get_chat_by_id(chat)
+    else:
+        raise TypeError("chat must be int, ChatData or Chat")
+    if chat_data is None:
+        raise ValueError("Chat not found")
+    chat_data.config = config.to_dict()
