@@ -5,6 +5,8 @@ from pyrogram.types import Chat, User
 
 from kmua import database, enums
 from kmua.bot import client
+from kmua.database.models import UserData
+from .memstore import memstore  # noqa: F401
 
 
 async def mention_html(chat: User | Chat) -> str:
@@ -35,3 +37,18 @@ async def can_user_manage_bot_in_chat(user: User, chat: Chat) -> bool:
         await database.update_association(user.id, chat.id, association)
         return True
     return False
+
+
+async def get_big_avatar_bytes(user_id: int) -> bytes | None:
+    db_user: UserData = await database.get_user_by_id(user_id)
+    if db_user is None:
+        return None
+    if db_user.avatar_big_blob is not None:
+        return db_user.avatar_big_blob
+    photos = await client.get_chat_photos(user_id, limit=1)
+    async for photo in photos:
+        file = await client.download_media(photo, in_memory=True)
+        avatar = bytes(file)
+        db_user.avatar_big_blob = avatar
+        await database.update_user(db_user)
+        return avatar

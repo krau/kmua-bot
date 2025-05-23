@@ -59,7 +59,8 @@ async def upsert_user(user: User | Chat, session: AsyncSession) -> UserData:
 async def get_user_config(user: int | UserData | User) -> UserConfig:
     if isinstance(user, UserData):
         return UserConfig.from_dict(user.config)
-    elif isinstance(user, User):
+    user_data: UserData | None = None
+    if isinstance(user, User):
         user_data = await upsert_user(user)
     elif isinstance(user, int):
         user_data = await get_user_by_id(user)
@@ -79,3 +80,12 @@ async def update_user_config(
         raise ValueError(f"User with id {user_id} not found")
     user_data.user_config = config
     return user_data.user_config
+
+
+@with_tx
+async def update_user(user: UserData, session: AsyncSession) -> UserData:
+    user_data = await session.get(UserData, user.id)
+    if user_data is None:
+        raise ValueError(f"User with id {user.id} not found")
+    user_data = user
+    return user_data

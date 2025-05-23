@@ -1,7 +1,7 @@
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 from functools import wraps
-
+import inspect
 import alembic.command
 import alembic.config
 import pathlib
@@ -45,20 +45,39 @@ P = ParamSpec("P")
 
 
 def with_session(func: Callable[P, Awaitable[T]]) -> Callable[P, Awaitable[T]]:
+    sig = inspect.signature(func)
+
     @wraps(func)
     async def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
-        async with AsyncSessionFactory() as session:
-            return await func(session=session, *args, **kwargs)
+        bound = sig.bind_partial(*args, **kwargs)
+        bound.apply_defaults()
+        if "session" in bound.arguments and isinstance(
+            bound.arguments["session"], AsyncSession
+        ):
+            return await func(*args, **kwargs)
+        else:
+            async with AsyncSessionFactory() as session:
+                return await func(session=session, *args, **kwargs)
 
     return wrapper
 
 
 def with_tx(func: Callable[P, Awaitable[T]]) -> Callable[P, Awaitable[T]]:
+    sig = inspect.signature(func)
+
     @wraps(func)
     async def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
-        async with AsyncSessionFactory() as session:
-            async with session.begin():
-                return await func(session=session, *args, **kwargs)
+        bound = sig.bind_partial(*args, **kwargs)
+        bound.apply_defaults()
+
+        if "session" in bound.arguments and isinstance(
+            bound.arguments["session"], AsyncSession
+        ):
+            return await func(*args, **kwargs)
+        else:
+            async with AsyncSessionFactory() as session:
+                async with session.begin():
+                    return await func(session=session, *args, **kwargs)
 
     return wrapper
 

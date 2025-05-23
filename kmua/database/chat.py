@@ -32,7 +32,8 @@ async def get_chat_by_id(chat_id: int, session: AsyncSession) -> ChatData | None
 async def get_chat_config(chat: int | ChatData | Chat) -> ChatConfig:
     if isinstance(chat, ChatData):
         return chat.chat_config
-    elif isinstance(chat, Chat):
+    chat_data: ChatData | None = None
+    if isinstance(chat, Chat):
         chat_data = await upsert_chat(chat)
     elif isinstance(chat, int):
         chat_data = await get_chat_by_id(chat)

@@ -192,12 +192,10 @@ class UserData(Base):
 
     @property
     def user_config(self) -> UserConfig:
-        """Get typed user configuration"""
         return UserConfig.from_dict(self.config)
 
     @user_config.setter
     def user_config(self, config: UserConfig) -> None:
-        """Set user configuration"""
         self.config = config.to_dict()
 
     def __repr__(self) -> str:
@@ -250,12 +248,10 @@ class ChatData(Base):
 
     @property
     def chat_config(self) -> ChatConfig:
-        """Get typed chat configuration"""
         return ChatConfig.from_dict(self.config)
 
     @chat_config.setter
     def chat_config(self, config: ChatConfig) -> None:
-        """Set chat configuration"""
         self.config = config.to_dict()
 
     def __repr__(self) -> str:
