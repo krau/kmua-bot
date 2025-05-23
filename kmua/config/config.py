@@ -18,6 +18,7 @@ class _AppConfig(pydantic.BaseModel):
 
     workdir: Path = Path(__file__).resolve().parent.parent.parent / "data"
     debug: bool = False
+    automigrate: bool = True
 
 
 _T = TypeVar("_T", bound=pydantic.BaseModel)
