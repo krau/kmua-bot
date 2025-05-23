@@ -17,6 +17,3 @@ dependencies = [
     "tgcrypto>=1.2.5",
     "uvloop>=0.21.0",
 ]
-
-[tool.ruff]
-lint.select = ["I"]

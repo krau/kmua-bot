@@ -1,9 +1,7 @@
 from pyrogram import Client, filters
-from pyrogram.enums import ChatType
 from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup, Message
 
 from kmua import consts, database
-from kmua.logger import logger
 
 _start_bot_markup = InlineKeyboardMarkup(
     [
