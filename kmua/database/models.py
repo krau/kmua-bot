@@ -45,7 +45,9 @@ class UserConfig:
     lang: str = "zh-CN"
 
     @staticmethod
-    def from_dict(data: dict):
+    def from_dict(data: dict | None):
+        if data is None:
+            return UserConfig()
         return UserConfig(lang=data.get("lang", "zh-CN"))
 
     def to_dict(self):
@@ -125,7 +127,9 @@ class ChatConfig:
     lang: str = "zh-CN"
 
     @staticmethod
-    def from_dict(data: dict):
+    def from_dict(data: dict | None):
+        if data is None:
+            return ChatConfig()
         return ChatConfig(
             waifu_enabled=data.get("waifu_enabled", True),
             delete_events_enabled=data.get("delete_events_enabled", False),

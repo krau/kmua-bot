@@ -5,7 +5,7 @@ from pyrogram.types import Chat, User
 from sqlalchemy import func, select, text, update
 
 from .db import get_session
-from .models import UserData
+from .models import UserConfig, UserData
 
 
 async def get_user_by_id(id: int) -> UserData | None:
@@ -59,6 +59,20 @@ async def upsert_user(user: User | Chat) -> UserData:
                 user_data.is_real_user = is_real_user  # type: ignore
                 session.expunge(user_data)
             return user_data
+
+
+async def get_user_config(user: int | UserData | User) -> UserConfig:
+    if isinstance(user, UserData):
+        return UserConfig.from_dict(user.config)
+    elif isinstance(user, User):
+        user_data = await upsert_user(user)
+    elif isinstance(user, int):
+        user_data = await get_user_by_id(user)
+    else:
+        raise TypeError("user must be int, UserData or User")
+    if user_data is None:
+        raise ValueError("user not found")
+    return UserConfig.from_dict(user_data.config)
 
 
 async def count_users() -> int:

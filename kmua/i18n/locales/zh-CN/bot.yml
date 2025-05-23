@@ -12,3 +12,14 @@ bot:
     setu: 随机涩图
     config: 更改群组设置
     help: 帮助|更多功能
+  button:
+    repo: 开源仓库
+    docs: 详细帮助
+    user_data: 个人信息
+    user_quote: 语录管理
+    user_waifu: 老婆管理
+    start_noop: 喵喵喵喵
+    pm_me: "打开私聊"
+  msg:
+    private_start: "Nya~"
+    group_start: "请私聊咱使用哦~"
