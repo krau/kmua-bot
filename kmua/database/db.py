@@ -1,5 +1,6 @@
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator
+from functools import wraps
 
 import alembic.command
 import alembic.config
@@ -9,6 +10,7 @@ from sqlalchemy.ext.asyncio import (
     async_sessionmaker,
     create_async_engine,
 )
+from typing import Callable, Awaitable, TypeVar, ParamSpec
 
 from kmua import i18n
 from kmua.config import app_config
@@ -36,6 +38,29 @@ async def get_session() -> AsyncGenerator[AsyncSession, None]:
             raise
         finally:
             await ss.close()
+
+
+T = TypeVar("T")
+P = ParamSpec("P")
+
+
+def with_session(func: Callable[P, Awaitable[T]]) -> Callable[P, Awaitable[T]]:
+    @wraps(func)
+    async def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
+        async with AsyncSessionFactory() as session:
+            return await func(session=session, *args, **kwargs)
+
+    return wrapper
+
+
+def with_tx(func: Callable[P, Awaitable[T]]) -> Callable[P, Awaitable[T]]:
+    @wraps(func)
+    async def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
+        async with AsyncSessionFactory() as session:
+            async with session.begin():
+                return await func(session=session, *args, **kwargs)
+
+    return wrapper
 
 
 async def migrate_db() -> None:

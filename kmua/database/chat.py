@@ -1,31 +1,32 @@
 from pyrogram.types import Chat
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from .db import get_session
+from .db import with_session, with_tx
 from .models import ChatData, ChatConfig
 
 
-async def upsert_chat(chat: Chat) -> ChatData:
-    async with get_session() as session:
-        chat_data = await session.get(ChatData, chat.id)
-        if chat_data is None:
-            chat_data = ChatData(
-                id=chat.id,
-                title=chat.title,
-                username=chat.username,
-            )
-            session.add(chat_data)
-        else:
-            chat_data.title = chat.title  # type: ignore
-            chat_data.username = chat.username  # type: ignore
+@with_tx
+async def upsert_chat(chat: Chat, session: AsyncSession) -> ChatData:
+    chat_data = await session.get(ChatData, chat.id)
+    if chat_data is None:
+        chat_data = ChatData(
+            id=chat.id,
+            title=chat.title,
+            username=chat.username,
+        )
+        session.add(chat_data)
+    else:
+        chat_data.title = chat.title  # type: ignore
+        chat_data.username = chat.username  # type: ignore
     return chat_data
 
 
-async def get_chat_by_id(chat_id: int) -> ChatData | None:
-    async with get_session() as session:
-        chat_data = await session.get(ChatData, chat_id)
-        if chat_data is None:
-            return None
-        return chat_data
+@with_session
+async def get_chat_by_id(chat_id: int, session: AsyncSession) -> ChatData | None:
+    chat_data = await session.get(ChatData, chat_id)
+    if chat_data is None:
+        return None
+    return chat_data
 
 
 async def get_chat_config(chat: int | ChatData | Chat) -> ChatConfig:
@@ -42,8 +43,9 @@ async def get_chat_config(chat: int | ChatData | Chat) -> ChatConfig:
     return chat_data.chat_config
 
 
+@with_tx
 async def update_chat_config(
-    chat: int | ChatData | Chat, config: ChatConfig
+    chat: int | ChatData | Chat, config: ChatConfig, session: AsyncSession
 ) -> ChatConfig:
     chat_id = 0
     if isinstance(chat, ChatData):
@@ -55,18 +57,17 @@ async def update_chat_config(
     else:
         raise TypeError("chat must be int, ChatData or Chat")
 
-    async with get_session() as session:
-        chat_data = await session.get(ChatData, chat_id)
-        if chat_data is None:
-            if isinstance(chat, Chat):
-                chat_data = ChatData(
-                    id=chat.id,
-                    title=chat.title,
-                    username=chat.username,
-                )
-                session.add(chat_data)
-                await session.flush()
-            else:
-                raise ValueError(f"Chat with id {chat_id} not found")
-        chat_data.chat_config = config
+    chat_data = await session.get(ChatData, chat_id)
+    if chat_data is None:
+        if isinstance(chat, Chat):
+            chat_data = ChatData(
+                id=chat.id,
+                title=chat.title,
+                username=chat.username,
+            )
+            session.add(chat_data)
+            await session.flush()
+        else:
+            raise ValueError(f"Chat with id {chat_id} not found")
+    chat_data.chat_config = config
     return chat_data.chat_config

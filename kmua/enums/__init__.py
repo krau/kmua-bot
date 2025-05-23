@@ -1,5 +1,6 @@
 from enum import IntEnum
 
+
 # https://python-telegram-bot.org/
 class ChatID(IntEnum):
     """This enum contains some special chat IDs. The enum
