@@ -1,9 +1,10 @@
+import sqlalchemy
 from pyrogram.enums import ChatType
 from pyrogram.types import Chat, User
 from sqlalchemy.ext.asyncio import AsyncSession
-import sqlalchemy
+
 from .db import with_session, with_tx
-from .models import UserConfig, UserData, UserChatAssociation
+from .models import UserChatAssociation, UserConfig, UserData
 
 
 @with_session

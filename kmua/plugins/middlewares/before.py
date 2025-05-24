@@ -1,6 +1,6 @@
 from pyrogram import Client
 from pyrogram.enums import ChatType
-from pyrogram.types import Message, CallbackQuery
+from pyrogram.types import CallbackQuery, Message
 
 from kmua import database
 

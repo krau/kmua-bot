@@ -1,23 +1,22 @@
-from contextlib import asynccontextmanager
-from typing import AsyncGenerator
-from functools import wraps
 import inspect
-import alembic.command
-import alembic.config
 import pathlib
+from contextlib import asynccontextmanager
+from functools import wraps
+from typing import AsyncGenerator, Awaitable, Callable, ParamSpec, TypeVar
+
 from sqlalchemy.ext.asyncio import (
     AsyncSession,
     async_sessionmaker,
     create_async_engine,
 )
-from typing import Callable, Awaitable, TypeVar, ParamSpec
 
+import alembic.command
+import alembic.config
 from kmua import i18n
 from kmua.config import app_config
 from kmua.logger import logger
 
 from .models import Base
-
 
 engine = create_async_engine(app_config.db_url, echo=app_config.debug, future=True)
 

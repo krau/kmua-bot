@@ -1,9 +1,12 @@
 from typing import AsyncGenerator
-from .db import AsyncSessionFactory, with_session, with_tx
-from .models import ChatData, UserChatAssociation, UserData
+
 import sqlalchemy
 from sqlalchemy.ext.asyncio import AsyncSession
+
 from kmua import enums
+
+from .db import AsyncSessionFactory, with_session, with_tx
+from .models import ChatData, UserChatAssociation, UserData
 
 
 @with_tx

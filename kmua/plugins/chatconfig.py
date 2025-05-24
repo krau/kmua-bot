@@ -1,9 +1,9 @@
 import pyrogram
-from kmua import common
-from kmua import database
+from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
+
+from kmua import common, database
 from kmua.database.models import ChatConfig
 from kmua.i18n import i18n
-from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
 
 class ChatConfigMarkup:

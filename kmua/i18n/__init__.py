@@ -1,6 +1,6 @@
 from pathlib import Path
-from typing import Any, Dict, Optional
 from random import choice
+from typing import Any, Dict, Optional
 
 import yaml
 

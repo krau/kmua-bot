@@ -2,7 +2,7 @@ from pyrogram.types import Chat
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from .db import with_session, with_tx
-from .models import ChatData, ChatConfig
+from .models import ChatConfig, ChatData
 
 
 @with_tx

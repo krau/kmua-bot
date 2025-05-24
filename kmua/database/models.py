@@ -1,6 +1,6 @@
 from dataclasses import asdict, dataclass
-from typing import List
 from datetime import datetime
+from typing import List
 
 from sqlalchemy import (
     JSON,
@@ -13,10 +13,10 @@ from sqlalchemy import (
     func,
 )
 from sqlalchemy.orm import (
+    DeclarativeBase,
     Mapped,
     mapped_column,
     relationship,
-    DeclarativeBase,
 )
 
 

@@ -1,15 +1,16 @@
 import asyncio
 import html
+import os
 from io import BytesIO
 from math import ceil, sqrt
-import os
 from typing import AsyncGenerator
+
 import aiofiles
-import pyrogram
-from kmua import database, i18n
-from kmua import common
-from kmua.database.models import ChatData, UserData
 import graphviz
+import pyrogram
+
+from kmua import common, database, i18n
+from kmua.database.models import ChatData, UserData
 
 
 def waifu_waiting_key(user_id: int, chat_id: int) -> str:
