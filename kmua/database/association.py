@@ -182,9 +182,10 @@ async def take_waifu_for_user_in_chat(
 def get_chat_user_participated_waifu(
     chat_id: int, batch_size: int = 100
 ) -> AsyncGenerator[UserData, None]:
-    async def user_stream_generator():
+    async def user_generator():
         async with AsyncSessionFactory() as session:
             offset = 0
+
             while True:
                 stmt = (
                     sqlalchemy.select(UserData)
@@ -193,7 +194,17 @@ def get_chat_user_participated_waifu(
                         (UserChatAssociation.user_id == UserData.id)
                         & (UserChatAssociation.chat_id == chat_id),
                     )
-                    .where(UserChatAssociation.waifu_id.isnot(None))
+                    .where(
+                        sqlalchemy.or_(
+                            UserChatAssociation.waifu_id.isnot(None),
+                            UserChatAssociation.user_id.in_(
+                                sqlalchemy.select(UserChatAssociation.waifu_id).where(
+                                    (UserChatAssociation.chat_id == chat_id)
+                                    & (UserChatAssociation.waifu_id.isnot(None))
+                                )
+                            ),
+                        )
+                    )
                     .offset(offset)
                     .limit(batch_size)
                 )
@@ -209,15 +220,15 @@ def get_chat_user_participated_waifu(
 
                 offset += batch_size
 
-    return user_stream_generator()
+    return user_generator()
 
 
 @with_session
 async def count_chat_waifu_participants(
     chat_id: int, session: AsyncSession | None = None
 ) -> int:
-    count_stmt = (
-        sqlalchemy.select(sqlalchemy.func.count(UserData.id))
+    users_with_waifu_stmt = (
+        sqlalchemy.select(UserData.id)
         .join(
             UserChatAssociation,
             (UserChatAssociation.user_id == UserData.id)
@@ -225,6 +236,15 @@ async def count_chat_waifu_participants(
         )
         .where(UserChatAssociation.waifu_id.isnot(None))
     )
+
+    users_as_waifu_stmt = sqlalchemy.select(UserChatAssociation.waifu_id).where(
+        (UserChatAssociation.chat_id == chat_id)
+        & (UserChatAssociation.waifu_id.isnot(None))
+    )
+
+    stmt = sqlalchemy.union(users_with_waifu_stmt, users_as_waifu_stmt).subquery()
+
+    count_stmt = sqlalchemy.select(sqlalchemy.func.count()).select_from(stmt)
     count_result = await session.execute(count_stmt)
     return count_result.scalar() or 0
 

@@ -1,12 +1,16 @@
 import html
 from io import BytesIO
+from pathlib import Path
 
+import aiofiles
+import aiofiles.os
 import pyrogram
 from pyrogram.enums import ChatMemberStatus, ChatType
 from pyrogram.types import Chat, User
 
 from kmua import database, enums
 from kmua.bot import client
+from kmua.config import app_config
 from kmua.database.models import ChatData, UserData
 
 from .jobs import jobqueue  # noqa: F401
@@ -45,49 +49,49 @@ async def can_user_manage_bot_in_chat(user: User, chat: Chat) -> bool:
     return False
 
 
+def _get_avatar_path(user_id: int, big: bool = True) -> Path:
+    return (
+        app_config.avatar_cache_dir / str(user_id)[:2] / f"{user_id}.jpg"
+        if big
+        else app_config.avatar_cache_dir / str(user_id)[:2] / f"{user_id}_small.jpg"
+    )
+
+
 async def get_big_avatar_bytes(user_id: int) -> bytes | None:
-    db_user: UserData = await database.get_user_by_id(user_id)
-    if db_user is None:
-        return None
-    if db_user.avatar_big_blob is not None:
-        return db_user.avatar_big_blob
-    photos = []
-    async for photo in client.get_chat_photos(user_id, limit=1):
-        photos.append(photo)
-    if photos is None:
+    avatar_path = _get_avatar_path(user_id)
+    if await aiofiles.os.path.exists(avatar_path):
+        async with aiofiles.open(avatar_path, "rb") as avatar_file:
+            return await avatar_file.read()
+    photos = [p async for p in client.get_chat_photos(user_id, limit=1)]
+    if not photos:
         return None
     photo = photos[0]
     file = await client.download_media(photo, in_memory=True)
-    if file is None:
+    if file is None or not isinstance(file, BytesIO):
         return None
-    if not isinstance(file, BytesIO):
-        raise ValueError("File is not a BytesIO")
     file.seek(0)
     avatar = file.read()
-    db_user.avatar_big_blob = avatar
-    await database.update_user_avatar(db_user.id, avatar_big_blob=avatar)
+    await aiofiles.os.makedirs(avatar_path.parent, exist_ok=True)
+    async with aiofiles.open(avatar_path, "wb") as avatar_file:
+        await avatar_file.write(avatar)
     return avatar
 
 
 async def get_small_avatar_bytes(user_id: int) -> bytes | None:
-    db_user: UserData = await database.get_user_by_id(user_id)
-    if db_user is None:
-        return None
-    if db_user.avatar_small_blob is not None:
-        return db_user.avatar_small_blob
-    photos = []
-    async for photo in client.get_chat_photos(user_id, limit=1):
-        photos.append(photo)
-    if photos is None:
+    avatar_path = _get_avatar_path(user_id, big=False)
+    if await aiofiles.os.path.exists(avatar_path):
+        async with aiofiles.open(avatar_path, "rb") as avatar_file:
+            return await avatar_file.read()
+    photos = [p async for p in client.get_chat_photos(user_id, limit=1)]
+    if not photos:
         return None
     photo: pyrogram.types.Photo = photos[0]
     file = await client.download_media(photo.thumbs[0], in_memory=True)
-    if file is None:
+    if file is None or not isinstance(file, BytesIO):
         return None
-    if not isinstance(file, BytesIO):
-        raise ValueError("File is not a BytesIO")
     file.seek(0)
     avatar = file.read()
-    db_user.avatar_small_blob = avatar
-    await database.update_user_avatar(db_user.id, avatar_small_blob=avatar)
+    await aiofiles.os.makedirs(avatar_path.parent, exist_ok=True)
+    async with aiofiles.open(avatar_path, "wb") as avatar_file:
+        await avatar_file.write(avatar)
     return avatar

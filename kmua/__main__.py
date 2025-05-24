@@ -12,6 +12,8 @@ from kmua.logger import logger
 @client.on_start()
 async def init_bot(client: Client = client):
     logger.info(i18n.t("log.initing", locale=app_config.lang))
+    if not app_config.avatar_cache_dir.exists():
+        app_config.avatar_cache_dir.mkdir(parents=True, exist_ok=True)
     await client.set_bot_commands(
         [
             BotCommand(
@@ -33,7 +35,7 @@ async def init_bot(client: Client = client):
             BotCommand("help", i18n.t("bot.cmd.help", locale=app_config.lang)),
         ]
     )
-    common.jobqueue.add_interval_job("cleanup", jobs.cleanup, seconds=10)
+    common.jobqueue.add_daily_job("cleanup", jobs.cleanup, hour=4)
     common.jobqueue.start()
     logger.success(i18n.t("log.inited", locale=app_config.lang))
 
@@ -41,6 +43,7 @@ async def init_bot(client: Client = client):
 @client.on_stop()
 async def stop_bot(client: Client = client):
     logger.info(i18n.t("log.stopping", locale=app_config.lang))
+    common.jobqueue.shutdown()
     await db.close_db()
     logger.success(i18n.t("log.exit", locale=app_config.lang))
 

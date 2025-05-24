@@ -85,20 +85,14 @@ async def update_user_config(
 @with_tx
 async def update_user_avatar(
     user_id: int,
-    avatar_big_blob: bytes | None = None,
     avatar_big_id: str | None = None,
-    avatar_small_blob: bytes | None = None,
     session: AsyncSession | None = None,
 ) -> UserData:
     user_data = await session.get(UserData, user_id)
     if user_data is None:
         raise ValueError(f"User with id {user_id} not found")
-    if avatar_big_blob is not None:
-        user_data.avatar_big_blob = avatar_big_blob
     if avatar_big_id is not None:
         user_data.avatar_big_id = avatar_big_id
-    if avatar_small_blob is not None:
-        user_data.avatar_small_blob = avatar_small_blob
     return user_data
 
 
@@ -154,23 +148,3 @@ async def make_wedding(
         .values(waifu_id=user_id)
     )
     await session.execute(stmt)
-
-
-@with_tx
-async def cleanup_user_avatars(
-    session: AsyncSession | None = None,
-) -> None:
-    stmt = sqlalchemy.update(UserData).values(
-        avatar_big_blob=None,
-        avatar_big_id=None,
-        avatar_small_blob=None,
-    )
-    await session.execute(stmt)
-    # TODO: refactor to use other service for avatar storage
-    if session.bind.dialect.name == "sqlite":
-        await session.execute(sqlalchemy.text("VACUUM"))
-    elif session.bind.dialect.name == "postgresql":
-        await session.execute(sqlalchemy.text("VACUUM FULL"))
-    elif session.bind.dialect.name == "mysql":
-        await session.execute(sqlalchemy.text("OPTIMIZE TABLE user_data"))
-    await session.flush()

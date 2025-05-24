@@ -2,6 +2,7 @@ import html
 from io import BytesIO
 
 import pyrogram
+import pyrogram.errors
 
 from kmua import common, database, enums, i18n
 from kmua.database.models import ChatData, UserData
@@ -22,13 +23,13 @@ async def today_waifu(client: pyrogram.Client, message: pyrogram.types.Message):
             text=i18n.t("bot.msg.waifu.disabled", locale=chat_config.lang)
         )
         return
-    if await common.memory_store.get(enums.GLockKey.CLEANING, False):
+    if await common.memstore.get(enums.GLockKey.CLEANING, False):
         await message.reply(text=i18n.t("bot.msg.cleanning", locale=chat_config.lang))
         return
     lock_key = utils.waifu_waiting_key(raw_user.id, raw_chat.id)
-    if await common.memory_store.get(lock_key):
+    if await common.memstore.get(lock_key):
         return
-    await common.memory_store.set(lock_key, True)
+    await common.memstore.set(lock_key, True)
     waifu: UserData | None = None
     user = await database.upsert_user(raw_user)
     chat: ChatData = await database.upsert_chat(raw_chat)
@@ -60,7 +61,7 @@ async def today_waifu(client: pyrogram.Client, message: pyrogram.types.Message):
                 waifu=await common.mention_html(waifu),
             )
             waifu_markup = None
-        photo = waifu.avatar_big_id or waifu.avatar_big_blob
+        photo = waifu.avatar_big_id
         if not photo:
             photo = await common.get_big_avatar_bytes(waifu.id)
         if not photo:
@@ -86,13 +87,7 @@ async def today_waifu(client: pyrogram.Client, message: pyrogram.types.Message):
                 parse_mode=pyrogram.enums.ParseMode.HTML,
             )
     finally:
-        await common.memory_store.delete(lock_key)
-        if waifu and not waifu.avatar_small_blob:
-            small_avatar = await common.get_small_avatar_bytes(waifu.id)
-            if small_avatar:
-                await database.update_user_avatar(
-                    waifu.id, avatar_small_blob=small_avatar
-                )
+        await common.memstore.delete(lock_key)
 
 
 @pyrogram.Client.on_message(
@@ -103,7 +98,7 @@ async def waifu_graph(client: pyrogram.Client, message: pyrogram.types.Message):
     chat_config = await database.get_chat_config(chat)
     if not chat_config.waifu_enabled:
         return
-    if await common.memory_store.get(enums.GLockKey.CLEANING, False):
+    if await common.memstore.get(enums.GLockKey.CLEANING, False):
         return
     await message.reply(text=i18n.trl("bot.msg.loading", locale=chat_config.lang))
     await utils.send_waifu_graph(chat.id, message.id, client)

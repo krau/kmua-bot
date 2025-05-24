@@ -19,6 +19,8 @@ class _AppConfig(pydantic.BaseModel):
     workdir: Path = Path(__file__).resolve().parent.parent.parent / "data"
     debug: bool = False
     automigrate: bool = True
+    cachedir: Path = workdir / "cache"
+    avatar_cache_dir: Path = cachedir / "avatar"
 
 
 _T = TypeVar("_T", bound=pydantic.BaseModel)

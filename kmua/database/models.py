@@ -129,14 +129,14 @@ class UserData(Base):
     username: Mapped[str | None] = mapped_column(String(64), nullable=True)
     full_name: Mapped[str] = mapped_column(String(256), nullable=False)
 
-    avatar_small_blob: Mapped[bytes | None] = mapped_column(
-        LargeBinary(65536),
-        nullable=True,
-    )
-    avatar_big_blob: Mapped[bytes | None] = mapped_column(
-        LargeBinary(65536),
-        nullable=True,
-    )
+    # avatar_small_blob: Mapped[bytes | None] = mapped_column(
+    #     LargeBinary(65536),
+    #     nullable=True,
+    # )
+    # avatar_big_blob: Mapped[bytes | None] = mapped_column(
+    #     LargeBinary(65536),
+    #     nullable=True,
+    # )
     avatar_big_id: Mapped[str | None] = mapped_column(
         String(256),
         nullable=True,
