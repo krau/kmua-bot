@@ -1,4 +1,4 @@
-from enum import IntEnum
+from enum import IntEnum, StrEnum
 
 
 # https://python-telegram-bot.org/
@@ -30,3 +30,11 @@ class ChatID(IntEnum):
     """:obj:`int`: User ID in groups when message is sent on behalf of a channel, or when a channel
     votes on a poll. Telegram chat: `@Channel_Bot <https://t.me/Channel_Bot>`_.
     """
+
+
+class GLockKey(StrEnum):
+    """This enum contains keys for the global lock."""
+
+    __slots__ = ()
+
+    CLEANING = "cleaning"

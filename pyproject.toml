@@ -6,10 +6,12 @@ readme = "README.md"
 license = "AGPL-3.0"
 requires-python = ">=3.13"
 dependencies = [
+    "aiofiles>=24.1.0",
     "aiosqlite>=0.21.0",
     "alembic>=1.16.1",
     "asyncpg>=0.30.0",
     "dynaconf>=3.2.11",
+    "graphviz>=0.20.3",
     "kurigram>=2.2.3",
     "loguru>=0.7.3",
     "pydantic>=2.11.4",

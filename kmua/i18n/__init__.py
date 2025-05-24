@@ -1,5 +1,6 @@
 from pathlib import Path
 from typing import Any, Dict, Optional
+from random import choice
 
 import yaml
 
@@ -55,14 +56,16 @@ class I18n:
             else:
                 target[key] = value
 
-    def _get_nested_value(self, data: Dict[str, Any], key: str) -> Optional[str]:
+    def _get_nested_value(
+        self, data: Dict[str, Any], key: str
+    ) -> Optional[str | list[str]]:
         keys = key.split(".")
         current = data
 
         try:
             for k in keys:
                 current = current[k]
-            return str(current) if current is not None else None
+            return current if current is not None else None
         except (KeyError, TypeError):
             return None
 
@@ -96,6 +99,33 @@ class I18n:
 
         return translation if translation is not None else key
 
+    def trl(self, key: str, locale: str = "") -> str:
+        """
+        translate a list and return a random value from the list
+        """
+        if locale is None:
+            locale = self.default_locale
+
+        if locale not in self.translations:
+            if self.default_locale in self.translations:
+                locale = self.default_locale
+            else:
+                return key
+
+        translation = self._get_nested_value(self.translations[locale], key)
+
+        if isinstance(translation, list):
+            return choice(translation)
+        elif translation is None and locale != self.default_locale:
+            if self.default_locale in self.translations:
+                translation = self._get_nested_value(
+                    self.translations[self.default_locale], key
+                )
+                if isinstance(translation, list):
+                    return choice(translation)
+
+        return translation if translation is not None else key
+
     def get_available_locales(self) -> list[str]:
         return list(self.available_locales)
 
@@ -113,3 +143,4 @@ class I18n:
 
 i18n = I18n()
 t = i18n.t
+trl = i18n.trl

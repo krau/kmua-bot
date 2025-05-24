@@ -1,7 +1,7 @@
 import html
 from io import BytesIO
 import pyrogram
-from kmua import database, i18n
+from kmua import database, enums, i18n
 from kmua import common
 from kmua.database.models import ChatData, UserData
 from kmua.logger import logger
@@ -94,7 +94,14 @@ async def today_waifu(client: pyrogram.Client, message: pyrogram.types.Message):
     pyrogram.filters.command("waifu_graph") & pyrogram.filters.group, group=0
 )
 async def waifu_graph(client: pyrogram.Client, message: pyrogram.types.Message):
-    raise NotImplementedError
+    chat = message.chat
+    chat_config = await database.get_chat_config(chat)
+    if not chat_config.waifu_enabled:
+        return
+    if await common.memstore.get(enums.GLockKey.CLEANING, False):
+        return
+    await message.reply(text=i18n.trl("bot.msg.loading", locale=chat_config.lang))
+    await utils.send_waifu_graph(chat.id, message.id, client)
 
 
 @pyrogram.Client.on_callback_query(pyrogram.filters.regex(r"^remove_waifu"), group=0)
