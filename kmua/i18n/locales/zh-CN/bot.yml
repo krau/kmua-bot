@@ -34,6 +34,8 @@ bot:
     waifu:
       remove: 移除(管理员)
       marry: 娶老婆!
+      remove_confirm: 移除
+      remove_cancel: 算了
   msg:
     private_start: Nya~
     group_start: 请私聊咱使用哦
@@ -51,3 +53,6 @@ bot:
       got_nouser: "你今天已经抽过老婆了! {waifu} 是你今天的老婆!"
       normal_nouser: "你今天的群幼老婆是 {waifu}!"
       married: '{user}, 你和 {waifu} 已经结婚了哦~'
+      remove_not_found: 查无此人,可能已经被移除了
+      remove: 确定要移除ta吗?
+      removed: '已移除该用户, ta 曾是 {user} 的老婆'

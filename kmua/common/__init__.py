@@ -1,6 +1,5 @@
 import html
 from io import BytesIO
-from typing import BinaryIO
 
 import pyrogram
 from pyrogram.enums import ChatMemberStatus, ChatType
@@ -59,8 +58,8 @@ async def get_big_avatar_bytes(user_id: int) -> bytes | None:
     file = await client.download_media(photo, in_memory=True)
     if file is None:
         return None
-    if not isinstance(file, BinaryIO):
-        raise ValueError("File is not a BinaryIO")
+    if not isinstance(file, BytesIO):
+        raise ValueError("File is not a BytesIO")
     file.seek(0)
     avatar = file.read()
     db_user.avatar_big_blob = avatar
@@ -84,7 +83,7 @@ async def get_small_avatar_bytes(user_id: int) -> bytes | None:
     if file is None:
         return None
     if not isinstance(file, BytesIO):
-        raise ValueError("File is not a BinaryIO")
+        raise ValueError("File is not a BytesIO")
     file.seek(0)
     avatar = file.read()
     db_user.avatar_small_blob = avatar

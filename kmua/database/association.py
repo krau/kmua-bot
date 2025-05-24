@@ -107,6 +107,19 @@ async def set_user_waifu_in_chat(
     return True
 
 
+@with_tx
+async def remove_user_waifu_in_chat(
+    user: UserData, chat: ChatData, session: AsyncSession
+) -> bool:
+    association = await get_association(user.id, chat.id, session)
+    if association is None:
+        raise ValueError("Association not found")
+    if association.waifu_id is None:
+        raise ValueError("Waifu not set")
+    association.waifu_id = None
+    return True
+
+
 @with_session
 async def take_waifu_for_user_in_chat(
     user: UserData, chat: ChatData, session: AsyncSession
