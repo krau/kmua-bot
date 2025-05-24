@@ -25,7 +25,7 @@ async def today_waifu(client: pyrogram.Client, message: pyrogram.types.Message):
         return
     await common.memstore.set(lock_key, True)
     waifu: UserData | None = None
-    user: UserData = await database.upsert_user(raw_user)
+    user = await database.upsert_user(raw_user)
     chat: ChatData = await database.upsert_chat(raw_chat)
     try:
         await message.reply_chat_action(pyrogram.enums.ChatAction.TYPING)

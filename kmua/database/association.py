@@ -7,7 +7,10 @@ from kmua import enums
 
 @with_tx
 async def add_association_in_chat(
-    chat: ChatData, user: UserData, waifu: UserData | None, session: AsyncSession
+    chat: ChatData,
+    user: UserData,
+    waifu: UserData | None,
+    session: AsyncSession | None = None,
 ) -> UserChatAssociation:
     if data := await session.get(UserChatAssociation, (user.id, chat.id)):
         return data
@@ -22,7 +25,7 @@ async def add_association_in_chat(
 
 @with_session
 async def get_association(
-    user_id: int, chat_id: int, session: AsyncSession
+    user_id: int, chat_id: int, session: AsyncSession | None = None
 ) -> UserChatAssociation | None:
     data = await session.get(UserChatAssociation, (user_id, chat_id))
     if data is None:
@@ -32,7 +35,10 @@ async def get_association(
 
 @with_tx
 async def update_association(
-    user_id: int, chat_id: int, association: UserChatAssociation, session: AsyncSession
+    user_id: int,
+    chat_id: int,
+    association: UserChatAssociation,
+    session: AsyncSession | None = None,
 ) -> bool:
     stmt = (
         sqlalchemy.update(UserChatAssociation)
@@ -52,7 +58,9 @@ async def update_association(
 
 
 @with_tx
-async def remove_association(user_id: int, chat_id: int, session: AsyncSession) -> bool:
+async def remove_association(
+    user_id: int, chat_id: int, session: AsyncSession | None = None
+) -> bool:
     stmt = sqlalchemy.delete(UserChatAssociation).where(
         UserChatAssociation.user_id == user_id,
         UserChatAssociation.chat_id == chat_id,
@@ -63,7 +71,7 @@ async def remove_association(user_id: int, chat_id: int, session: AsyncSession) 
 
 @with_session
 async def get_user_waifu_in_chat(
-    user: UserData, chat: ChatData, session: AsyncSession
+    user: UserData, chat: ChatData, session: AsyncSession | None = None
 ) -> tuple[UserData | None, bool]:
     """get user waifu in chat
     if user is married, return married waifu
@@ -85,7 +93,7 @@ async def get_user_waifu_in_chat(
 
 @with_session
 async def is_setted_waifu_in_chat(
-    user: UserData, chat: ChatData, session: AsyncSession
+    user: UserData, chat: ChatData, session: AsyncSession | None = None
 ) -> bool:
     """check if user waifu is set in chat"""
     association = await get_association(user.id, chat.id, session)
@@ -96,7 +104,7 @@ async def is_setted_waifu_in_chat(
 
 @with_tx
 async def set_user_waifu_in_chat(
-    user: UserData, chat: ChatData, waifu: UserData, session: AsyncSession
+    user: UserData, chat: ChatData, waifu: UserData, session: AsyncSession | None = None
 ) -> bool:
     association = await get_association(user.id, chat.id, session)
     if association is None:
@@ -109,7 +117,7 @@ async def set_user_waifu_in_chat(
 
 @with_tx
 async def remove_user_waifu_in_chat(
-    user: UserData, chat: ChatData, session: AsyncSession
+    user: UserData, chat: ChatData, session: AsyncSession | None = None
 ) -> bool:
     association = await get_association(user.id, chat.id, session)
     if association is None:
@@ -122,7 +130,7 @@ async def remove_user_waifu_in_chat(
 
 @with_session
 async def take_waifu_for_user_in_chat(
-    user: UserData, chat: ChatData, session: AsyncSession
+    user: UserData, chat: ChatData, session: AsyncSession | None = None
 ) -> UserData | None:
     excluded_user_ids = [
         user.id,
@@ -151,8 +159,5 @@ async def take_waifu_for_user_in_chat(
 
     result = await session.execute(stmt)
     waifu = result.scalars().first()
-
-    if waifu is None:
-        return None
 
     return waifu

@@ -7,15 +7,14 @@ from .models import UserConfig, UserData
 
 
 @with_session
-async def get_user_by_id(id: int, session: AsyncSession) -> UserData | None:
-    user = await session.get(UserData, id)
-    if user is None:
-        return None
-    return user
+async def get_user_by_id(id: int, session: AsyncSession | None = None) -> UserData:
+    return await session.get(UserData, id)
 
 
 @with_tx
-async def upsert_user(user: User | Chat | UserData, session: AsyncSession) -> UserData:
+async def upsert_user(
+    user: User | Chat | UserData, session: AsyncSession | None = None
+) -> UserData:
     """
     'Upsert' user data into the database.
     Only fields [id, username, full_name, is_bot, is_real_user] are upsert.
@@ -73,7 +72,7 @@ async def get_user_config(user: int | UserData | User) -> UserConfig:
 
 @with_tx
 async def update_user_config(
-    user_id: int, config: UserConfig, session: AsyncSession
+    user_id: int, config: UserConfig, session: AsyncSession | None = None
 ) -> UserConfig:
     user_data = await session.get(UserData, user_id)
     if user_data is None:
@@ -88,7 +87,7 @@ async def update_user_avatar(
     avatar_big_blob: bytes | None = None,
     avatar_big_id: str | None = None,
     avatar_small_blob: bytes | None = None,
-    session: AsyncSession = None,
+    session: AsyncSession | None = None,
 ) -> UserData:
     user_data = await session.get(UserData, user_id)
     if user_data is None:

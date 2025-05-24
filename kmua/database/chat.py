@@ -6,7 +6,7 @@ from .models import ChatData, ChatConfig
 
 
 @with_tx
-async def upsert_chat(chat: Chat, session: AsyncSession) -> ChatData:
+async def upsert_chat(chat: Chat, session: AsyncSession | None = None) -> ChatData:
     chat_data = await session.get(ChatData, chat.id)
     if chat_data is None:
         chat_data = ChatData(
@@ -22,7 +22,9 @@ async def upsert_chat(chat: Chat, session: AsyncSession) -> ChatData:
 
 
 @with_session
-async def get_chat_by_id(chat_id: int, session: AsyncSession) -> ChatData | None:
+async def get_chat_by_id(
+    chat_id: int, session: AsyncSession | None = None
+) -> ChatData | None:
     chat_data = await session.get(ChatData, chat_id)
     if chat_data is None:
         return None
@@ -46,7 +48,7 @@ async def get_chat_config(chat: int | ChatData | Chat) -> ChatConfig:
 
 @with_tx
 async def update_chat_config(
-    chat: int | ChatData | Chat, config: ChatConfig, session: AsyncSession
+    chat: int | ChatData | Chat, config: ChatConfig, session: AsyncSession | None = None
 ) -> ChatConfig:
     chat_id = 0
     if isinstance(chat, ChatData):
