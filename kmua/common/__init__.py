@@ -9,7 +9,8 @@ from kmua import database, enums
 from kmua.bot import client
 from kmua.database.models import ChatData, UserData
 
-from .memstore import memstore  # noqa: F401
+from .jobs import jobqueue  # noqa: F401
+from .memory_store import memstore  # noqa: F401
 
 
 async def mention_html(chat: User | Chat | UserData | ChatData) -> str:

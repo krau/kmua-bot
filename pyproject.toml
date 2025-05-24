@@ -9,6 +9,7 @@ dependencies = [
     "aiofiles>=24.1.0",
     "aiosqlite>=0.21.0",
     "alembic>=1.16.1",
+    "apscheduler>=3.11.0",
     "asyncpg>=0.30.0",
     "dynaconf>=3.2.11",
     "graphviz>=0.20.3",

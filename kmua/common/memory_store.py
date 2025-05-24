@@ -25,3 +25,5 @@ class _MemStore:
 
 
 memstore = _MemStore()
+
+__all__ = ["memstore"]

@@ -1,7 +1,8 @@
 from pyrogram import Client, idle
 from pyrogram.types import BotCommand
 
-from kmua import i18n
+from kmua import bot, common, i18n
+from kmua.bot import jobs
 from kmua.bot.client import client
 from kmua.config import app_config
 from kmua.database import db
@@ -32,6 +33,8 @@ async def init_bot(client: Client = client):
             BotCommand("help", i18n.t("bot.cmd.help", locale=app_config.lang)),
         ]
     )
+    common.jobqueue.add_interval_job("cleanup", jobs.cleanup, seconds=10)
+    common.jobqueue.start()
     logger.success(i18n.t("log.inited", locale=app_config.lang))
 
 

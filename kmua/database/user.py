@@ -154,3 +154,23 @@ async def make_wedding(
         .values(waifu_id=user_id)
     )
     await session.execute(stmt)
+
+
+@with_tx
+async def cleanup_user_avatars(
+    session: AsyncSession | None = None,
+) -> None:
+    stmt = sqlalchemy.update(UserData).values(
+        avatar_big_blob=None,
+        avatar_big_id=None,
+        avatar_small_blob=None,
+    )
+    await session.execute(stmt)
+    # TODO: refactor to use other service for avatar storage
+    if session.bind.dialect.name == "sqlite":
+        await session.execute(sqlalchemy.text("VACUUM"))
+    elif session.bind.dialect.name == "postgresql":
+        await session.execute(sqlalchemy.text("VACUUM FULL"))
+    elif session.bind.dialect.name == "mysql":
+        await session.execute(sqlalchemy.text("OPTIMIZE TABLE user_data"))
+    await session.flush()

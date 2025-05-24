@@ -227,3 +227,13 @@ async def count_chat_waifu_participants(
     )
     count_result = await session.execute(count_stmt)
     return count_result.scalar() or 0
+
+
+@with_tx
+async def cleanup_waifu_data(session: AsyncSession | None = None):
+    stmt = (
+        sqlalchemy.update(UserChatAssociation)
+        .where(UserChatAssociation.waifu_id.isnot(None))
+        .values(waifu_id=None)
+    )
+    await session.execute(stmt)
