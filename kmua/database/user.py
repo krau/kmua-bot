@@ -148,3 +148,9 @@ async def make_wedding(
         .values(waifu_id=user_id)
     )
     await session.execute(stmt)
+
+
+@with_tx
+async def cleanup_user_avatar(session: AsyncSession | None = None):
+    stmt = sqlalchemy.update(UserData).values(avatar_big_id=None)
+    await session.execute(stmt)

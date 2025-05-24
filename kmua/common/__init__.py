@@ -1,12 +1,12 @@
 import html
+import shutil
 from io import BytesIO
 from pathlib import Path
 
 import aiofiles
 import aiofiles.os
-import pyrogram
 from pyrogram.enums import ChatMemberStatus, ChatType
-from pyrogram.types import Chat, User
+from pyrogram.types import Chat, Photo, User
 
 from kmua import database, enums
 from kmua.bot import client
@@ -58,11 +58,13 @@ def _get_avatar_path(user_id: int, big: bool = True) -> Path:
 
 
 async def get_big_avatar_bytes(user_id: int) -> bytes | None:
+    if await memstore.get(enums.GLockKey.CLEANING):
+        return None
     avatar_path = _get_avatar_path(user_id)
     if await aiofiles.os.path.exists(avatar_path):
         async with aiofiles.open(avatar_path, "rb") as avatar_file:
             return await avatar_file.read()
-    photos = [p async for p in client.get_chat_photos(user_id, limit=1)]
+    photos: list[Photo] = [p async for p in client.get_chat_photos(user_id, limit=1)]
     if not photos:
         return None
     photo = photos[0]
@@ -78,14 +80,16 @@ async def get_big_avatar_bytes(user_id: int) -> bytes | None:
 
 
 async def get_small_avatar_bytes(user_id: int) -> bytes | None:
+    if await memstore.get(enums.GLockKey.CLEANING):
+        return None
     avatar_path = _get_avatar_path(user_id, big=False)
     if await aiofiles.os.path.exists(avatar_path):
         async with aiofiles.open(avatar_path, "rb") as avatar_file:
             return await avatar_file.read()
-    photos = [p async for p in client.get_chat_photos(user_id, limit=1)]
+    photos: list[Photo] = [p async for p in client.get_chat_photos(user_id, limit=1)]
     if not photos:
         return None
-    photo: pyrogram.types.Photo = photos[0]
+    photo: Photo = photos[0]
     file = await client.download_media(photo.thumbs[0], in_memory=True)
     if file is None or not isinstance(file, BytesIO):
         return None
@@ -95,3 +99,7 @@ async def get_small_avatar_bytes(user_id: int) -> bytes | None:
     async with aiofiles.open(avatar_path, "wb") as avatar_file:
         await avatar_file.write(avatar)
     return avatar
+
+
+def cleanup_avatar_cache():
+    shutil.rmtree(app_config.avatar_cache_dir, ignore_errors=True)
