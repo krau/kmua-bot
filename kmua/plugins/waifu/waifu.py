@@ -22,6 +22,9 @@ async def today_waifu(client: pyrogram.Client, message: pyrogram.types.Message):
             text=i18n.t("bot.msg.waifu.disabled", locale=chat_config.lang)
         )
         return
+    if await common.memstore.get(enums.GLockKey.CLEANING, False):
+        await message.reply(text=i18n.t("bot.msg.cleanning", locale=chat_config.lang))
+        return
     lock_key = utils.waifu_waiting_key(raw_user.id, raw_chat.id)
     if await common.memstore.get(lock_key):
         return

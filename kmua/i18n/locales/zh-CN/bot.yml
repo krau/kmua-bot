@@ -47,6 +47,7 @@ bot:
     group_config: 点击按钮更改群组设置哦
     unknown_operation: 未知操作, 不可以干坏事哦
     group_config_saved: 群组设置已保存~
+    cleanning: kmua 正在打扫房间...
     waifu:
       disabled: 这里不允许使用 waifu 功能哦
       not_found: 你现在没有老婆, 因为咱的记录中找不到其他群友
