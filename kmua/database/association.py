@@ -2,6 +2,7 @@ from .db import with_session, with_tx
 from .models import ChatData, UserChatAssociation, UserData
 import sqlalchemy
 from sqlalchemy.ext.asyncio import AsyncSession
+from kmua import enums
 
 
 @with_tx
@@ -63,24 +64,40 @@ async def remove_association(user_id: int, chat_id: int, session: AsyncSession) 
 @with_session
 async def get_user_waifu_in_chat(
     user: UserData, chat: ChatData, session: AsyncSession
-) -> UserData | None:
+) -> tuple[UserData | None, bool]:
+    """get user waifu in chat
+    if user is married, return married waifu
+
+    Returns:
+        - UserData | None: waifu
+        - bool: return is married waifu
+    """
     if user.married_waifu_id is not None:
         waifu = await session.get(UserData, user.married_waifu_id)
         if waifu is not None:
-            return waifu
+            return waifu, True
     association = await get_association(user.id, chat.id, session)
     if association is None or association.waifu_id is None:
-        return None
+        return None, False
     waifu = await session.get(UserData, association.waifu_id)
-    return waifu
+    return waifu, False
+
+
+@with_session
+async def is_setted_waifu_in_chat(
+    user: UserData, chat: ChatData, session: AsyncSession
+) -> bool:
+    """check if user waifu is set in chat"""
+    association = await get_association(user.id, chat.id, session)
+    if association is None:
+        return False
+    return association.waifu_id is not None
 
 
 @with_tx
 async def set_user_waifu_in_chat(
     user: UserData, chat: ChatData, waifu: UserData, session: AsyncSession
 ) -> bool:
-    if await get_user_waifu_in_chat(user, chat, session):
-        return False
     association = await get_association(user.id, chat.id, session)
     if association is None:
         raise ValueError("Association not found")
@@ -91,5 +108,38 @@ async def set_user_waifu_in_chat(
 
 
 @with_session
-async def take_waifu_for_user_in_chat(user: UserData, chat: ChatData) -> UserData:
-    raise NotImplementedError("Not implemented yet")
+async def take_waifu_for_user_in_chat(
+    user: UserData, chat: ChatData, session: AsyncSession
+) -> UserData | None:
+    excluded_user_ids = [
+        user.id,
+        enums.ChatID.ANONYMOUS_ADMIN,
+        enums.ChatID.SERVICE_CHAT,
+        enums.ChatID.FAKE_CHANNEL,
+    ]
+
+    stmt = (
+        sqlalchemy.select(UserData)
+        .join(
+            UserChatAssociation,
+            (UserChatAssociation.user_id == UserData.id)
+            & (UserChatAssociation.chat_id == chat.id),
+        )
+        .where(
+            sqlalchemy.and_(
+                sqlalchemy.not_(UserData.is_bot),
+                sqlalchemy.not_(UserData.is_married),
+                sqlalchemy.not_(UserData.id.in_(excluded_user_ids)),
+            )
+        )
+        .order_by(sqlalchemy.func.random())
+        .limit(1)
+    )
+
+    result = await session.execute(stmt)
+    waifu = result.scalars().first()
+
+    if waifu is None:
+        return None
+
+    return waifu

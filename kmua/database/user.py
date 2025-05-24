@@ -15,7 +15,7 @@ async def get_user_by_id(id: int, session: AsyncSession) -> UserData | None:
 
 
 @with_tx
-async def upsert_user(user: User | Chat, session: AsyncSession) -> UserData:
+async def upsert_user(user: User | Chat | UserData, session: AsyncSession) -> UserData:
     """
     'Upsert' user data into the database.
     Only fields [id, username, full_name, is_bot, is_real_user] are upsert.
@@ -26,7 +26,7 @@ async def upsert_user(user: User | Chat, session: AsyncSession) -> UserData:
     full_name = None
     is_real_user = True
     is_bot = False
-    if isinstance(user, User):
+    if isinstance(user, (User, UserData)):
         username = user.username
         full_name = user.full_name
         is_bot = user.is_bot
@@ -37,7 +37,7 @@ async def upsert_user(user: User | Chat, session: AsyncSession) -> UserData:
         is_bot = False
         is_real_user = user.type == ChatType.PRIVATE
     else:
-        raise TypeError("user must be User or Chat")
+        raise TypeError("user must be User, Chat or UserData")
     user_data = await session.get(UserData, user.id)
     if user_data is None:
         user_data = UserData(
@@ -83,9 +83,20 @@ async def update_user_config(
 
 
 @with_tx
-async def update_user(user: UserData, session: AsyncSession) -> UserData:
-    user_data = await session.get(UserData, user.id)
+async def update_user_avatar(
+    user_id: int,
+    avatar_big_blob: bytes | None = None,
+    avatar_big_id: str | None = None,
+    avatar_small_blob: bytes | None = None,
+    session: AsyncSession = None,
+) -> UserData:
+    user_data = await session.get(UserData, user_id)
     if user_data is None:
-        raise ValueError(f"User with id {user.id} not found")
-    user_data = user
+        raise ValueError(f"User with id {user_id} not found")
+    if avatar_big_blob is not None:
+        user_data.avatar_big_blob = avatar_big_blob
+    if avatar_big_id is not None:
+        user_data.avatar_big_id = avatar_big_id
+    if avatar_small_blob is not None:
+        user_data.avatar_small_blob = avatar_small_blob
     return user_data

@@ -1,15 +1,20 @@
 import html
+from io import BytesIO
+from typing import BinaryIO
 
+import pyrogram
 from pyrogram.enums import ChatMemberStatus, ChatType
 from pyrogram.types import Chat, User
 
 from kmua import database, enums
 from kmua.bot import client
-from kmua.database.models import UserData
+from kmua.database.models import ChatData, UserData
 from .memstore import memstore  # noqa: F401
 
 
-async def mention_html(chat: User | Chat) -> str:
+async def mention_html(chat: User | Chat | UserData | ChatData) -> str:
+    if isinstance(chat, ChatData):
+        raise NotImplementedError
     db_user = await database.upsert_user(chat)
     if not db_user.is_real_user and db_user.username is not None:
         return f"<a href='https://t.me/{db_user.username}'>{html.escape(db_user.full_name)}</a>"
@@ -45,10 +50,43 @@ async def get_big_avatar_bytes(user_id: int) -> bytes | None:
         return None
     if db_user.avatar_big_blob is not None:
         return db_user.avatar_big_blob
-    photos = await client.get_chat_photos(user_id, limit=1)
-    async for photo in photos:
-        file = await client.download_media(photo, in_memory=True)
-        avatar = bytes(file)
-        db_user.avatar_big_blob = avatar
-        await database.update_user(db_user)
-        return avatar
+    photos = []
+    async for photo in client.get_chat_photos(user_id, limit=1):
+        photos.append(photo)
+    if photos is None:
+        return None
+    photo = photos[0]
+    file = await client.download_media(photo, in_memory=True)
+    if file is None:
+        return None
+    if not isinstance(file, BinaryIO):
+        raise ValueError("File is not a BinaryIO")
+    file.seek(0)
+    avatar = file.read()
+    db_user.avatar_big_blob = avatar
+    await database.update_user_avatar(db_user.id, avatar_big_blob=avatar)
+    return avatar
+
+
+async def get_small_avatar_bytes(user_id: int) -> bytes | None:
+    db_user: UserData = await database.get_user_by_id(user_id)
+    if db_user is None:
+        return None
+    if db_user.avatar_small_blob is not None:
+        return db_user.avatar_small_blob
+    photos = []
+    async for photo in client.get_chat_photos(user_id, limit=1):
+        photos.append(photo)
+    if photos is None:
+        return None
+    photo: pyrogram.types.Photo = photos[0]
+    file = await client.download_media(photo.thumbs[0], in_memory=True)
+    if file is None:
+        return None
+    if not isinstance(file, BytesIO):
+        raise ValueError("File is not a BinaryIO")
+    file.seek(0)
+    avatar = file.read()
+    db_user.avatar_small_blob = avatar
+    await database.update_user_avatar(db_user.id, avatar_small_blob=avatar)
+    return avatar

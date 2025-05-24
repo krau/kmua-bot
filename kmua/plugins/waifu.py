@@ -1,4 +1,5 @@
 import html
+from io import BytesIO
 import pyrogram
 import pyrogram.errors
 from kmua import database, i18n
@@ -18,11 +19,11 @@ def _waifu_markup(
         [
             [
                 pyrogram.types.InlineKeyboardButton(
-                    text=i18n.t("bot.button.remove_waifu", locale=lang),
+                    text=i18n.t("bot.button.waifu.remove", locale=lang),
                     callback_data=f"remove_waifu {waifu_id} {user_id}",
                 ),
                 pyrogram.types.InlineKeyboardButton(
-                    text=i18n.t("bot.button.marry_waifu", locale=lang),
+                    text=i18n.t("bot.button.waifu.marry", locale=lang),
                     callback_data=f"marry_waifu {waifu_id} {user_id}",
                 ),
             ]
@@ -53,9 +54,20 @@ async def _waifu_text(
 async def _get_waifu_for_user(
     user: UserData, chat: ChatData
 ) -> tuple[UserData | None, bool]:
-    if waifu := await database.get_user_waifu_in_chat(user, chat):
-        return waifu, True
-    return await database.take_waifu_for_user_in_chat(user, chat)
+    """get or take waifu for user in chat
+
+    Returns:
+        - UserData | None: waifu
+        - bool: is_got
+    """
+    is_got = await database.is_setted_waifu_in_chat(user, chat)
+    waifu, _ = await database.get_user_waifu_in_chat(user, chat)
+    if waifu:
+        return waifu, is_got
+    waifu = await database.take_waifu_for_user_in_chat(user, chat)
+    if not waifu:
+        return None, is_got
+    return waifu, is_got
 
 
 @pyrogram.Client.on_message(
@@ -67,7 +79,7 @@ async def today_waifu(client: pyrogram.Client, message: pyrogram.types.Message):
     chat_config = await database.get_chat_config(raw_chat)
     if not chat_config.waifu_enabled:
         await message.reply(
-            text=i18n.t("bot.msg.waifu_disabled", locale=chat_config.lang)
+            text=i18n.t("bot.msg.waifu.disabled", locale=chat_config.lang)
         )
         return
     lock_key = _waifu_waiting_key(raw_user.id, raw_chat.id)
@@ -90,14 +102,15 @@ async def today_waifu(client: pyrogram.Client, message: pyrogram.types.Message):
                 text=i18n.t("bot.msg.waifu.retry", locale=chat_config.lang)
             )
             return
-        ok = await database.set_user_waifu_in_chat(user, chat, waifu)
-        if not ok:
-            logger.error(
-                f"failed to set waifu {waifu.id} for user {user.id} in chat {chat.id}"
-            )
-            return
+        if not is_got:
+            ok = await database.set_user_waifu_in_chat(user, chat, waifu)
+            if not ok:
+                logger.error(
+                    f"failed to set waifu {waifu.id} for user {user.id} in chat {chat.id}"
+                )
+                return
         waifu_markup = _waifu_markup(waifu.id, user.id, chat_config.lang)
-        text = _waifu_text(waifu, is_got, user, lang=chat_config.lang)
+        text = await _waifu_text(waifu, is_got, user, lang=chat_config.lang)
         if user.id == waifu.married_waifu_id:
             text = i18n.t("bot.msg.waifu.married", locale=chat_config.lang).format(
                 user=await common.mention_html(user),
@@ -115,13 +128,15 @@ async def today_waifu(client: pyrogram.Client, message: pyrogram.types.Message):
             )
             return
         try:
-            await message.reply_photo(
-                photo=photo,
+            msg = await message.reply_photo(
+                photo=BytesIO(photo),
                 caption=text,
                 reply_markup=waifu_markup,
                 parse_mode=pyrogram.enums.ParseMode.HTML,
             )
-        except pyrogram.errors.BadRequest:
+            await database.update_user_avatar(waifu.id, avatar_big_id=msg.photo.file_id)
+        except pyrogram.errors.BadRequest as e:
+            logger.error(f"failed to send photo in chat {raw_chat.id}: {e})")
             await message.reply_text(
                 text=text,
                 reply_markup=waifu_markup,
@@ -129,3 +144,9 @@ async def today_waifu(client: pyrogram.Client, message: pyrogram.types.Message):
             )
     finally:
         await common.memstore.delete(lock_key)
+        if waifu and not waifu.avatar_big_blob:
+            small_avatar = await common.get_small_avatar_bytes(waifu.id)
+            if small_avatar:
+                await database.update_user_avatar(
+                    waifu.id, avatar_small_blob=small_avatar
+                )
