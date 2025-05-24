@@ -1,9 +1,9 @@
 from pyrogram.enums import ChatType
 from pyrogram.types import Chat, User
 from sqlalchemy.ext.asyncio import AsyncSession
-
+import sqlalchemy
 from .db import with_session, with_tx
-from .models import UserConfig, UserData
+from .models import UserConfig, UserData, UserChatAssociation
 
 
 @with_session
@@ -99,3 +99,57 @@ async def update_user_avatar(
     if avatar_small_blob is not None:
         user_data.avatar_small_blob = avatar_small_blob
     return user_data
+
+
+@with_tx
+async def make_wedding(
+    user_id: int,
+    waifu_id: int,
+    chat_id: int,
+    session: AsyncSession | None = None,
+):
+    user_data = await session.get(UserData, user_id)
+    waifu_data = await session.get(UserData, waifu_id)
+    if user_data is None or waifu_data is None:
+        raise ValueError("User or waifu not found")
+    if (
+        user_data.married_waifu_id is not None
+        or waifu_data.married_waifu_id is not None
+    ):
+        raise ValueError("User is already married")
+    user_data.married_waifu_id = waifu_id
+    user_data.is_married = True
+    waifu_data.married_waifu_id = user_id
+    waifu_data.is_married = True
+
+    stmt = (
+        sqlalchemy.update(UserChatAssociation)
+        .where(
+            sqlalchemy.or_(
+                UserChatAssociation.user_id == user_id,
+                UserChatAssociation.waifu_id == waifu_id,
+                UserChatAssociation.user_id == waifu_id,
+                UserChatAssociation.waifu_id == user_id,
+            )
+        )
+        .values(waifu_id=None)
+    )
+    await session.execute(stmt)
+    stmt = (
+        sqlalchemy.update(UserChatAssociation)
+        .where(
+            UserChatAssociation.user_id == user_id,
+            UserChatAssociation.chat_id == chat_id,
+        )
+        .values(waifu_id=waifu_id)
+    )
+    await session.execute(stmt)
+    stmt = (
+        sqlalchemy.update(UserChatAssociation)
+        .where(
+            UserChatAssociation.user_id == waifu_id,
+            UserChatAssociation.chat_id == chat_id,
+        )
+        .values(waifu_id=user_id)
+    )
+    await session.execute(stmt)

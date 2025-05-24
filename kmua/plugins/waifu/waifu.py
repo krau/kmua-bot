@@ -148,6 +148,7 @@ async def remove_waifu(client: pyrogram.Client, query: pyrogram.types.CallbackQu
     markup = utils.remove_markup(waifu_id, user_id, lang=lang)
 
     if data[0].endswith("cancel"):
+        markup = utils.waifu_markup(waifu_id, user_id, lang=lang)
         text = await utils.waifu_text(db_waifu, False, db_user, lang=lang)
         if query.message.photo is not None:
             await query.message.edit_caption(
@@ -168,4 +169,167 @@ async def remove_waifu(client: pyrogram.Client, query: pyrogram.types.CallbackQu
     else:
         await query.message.edit_text(
             text=i18n.t("bot.msg.waifu.remove", locale=lang), reply_markup=markup
+        )
+
+
+@pyrogram.Client.on_callback_query(pyrogram.filters.regex(r"^marry_waifu"), group=0)
+async def marry_waifu(client: pyrogram.Client, query: pyrogram.types.CallbackQuery):
+    chat = query.message.chat
+    update_user = query.from_user
+    data = query.data.split(" ")
+    waifu_id = int(data[1])
+    user_id = int(data[2])
+    db_waifu = await database.get_user_by_id(waifu_id)
+    db_user = await database.get_user_by_id(user_id)
+    chat_config = await database.get_chat_config(chat)
+    lang = chat_config.lang
+    if not db_waifu.is_real_user:
+        await query.answer(
+            text=i18n.t("bot.msg.waifu.marry_not_real", locale=lang),
+            show_alert=True,
+            cache_time=10,
+        )
+        return
+
+    if data[0].endswith("agree"):
+        if update_user.id != db_waifu.id:
+            await query.answer(
+                text=i18n.t("bot.msg.waifu.marry_not_user", locale=lang),
+                show_alert=True,
+                cache_time=10,
+            )
+            return
+        update_db_user = await database.get_user_by_id(update_user.id)
+        if update_db_user.married_waifu_id is not None:
+            if update_db_user.married_waifu_id == db_waifu.id:
+                await query.answer(
+                    text=i18n.t("bot.msg.waifu.already_married", locale=lang),
+                    show_alert=True,
+                    cache_time=10,
+                )
+            else:
+                await query.answer(
+                    text=i18n.t(
+                        "bot.msg.waifu.user_already_married_other", locale=lang
+                    ),
+                    show_alert=True,
+                    cache_time=10,
+                )
+            return
+        db_waifu = await database.get_user_by_id(waifu_id)
+        if db_waifu.married_waifu_id is not None:
+            if db_waifu.married_waifu_id == update_user.id:
+                await query.answer(
+                    text=i18n.t("bot.msg.waifu.already_married", locale=lang),
+                    show_alert=True,
+                    cache_time=10,
+                )
+            else:
+                await query.answer(
+                    text=i18n.t(
+                        "bot.msg.waifu.waifu_already_married_other", locale=lang
+                    ),
+                    show_alert=True,
+                    cache_time=10,
+                )
+            return
+        await database.make_wedding(db_user.id, db_waifu.id, chat.id)
+        text = i18n.t("bot.msg.waifu.marry_success", locale=lang).format(
+            user=await common.mention_html(db_user),
+            waifu=await common.mention_html(db_waifu),
+        )
+        if query.message.photo is not None:
+            await query.message.edit_caption(
+                caption=text,
+                reply_markup=None,
+                parse_mode=pyrogram.enums.ParseMode.HTML,
+            )
+        else:
+            await query.message.edit_text(
+                text=text, reply_markup=None, parse_mode=pyrogram.enums.ParseMode.HTML
+            )
+        return
+    if data[0].endswith("refuse"):
+        if update_user.id != db_waifu.id:
+            await query.answer(
+                text=i18n.t("bot.msg.waifu.marry_not_user", locale=lang),
+                show_alert=True,
+                cache_time=10,
+            )
+            return
+        await query.answer(
+            text=i18n.t("bot.msg.waifu.marry_refused", locale=lang), cache_time=10
+        )
+        text = await utils.waifu_text(db_waifu, False, db_user, lang=lang)
+        if query.message.photo is not None:
+            await query.message.edit_caption(
+                caption=text,
+                reply_markup=None,
+                parse_mode=pyrogram.enums.ParseMode.HTML,
+            )
+        else:
+            await query.message.edit_text(
+                text=text, reply_markup=None, parse_mode=pyrogram.enums.ParseMode.HTML
+            )
+        return
+    if data[0].endswith("cancel"):
+        if update_user.id not in (db_user.id, db_waifu.id):
+            await query.answer(
+                text=i18n.t("bot.msg.waifu.marry_not_user", locale=lang),
+                show_alert=True,
+                cache_time=10,
+            )
+            return
+        await query.answer(
+            text=i18n.t("bot.msg.waifu.marry_cancel", locale=lang), cache_time=10
+        )
+        text = await utils.waifu_text(db_waifu, False, db_user, lang=lang)
+        if query.message.photo is not None:
+            await query.message.edit_caption(caption=text, reply_markup=None)
+        else:
+            await query.message.edit_text(text=text, reply_markup=None)
+        return
+
+    if update_user.id == db_waifu.id:
+        await query.answer(
+            text=i18n.t("bot.msg.waifu.marry_self", locale=lang),
+            show_alert=True,
+            cache_time=10,
+        )
+        return
+    if update_user.id != db_user.id:
+        await query.answer(
+            text=i18n.t("bot.msg.waifu.marry_not_user", locale=lang),
+            show_alert=True,
+            cache_time=10,
+        )
+        return
+    if db_waifu.is_married:
+        if db_waifu.married_waifu_id == update_user.id:
+            await query.answer(
+                text=i18n.t("bot.msg.waifu.already_married", locale=lang),
+                show_alert=True,
+                cache_time=10,
+            )
+            return
+        else:
+            await query.answer(
+                text=i18n.t("bot.msg.waifu.already_married_other", locale=lang),
+                show_alert=True,
+                cache_time=10,
+            )
+            return
+
+    text = i18n.t("bot.msg.waifu.marry_ask", locale=lang).format(
+        user=await common.mention_html(update_user),
+        waifu=await common.mention_html(db_waifu),
+    )
+    markup = utils.marry_markup(waifu_id, user_id, lang)
+    if query.message.photo is not None:
+        await query.message.edit_caption(
+            caption=text, reply_markup=markup, parse_mode=pyrogram.enums.ParseMode.HTML
+        )
+    else:
+        await query.message.edit_text(
+            text=text, reply_markup=markup, parse_mode=pyrogram.enums.ParseMode.HTML
         )

@@ -84,3 +84,28 @@ def remove_markup(
             ]
         ]
     )
+
+
+def marry_markup(
+    waifu_id: int, user_id: int, lang: str = "zh-CN"
+) -> pyrogram.types.InlineKeyboardMarkup:
+    return pyrogram.types.InlineKeyboardMarkup(
+        [
+            [
+                pyrogram.types.InlineKeyboardButton(
+                    text=i18n.t("bot.button.waifu.agree_marry_waifu", locale=lang),
+                    callback_data=f"marry_waifu_agree {waifu_id} {user_id}",
+                ),
+                pyrogram.types.InlineKeyboardButton(
+                    text=i18n.t("bot.button.waifu.refuse_marry_waifu", locale=lang),
+                    callback_data=f"marry_waifu_refuse {waifu_id} {user_id}",
+                ),
+            ],
+            [
+                pyrogram.types.InlineKeyboardButton(
+                    text=i18n.t("bot.button.waifu.cancel_marry_waifu", locale=lang),
+                    callback_data=f"marry_waifu_cancel {waifu_id} {user_id}",
+                )
+            ],
+        ]
+    )

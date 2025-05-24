@@ -36,6 +36,9 @@ bot:
       marry: 娶老婆!
       remove_confirm: 移除
       remove_cancel: 算了
+      agree_marry_waifu: 好耶
+      refuse_marry_waifu: 坏耶
+      cancel_marry_waifu: 取消(?)
   msg:
     private_start: Nya~
     group_start: 请私聊咱使用哦
@@ -52,7 +55,17 @@ bot:
       normal: "{user}, 你今天的群幼老婆是 {waifu}!"
       got_nouser: "你今天已经抽过老婆了! {waifu} 是你今天的老婆!"
       normal_nouser: "你今天的群幼老婆是 {waifu}!"
-      married: '{user}, 你和 {waifu} 已经结婚了哦~'
+      married: "{user}, 你和 {waifu} 已经结婚了哦~"
       remove_not_found: 查无此人,可能已经被移除了
       remove: 确定要移除ta吗?
-      removed: '已移除该用户, ta 曾是 {user} 的老婆'
+      removed: "已移除该用户, ta 曾是 {user} 的老婆"
+      marry_not_real: ＞﹏＜ Ta 不是真实用户哦.(不支持与匿名管理, 频道身份等结婚)
+      marry_self: (。・ω・。) 总会有人不远万里为你而来
+      marry_not_user: (￣ε(#￣) 别人的事情咱不要打扰呢
+      already_married: 你已经和 ta 结婚了哦
+      already_married_other: （＞人＜；）Ta 已经有别人了呢, 愿你找到对的人
+      user_already_married_other: ∑( 口 || 你已经有老婆了, 不要再去招惹别人了哦
+      marry_ask: "{waifu}, 你愿意和 {user} 结婚嘛?"
+      marry_success: "恭喜 {user} 和 {waifu} 结婚啦~"
+      marry_refused: "(´。＿。｀) 你拒绝了 ta 的求婚呢. 有些人一旦错过就不再..."
+      marry_cancel: 你取消了这个求婚请求
