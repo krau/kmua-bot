@@ -9,7 +9,7 @@ import aiofiles
 import graphviz
 import pyrogram
 
-from kmua import common, database, i18n
+from kmua import common, consts, database, i18n
 from kmua.database.models import ChatData, UserData
 
 
@@ -136,7 +136,8 @@ async def get_graph_data(
     if participate_users2 is None:
         participate_users2 = database.get_chat_user_participated_waifu(chat_id)
 
-    default_avatar = b""
+    async with aiofiles.open(consts.DEFAULT_SMALL_AVATAR_PATH, "rb") as default_avatar_file:
+        default_avatar = await default_avatar_file.read()
     user_data = (
         {
             "id": user.id,

@@ -84,7 +84,7 @@ async def today_waifu(client: pyrogram.Client, message: pyrogram.types.Message):
             )
     finally:
         await common.memstore.delete(lock_key)
-        if waifu and not waifu.avatar_big_blob:
+        if waifu and not waifu.avatar_small_blob:
             small_avatar = await common.get_small_avatar_bytes(waifu.id)
             if small_avatar:
                 await database.update_user_avatar(
