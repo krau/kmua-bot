@@ -63,7 +63,7 @@ async def today_waifu(client: pyrogram.Client, message: pyrogram.types.Message):
             waifu_markup = None
         photo = waifu.avatar_big_id
         if not photo:
-            photo = await common.get_big_avatar_bytes(waifu.id)
+            photo = await common.get_avatar_bytes(waifu.id)
         if not photo:
             await message.reply_text(
                 text=text,
@@ -88,6 +88,8 @@ async def today_waifu(client: pyrogram.Client, message: pyrogram.types.Message):
             )
     finally:
         await common.memstore.delete(lock_key)
+        if waifu:
+            await common.ChatAvatar(waifu.id).save_if_not_exists(False)
 
 
 @pyrogram.Client.on_message(
