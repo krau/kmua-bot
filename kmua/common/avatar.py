@@ -66,16 +66,22 @@ class ChatAvatar:
         async with self._lock:
             if big:
                 if not await aiofiles.os.path.exists(self._path_big):
-                    await _get_avatar_bytes(self.chat_id, big=True, force_refresh=True)
-                    await database.update_user_avatar(
-                        user_id=self.chat_id, refreshed=True
+                    file, _ = await _get_avatar_bytes(
+                        self.chat_id, big=True, force_refresh=True
                     )
+                    if file is not None:
+                        await database.update_user_avatar(
+                            user_id=self.chat_id, refreshed=True
+                        )
             else:
                 if not await aiofiles.os.path.exists(self._path_small):
-                    await _get_avatar_bytes(self.chat_id, big=False, force_refresh=True)
-                    await database.update_user_avatar(
-                        user_id=self.chat_id, refreshed=True
+                    file, _ = await _get_avatar_bytes(
+                        self.chat_id, big=False, force_refresh=True
                     )
+                    if file is not None:
+                        await database.update_user_avatar(
+                            user_id=self.chat_id, refreshed=True
+                        )
 
     async def get_bytes(self, big: bool = True) -> bytes | None:
         async with self._lock:
