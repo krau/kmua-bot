@@ -21,6 +21,7 @@ class _AppConfig(pydantic.BaseModel):
     automigrate: bool = True
     cachedir: Path = workdir / "cache"
     avatar_cache_dir: Path = cachedir / "avatar"
+    avatar_expire: int = 60 * 60 * 24  # 1 day
 
 
 _T = TypeVar("_T", bound=pydantic.BaseModel)

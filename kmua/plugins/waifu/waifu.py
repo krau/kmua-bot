@@ -61,9 +61,7 @@ async def today_waifu(client: pyrogram.Client, message: pyrogram.types.Message):
                 waifu=await common.mention_html(waifu),
             )
             waifu_markup = None
-        photo = waifu.avatar_big_id
-        if not photo:
-            photo = await common.get_avatar_bytes(waifu.id)
+        photo = await common.ChatAvatar(waifu.id).get_big_photo()
         if not photo:
             await message.reply_text(
                 text=text,

@@ -1,3 +1,5 @@
+import datetime
+
 import sqlalchemy
 from pyrogram.enums import ChatType
 from pyrogram.types import Chat, User
@@ -86,13 +88,15 @@ async def update_user_config(
 async def update_user_avatar(
     user_id: int,
     avatar_big_id: str | None = None,
+    refreshed: bool = False,
     session: AsyncSession | None = None,
 ) -> UserData:
     user_data = await session.get(UserData, user_id)
     if user_data is None:
         raise ValueError(f"User with id {user_id} not found")
-    if avatar_big_id is not None:
-        user_data.avatar_big_id = avatar_big_id
+    user_data.avatar_big_id = avatar_big_id
+    if refreshed:
+        user_data.update_avatar_at = datetime.datetime.now(datetime.timezone.utc)
     return user_data
 
 

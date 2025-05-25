@@ -144,7 +144,8 @@ async def get_graph_data(
         {
             "id": user.id,
             "username": user.username or f"{user.id}",
-            "avatar": (await common.get_small_avatar_bytes(user.id)) or default_avatar,
+            "avatar": (await common.ChatAvatar(user.id).get_bytes(big=False))
+            or default_avatar,
         }
         async for user in participate_users2
     )
