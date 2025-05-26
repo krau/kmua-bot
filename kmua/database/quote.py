@@ -5,7 +5,7 @@ import sqlalchemy.orm
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from kmua.database.db import with_session, with_tx
-from kmua.database.models import ChatData, Quote, UserData
+from kmua.database.models import ChatData, Quote, UserChatAssociation, UserData
 
 
 @with_session
@@ -69,3 +69,34 @@ async def get_chat_random_quote(
 async def delete_quote(link: str, session: AsyncSession | None = None) -> None:
     quote = await session.get(Quote, link)
     await session.delete(quote)
+
+
+@with_session
+async def take_quotes_user_can_see(
+    user_id: int,
+    query: str = "",
+    limit: int = 50,
+    session: AsyncSession | None = None,
+) -> list[Quote]:
+    stmt = (
+        sqlalchemy.select(Quote)
+        .options(sqlalchemy.orm.selectinload(Quote.user))
+        .where(
+            sqlalchemy.or_(
+                Quote.chat_id.in_(
+                    sqlalchemy.select(ChatData.id).join(
+                        UserChatAssociation,
+                        (UserChatAssociation.chat_id == ChatData.id)
+                        & (UserChatAssociation.user_id == user_id),
+                    )
+                ),
+                Quote.user_id == user_id,
+                Quote.qer_id == user_id,
+            ),
+            Quote.text.ilike(f"%{query}%"),
+        )
+        .order_by(sqlalchemy.func.random())
+        .limit(limit)
+    )
+    result = await session.execute(stmt)
+    return result.scalars().all()
