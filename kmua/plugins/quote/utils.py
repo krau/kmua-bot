@@ -1,4 +1,5 @@
 import io
+import random
 
 import pyrogram
 from PIL import Image, ImageFont
@@ -28,7 +29,7 @@ async def send_quote(
         return None
     avatar = await common.ChatAvatar(user.id).get_or_default_bytes(True)
     await client.send_chat_action(chat_id, pyrogram.enums.ChatAction.UPLOAD_PHOTO)
-    quote_img = await _gen_quote_img(
+    quote_img = await gen_quote_img(
         avatar,
         message.text,
         (user.username or user.full_name)
@@ -115,3 +116,13 @@ def get_msg_link(message: pyrogram.types.Message) -> str:
         return link
     except Exception as e:
         return None
+
+
+def random_chance(probability: float) -> bool:
+    """Returns True with a given probability."""
+    # probability should be between 0 and 1
+    if probability < 0:
+        return False
+    if probability > 1:
+        return True
+    return random.uniform(0, 1) < probability

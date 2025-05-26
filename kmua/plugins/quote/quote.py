@@ -1,6 +1,9 @@
+import math
+import re
+
 import pyrogram
 
-from kmua import database, i18n
+from kmua import common, database, i18n
 
 from . import utils
 
@@ -65,13 +68,103 @@ async def make_quote(client: pyrogram.Client, message: pyrogram.types.Message):
 @pyrogram.Client.on_message(
     pyrogram.filters.command("qrand") & pyrogram.filters.group, group=0
 )
-async def random_quote(client: pyrogram.Client, message: pyrogram.types.Message):
+async def random_quote_cmd(client: pyrogram.Client, message: pyrogram.types.Message):
     chat = message.chat
+    chat_config = await database.get_chat_config(chat.id)
+    if chat_config.quote_probability <= 0:
+        return
     quote = await database.get_chat_random_quote(chat.id)
     if not quote:
         await message.reply_text(
             i18n.t("bot.msg.quote.chat_no_quote", locale=chat.lang)
         )
+        return
+    user_button_text = (
+        quote.user.full_name
+        if len(quote.user.full_name) <= 16
+        else quote.user.full_name[:16] + "..."
+        if quote.user.full_name
+        else quote.user_id
+    )
+    await client.copy_message(
+        chat_id=chat.id,
+        from_chat_id=quote.chat_id,
+        message_id=quote.message_id,
+        message_thread_id=message.message_thread_id,
+        reply_markup=pyrogram.types.InlineKeyboardMarkup(
+            [[pyrogram.types.InlineKeyboardButton(user_button_text, url=quote.link)]]
+        ),
+    )
+
+
+@pyrogram.Client.on_message(
+    pyrogram.filters.command("qp") & pyrogram.filters.group, group=0
+)
+async def set_quote_probability(
+    client: pyrogram.Client, message: pyrogram.types.Message
+):
+    chat = message.chat
+    chat_config = await database.get_chat_config(chat.id)
+    if not chat_config:
+        return
+    if not await common.can_user_manage_bot_in_chat(message.from_user, chat):
+        await message.reply_text(
+            i18n.t("bot.msg.no_permission_group", locale=chat_config.lang)
+        )
+        return
+    if len(message.command) < 2:
+        await message.reply_text(
+            i18n.t("bot.msg.quote.probability_usage", locale=chat_config.lang)
+        )
+        return
+    if not re.compile(
+        r"""
+^
+[+-]?                # optional sign
+(                    # group:
+  \d+(\.\d*)?        # e.g., 123 or 123. or 123.45
+  |\.\d+             # or .456
+)
+([eE][+-]?\d+)?      # optional exponent
+$
+""",
+        re.VERBOSE,
+    ).match(message.command[1]):
+        await message.reply_text(
+            i18n.t("bot.msg.quote.probability_invalid", locale=chat_config.lang)
+        )
+        return
+    try:
+        qp = float(message.command[1])
+        if math.isnan(qp) or math.isinf(qp):
+            raise ValueError("Invalid probability value")
+    except ValueError:
+        await message.reply_text(
+            i18n.t("bot.msg.quote.probability_invalid", locale=chat_config.lang)
+        )
+        return
+    if qp > 1:
+        qp = 1.0
+    elif qp < 0:
+        qp = -1.0
+    chat_config.quote_probability = qp
+    await database.update_chat_config(chat=chat, config=chat_config)
+
+
+@pyrogram.Client.on_message(
+    ~pyrogram.filters.command("") & pyrogram.filters.group, group=1
+)
+async def random_quote(client: pyrogram.Client, message: pyrogram.types.Message):
+    """尝试主动发送引用消息"""
+    chat = message.chat
+    chat_config = await database.get_chat_config(chat.id)
+    pb = chat_config.quote_probability
+    if pb <= 0:
+        return
+    if not utils.random_chance(pb):
+        return
+    quote = await database.get_chat_random_quote(chat.id)
+    if not quote:
         return
     user_button_text = (
         quote.user.full_name
