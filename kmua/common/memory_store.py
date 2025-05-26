@@ -1,7 +1,7 @@
 import asyncio
 from typing import Any
 
-from aiocache import Cache, SimpleMemoryCache
+from aiocache import SimpleMemoryCache
 
 
 class _MemStore:

@@ -15,6 +15,10 @@ class _AppConfig(pydantic.BaseModel):
     log_retention_days: int = 30
     log_level: str = "INFO"
     lang: str = "zh-CN"
+    manyacg_api_url: str = "https://api.manyacg.top/v1"
+    manyacg_api_key: str
+    manyacg_channel: str = "MoreACG"
+    manyacg_bot: str = "kirakabot"
 
     workdir: Path = Path(__file__).resolve().parent.parent.parent / "data"
     debug: bool = False
