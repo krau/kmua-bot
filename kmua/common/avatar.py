@@ -7,7 +7,7 @@ from pathlib import Path
 import aiofiles
 import aiofiles.os
 
-from kmua import database, enums
+from kmua import consts, database, enums
 from kmua.bot import client
 from kmua.common.memory_store import memstore
 from kmua.config import app_config
@@ -103,6 +103,16 @@ class ChatAvatar:
             else:
                 avatar, _ = await _get_avatar_bytes(self.chat_id, big=big)
             return avatar
+
+    async def get_or_default_bytes(self, big: bool = True) -> bytes:
+        avatar = await self.get_bytes(big)
+        if avatar is not None:
+            return avatar
+        default_path = (
+            consts.DEFAULT_BIG_AVATAR_PATH if big else consts.DEFAULT_SMALL_AVATAR_PATH
+        )
+        async with aiofiles.open(default_path, "rb") as default_file:
+            return await default_file.read()
 
     async def get_big_photo(self) -> bytes | str | None:
         """Get the big size photo to send of the chat.

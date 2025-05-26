@@ -1,0 +1,36 @@
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from kmua.database.db import with_session, with_tx
+from kmua.database.models import ChatData, Quote, UserData
+
+
+@with_session
+async def get_quote_by_link(
+    link: str, session: AsyncSession | None = None
+) -> Quote | None:
+    return await session.get(Quote, link)
+
+
+@with_tx
+async def add_quote(
+    chat: ChatData,
+    user: UserData,
+    qer: UserData,
+    link: str,
+    message_id: int,
+    text: str | None = None,
+    img: str | None = None,
+    session: AsyncSession | None = None,
+):
+    if await session.get(Quote, link):
+        return
+    quote = Quote(
+        chat_id=chat.id,
+        user_id=user.id,
+        message_id=message_id,
+        link=link,
+        qer_id=qer.id,
+        text=text,
+        img=img,
+    )
+    session.add(quote)

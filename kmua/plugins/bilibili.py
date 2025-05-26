@@ -8,7 +8,9 @@ from pyrogram.types import Message
 from kmua import database, i18n
 
 
-@Client.on_message(filters.regex(r"b23.tv/[a-zA-Z0-9]+|bili2233.cn/[a-zA-Z0-9]+"))
+@Client.on_message(
+    filters.regex(r"b23.tv/[a-zA-Z0-9]+|bili2233.cn/[a-zA-Z0-9]+"), group=0
+)
 async def bililink_convert(client: Client, message: Message):
     chat = message.chat
     in_group = chat.type in (ChatType.GROUP, ChatType.SUPERGROUP)

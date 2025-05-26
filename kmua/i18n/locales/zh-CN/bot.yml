@@ -76,6 +76,16 @@ bot:
       marry_cancel: 你取消了这个求婚请求
       no_participate: 本群今日没有人抽过老婆哦
       graph_caption: 群u关系图, 共 {count} 人参与
+    quote:
+      reply_to_required: 需要回复一条消息来记录语录哦
+      topic_not_supported: 不支持在主话题外使用此功能
+      origin_not_found: 不知道这条消息是谁发送的呢...
+      get_link_failed: 获取消息链接失败, 本群可能不是超级群组
+      already_exists: 这条语录已经存在了哦
+      text_not_available: 非文本消息或文本过长不能生成图片哦
+      created:
+        - 让我看看是谁在说怪话!
+        - 好!
     loading:
       - 少女祈祷中
       - 少女折寿中

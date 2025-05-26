@@ -11,3 +11,11 @@ DEFAULT_SMALL_AVATAR_PATH = (
 DEFAULT_BIG_AVATAR_PATH = (
     Path(__file__).parent.parent.resolve() / RESOURCES_DIRNAME / "Akkarin.jpg"
 )
+
+QUOTE_FONT_PATH = (
+    Path(__file__).parent.parent.resolve() / RESOURCES_DIRNAME / "TsukuA.ttc"
+)
+
+QUOTE_BASE_IMG_PATH = (
+    Path(__file__).parent.parent.resolve() / RESOURCES_DIRNAME / "quote_base.png"
+)
