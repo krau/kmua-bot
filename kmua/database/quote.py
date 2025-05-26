@@ -1,3 +1,7 @@
+import random
+
+import sqlalchemy
+import sqlalchemy.orm
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from kmua.database.db import with_session, with_tx
@@ -34,3 +38,28 @@ async def add_quote(
         img=img,
     )
     session.add(quote)
+
+
+@with_session
+async def get_chat_random_quote(
+    chat_id: int, session: AsyncSession | None = None
+) -> Quote | None:
+    count_stmt = sqlalchemy.select(sqlalchemy.func.count()).where(
+        Quote.chat_id == chat_id
+    )
+    result = await session.execute(count_stmt)
+    count = result.scalar_one()
+
+    if count == 0:
+        return None
+
+    random_offset = random.randint(0, count - 1)
+    quote_stmt = (
+        sqlalchemy.select(Quote)
+        .options(sqlalchemy.orm.selectinload(Quote.user))
+        .where(Quote.chat_id == chat_id)
+        .offset(random_offset)
+        .limit(1)
+    )
+    result = await session.execute(quote_stmt)
+    return result.scalar_one_or_none()
