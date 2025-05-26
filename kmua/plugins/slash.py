@@ -25,6 +25,7 @@ async def slash_fliter_func(_, __, message: Message) -> bool:
         return False
     if message.text.startswith("/") or message.text.startswith("\\"):
         return True
+    return False
 
 
 slash_fliter = filters.create(slash_fliter_func)

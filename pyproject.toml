@@ -18,6 +18,7 @@ dependencies = [
     "httpx>=0.28.1",
     "kurigram>=2.2.3",
     "loguru>=0.7.3",
+    "orjson>=3.10.18",
     "pillow>=11.2.1",
     "pilmoji>=2.0.4",
     "pydantic>=2.11.4",
@@ -25,6 +26,7 @@ dependencies = [
     "sqlalchemy[asyncio]>=2.0.41",
     "tgcrypto>=1.2.5",
     "uvloop>=0.21.0",
+    "zhconv>=1.4.3",
 ]
 
 [tool.ruff]

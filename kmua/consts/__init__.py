@@ -19,3 +19,6 @@ QUOTE_FONT_PATH = (
 QUOTE_BASE_IMG_PATH = (
     Path(__file__).parent.parent.resolve() / RESOURCES_DIRNAME / "quote_base.png"
 )
+WORD_DICT_INTERNAL_PATH = (
+    Path(__file__).parent.parent.resolve() / RESOURCES_DIRNAME / "word_dicts"
+)
