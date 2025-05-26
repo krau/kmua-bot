@@ -92,6 +92,30 @@ bot:
       created:
         - 让我看看是谁在说怪话!
         - 好!
+    help: |
+      <blockquote expandable="true">
+      /start - 开始使用|打开菜单
+      /help - 显示此帮助信息
+      /config - 更改 bot 在群组中的设置
+      /waifu - 今天的群友老婆!
+      /waifu_graph - 老婆关系图!
+      /q - 记录语录
+      /d - 删除语录|管理群语录
+      /qrand - 随机语录
+      /qp - 设置随机主动发送语录的概率
+      /t - 获取头衔|互赠头衔
+      /sett - 更改 /t 命令所赋予的权限
+      /setu - 来点色图 (/ω＼*)
+      /set_greet - 设置群组欢迎语
+      /id - 获取聊天ID
+      /ip - 查询IP/域名信息
+      /set_bot_admin - 在群组中设置bot管理员 (对于bot该用户将具有同等于群主的权限, 慎用)
+      </blockquote>
+      对其他人使用 "/" 或 "\" 即可对其施法
+
+      私聊可详细管理个人数据 (使用 /start 开始)
+
+      Inline 模式可以查询语录
     loading:
       - 少女祈祷中
       - 少女折寿中

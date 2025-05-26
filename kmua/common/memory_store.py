@@ -1,6 +1,8 @@
 import asyncio
 from typing import Any
 
+from aiocache import Cache, SimpleMemoryCache
+
 
 class _MemStore:
     def __init__(self) -> None:
@@ -26,4 +28,21 @@ class _MemStore:
 
 memstore = _MemStore()
 
-__all__ = ["memstore"]
+
+class _MemTTLCache:
+    def __init__(self) -> None:
+        self.cache = SimpleMemoryCache()
+
+    async def set(self, key: str, value: Any, ttl: int = 60) -> None:
+        await self.cache.set(key, value, ttl=ttl)
+
+    async def get(self, key: str, default: Any = None) -> Any:
+        return await self.cache.get(key, default)
+
+    async def delete(self, key: str) -> bool:
+        return await self.cache.delete(key)
+
+
+memttlcache = _MemTTLCache()
+
+__all__ = ["memstore", "memttlcache"]
