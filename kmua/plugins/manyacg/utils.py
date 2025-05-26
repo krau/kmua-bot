@@ -3,6 +3,8 @@ import io
 import httpx
 from PIL import Image
 
+from kmua import common
+
 
 async def prepare_media(
     client: httpx.AsyncClient,
@@ -10,13 +12,12 @@ async def prepare_media(
 ) -> str | bytes:
     image_url = picture["original"]
 
-    # cache: bytes | None = (
-    #     redis_client.get(f"kmua_file_id_{image_url}") if redis_client else None
-    # )
-    # if cache is not None:
-    #     return cache.decode("utf-8")
+    cache: str | None = await common.memttlcache.get(f"artwork:pic_file_id:{image_url}")
+    if cache is not None:
+        print(f"Using cached file_id for {image_url}")
+        return cache
 
-    pic_bytes: bytes = (await client.get(image_url)).content
+    pic_bytes: bytes = await (await client.get(image_url)).aread()
 
     # resize image if size > 10M or exceeds width/height limitation
     if (

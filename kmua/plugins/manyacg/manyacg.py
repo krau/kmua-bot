@@ -5,7 +5,7 @@ import re
 import httpx
 import pyrogram
 
-from kmua import database, i18n
+from kmua import common, database, i18n
 from kmua.config import app_config
 from kmua.logger import logger
 
@@ -101,6 +101,12 @@ async def parse_artwork(client: pyrogram.Client, message: pyrogram.types.Message
                         parse_mode=pyrogram.enums.ParseMode.HTML,
                     )
                 )
-        await message.reply_media_group(media=media)
+        msgs = await message.reply_media_group(media=media)
+        for idx, msg in enumerate(msgs):
+            image_url = artwork_pictures[idx]["original"]
+            photo_file_id = msg.photo.file_id
+            await common.memttlcache.set(
+                f"artwork:pic_file_id:{image_url}", photo_file_id, ttl=86400
+            )
     except Exception as e:
         logger.error(f"parse_artwork error: {e.__class__.__name__}:{e}")
