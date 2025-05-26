@@ -48,6 +48,10 @@ bot:
     unknown_operation: 未知操作, 不可以干坏事哦
     group_config_saved: 群组设置已保存~
     cleanning: kmua 正在打扫房间...
+    b23_converted: "{real_url}"
+    b23_converted_group: |
+      {real_url}
+      来自 {from_user} 发送的 b23 短链, 已经帮你转换了哦
     waifu:
       disabled: 这里不允许使用 waifu 功能哦
       not_found: 你现在没有老婆, 因为咱的记录中找不到其他群友
