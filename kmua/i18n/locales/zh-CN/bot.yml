@@ -39,6 +39,20 @@ bot:
       agree_marry_waifu: 好耶
       refuse_marry_waifu: 坏耶
       cancel_marry_waifu: 取消(?)
+    title_permissions:
+      can_change_info: 修改信息
+      can_delete_messages: 删除消息
+      can_edit_messages: 编辑消息
+      can_restrict_members: 封禁用户
+      can_invite_users: 邀请用户
+      can_promote_members: 提升成员
+      can_post_stories: 发布动态
+      can_edit_stories: 编辑动态
+      can_delete_stories: 删除动态
+      can_manage_video_chats: 视频聊天
+      can_manage_topics: 管理话题
+      can_pin_messages: 置顶消息
+
   msg:
     private_start: Nya~
     group_start: 请私聊咱使用哦
@@ -52,6 +66,16 @@ bot:
     b23_converted_group: |
       {real_url}
       来自 {from_user} 发送的 b23 短链, 已经帮你转换了哦
+    title:
+      set_self: 好, 你现在是 {title} 啦
+      set_other: "{user} 把 {target} 变成 {title} !"
+      set_permissions: 点击按钮更改 /t 命令赋予成员的权限
+      errors:
+        generic: 失败了喵
+        admin_required: 咱没有足够的权限或正在尝试更改其他管理员设置的头衔
+        creator: 咱不能对群主使用喵
+        rank_invalid: 头衔太长了! 进不去!
+        user_id_invalid: 咱不能更改自己的或频道身份的头衔
     waifu:
       disabled: 这里不允许使用 waifu 功能哦
       not_found: 你现在没有老婆, 因为咱的记录中找不到其他群友
