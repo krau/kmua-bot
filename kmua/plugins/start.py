@@ -1,5 +1,11 @@
 from pyrogram import Client, filters
-from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup, Message
+from pyrogram.types import (
+    CallbackQuery,
+    InlineKeyboardButton,
+    InlineKeyboardMarkup,
+    Message,
+    WebAppInfo,
+)
 
 from kmua import consts, database, i18n
 from kmua.logger import logger
@@ -24,22 +30,12 @@ class PrivateStartBotMarkup:
                 ],
                 [
                     InlineKeyboardButton(
-                        i18n.t("bot.button.user_data", locale=self.lang),
-                        callback_data="user_data_manage",
-                    ),
-                    InlineKeyboardButton(
-                        i18n.t("bot.button.user_quote", locale=self.lang),
-                        callback_data="user_quote_manage",
-                    ),
-                ],
-                [
-                    InlineKeyboardButton(
                         i18n.t("bot.button.user_waifu", locale=self.lang),
                         callback_data="user_waifu_manage",
                     ),
                     InlineKeyboardButton(
-                        i18n.t("bot.button.start_noop", locale=self.lang),
-                        callback_data="noop",
+                        i18n.t("bot.button.user_quote", locale=self.lang),
+                        callback_data="user_quote_manage",
                     ),
                 ],
             ]
@@ -76,3 +72,16 @@ async def start_group(client: Client, message: Message):
             ]
         ),
     )
+
+
+@Client.on_callback_query(filters.regex(r"^back_home"))
+async def back_home(client: Client, callback_query: CallbackQuery):
+    user_config = await database.get_user_config(callback_query.from_user)
+    lang = user_config.lang
+    try:
+        await callback_query.message.edit(
+            text=i18n.t("bot.msg.private_start", locale=lang),
+            reply_markup=PrivateStartBotMarkup(lang).build(),
+        )
+    except Exception as e:
+        logger.error(e)

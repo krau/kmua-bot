@@ -100,3 +100,26 @@ async def take_quotes_user_can_see(
     )
     result = await session.execute(stmt)
     return result.scalars().all()
+
+
+@with_session
+async def get_user_quote_count(
+    user_id: int, session: AsyncSession | None = None
+) -> int:
+    stmt = sqlalchemy.select(sqlalchemy.func.count()).where(Quote.user_id == user_id)
+    result = await session.execute(stmt)
+    return result.scalar_one()
+
+
+@with_session
+async def get_user_quotes_page(
+    user_id: int, page: int, page_size: int, session: AsyncSession | None = None
+) -> list[Quote]:
+    stmt = (
+        sqlalchemy.select(Quote)
+        .where(Quote.user_id == user_id)
+        .offset((page - 1) * page_size)
+        .limit(page_size)
+    )
+    result = await session.execute(stmt)
+    return result.scalars().all()

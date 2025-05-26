@@ -340,3 +340,145 @@ async def marry_waifu(client: pyrogram.Client, query: pyrogram.types.CallbackQue
         await query.message.edit_text(
             text=text, reply_markup=markup, parse_mode=pyrogram.enums.ParseMode.HTML
         )
+
+
+@pyrogram.Client.on_callback_query(
+    pyrogram.filters.regex(r"^user_waifu_manage"), group=0
+)
+async def user_waifu_manage(
+    client: pyrogram.Client, query: pyrogram.types.CallbackQuery
+):
+    db_user = await database.get_user_by_id(query.from_user.id)
+    if not db_user:
+        return
+    lang = db_user.user_config.lang
+    data = str(query.data)
+    if "divorce_confirm" in data:
+        married_waifu = await database.get_user_by_id(db_user.married_waifu_id)
+        if not married_waifu:
+            await query.answer(
+                text=i18n.t(
+                    "bot.msg.waifu.divorce_not_found", locale=db_user.user_config.lang
+                ),
+                show_alert=True,
+                cache_time=10,
+            )
+            return
+        await database.divorce(db_user.id)
+        await query.edit_message_text(
+            text=i18n.t(
+                "bot.msg.waifu.divorce_success",
+                locale=db_user.user_config.lang,
+            ),
+            reply_markup=pyrogram.types.InlineKeyboardMarkup(
+                [
+                    [
+                        pyrogram.types.InlineKeyboardButton(
+                            text=i18n.t("bot.button.back", locale=lang),
+                            callback_data="back_home",
+                        )
+                    ]
+                ]
+            ),
+            parse_mode=pyrogram.enums.ParseMode.HTML,
+        )
+        await client.send_message(
+            chat_id=married_waifu.id,
+            text=i18n.t(
+                "bot.msg.waifu.divorce_notify",
+                locale=married_waifu.user_config.lang,
+            ).format(
+                user=html.escape(db_user.full_name),
+            ),
+            parse_mode=pyrogram.enums.ParseMode.HTML,
+        )
+        return
+    if "divorce" in data:
+        if not db_user.married_waifu_id or not db_user.is_married:
+            await query.answer(
+                text=i18n.t("bot.msg.waifu.divorce_not_married", locale=lang),
+                show_alert=True,
+                cache_time=10,
+            )
+            return
+        married_waifu = await database.get_user_by_id(db_user.married_waifu_id)
+        if not married_waifu:
+            await query.answer(
+                text=i18n.t("bot.msg.waifu.divorce_not_found", locale=lang),
+                show_alert=True,
+                cache_time=10,
+            )
+            return
+        await query.edit_message_text(
+            text=i18n.t(
+                "bot.msg.waifu.divorce_confirm",
+                locale=lang,
+            ).format(
+                waifu=html.escape(married_waifu.full_name),
+            ),
+            parse_mode=pyrogram.enums.ParseMode.HTML,
+            reply_markup=pyrogram.types.InlineKeyboardMarkup(
+                [
+                    [
+                        pyrogram.types.InlineKeyboardButton(
+                            text=i18n.t(
+                                "bot.button.waifu.divorce_confirm",
+                                locale=lang,
+                            ),
+                            callback_data="user_waifu_manage divorce_confirm",
+                        ),
+                        pyrogram.types.InlineKeyboardButton(
+                            text=i18n.t(
+                                "bot.button.waifu.divorce_cancel",
+                                locale=lang,
+                            ),
+                            callback_data="back_home",
+                        ),
+                    ]
+                ]
+            ),
+        )
+        return
+    if "set_waifu_mention" in data:
+        db_user.waifu_mention = not db_user.waifu_mention
+        await database.update_user(
+            db_user.id, db_user.waifu_mention, db_user.is_bot_global_admin
+        )
+    set_mention_text = (
+        i18n.t(
+            "bot.button.waifu.mention_enabled",
+            locale=lang,
+        )
+        if db_user.waifu_mention
+        else i18n.t(
+            "bot.button.waifu.mention_disabled",
+            locale=lang,
+        )
+    )
+    await query.edit_message_text(
+        i18n.t("bot.msg.waifu.info", locale=lang).format(
+            mention=db_user.waifu_mention,
+            married=db_user.is_married,
+            married_waifu_id=db_user.married_waifu_id,
+        ),
+        reply_markup=pyrogram.types.InlineKeyboardMarkup(
+            [
+                [
+                    pyrogram.types.InlineKeyboardButton(
+                        text=set_mention_text,
+                        callback_data="user_waifu_manage set_waifu_mention",
+                    ),
+                    pyrogram.types.InlineKeyboardButton(
+                        text=i18n.t("bot.button.waifu.divorce", locale=lang),
+                        callback_data="user_waifu_manage divorce",
+                    ),
+                ],
+                [
+                    pyrogram.types.InlineKeyboardButton(
+                        text=i18n.t("bot.button.back", locale=lang),
+                        callback_data="back_home",
+                    ),
+                ],
+            ]
+        ),
+    )

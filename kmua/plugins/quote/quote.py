@@ -1,3 +1,4 @@
+import html
 import math
 import re
 
@@ -268,4 +269,111 @@ async def inline_quote_query(
         )
         if len(results) >= 50:
             break
-    await query.answer(results, cache_time=5, is_personal=True)
+    await query.answer(results[:49], cache_time=5, is_personal=True)
+
+
+@pyrogram.Client.on_callback_query(pyrogram.filters.regex(r"^user_quote_manage"))
+async def user_quote_manage(
+    client: pyrogram.Client, query: pyrogram.types.CallbackQuery
+):
+    user = query.from_user
+    data = str(query.data)
+    user_config = await database.get_user_config(user)
+    lang = user_config.lang
+    page = int(data.split(" ")[-1]) if len(data.split(" ")) > 1 else 1
+    page_size = 5
+    count = await database.get_user_quote_count(user.id)
+    max_page = math.ceil(count / page_size)
+    if count == 0:
+        text = (
+            i18n.t("bot.msg.quote.user_all_deleted", locale=lang)
+            if "delete_user_quote" in data
+            else i18n.t("bot.msg.quote.user_no_quote", locale=lang)
+        )
+        await query.edit_message_text(
+            text,
+            reply_markup=pyrogram.types.InlineKeyboardMarkup(
+                [
+                    [
+                        pyrogram.types.InlineKeyboardButton(
+                            i18n.t("bot.button.back", locale=lang),
+                            callback_data="back_home",
+                        )
+                    ]
+                ]
+            ),
+        )
+        return
+    if page > max_page or page < 1:
+        await query.answer(
+            i18n.t("bot.msg.quote.page_invalid", locale=lang),
+            show_alert=True,
+        )
+        return
+    text = (
+        i18n.t("bot.msg.quote.user_quote_list_head", locale=lang).format(
+            count=count,
+            page=page,
+            max_page=max_page,
+        )
+        + "\n"
+    )
+    quotes = await database.get_user_quotes_page(user.id, page, page_size)
+    keyboard, line = [], []
+    for index, quote in enumerate(quotes):
+        quote_content = (
+            html.escape(quote.text[:100], 2)
+            if quote.text
+            else i18n.t("bot.msg.quote.no_text", locale=lang)
+        )
+        text += f"{index + 1}. <a href={quote.link}>{quote_content}</a>\n\n"
+
+        line.append(
+            pyrogram.types.InlineKeyboardButton(
+                text=f"{index + 1}",
+                callback_data=f"delete_user_quote {quote.link} {str(page)}",
+            )
+        )
+    keyboard.append(line)
+    # keyboard.append(qer_quote_manage_button) TODO
+    keyboard.append(
+        [
+            pyrogram.types.InlineKeyboardButton(
+                i18n.t("bot.button.page_prev", locale=lang),
+                callback_data=f"user_quote_manage {page - 1}",
+            ),
+            pyrogram.types.InlineKeyboardButton(
+                i18n.t("bot.button.back", locale=lang),
+                callback_data="back_home",
+            ),
+            pyrogram.types.InlineKeyboardButton(
+                i18n.t("bot.button.page_next", locale=lang),
+                callback_data=f"user_quote_manage {page + 1}",
+            ),
+        ]
+    )
+    await query.edit_message_text(
+        text,
+        parse_mode=pyrogram.enums.ParseMode.HTML,
+        reply_markup=pyrogram.types.InlineKeyboardMarkup(keyboard),
+    )
+
+
+@pyrogram.Client.on_callback_query(pyrogram.filters.regex(r"^delete_user_quote"))
+async def delete_user_quote(
+    client: pyrogram.Client, query: pyrogram.types.CallbackQuery
+):
+    user = query.from_user
+    data = str(query.data)
+    user_config = await database.get_user_config(user)
+    lang = user_config.lang
+    parts = data.split(" ")
+    quote_link = parts[1]
+    await database.delete_quote(quote_link)
+    await query.answer(
+        i18n.t("bot.msg.quote.deleted", locale=lang),
+    )
+    await user_quote_manage(
+        client,
+        query,
+    )

@@ -1,6 +1,6 @@
-from pyrogram import Client, filters
-from pyrogram.enums import ChatMemberStatus, ChatType
-from pyrogram.types import CallbackQuery, ChatMemberUpdated, Message
+from pyrogram import Client
+from pyrogram.enums import ChatType
+from pyrogram.types import CallbackQuery, Message
 
 from kmua import database
 from kmua.logger import logger

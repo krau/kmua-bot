@@ -13,6 +13,7 @@ bot:
     config: 更改群组设置
     help: 帮助|更多功能
   button:
+    back: 返回
     repo: 开源仓库
     docs: 详细帮助
     user_data: 个人信息
@@ -20,6 +21,8 @@ bot:
     user_waifu: 老婆管理
     start_noop: 喵喵喵喵
     pm_me: 打开私聊
+    page_prev: 上一页
+    page_next: 下一页
     chat_config:
       waifu: 每日老婆
       delete_events: 删除事件
@@ -39,6 +42,11 @@ bot:
       agree_marry_waifu: 好耶
       refuse_marry_waifu: 坏耶
       cancel_marry_waifu: 取消(?)
+      divorce: 离婚
+      divorce_confirm: 离婚
+      divorce_cancel: 算了
+      mention_enabled: 不要 @ 我
+      mention_disabled: 抽到我时 @ 我
     title_permissions:
       can_change_info: 修改信息
       can_delete_messages: 删除消息
@@ -100,6 +108,15 @@ bot:
       marry_cancel: 你取消了这个求婚请求
       no_participate: 本群今日没有人抽过老婆哦
       graph_caption: 群u关系图, 共 {count} 人参与
+      divorce_not_married: 可是...你还没有结婚呀qwq
+      divorce_not_found: 你的老婆找不到啦!
+      divorce_success: <i>愿你有一天和重要之人重逢</i>
+      divorce_notify: "{user} 和你解除了关系 QAQ..."
+      divorce_confirm: 你确定要和 {waifu} 离婚吗?
+      info: |
+        是否 @ 你: {mention}
+        已结婚: {married}
+        结婚的老婆id: {married_waifu_id}
     quote:
       probability_usage: 主动发送语录的概率是小于1的小数哦, 如果设置为负则会禁用 /qrand 命令
       probability_invalid: 请不要插入奇怪的东西 (//▲//)
@@ -116,6 +133,13 @@ bot:
       created:
         - 让我看看是谁在说怪话!
         - 好!
+      user_all_deleted: 已经没有语录啦
+      user_not_quote: 你还没有语录呢
+      page_invalid: 已经没有啦
+      user_quote_list_head: |
+        你的语录, 共 {count} 条, 第 {page}/{max_page} 页
+        点击序号删除对应的语录
+      no_text: (无文本)
     help: |
       <blockquote expandable="true">
       /start - 开始使用|打开菜单

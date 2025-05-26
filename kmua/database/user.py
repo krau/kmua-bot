@@ -11,6 +11,8 @@ from .models import UserChatAssociation, UserConfig, UserData
 
 @with_session
 async def get_user_by_id(id: int, session: AsyncSession | None = None) -> UserData:
+    if id is None:
+        raise ValueError("id must not be None")
     return await session.get(UserData, id)
 
 
@@ -101,6 +103,20 @@ async def update_user_avatar(
 
 
 @with_tx
+async def update_user(
+    user_id: int,
+    waifu_mention: bool = False,
+    is_bot_global_admin: bool = False,
+    session: AsyncSession | None = None,
+):
+    user_data = await session.get(UserData, user_id)
+    if user_data is None:
+        raise ValueError(f"User with id {user_id} not found")
+    user_data.waifu_mention = waifu_mention
+    user_data.is_bot_global_admin = is_bot_global_admin
+
+
+@with_tx
 async def make_wedding(
     user_id: int,
     waifu_id: int,
@@ -157,4 +173,38 @@ async def make_wedding(
 @with_tx
 async def cleanup_user_avatar(session: AsyncSession | None = None):
     stmt = sqlalchemy.update(UserData).values(avatar_big_id=None)
+    await session.execute(stmt)
+
+
+@with_tx
+async def divorce(user_id: int, session: AsyncSession | None = None):
+    user_data = await session.get(UserData, user_id)
+    if user_data is None:
+        raise ValueError(f"User with id {user_id} not found")
+    if not user_data.is_married or user_data.married_waifu_id is None:
+        raise ValueError("User is not married")
+    waifu_id = user_data.married_waifu_id
+    waifu_data = await session.get(UserData, waifu_id)
+    if waifu_data is None:
+        raise ValueError(f"Waifu with id {waifu_id} not found")
+    if not waifu_data.is_married or waifu_data.married_waifu_id != user_id:
+        raise ValueError("Waifu is not married to this user")
+
+    user_data.is_married = False
+    user_data.married_waifu_id = None
+    waifu_data.is_married = False
+    waifu_data.married_waifu_id = None
+
+    stmt = (
+        sqlalchemy.update(UserChatAssociation)
+        .where(
+            sqlalchemy.or_(
+                UserChatAssociation.user_id == user_id,
+                UserChatAssociation.waifu_id == user_id,
+                UserChatAssociation.user_id == waifu_id,
+                UserChatAssociation.waifu_id == waifu_id,
+            )
+        )
+        .values(waifu_id=None)
+    )
     await session.execute(stmt)
