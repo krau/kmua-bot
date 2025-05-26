@@ -87,6 +87,7 @@ bot:
       text_not_available: 非文本消息或文本过长不能生成图片哦
       chat_no_quote: 本群还没有语录哦
       not_found: 这条消息不在群语录中哦
+      only_delete_self: 你只能删除自己的语录哦
       deleted: 已删除该语录
       created:
         - 让我看看是谁在说怪话!

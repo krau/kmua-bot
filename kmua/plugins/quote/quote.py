@@ -76,7 +76,7 @@ async def random_quote_cmd(client: pyrogram.Client, message: pyrogram.types.Mess
     quote = await database.get_chat_random_quote(chat.id)
     if not quote:
         await message.reply_text(
-            i18n.t("bot.msg.quote.chat_no_quote", locale=chat.lang)
+            i18n.t("bot.msg.quote.chat_no_quote", locale=chat_config.lang)
         )
         return
     user_button_text = (
@@ -160,11 +160,7 @@ async def delete_quote_in_chat(
     chat = message.chat
     chat_config = await database.get_chat_config(chat.id)
     user = message.sender_chat or message.from_user
-    if not await common.can_user_manage_bot_in_chat(user, chat):
-        await message.reply_text(
-            i18n.t("bot.msg.no_permission_group", locale=chat_config.lang)
-        )
-        return
+    is_admin = await common.can_user_manage_bot_in_chat(user, chat)
     if not message.reply_to_message:
         await message.reply_text(
             i18n.t("bot.msg.quote.reply_to_required", locale=chat_config.lang)
@@ -181,6 +177,11 @@ async def delete_quote_in_chat(
     if not quote:
         await message.reply_text(
             i18n.t("bot.msg.quote.not_found", locale=chat_config.lang)
+        )
+        return
+    if user.id not in (quote.user_id, quote.qer_id) and not is_admin:
+        await message.reply_text(
+            i18n.t("bot.msg.quote.only_delete_self", locale=chat_config.lang)
         )
         return
     await database.delete_quote(quote.link)

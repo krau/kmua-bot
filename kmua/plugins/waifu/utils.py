@@ -136,16 +136,13 @@ async def get_graph_data(
     if participate_users2 is None:
         participate_users2 = database.get_chat_user_participated_waifu(chat_id)
 
-    async with aiofiles.open(
-        consts.DEFAULT_SMALL_AVATAR_PATH, "rb"
-    ) as default_avatar_file:
-        default_avatar = await default_avatar_file.read()
     user_data = (
         {
             "id": user.id,
             "username": user.username or f"{user.id}",
-            "avatar": (await common.ChatAvatar(user.id).get_bytes(big=False))
-            or default_avatar,
+            "avatar": (
+                await common.ChatAvatar(user.id).get_or_default_bytes(big=False)
+            ),
         }
         async for user in participate_users2
     )
