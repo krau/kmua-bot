@@ -140,6 +140,21 @@ bot:
         你的语录, 共 {count} 条, 第 {page}/{max_page} 页
         点击序号删除对应的语录
       no_text: (无文本)
+    ip:
+      no_ip_provided: "请提供要查询的 IP/域名"
+      querying: "正在查询: {ip}"
+      query_failed: "查询失败: {error_type}: {error}"
+      query_failed_reason: "查询失败: {message}"
+      query_target: "查询目标: <code>{url}</code>"
+      resolved_address: "解析地址: <code>{query}</code>"
+      location: "地区: <code>{country} - {region} - {city}</code>"
+      coordinates: "经纬度: <code>{lat},{lon}</code>"
+      isp: "ISP: <code>{isp}</code>"
+      organization: "组织: <code>{org}</code>"
+      as_number: '<a href="https://bgp.he.net/{as_link}">{as_number}</a>'
+      mobile_ip: "此 IP 可能为<b>蜂窝移动数据 IP</b>"
+      proxy_ip: "此 IP 可能为<b>代理 IP</b>"
+      hosting_ip: "此 IP 可能为<b>数据中心 IP</b>"
     help: |
       <blockquote expandable="true">
       /start - 开始使用|打开菜单
