@@ -79,13 +79,15 @@ bot:
     quote:
       probability_usage: 主动发送语录的概率是小于1的小数哦, 如果设置为负则会禁用 /qrand 命令
       probability_invalid: 请不要插入奇怪的东西 (//▲//)
-      reply_to_required: 需要回复一条消息来记录语录哦
+      reply_to_required: 请回复一条消息
       topic_not_supported: 不支持在主话题外使用此功能
       origin_not_found: 不知道这条消息是谁发送的呢...
       get_link_failed: 获取消息链接失败, 本群可能不是超级群组
       already_exists: 这条语录已经存在了哦
       text_not_available: 非文本消息或文本过长不能生成图片哦
       chat_no_quote: 本群还没有语录哦
+      not_found: 这条消息不在群语录中哦
+      deleted: 已删除该语录
       created:
         - 让我看看是谁在说怪话!
         - 好!

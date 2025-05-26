@@ -46,7 +46,7 @@ async def make_quote(client: pyrogram.Client, message: pyrogram.types.Message):
         return
     text = i18n.trl("bot.msg.quote.created", locale=lang)
     if not quote_message.text or len(quote_message.text) > 200:
-        text += i18n.t("bot.msg.quote.text_not_available", locale=lang)
+        text += f"\n {i18n.t('bot.msg.quote.text_not_available', locale=lang)}"
     await quote_message.reply_text(text, parse_mode=pyrogram.enums.ParseMode.HTML)
     quote_img = await utils.send_quote(client, chat.id, quote_message, quote_user)
     if not (len(cmd) > 1 and cmd[1] == "nopin") and chat_config.quote_pin_message:
@@ -149,6 +149,44 @@ $
         qp = -1.0
     chat_config.quote_probability = qp
     await database.update_chat_config(chat=chat, config=chat_config)
+
+
+@pyrogram.Client.on_message(
+    pyrogram.filters.command("d") & pyrogram.filters.group, group=0
+)
+async def delete_quote_in_chat(
+    client: pyrogram.Client, message: pyrogram.types.Message
+):
+    chat = message.chat
+    chat_config = await database.get_chat_config(chat.id)
+    user = message.sender_chat or message.from_user
+    if not await common.can_user_manage_bot_in_chat(user, chat):
+        await message.reply_text(
+            i18n.t("bot.msg.no_permission_group", locale=chat_config.lang)
+        )
+        return
+    if not message.reply_to_message:
+        await message.reply_text(
+            i18n.t("bot.msg.quote.reply_to_required", locale=chat_config.lang)
+        )
+        return
+    quote_message = message.reply_to_message
+    quote_msg_link = utils.get_msg_link(quote_message)
+    if not quote_msg_link:
+        await message.reply_text(
+            i18n.t("bot.msg.quote.get_link_failed", locale=chat_config.lang)
+        )
+        return
+    quote = await database.get_quote_by_link(quote_msg_link)
+    if not quote:
+        await message.reply_text(
+            i18n.t("bot.msg.quote.not_found", locale=chat_config.lang)
+        )
+        return
+    await database.delete_quote(quote.link)
+    await quote_message.reply_text(
+        i18n.t("bot.msg.quote.deleted", locale=chat_config.lang)
+    )
 
 
 @pyrogram.Client.on_message(

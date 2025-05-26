@@ -63,3 +63,9 @@ async def get_chat_random_quote(
     )
     result = await session.execute(quote_stmt)
     return result.scalar_one_or_none()
+
+
+@with_tx
+async def delete_quote(link: str, session: AsyncSession | None = None) -> None:
+    quote = await session.get(Quote, link)
+    await session.delete(quote)
