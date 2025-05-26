@@ -187,24 +187,30 @@ def get_chat_user_participated_waifu(
             offset = 0
 
             while True:
-                stmt = (
-                    sqlalchemy.select(UserData)
+                users_with_waifu_stmt = (
+                    sqlalchemy.select(UserData.id)
                     .join(
                         UserChatAssociation,
                         (UserChatAssociation.user_id == UserData.id)
                         & (UserChatAssociation.chat_id == chat_id),
                     )
-                    .where(
-                        sqlalchemy.or_(
-                            UserChatAssociation.waifu_id.isnot(None),
-                            UserChatAssociation.user_id.in_(
-                                sqlalchemy.select(UserChatAssociation.waifu_id).where(
-                                    (UserChatAssociation.chat_id == chat_id)
-                                    & (UserChatAssociation.waifu_id.isnot(None))
-                                )
-                            ),
-                        )
-                    )
+                    .where(UserChatAssociation.waifu_id.isnot(None))
+                )
+
+                users_as_waifu_stmt = sqlalchemy.select(
+                    UserChatAssociation.waifu_id
+                ).where(
+                    (UserChatAssociation.chat_id == chat_id)
+                    & (UserChatAssociation.waifu_id.isnot(None))
+                )
+
+                union_stmt = sqlalchemy.union(
+                    users_with_waifu_stmt, users_as_waifu_stmt
+                ).subquery()
+
+                stmt = (
+                    sqlalchemy.select(UserData)
+                    .where(UserData.id.in_(sqlalchemy.select(union_stmt.c.id)))
                     .offset(offset)
                     .limit(batch_size)
                 )

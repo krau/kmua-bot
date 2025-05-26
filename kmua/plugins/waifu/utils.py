@@ -171,8 +171,6 @@ async def render_waifu_graph(
 
     async with aiofiles.tempfile.TemporaryDirectory() as tempdir:
         has_avatar = set()
-        avatar_tasks = []
-
         async for user in user_info:
             user_id = user["id"]
             username = user.get("username")
@@ -186,28 +184,22 @@ async def render_waifu_graph(
 
             has_avatar.add(user_id)
             avatar = user["avatar"]
-            avatar_path = os.path.join(tempdir, f"{user_id}_avatar.png")
+            avatar_path = os.path.join(tempdir, f"{user_id}_avatar.jpg")
+            await _write_avatar(avatar_path, avatar)
 
-            avatar_task = _write_avatar(avatar_path, avatar)
-            avatar_tasks.append((user_id, username, avatar_path, avatar_task))
+            with dot.subgraph(name=f"cluster_{user_id}") as subgraph:
+                subgraph.attr(label=username)
+                subgraph.attr(rank="same")
+                subgraph.attr(labelloc="b")
+                subgraph.attr(style="filled")
 
-        if avatar_tasks:
-            await asyncio.gather(*[task for _, _, _, task in avatar_tasks])
-
-            for user_id, username, avatar_path, _ in avatar_tasks:
-                with dot.subgraph(name=f"cluster_{user_id}") as subgraph:
-                    subgraph.attr(label=username)
-                    subgraph.attr(rank="same")
-                    subgraph.attr(labelloc="b")
-                    subgraph.attr(style="filled")
-
-                    subgraph.node(
-                        str(user_id),
-                        label="",
-                        shape="none",
-                        image=avatar_path,
-                        imagescale="true",
-                    )
+                subgraph.node(
+                    str(user_id),
+                    label="",
+                    shape="none",
+                    image=avatar_path,
+                    imagescale="true",
+                )
 
         async for user_id, waifu_id in relationships:
             dot.edge(
