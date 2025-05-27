@@ -165,3 +165,4 @@ bot:
       set_success: 群组欢迎语设置好啦
       remove_success: 群组欢迎语已移除
       not_set: 本群还没有设置欢迎语哦
+      template_error: 解析欢迎语模板时发生错误, 请不要插入奇怪的东西

@@ -3,6 +3,7 @@ from string import Template
 import pyrogram
 
 from kmua import common, database, i18n
+from kmua.logger import logger
 
 
 @pyrogram.Client.on_message(
@@ -53,15 +54,25 @@ async def set_greeting_command(
                     i18n.t("bot.msg.greeting.not_set", locale=chat_config.lang)
                 )
             else:
-                t = Template(chat_config.greeting)
-                greeting_text = t.safe_substitute(
-                    user=user.mention(style="html"),
-                    chat=chat.title,
-                )
-                await message.reply(
-                    greeting_text,
-                    parse_mode=pyrogram.enums.ParseMode.HTML,
-                )
+                try:
+                    t = Template(chat_config.greeting)
+                    greeting_text = t.safe_substitute(
+                        user=user.mention(style="html"),
+                        chat=chat.title,
+                    )
+                    await message.reply(
+                        greeting_text,
+                        parse_mode=pyrogram.enums.ParseMode.HTML,
+                    )
+                except Exception as e:
+                    logger.error(
+                        f"Error in greeting template: {e.__class__.__name__}:{e}"
+                    )
+                    await message.reply(
+                        i18n.t(
+                            "bot.msg.greeting.template_error", locale=chat_config.lang
+                        )
+                    )
         case _:
             await message.reply(
                 i18n.t("bot.msg.greeting.usage", locale=chat_config.lang)
