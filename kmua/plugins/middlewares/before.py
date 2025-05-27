@@ -1,4 +1,4 @@
-from pyrogram import Client, filters
+from pyrogram import Client
 from pyrogram.enums import ChatType
 from pyrogram.types import CallbackQuery, Message
 
@@ -12,7 +12,9 @@ async def on_m(client: Client, message: Message):
     chat = message.chat
     if user is None or chat is None:
         return
-    logger.trace(f"[{chat.id}]({user.id}): {message.text or message.caption}")
+    text = message.text or message.caption
+    if text.startswith(("/", "\\", "!")):
+        logger.trace(f"[{chat.id}]({user.id}): {message.text or message.caption}")
     if chat.type == ChatType.CHANNEL:
         message.stop_propagation()
     user_db = await database.upsert_user(user)
