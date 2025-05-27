@@ -21,6 +21,8 @@ async def set_member_title(client: pyrogram.Client, message: pyrogram.types.Mess
         custom_title = target.username or target.full_name
     chat_config = await database.get_chat_config(chat.id)
     permissions = chat_config.title_permissions or {}
+    if isinstance(permissions, str):
+        logger.warning(f"Chat {chat.id} has title_permissions as string: {permissions}")
     try:
         await client.promote_chat_member(
             chat.id,
