@@ -80,6 +80,7 @@ bot:
       chat_no_quote: 本群还没有语录哦
       not_found: 这条消息不在群语录中哦
       only_delete_self: 你只能删除自己的语录哦
+      only_delete_or_group: 你只能删除自己的或本群的语录哦
       deleted: 已删除该语录
       created:
         - 让我看看是谁在说怪话!
@@ -91,6 +92,8 @@ bot:
         你的语录, 共 {count} 条, 第 {page}/{max_page} 页
         点击序号删除对应的语录
       no_text: (无文本)
+      invalid_link: 请提供1个有效的语录消息链接
+      only_delete_self_or_admin_in_group: 你只能删除自己的或由你管理的群组的语录哦
     ip:
       no_ip_provided: "请提供要查询的 IP/域名"
       querying: "正在查询: {ip}"

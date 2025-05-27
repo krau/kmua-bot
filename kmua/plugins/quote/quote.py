@@ -150,6 +150,12 @@ $
         qp = -1.0
     chat_config.quote_probability = qp
     await database.update_chat_config(chat=chat, config=chat_config)
+    await message.reply_text(
+        i18n.t(
+            "bot.msg.group_config_saved",
+            locale=chat_config.lang,
+        )
+    )
 
 
 @pyrogram.Client.on_message(
@@ -162,33 +168,97 @@ async def delete_quote_in_chat(
     chat_config = await database.get_chat_config(chat.id)
     user = message.sender_chat or message.from_user
     is_admin = await common.can_user_manage_bot_in_chat(user, chat)
-    if not message.reply_to_message:
+
+    quote_link = None
+    reply_target = None
+
+    if message.reply_to_message:
+        quote_message = message.reply_to_message
+        quote_link = utils.get_msg_link(quote_message)
+        reply_target = quote_message
+    elif len(message.command) > 1:
+        quote_link = message.command[1]
+        reply_target = message
+        if not re.match(r"^https?://t.me/.+/\d+$", quote_link, re.IGNORECASE):
+            await message.reply_text(
+                i18n.t("bot.msg.quote.invalid_link", locale=chat_config.lang)
+            )
+            return
+    else:
         await message.reply_text(
             i18n.t("bot.msg.quote.reply_to_required", locale=chat_config.lang)
         )
         return
-    quote_message = message.reply_to_message
-    quote_msg_link = utils.get_msg_link(quote_message)
-    if not quote_msg_link:
+
+    if not quote_link:
         await message.reply_text(
             i18n.t("bot.msg.quote.get_link_failed", locale=chat_config.lang)
         )
         return
-    quote = await database.get_quote_by_link(quote_msg_link)
+
+    quote = await database.get_quote_by_link(quote_link)
     if not quote:
         await message.reply_text(
             i18n.t("bot.msg.quote.not_found", locale=chat_config.lang)
         )
         return
-    if user.id not in (quote.user_id, quote.qer_id) and not is_admin:
+    if user.id not in (quote.user_id, quote.qer_id):
+        if not is_admin:
+            await message.reply_text(
+                i18n.t("bot.msg.quote.only_delete_self", locale=chat_config.lang)
+            )
+            return
+        quote_chat_id, _ = utils.parse_msg_link(quote.link)
+        if quote_chat_id != chat.id:
+            await message.reply_text(
+                i18n.t("bot.msg.quote.only_delete_or_group", locale=chat_config.lang)
+            )
+            return
+
+    await database.delete_quote(quote.link)
+    await reply_target.reply_text(
+        i18n.t("bot.msg.quote.deleted", locale=chat_config.lang)
+    )
+
+
+@pyrogram.Client.on_message(
+    pyrogram.filters.command("d") & pyrogram.filters.private, group=0
+)
+async def delete_quote_in_private(
+    client: pyrogram.Client, message: pyrogram.types.Message
+):
+    user = message.from_user
+    user_config = await database.get_user_config(user.id)
+    if len(message.command) < 2:
         await message.reply_text(
-            i18n.t("bot.msg.quote.only_delete_self", locale=chat_config.lang)
+            i18n.t("bot.msg.quote.invalid_link", locale=user_config.lang)
+        )
+        return
+    quote_link = message.command[1]
+    if not re.match(r"^https?://t.me/.+/\d+$", quote_link, re.IGNORECASE):
+        await message.reply_text(
+            i18n.t("bot.msg.quote.invalid_link", locale=user_config.lang)
+        )
+        return
+    quote = await database.get_quote_by_link(quote_link)
+    if not quote:
+        await message.reply_text(
+            i18n.t("bot.msg.quote.not_found", locale=user_config.lang)
+        )
+        return
+    quote_chat_id, _ = utils.parse_msg_link(quote.link)
+    if user.id not in (quote.user_id, quote.qer_id) and not (
+        await common.can_user_manage_bot_in_chat(user, quote_chat_id)
+    ):
+        await message.reply_text(
+            i18n.t(
+                "bot.msg.quote.only_delete_self_or_admin_in_group",
+                locale=user_config.lang,
+            )
         )
         return
     await database.delete_quote(quote.link)
-    await quote_message.reply_text(
-        i18n.t("bot.msg.quote.deleted", locale=chat_config.lang)
-    )
+    await message.reply_text(i18n.t("bot.msg.quote.deleted", locale=user_config.lang))
 
 
 @pyrogram.Client.on_message(
