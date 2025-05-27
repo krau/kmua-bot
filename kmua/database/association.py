@@ -13,7 +13,7 @@ from .models import ChatData, UserChatAssociation, UserData
 async def add_association_in_chat(
     chat: ChatData,
     user: UserData,
-    waifu: UserData | None,
+    waifu: UserData | None = None,
     session: AsyncSession | None = None,
 ) -> UserChatAssociation:
     if data := await session.get(UserChatAssociation, (user.id, chat.id)):
