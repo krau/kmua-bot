@@ -10,3 +10,4 @@ logs/
 settings.dev*
 data/**
 .secret*
+pgload/
