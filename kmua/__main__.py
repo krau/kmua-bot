@@ -35,6 +35,7 @@ async def init_bot(client: Client = client):
             BotCommand("qrand", i18n.t("bot.cmd.qrand", locale=app_config.lang)),
             BotCommand("qp", i18n.t("bot.cmd.qp", locale=app_config.lang)),
             BotCommand("t", i18n.t("bot.cmd.t", locale=app_config.lang)),
+            BotCommand("sett", i18n.t("bot.cmd.sett", locale=app_config.lang)),
             BotCommand("id", i18n.t("bot.cmd.id", locale=app_config.lang)),
             BotCommand("ip", i18n.t("bot.cmd.ip", locale=app_config.lang)),
             BotCommand("setu", i18n.t("bot.cmd.setu", locale=app_config.lang)),
