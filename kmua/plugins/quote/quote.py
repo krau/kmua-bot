@@ -327,8 +327,8 @@ async def inline_quote_query(
                     pyrogram.types.InlineKeyboardButton(
                         text=(
                             quote_db.user.full_name
-                            if len(quote_db.user.full_name) <= 16
-                            else quote_db.user.full_name[:16] + "..."
+                            if len(quote_db.user.full_name) <= 10
+                            else quote_db.user.full_name[:10] + "..."
                             if quote_db.user.full_name
                             else str(quote_db.user_id)
                         ),
