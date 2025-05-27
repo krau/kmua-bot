@@ -1,0 +1,52 @@
+bot:
+  button:
+    back: 返回
+    repo: 开源仓库
+    docs: 详细帮助
+    user_data: 个人信息
+    user_quote: 语录管理
+    user_waifu: 老婆管理
+    start_noop: 喵喵喵喵
+    pm_me: 打开私聊
+    page_prev: 上一页
+    page_next: 下一页
+    chat_config:
+      waifu: 每日老婆
+      delete_events: 删除事件
+      message_search: 消息搜索
+      quote_pin_message: 语录置顶
+      ai_reply: AI回复
+      setu_enabled: 随机涩图
+      unpin_channel_pin_enabled: 解除频道置顶
+      convert_b23_enabled: 转换b23短链
+      parse_artwork_enabled: 解析插画链接
+      save: 保存设置
+    waifu:
+      remove: 移除(管理员)
+      marry: 娶老婆!
+      remove_confirm: 移除
+      remove_cancel: 算了
+      agree_marry_waifu: 好耶
+      refuse_marry_waifu: 坏耶
+      cancel_marry_waifu: 取消(?)
+      divorce: 离婚
+      divorce_confirm: 离婚
+      divorce_cancel: 算了
+      mention_enabled: 不要 @ 我
+      mention_disabled: 抽到我时 @ 我
+    title_permissions:
+      can_change_info: 修改信息
+      can_delete_messages: 删除消息
+      can_edit_messages: 编辑消息
+      can_restrict_members: 封禁用户
+      can_invite_users: 邀请用户
+      can_promote_members: 提升成员
+      can_post_stories: 发布动态
+      can_edit_stories: 编辑动态
+      can_delete_stories: 删除动态
+      can_manage_video_chats: 视频聊天
+      can_manage_topics: 管理话题
+      can_pin_messages: 置顶消息
+    manyacg:
+      detail: 详情
+      original: 原图

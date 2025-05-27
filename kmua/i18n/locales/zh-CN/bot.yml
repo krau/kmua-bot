@@ -1,0 +1,181 @@
+bot:
+  cmd:
+    start: 一键猫叫|召出菜单
+    waifu: 今日老婆!
+    waifu_graph: 老婆关系图!
+    q: 记录语录
+    d: 删除语录
+    qrand: 随机语录
+    qp: 设置随机主动发送语录的概率
+    t: 获取头衔|互赠头衔
+    sett: 更改 /t 命令所赋予的权限
+    id: 获取聊天ID
+    ip: 获取IP信息
+    setu: 来点涩图
+    config: 更改群组设置
+    greet: 设置群组欢迎语
+    help: 帮助|更多功能
+  msg:
+    private_start: Nya~
+    group_start: 请私聊咱使用哦
+    lang_changed: 语言已更改为 {lang}
+    no_permission_group: 你没有权限更改该群组中 bot 的设置哦
+    group_config: 点击按钮更改群组设置哦
+    unknown_operation: 未知操作, 不可以干坏事哦
+    group_config_saved: 群组设置已保存~
+    refresh_failed: 刷新失败, 请稍后再试
+    refresh_success: 刷新成功
+    refreshing_avatar: 正在刷新你的头像...
+    cleanning: kmua 正在打扫房间...
+    b23_converted: "{real_url}"
+    b23_converted_group: |
+      {real_url}
+      来自 {from_user} 发送的 b23 短链, 已经帮你转换了哦
+    title:
+      set_self: 好, 你现在是 {title} 啦
+      set_other: "{user} 把 {target} 变成 {title} !"
+      set_permissions: 点击按钮更改 /t 命令赋予成员的权限
+      errors:
+        generic: 失败了喵
+        admin_required: 咱没有足够的权限或正在尝试更改其他管理员设置的头衔
+        creator: 咱不能对群主使用喵
+        rank_invalid: 头衔太长了! 进不去!
+        user_id_invalid: 咱不能更改自己的或频道身份的头衔
+    waifu:
+      disabled: 这里不允许使用 waifu 功能哦
+      not_found: 你现在没有老婆, 因为咱的记录中找不到其他群友
+      retry: 你没能抽到老婆, 再试一次吧~
+      got: "{user}, 你今天已经抽过老婆了! {waifu} 是你今天的老婆!"
+      normal: "{user}, 你今天的群幼老婆是 {waifu}!"
+      got_nouser: "你今天已经抽过老婆了! {waifu} 是你今天的老婆!"
+      normal_nouser: "你今天的群幼老婆是 {waifu}!"
+      married: "{user}, 你和 {waifu} 已经结婚了哦~"
+      remove_not_found: 查无此人,可能已经被移除了
+      remove: 确定要移除ta吗?
+      removed: "已移除该用户, ta 曾是 {user} 的老婆"
+      marry_not_real: ＞﹏＜ Ta 不是真实用户哦.(不支持与匿名管理, 频道身份等结婚)
+      marry_self: (。・ω・。) 总会有人不远万里为你而来
+      marry_not_user: (￣ε(#￣) 别人的事情咱不要打扰呢
+      already_married: 你已经和 ta 结婚了哦
+      already_married_other: （＞人＜；）Ta 已经有别人了呢, 愿你找到对的人
+      user_already_married_other: ∑( 口 || 你已经有老婆了, 不要再去招惹别人了哦
+      marry_ask: "{waifu}, 你愿意和 {user} 结婚嘛?"
+      marry_success: "恭喜 {user} 和 {waifu} 结婚啦~"
+      marry_refused: "(´。＿。｀) 你拒绝了 ta 的求婚呢. 有些人一旦错过就不再..."
+      marry_cancel: 你取消了这个求婚请求
+      no_participate: 本群今日没有人抽过老婆哦
+      graph_caption: 群u关系图, 共 {count} 人参与
+      divorce_not_married: 可是...你还没有结婚呀qwq
+      divorce_not_found: 你的老婆找不到啦!
+      divorce_success: <i>愿你有一天和重要之人重逢</i>
+      divorce_notify: "{user} 和你解除了关系 QAQ..."
+      divorce_confirm: 你确定要和 {waifu} 离婚吗?
+      info: |
+        是否 @ 你: {mention}
+        已结婚: {married}
+        结婚的老婆id: {married_waifu_id}
+    quote:
+      probability_usage: 主动发送语录的概率是小于1的小数哦, 如果设置为负则会禁用 /qrand 命令
+      probability_invalid: 请不要插入奇怪的东西 (//▲//)
+      reply_to_required: 请回复一条消息
+      topic_not_supported: 不支持在主话题外使用此功能
+      origin_not_found: 不知道这条消息是谁发送的呢...
+      get_link_failed: 获取消息链接失败, 本群可能不是超级群组
+      already_exists: 这条语录已经存在了哦
+      text_not_available: 非文本消息或文本过长不能生成图片哦
+      chat_no_quote: 本群还没有语录哦
+      not_found: 这条消息不在群语录中哦
+      only_delete_self: 你只能删除自己的语录哦
+      only_delete_or_group: 你只能删除自己的或本群的语录哦
+      deleted: 已删除该语录
+      created:
+        - 让我看看是谁在说怪话!
+        - 好!
+      user_all_deleted: 已经没有语录啦
+      user_not_quote: 你还没有语录呢
+      page_invalid: 已经没有啦
+      user_quote_list_head: |
+        你的语录, 共 {count} 条, 第 {page}/{max_page} 页
+        点击序号删除对应的语录
+      no_text: (无文本)
+      invalid_link: 请提供1个有效的语录消息链接
+      only_delete_self_or_admin_in_group: 你只能删除自己的或由你管理的群组的语录哦
+    ip:
+      no_ip_provided: "请提供要查询的 IP/域名"
+      querying: "正在查询: {ip}"
+      query_failed: "查询失败: {error_type}: {error}"
+      query_failed_reason: "查询失败: {message}"
+      query_target: "查询目标: <code>{url}</code>"
+      resolved_address: "解析地址: <code>{query}</code>"
+      location: "地区: <code>{country} - {region} - {city}</code>"
+      coordinates: "经纬度: <code>{lat},{lon}</code>"
+      isp: "ISP: <code>{isp}</code>"
+      organization: "组织: <code>{org}</code>"
+      as_number: '<a href="https://bgp.he.net/{as_link}">{as_number}</a>'
+      mobile_ip: "此 IP 可能为<b>蜂窝移动数据 IP</b>"
+      proxy_ip: "此 IP 可能为<b>代理 IP</b>"
+      hosting_ip: "此 IP 可能为<b>数据中心 IP</b>"
+    help: |
+      <blockquote expandable="true">
+      /start - 开始使用|打开菜单
+      /help - 显示此帮助信息
+      /config - 更改 bot 在群组中的设置
+      /waifu - 今天的群友老婆!
+      /waifu_graph - 老婆关系图!
+      /q - 记录语录
+      /d - 删除语录|管理群语录
+      /qrand - 随机语录
+      /qp - 设置随机主动发送语录的概率
+      /t - 获取头衔|互赠头衔
+      /sett - 更改 /t 命令所赋予的权限
+      /setu - 来点色图 (/ω＼*)
+      /greet - 设置群组欢迎语
+      /id - 获取聊天ID
+      /ip - 查询IP/域名信息
+      /botpromote - 在群组中设置bot管理员 (对于bot该用户将具有同等于群主的权限)
+      /f5avatar - 刷新你的头像
+      </blockquote>
+      对其他人使用 "/" 或 "\" 即可对其施法
+
+      语录可使用 Inline 模式查询
+    reply:
+      default:
+        - 喵喵?
+    manyacg:
+      artwork_pictures_count: 该作品共有 {count} 张图片
+      seefull: ->点击查看
+      chat_setu_disabled: 这里不允许涩图哦
+      setu_cd: 太快了! 不行!
+      setu_error: 失败了喵, 请稍后再试
+    greeting:
+      usage: |
+        使用方法: /greet <动作> [参数]
+        可用动作: set, remove, show
+        - set <欢迎语>:     
+          设置群组欢迎语, 可以使用以下变量:
+          ${user} - 新群u用户名
+          ${chat} - 群组标题
+          可使用 HTML
+        - remove:
+          移除群组欢迎语
+        - 预览:
+          显示当前群组欢迎语
+      set_usage: |
+        使用方法: /greet set <欢迎语>
+        可用变量:
+        ${user} - 新群u用户名
+        ${chat} - 群组标题
+        可使用 HTML
+      too_long: 太长了! 不行!
+      set_success: 群组欢迎语设置好啦
+      remove_success: 群组欢迎语已移除
+      not_set: 本群还没有设置欢迎语哦
+      template_error: 解析欢迎语模板时发生错误, 请不要插入奇怪的东西
+    botadmin:
+      invalid_user: |
+        无效的用户, 请提供有效的用户 ID, 或回复一条消息
+        (不能将频道身份, 匿名管理等设置为 bot 管理员, 该命令也不能对自己使用哦)
+      user_not_found: 找不到该用户
+      user_not_real: 该用户不是真实用户
+      user_not_in_chat: 该用户似乎不在数据里, 让 ta 出来发个言吧~
+      success: 已将 {user} 在本群的 Bot 管理权限设为 {status}

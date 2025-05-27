@@ -1,172 +1,74 @@
-import datetime
-import json
-import threading
-from http.server import BaseHTTPRequestHandler, HTTPServer
+import asyncio
 
-import uvloop
-from telegram.constants import UpdateType
-from telegram.ext import (
-    AIORateLimiter,
-    Application,
-    ApplicationBuilder,
-    Defaults,
-    PersistenceInput,
-    PicklePersistence,
-)
+from pyrogram import Client, idle
+from pyrogram.types import BotCommand
 
-import kmua.dao._db as db
-from kmua.callbacks.jobs import clean_data
-from kmua.config import settings
-from kmua.handlers import (
-    callback_query_handlers,
-    chatdata_handlers,
-    command_handlers,
-    inline_query_handler_group,
-    message_handlers,
-    on_error,
-)
+from kmua import common, database, i18n
+from kmua.bot import jobs
+from kmua.bot.client import client
+from kmua.config import app_config
+from kmua.database import db
 from kmua.logger import logger
-from kmua.middlewares import after_middleware, before_middleware
 
 
-class HealthCheckHandler(BaseHTTPRequestHandler):
-    def do_GET(self):
-        self.send_response(200)
-        self.end_headers()
-        self.wfile.write(
-            json.dumps({"status": "ok", "message": "kmua is running"}).encode("utf-8")
-        )
-
-    def log_message(self, format, *args):
-        return
-
-
-def run_server():
-    server_address = (
-        settings.get("health_check_host", "0.0.0.0"),
-        settings.get("health_check_port", 39848),
-    )
-    httpd = HTTPServer(server_address, HealthCheckHandler)
-    httpd.serve_forever()
-
-
-async def init_data(app: Application):
-    logger.info("initing commands")
-    await app.bot.set_my_commands(
+@client.on_start()
+async def init_bot(client: Client = client):
+    logger.info(i18n.t("log.initing", locale=app_config.lang))
+    if not app_config.avatar_cache_dir.exists():
+        app_config.avatar_cache_dir.mkdir(parents=True, exist_ok=True)
+    logger.debug(i18n.t("log.getting_me", locale=app_config.lang))
+    me = await client.get_me()
+    await database.upsert_user(me)
+    logger.debug(i18n.t("log.setting_commands", locale=app_config.lang))
+    await client.set_bot_commands(
         [
-            ("start", "一键猫叫|召出菜单"),
-            ("waifu", "今日老婆!"),
-            ("waifu_graph", "老婆关系图!"),
-            ("q", "记录语录"),
-            ("d", "删除语录|管理群语录"),
-            ("qrand", "随机语录"),
-            ("t", "获取头衔|互赠头衔"),
-            ("id", "获取聊天ID"),
-            ("ip", "获取IP信息"),
-            ("setu", "随机涩图"),
-            ("config", "更改群组设置"),
-            ("help", "帮助|更多功能"),
+            BotCommand(
+                "start",
+                i18n.t("bot.cmd.start", locale=app_config.lang),
+            ),
+            BotCommand("waifu", i18n.t("bot.cmd.waifu", locale=app_config.lang)),
+            BotCommand(
+                "waifu_graph", i18n.t("bot.cmd.waifu_graph", locale=app_config.lang)
+            ),
+            BotCommand("q", i18n.t("bot.cmd.q", locale=app_config.lang)),
+            BotCommand("d", i18n.t("bot.cmd.d", locale=app_config.lang)),
+            BotCommand("qrand", i18n.t("bot.cmd.qrand", locale=app_config.lang)),
+            BotCommand("qp", i18n.t("bot.cmd.qp", locale=app_config.lang)),
+            BotCommand("t", i18n.t("bot.cmd.t", locale=app_config.lang)),
+            BotCommand("sett", i18n.t("bot.cmd.sett", locale=app_config.lang)),
+            BotCommand("id", i18n.t("bot.cmd.id", locale=app_config.lang)),
+            BotCommand("ip", i18n.t("bot.cmd.ip", locale=app_config.lang)),
+            BotCommand("setu", i18n.t("bot.cmd.setu", locale=app_config.lang)),
+            BotCommand("config", i18n.t("bot.cmd.config", locale=app_config.lang)),
+            BotCommand("greet", i18n.t("bot.cmd.greet", locale=app_config.lang)),
+            BotCommand("help", i18n.t("bot.cmd.help", locale=app_config.lang)),
         ]
     )
-    logger.success("started bot")
+    common.jobqueue.add_daily_job("cleanup", jobs.cleanup, hour=4)
+    common.jobqueue.start()
+    logger.success(i18n.t("log.inited", locale=app_config.lang))
 
 
-async def stop(app: Application):
-    logger.debug("close database connection...")
-    db.commit()
-    db.close()
-    logger.debug("flush persistence...")
-    await app.persistence.flush()
-    logger.success("stopped bot")
+@client.on_stop()
+async def stop_bot(client: Client = client):
+    logger.info(i18n.t("log.stopping", locale=app_config.lang))
+    common.jobqueue.shutdown()
+    await db.close_db()
+    logger.success(i18n.t("log.exit", locale=app_config.lang))
 
 
-def run_bot():
-    """
-    启动bot
-    """
-    uvloop.install()
-    token = settings.token
-    defaults = Defaults(
-        tzinfo=datetime.timezone(datetime.timedelta(hours=8)), do_quote=True
-    )
-    rate_limiter = AIORateLimiter()
-    persistence_input = PersistenceInput(
-        bot_data=True, chat_data=True, user_data=False, callback_data=False
-    )
-    pickle_persistence = PicklePersistence(
-        filepath="data/persistence.pickle", on_flush=True, store_data=persistence_input
-    )
-    app = (
-        ApplicationBuilder()
-        .token(token)
-        .defaults(defaults)
-        .concurrent_updates(True)
-        .post_init(init_data)
-        .post_stop(stop)
-        .rate_limiter(rate_limiter)
-        .base_url(settings.get("base_url", "https://api.telegram.org/bot"))
-        .base_file_url(
-            settings.get("base_file_url", "https://api.telegram.org/file/bot")
-        )
-        .persistence(pickle_persistence)
-        .build()
-    )
-    job_queue = app.job_queue
-    job_queue.run_daily(
-        clean_data,
-        time=datetime.time(
-            4,
-            0,
-            0,
-            0,
-            datetime.timezone(datetime.timedelta(hours=8)),
-        ),
-        name="clean_data",
-    )
-    app.add_handlers(
-        {
-            -1: before_middleware,
-            0: command_handlers,
-            1: message_handlers,
-            2: chatdata_handlers,
-            3: callback_query_handlers,
-            4: inline_query_handler_group,
-            100: after_middleware,
-        }
-    )
-    app.add_error_handler(on_error)
-    allowed_updates = [
-        UpdateType.MESSAGE,
-        UpdateType.CALLBACK_QUERY,
-        UpdateType.CHAT_MEMBER,
-        UpdateType.MY_CHAT_MEMBER,
-        UpdateType.CHOSEN_INLINE_RESULT,
-        UpdateType.INLINE_QUERY,
-        UpdateType.EDITED_MESSAGE,
-    ]
-    if settings.get("webhook"):
-        logger.info("running webhook...")
-        app.run_webhook(
-            listen=settings.listen,
-            port=settings.port,
-            secret_token=settings.secret_token,
-            url_path=settings.get("url_path", ""),
-            key=settings.get("key"),
-            cert=settings.get("cert"),
-            webhook_url=settings.webhook_url,
-            allowed_updates=allowed_updates,
-            drop_pending_updates=settings.get("drop_pending_updates", False),
-        )
-    else:
-        app.run_polling(
-            allowed_updates=allowed_updates,
-            drop_pending_updates=settings.get("drop_pending_updates", False),
-            close_loop=False,
-        )
+async def main():
+    await db.init_db()
+    await client.start()
+    await idle()
+    await client.stop()  # type: ignore
+
+
+def exception_handler(loop, context):
+    msg = context.get("exception") or context.get("message")
+    logger.error(f"[GLOBAL EXCEPTION] {msg!r}")
 
 
 if __name__ == "__main__":
-    if settings.get("health_check_enable"):
-        logger.info("running health check server...")
-        threading.Thread(target=run_server, daemon=True).start()
-    run_bot()
+    client.loop.set_exception_handler(exception_handler)
+    client.loop.run_until_complete(main())
