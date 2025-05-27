@@ -9,6 +9,7 @@ from kmua.logger import logger
 def _load_words() -> dict[str, list[str]]:
     internal_path = Path(__file__).parent / "word_dicts"
     words = {}
+    logger.debug(f"loading word dicts from {internal_path}")
     for file in glob.glob(f"{internal_path}" + r"/*.json"):
         try:
             with open(file, "r", encoding="utf-8") as f:
