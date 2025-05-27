@@ -321,28 +321,28 @@ async def inline_quote_query(
     query.offset
     quotes = await database.take_quotes_user_can_see(user.id, data, 50)
     for quote_db in quotes:
-        markup = pyrogram.types.InlineKeyboardMarkup(
-            [
-                [
-                    pyrogram.types.InlineKeyboardButton(
-                        text=(
-                            quote_db.user.full_name
-                            if len(quote_db.user.full_name) <= 10
-                            else quote_db.user.full_name[:10] + "..."
-                            if quote_db.user.full_name
-                            else str(quote_db.user_id)
-                        ),
-                        url=quote_db.link,
-                    )
-                ]
-            ]
+        button_text = (
+            quote_db.user.full_name
+            if len(quote_db.user.full_name) <= 16
+            else quote_db.user.full_name[:16] + "..."
+            if quote_db.user.full_name
+            else str(quote_db.user_id)
         )
         if quote_db.img:
             results.append(
                 pyrogram.types.InlineQueryResultCachedPhoto(
                     quote_db.img,
                     title=quote_db.text or "",
-                    reply_markup=markup,
+                    reply_markup=pyrogram.types.InlineKeyboardMarkup(
+                        [
+                            [
+                                pyrogram.types.InlineKeyboardButton(
+                                    text=button_text,
+                                    url=quote_db.link,
+                                )
+                            ]
+                        ]
+                    ),
                 )
             )
         results.append(
@@ -351,7 +351,16 @@ async def inline_quote_query(
                 input_message_content=pyrogram.types.InputTextMessageContent(
                     message_text=quote_db.text or "",
                 ),
-                reply_markup=markup,
+                reply_markup=pyrogram.types.InlineKeyboardMarkup(
+                    [
+                        [
+                            pyrogram.types.InlineKeyboardButton(
+                                text=button_text,
+                                url=quote_db.link,
+                            )
+                        ]
+                    ]
+                ),
             )
         )
         if len(results) >= 50:
