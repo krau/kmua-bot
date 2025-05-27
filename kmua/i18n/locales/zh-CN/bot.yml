@@ -20,6 +20,9 @@ bot:
     group_config: 点击按钮更改群组设置哦
     unknown_operation: 未知操作, 不可以干坏事哦
     group_config_saved: 群组设置已保存~
+    refresh_failed: 刷新失败, 请稍后再试
+    refresh_success: 刷新成功
+    refreshing_avatar: 正在刷新你的头像...
     cleanning: kmua 正在打扫房间...
     b23_converted: "{real_url}"
     b23_converted_group: |
@@ -174,4 +177,3 @@ bot:
       user_not_real: 该用户不是真实用户
       user_not_in_chat: 该用户似乎不在数据里, 让 ta 出来发个言吧~
       success: 已将 {user} 在本群的 Bot 管理权限设为 {status}
-      

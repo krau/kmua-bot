@@ -170,3 +170,25 @@ class ChatAvatar:
         except Exception as e:
             logger.error(f"Error getting big avatar for chat {self.chat_id}: {e}")
             return None
+
+    async def force_refresh(self) -> bool:
+        try:
+            async with self._lock:
+                avatar_b, refreshed_big = await _get_avatar_bytes(
+                    self.chat_id, big=True, force_refresh=True
+                )
+                avatar_s, refreshed_small = await _get_avatar_bytes(
+                    self.chat_id, big=False, force_refresh=True
+                )
+                if all((avatar_b, avatar_s, refreshed_big, refreshed_small)):
+                    await database.update_user_avatar(
+                        user_id=self.chat_id,
+                        refreshed=True,
+                    )
+                    return True
+            return False
+        except Exception as e:
+            logger.error(
+                f"Error forcing refresh of avatar for chat {self.chat_id}: {e}"
+            )
+            return False
