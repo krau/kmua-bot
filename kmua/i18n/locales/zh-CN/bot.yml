@@ -142,3 +142,26 @@ bot:
       chat_setu_disabled: 这里不允许涩图哦
       setu_cd: 太快了! 不行!
       setu_error: 失败了喵, 请稍后再试
+    greeting:
+      usage: |
+        使用方法: /greet <动作> [参数]
+        可用动作: set, remove, show
+        - set <欢迎语>:     
+          设置群组欢迎语, 可以使用以下变量:
+          ${user} - 新群u用户名
+          ${chat} - 群组标题
+          可使用 HTML
+        - remove:
+          移除群组欢迎语
+        - 预览:
+          显示当前群组欢迎语
+      set_usage: |
+        使用方法: /greet set <欢迎语>
+        可用变量:
+        ${user} - 新群u用户名
+        ${chat} - 群组标题
+        可使用 HTML
+      too_long: 太长了! 不行!
+      set_success: 群组欢迎语设置好啦
+      remove_success: 群组欢迎语已移除
+      not_set: 本群还没有设置欢迎语哦
