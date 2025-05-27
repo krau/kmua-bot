@@ -12,7 +12,7 @@ async def on_m(client: Client, message: Message):
     chat = message.chat
     if user is None or chat is None:
         return
-    text = message.text or message.caption
+    text = message.text or message.caption or ""
     if text.startswith(("/", "\\", "!")):
         logger.trace(f"[{chat.id}]({user.id}): {message.text or message.caption}")
     if chat.type == ChatType.CHANNEL:
