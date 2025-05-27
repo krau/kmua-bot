@@ -4,13 +4,16 @@ bot:
     waifu: 今日老婆!
     waifu_graph: 老婆关系图!
     q: 记录语录
-    d: 删除语录|管理群语录
+    d: 删除语录
     qrand: 随机语录
+    qp: 设置随机主动发送语录的概率
     t: 获取头衔|互赠头衔
+    sett: 更改 /t 命令所赋予的权限
     id: 获取聊天ID
     ip: 获取IP信息
-    setu: 随机涩图
+    setu: 来点涩图
     config: 更改群组设置
+    greet: 设置群组欢迎语
     help: 帮助|更多功能
   msg:
     private_start: Nya~
@@ -126,16 +129,15 @@ bot:
       /t - 获取头衔|互赠头衔
       /sett - 更改 /t 命令所赋予的权限
       /setu - 来点色图 (/ω＼*)
-      /set_greet - 设置群组欢迎语
+      /greet - 设置群组欢迎语
       /id - 获取聊天ID
       /ip - 查询IP/域名信息
-      /set_bot_admin - 在群组中设置bot管理员 (对于bot该用户将具有同等于群主的权限, 慎用)
+      /botpromote - 在群组中设置bot管理员 (对于bot该用户将具有同等于群主的权限)
+      /f5avatar - 刷新你的头像
       </blockquote>
       对其他人使用 "/" 或 "\" 即可对其施法
 
-      私聊可详细管理个人数据 (使用 /start 开始)
-
-      Inline 模式可以查询语录
+      语录可使用 Inline 模式查询
     reply:
       default:
         - 喵喵?
