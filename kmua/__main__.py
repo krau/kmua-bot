@@ -1,5 +1,3 @@
-import asyncio
-
 from pyrogram import Client, idle
 from pyrogram.types import BotCommand
 

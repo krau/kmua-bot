@@ -1,3 +1,5 @@
+import json
+
 from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
 from kmua import i18n
@@ -16,6 +18,8 @@ def _permission_button(
 class TitlePermissionsMarkup:
     def __init__(self, permissions: dict[str, bool] = {}, lang: str = "zh-CN") -> None:
         self.lang = lang
+        if isinstance(permissions, str):
+            permissions = json.loads(permissions)
         self.permissions = permissions
 
     def build(self) -> InlineKeyboardMarkup:

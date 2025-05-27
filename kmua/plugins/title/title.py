@@ -1,4 +1,5 @@
 import html
+import json
 
 import pyrogram
 import pyrogram.errors
@@ -23,6 +24,7 @@ async def set_member_title(client: pyrogram.Client, message: pyrogram.types.Mess
     permissions = chat_config.title_permissions or {}
     if isinstance(permissions, str):
         logger.warning(f"Chat {chat.id} has title_permissions as string: {permissions}")
+        permissions = json.loads(permissions)
     try:
         await client.promote_chat_member(
             chat.id,
