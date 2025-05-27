@@ -27,6 +27,10 @@ async def reply_me_filter_func(
 ) -> bool:
     if not message.reply_to_message:
         return False
+    if not message.reply_to_message.from_user:
+        return False
+    if not client.me:
+        return False
     if message.reply_to_message.from_user.username != client.me.username:
         return False
     return True
