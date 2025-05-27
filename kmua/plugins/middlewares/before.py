@@ -13,10 +13,10 @@ async def on_m(client: Client, message: Message):
     if user is None or chat is None:
         return
     logger.debug(f"[{chat.id}]({user.id}): {message.text or message.caption}")
-    if chat.type == ChatType.CHANNEL:
+    if chat.type in (ChatType.CHANNEL, ChatType.GROUP):
         message.stop_propagation()
     user_db = await database.upsert_user(user)
-    if chat.type in (ChatType.SUPERGROUP, ChatType.GROUP):
+    if chat.type == ChatType.SUPERGROUP:
         chat_db = await database.upsert_chat(chat)
         await database.add_association_in_chat(chat_db, user_db, None)
 
@@ -28,9 +28,9 @@ async def on_cb(client: Client, callback_query: CallbackQuery):
     if user is None or chat is None:
         return
     logger.debug(f"[{chat.id}]({user.id}): {callback_query.data}")
-    if chat.type == ChatType.CHANNEL:
+    if chat.type in (ChatType.CHANNEL, ChatType.GROUP):
         callback_query.stop_propagation()
     user_db = await database.upsert_user(user)
-    if chat.type in (ChatType.SUPERGROUP, ChatType.GROUP):
+    if chat.type == ChatType.SUPERGROUP:
         chat_db = await database.upsert_chat(chat)
         await database.add_association_in_chat(chat_db, user_db, None)
