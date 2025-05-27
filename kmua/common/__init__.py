@@ -1,5 +1,6 @@
 import html
 
+import pyrogram
 from pyrogram.enums import ChatMemberStatus, ChatType
 from pyrogram.types import Chat, User
 
@@ -42,6 +43,20 @@ async def can_user_manage_bot_in_chat(user: User | int, chat: Chat | int) -> boo
     chat_member = await client.get_chat_member(chat_id, user_id)
     if chat_member.status == ChatMemberStatus.OWNER:
         association.is_bot_admin = True
-        await database.update_association(user_id, chat_id, association)
+        await database.update_association(association)
         return True
     return False
+
+
+def get_message_origin(
+    message: pyrogram.types.Message,
+) -> pyrogram.types.User | pyrogram.types.Chat | None:
+    if origin := message.forward_origin:
+        match origin.type:
+            case pyrogram.enums.MessageOriginType.USER:
+                return origin.sender_user
+            case pyrogram.enums.MessageOriginType.CHANNEL:
+                return origin.chat
+            case pyrogram.enums.MessageOriginType.CHAT:
+                return origin.sender_chat
+    return message.sender_chat or message.from_user

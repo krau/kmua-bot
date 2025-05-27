@@ -39,16 +39,14 @@ async def get_association(
 
 @with_tx
 async def update_association(
-    user_id: int,
-    chat_id: int,
     association: UserChatAssociation,
     session: AsyncSession | None = None,
 ) -> bool:
     stmt = (
         sqlalchemy.update(UserChatAssociation)
         .where(
-            UserChatAssociation.user_id == user_id,
-            UserChatAssociation.chat_id == chat_id,
+            UserChatAssociation.user_id == association.user_id,
+            UserChatAssociation.chat_id == association.chat_id,
         )
         .values(
             {

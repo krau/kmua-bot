@@ -33,7 +33,7 @@ async def make_quote(client: pyrogram.Client, message: pyrogram.types.Message):
         )
         return
     quote_message = message.reply_to_message
-    quote_user = utils.get_message_origin(quote_message)
+    quote_user = common.get_message_origin(quote_message)
     if not quote_user:
         await message.reply_text(i18n.t("bot.msg.quote.origin_not_found", locale=lang))
         return

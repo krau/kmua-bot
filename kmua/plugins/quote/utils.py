@@ -95,20 +95,6 @@ async def gen_quote_img(avatar: bytes, text: str, name: str) -> bytes:
     return img_byte_arr.getvalue()
 
 
-def get_message_origin(
-    message: pyrogram.types.Message,
-) -> pyrogram.types.User | pyrogram.types.Chat | None:
-    if origin := message.forward_origin:
-        match origin.type:
-            case pyrogram.enums.MessageOriginType.USER:
-                return origin.sender_user
-            case pyrogram.enums.MessageOriginType.CHANNEL:
-                return origin.chat
-            case pyrogram.enums.MessageOriginType.CHAT:
-                return origin.sender_chat
-    return message.sender_chat or message.from_user
-
-
 def get_msg_link(message: pyrogram.types.Message) -> str:
     try:
         chat = message.chat

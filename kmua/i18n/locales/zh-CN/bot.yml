@@ -166,3 +166,12 @@ bot:
       remove_success: 群组欢迎语已移除
       not_set: 本群还没有设置欢迎语哦
       template_error: 解析欢迎语模板时发生错误, 请不要插入奇怪的东西
+    botadmin:
+      invalid_user: |
+        无效的用户, 请提供有效的用户 ID, 或回复一条消息
+        (不能将频道身份, 匿名管理等设置为 bot 管理员, 该命令也不能对自己使用哦)
+      user_not_found: 找不到该用户
+      user_not_real: 该用户不是真实用户
+      user_not_in_chat: 该用户似乎不在数据里, 让 ta 出来发个言吧~
+      success: 已将 {user} 在本群的 Bot 管理权限设为 {status}
+      
