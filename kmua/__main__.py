@@ -1,7 +1,9 @@
+import asyncio
+
 from pyrogram import Client, idle
 from pyrogram.types import BotCommand
 
-from kmua import bot, common, database, i18n
+from kmua import common, database, i18n
 from kmua.bot import jobs
 from kmua.bot.client import client
 from kmua.config import app_config
@@ -14,8 +16,10 @@ async def init_bot(client: Client = client):
     logger.info(i18n.t("log.initing", locale=app_config.lang))
     if not app_config.avatar_cache_dir.exists():
         app_config.avatar_cache_dir.mkdir(parents=True, exist_ok=True)
+    logger.debug(i18n.t("log.getting_me", locale=app_config.lang))
     me = await client.get_me()
     await database.upsert_user(me)
+    logger.debug(i18n.t("log.setting_commands", locale=app_config.lang))
     await client.set_bot_commands(
         [
             BotCommand(
@@ -57,5 +61,11 @@ async def main():
     await client.stop()  # type: ignore
 
 
+def exception_handler(loop, context):
+    msg = context.get("exception") or context.get("message")
+    logger.error(f"[GLOBAL EXCEPTION] {msg!r}")
+
+
 if __name__ == "__main__":
+    client.loop.set_exception_handler(exception_handler)
     client.loop.run_until_complete(main())

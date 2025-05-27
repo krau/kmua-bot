@@ -65,47 +65,61 @@ class ChatAvatar:
         self._path_big = _get_avatar_path(chat_id, True)
         self._path_small = _get_avatar_path(chat_id, False)
 
-    async def save_if_not_exists(self, big: bool = True):
-        async with self._lock:
-            if big:
-                if not await aiofiles.os.path.exists(self._path_big):
-                    file, _ = await _get_avatar_bytes(
-                        self.chat_id, big=True, force_refresh=True
-                    )
-                    if file is not None:
-                        await database.update_user_avatar(
-                            user_id=self.chat_id, refreshed=True
+    async def save_if_not_exists(self, big: bool = True) -> bool:
+        try:
+            async with self._lock:
+                if big:
+                    if not await aiofiles.os.path.exists(self._path_big):
+                        file, _ = await _get_avatar_bytes(
+                            self.chat_id, big=True, force_refresh=True
                         )
-            else:
-                if not await aiofiles.os.path.exists(self._path_small):
-                    file, _ = await _get_avatar_bytes(
-                        self.chat_id, big=False, force_refresh=True
-                    )
-                    if file is not None:
-                        await database.update_user_avatar(
-                            user_id=self.chat_id, refreshed=True
+                        if file is not None:
+                            await database.update_user_avatar(
+                                user_id=self.chat_id, refreshed=True
+                            )
+                else:
+                    if not await aiofiles.os.path.exists(self._path_small):
+                        file, _ = await _get_avatar_bytes(
+                            self.chat_id, big=False, force_refresh=True
                         )
+                        if file is not None:
+                            await database.update_user_avatar(
+                                user_id=self.chat_id, refreshed=True
+                            )
+            return True
+        except Exception as e:
+            logger.error(f"Error saving avatar for chat {self.chat_id}: {e}")
+            return False
 
     async def get_bytes(self, big: bool = True) -> bytes | None:
-        async with self._lock:
-            user = await database.get_user_by_id(self.chat_id)
-            if user is None:
-                return None
-            force_refresh = False
-            if user.update_avatar_at is None or (
-                datetime.datetime.now(datetime.timezone.utc) - user.update_avatar_at
-            ) > datetime.timedelta(seconds=app_config.avatar_expire):
-                force_refresh = True
-            if force_refresh:
-                logger.debug(f"Refreshing avatar for chat {self.chat_id}")
-                avatar, _ = await _get_avatar_bytes(
-                    self.chat_id, big=True, force_refresh=True
-                )
-                await _get_avatar_bytes(self.chat_id, big=False, force_refresh=True)
-                await database.update_user_avatar(user_id=self.chat_id, refreshed=True)
-            else:
-                avatar, _ = await _get_avatar_bytes(self.chat_id, big=big)
-            return avatar
+        try:
+            async with self._lock:
+                user = await database.get_user_by_id(self.chat_id)
+                if user is None:
+                    return None
+                force_refresh = False
+                if user.update_avatar_at is None or (
+                    datetime.datetime.now(datetime.timezone.utc) - user.update_avatar_at
+                ) > datetime.timedelta(seconds=app_config.avatar_expire):
+                    force_refresh = True
+                if force_refresh:
+                    logger.debug(f"Refreshing avatar for chat {self.chat_id}")
+                    avatar_b, _ = await _get_avatar_bytes(
+                        self.chat_id, big=True, force_refresh=True
+                    )
+                    avatar_s, _ = await _get_avatar_bytes(
+                        self.chat_id, big=False, force_refresh=True
+                    )
+                    await database.update_user_avatar(
+                        user_id=self.chat_id, refreshed=True
+                    )
+                    return avatar_b if big else avatar_s
+                else:
+                    avatar, _ = await _get_avatar_bytes(self.chat_id, big=big)
+                    return avatar
+        except Exception as e:
+            logger.error(f"Error getting avatar for chat {self.chat_id}: {e}")
+            return None
 
     async def get_or_default_bytes(self, big: bool = True) -> bytes:
         avatar = await self.get_bytes(big)
@@ -123,30 +137,36 @@ class ChatAvatar:
         Returns:
             bytes | str | None: The cached file_id if available, or the bytes of the photo if not cached or cache is outdated.
         """
-        async with self._lock:
-            user = await database.get_user_by_id(self.chat_id)
-            if user is None:
-                return None
-            outdated = False
-            if user.update_avatar_at is None or (
-                datetime.datetime.now(datetime.timezone.utc) - user.update_avatar_at
-            ) > datetime.timedelta(seconds=app_config.avatar_expire):
-                outdated = True
-            if outdated:
-                logger.debug(f"Refreshing avatar for chat {self.chat_id}")
-                avatar, _ = await _get_avatar_bytes(
-                    self.chat_id, big=True, force_refresh=True
-                )
-                await database.update_user_avatar(user_id=self.chat_id, refreshed=True)
+        try:
+            async with self._lock:
+                user = await database.get_user_by_id(self.chat_id)
+                if user is None:
+                    return None
+                outdated = False
+                if user.update_avatar_at is None or (
+                    datetime.datetime.now(datetime.timezone.utc) - user.update_avatar_at
+                ) > datetime.timedelta(seconds=app_config.avatar_expire):
+                    outdated = True
+                if outdated:
+                    logger.debug(f"Refreshing avatar for chat {self.chat_id}")
+                    avatar, _ = await _get_avatar_bytes(
+                        self.chat_id, big=True, force_refresh=True
+                    )
+                    await database.update_user_avatar(
+                        user_id=self.chat_id, refreshed=True
+                    )
+                    return avatar
+                if user.avatar_big_id:
+                    return user.avatar_big_id
+                avatar, refreshed = await _get_avatar_bytes(self.chat_id, big=True)
+                if not avatar:
+                    return None
+                if refreshed:
+                    await database.update_user_avatar(
+                        user_id=self.chat_id,
+                        refreshed=True,
+                    )
                 return avatar
-            if user.avatar_big_id:
-                return user.avatar_big_id
-            avatar, refreshed = await _get_avatar_bytes(self.chat_id, big=True)
-            if not avatar:
-                return None
-            if refreshed:
-                await database.update_user_avatar(
-                    user_id=self.chat_id,
-                    refreshed=True,
-                )
-            return avatar
+        except Exception as e:
+            logger.error(f"Error getting big avatar for chat {self.chat_id}: {e}")
+            return None

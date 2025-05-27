@@ -231,7 +231,7 @@ bot:
       - 少女艾草中
     reply:
       default:
-       - 喵喵?
+        - 喵喵?
     manyacg:
       artwork_pictures_count: 该作品共有 {count} 张图片
       seefull: ->点击查看

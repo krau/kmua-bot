@@ -156,8 +156,16 @@ async def render_waifu_graph(
     relationships: AsyncGenerator[tuple[int, int], None],
     user_info: AsyncGenerator[dict[str, int | str | bytes], None],
     length: int = 0,
-) -> bytes:
+) -> tuple[bytes, str]:
+    """
+    Render a waifu graph using Graphviz.
+
+    Returns:
+        - bytes: The rendered graph as bytes.
+        - str: The format of the rendered graph (e.g., "webp", "jpg", "pdf").
+    """
     dpi = max(150, ceil(5 * sqrt(length / 3)) * 20)
+    format = "webp" if length <= 4 else "jpg" if length <= 8 else "pdf"
     dot = graphviz.Digraph(
         graph_attr={
             "dpi": str(dpi),
@@ -166,7 +174,7 @@ async def render_waifu_graph(
             "ranksep": "1",
             "splines": "ortho",
         },
-        format="pdf",
+        format=format,
     )
 
     async with aiofiles.tempfile.TemporaryDirectory() as tempdir:
@@ -210,7 +218,7 @@ async def render_waifu_graph(
             )
 
         result = await asyncio.to_thread(dot.pipe)
-        return result
+        return result, format
 
 
 async def _write_avatar(avatar_path: str, avatar: bytes) -> None:
@@ -237,15 +245,17 @@ async def send_waifu_graph(chat_id: int, reply_to_msg_id: int, client: pyrogram.
     relationships, user_info = await get_graph_data(
         chat_id, participate_users1=participate_users
     )
-    image = await render_waifu_graph(relationships, user_info, participate_user_count)
+    file, ext = await render_waifu_graph(
+        relationships, user_info, participate_user_count
+    )
     await client.send_document(
         chat_id=chat_id,
-        document=BytesIO(image),
+        document=BytesIO(file),
         caption=i18n.t(
             "bot.msg.waifu.graph_caption",
             locale=chat_config.lang,
         ).format(count=participate_user_count),
-        file_name=f"waifu_graph{chat_id}.pdf",
+        file_name=f"waifu_graph{chat_id}.{ext}",
         force_document=True,
         reply_parameters=(
             pyrogram.types.ReplyParameters(message_id=reply_to_msg_id)
