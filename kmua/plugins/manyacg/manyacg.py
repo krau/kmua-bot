@@ -1,5 +1,6 @@
 import html
 import io
+import random
 import re
 
 import httpx
@@ -110,3 +111,73 @@ async def parse_artwork(client: pyrogram.Client, message: pyrogram.types.Message
             )
     except Exception as e:
         logger.error(f"parse_artwork error: {e.__class__.__name__}:{e}")
+
+
+@pyrogram.Client.on_message(pyrogram.filters.command("setu"), group=0)
+async def setu_command(client: pyrogram.Client, message: pyrogram.types.Message):
+    chat = message.chat
+    if chat.type in (pyrogram.enums.ChatType.SUPERGROUP, pyrogram.enums.ChatType.GROUP):
+        chat_config = await database.get_chat_config(chat.id)
+        if not chat_config.setu_enabled:
+            await message.reply(
+                i18n.t("bot.msg.manyacg.chat_setu_disabled", locale=chat_config.lang)
+            )
+        lang = chat_config.lang
+    else:
+        user_config = await database.get_user_config(message.from_user.id)
+        lang = user_config.lang
+    if await common.memttlcache.get(
+        f"setu_cd:{(message.sender_chat or message.from_user).id}",
+        default=False,
+    ):
+        await message.reply(
+            i18n.t("bot.msg.manyacg.setu_cd", locale=lang),
+        )
+        return
+    await common.memttlcache.set(
+        f"setu_cd:{(message.sender_chat or message.from_user).id}",
+        True,
+        ttl=app_config.manyacg_setu_cd,
+    )
+    try:
+        resp = await httpx_client.get(url="/artwork/random", params={"r18": 2})
+        if resp.status_code != 200:
+            await message.reply(
+                i18n.t("bot.msg.manyacg.setu_error", locale=lang),
+            )
+            return
+        artwork: dict = resp.json()["data"][0]
+        picture: dict = artwork["pictures"][
+            random.randint(0, len(artwork["pictures"]) - 1)
+        ]
+        detail_link = (
+            f"https://t.me/{app_config.manyacg_channel}/{picture['message_id']}"
+            if picture.get("message_id")
+            else artwork["source_url"]
+        )
+        await message.reply_photo(
+            photo=picture["regular"],
+            caption=f"<a href='{artwork['source_url']}'>{html.escape(artwork['title'])}</a>",
+            parse_mode=pyrogram.enums.ParseMode.HTML,
+            reply_markup=pyrogram.types.InlineKeyboardMarkup(
+                [
+                    [
+                        pyrogram.types.InlineKeyboardButton(
+                            text=i18n.t("bot.button.manyacg.detail", locale=lang),
+                            url=detail_link,
+                        ),
+                        pyrogram.types.InlineKeyboardButton(
+                            text=i18n.t("bot.button.manyacg.original", locale=lang),
+                            url=f"https://t.me/{app_config.manyacg_bot}/?start=file_{picture['id']}",
+                        ),
+                    ]
+                ]
+            ),
+            has_spoiler=artwork["r18"],
+        )
+    except Exception as e:
+        logger.error(f"setu_command error: {e.__class__.__name__}:{e}")
+        await message.reply(
+            i18n.t("bot.msg.manyacg.setu_error", locale=lang),
+        )
+        return

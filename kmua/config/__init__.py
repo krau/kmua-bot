@@ -19,6 +19,7 @@ class _AppConfig(pydantic.BaseModel):
     manyacg_api_key: str
     manyacg_channel: str = "MoreACG"
     manyacg_bot: str = "kirakabot"
+    manyacg_setu_cd: int = 1
 
     workdir: Path = Path(__file__).resolve().parent.parent.parent / "data"
     debug: bool = False

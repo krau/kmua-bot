@@ -12,55 +12,6 @@ bot:
     setu: 随机涩图
     config: 更改群组设置
     help: 帮助|更多功能
-  button:
-    back: 返回
-    repo: 开源仓库
-    docs: 详细帮助
-    user_data: 个人信息
-    user_quote: 语录管理
-    user_waifu: 老婆管理
-    start_noop: 喵喵喵喵
-    pm_me: 打开私聊
-    page_prev: 上一页
-    page_next: 下一页
-    chat_config:
-      waifu: 每日老婆
-      delete_events: 删除事件
-      message_search: 消息搜索
-      quote_pin_message: 语录置顶
-      ai_reply: AI回复
-      setu_enabled: 随机涩图
-      unpin_channel_pin_enabled: 解除频道置顶
-      convert_b23_enabled: 转换b23短链
-      parse_artwork_enabled: 解析插画链接
-      save: 保存设置
-    waifu:
-      remove: 移除(管理员)
-      marry: 娶老婆!
-      remove_confirm: 移除
-      remove_cancel: 算了
-      agree_marry_waifu: 好耶
-      refuse_marry_waifu: 坏耶
-      cancel_marry_waifu: 取消(?)
-      divorce: 离婚
-      divorce_confirm: 离婚
-      divorce_cancel: 算了
-      mention_enabled: 不要 @ 我
-      mention_disabled: 抽到我时 @ 我
-    title_permissions:
-      can_change_info: 修改信息
-      can_delete_messages: 删除消息
-      can_edit_messages: 编辑消息
-      can_restrict_members: 封禁用户
-      can_invite_users: 邀请用户
-      can_promote_members: 提升成员
-      can_post_stories: 发布动态
-      can_edit_stories: 编辑动态
-      can_delete_stories: 删除动态
-      can_manage_video_chats: 视频聊天
-      can_manage_topics: 管理话题
-      can_pin_messages: 置顶消息
-
   msg:
     private_start: Nya~
     group_start: 请私聊咱使用哦
@@ -179,59 +130,12 @@ bot:
       私聊可详细管理个人数据 (使用 /start 开始)
 
       Inline 模式可以查询语录
-    loading:
-      - 少女祈祷中
-      - 少女折寿中
-      - 喵喵喵喵中
-      - 海内存知己, 天涯若比邻
-      - 色图绘制中
-      - 请坐和放宽
-      - 这可能需要1点时间
-      - 这可能需要2点时间
-      - 这可能需要3点时间
-      - 这可能需要几个世纪
-      - 请勿关闭电脑
-      - 请勿关闭手机
-      - 快到我床上中
-      - 床上贴贴中
-      - 床上睡觉中
-      - 色图发送中
-      - 少女伪街中
-      - 少女炼铜中
-      - 少女抽卡中
-      - 少女更新蒸汽平台中
-      - 少女写bug中
-      - 少女改bug中
-      - 少女吃麦当劳中
-      - 少女面姬中
-      - 少女抱抱中
-      - 少女贴贴中
-      - 少女摸摸中
-      - 少女0721中
-      - 少女喵喵中
-      - 少女看番中
-      - Loading...
-      - 少女离家出走中
-      - 少女睡觉中
-      - 少女熬夜中
-      - 少女 ALL PERFECT 中
-      - 少女 FULL COMBO 中
-      - 少女吹风扇中
-      - 少女比心心中
-      - 正在 cos 猫娘
-      - 少女原神中
-      - 玩命加载中
-      - QAQ中
-      - qwq中
-      - ovo中
-      - 少女报菜名中
-      - 少女呜呜中
-      - 少女爱发电中
-      - 少女围着你转中
-      - 少女艾草中
     reply:
       default:
         - 喵喵?
     manyacg:
       artwork_pictures_count: 该作品共有 {count} 张图片
       seefull: ->点击查看
+      chat_setu_disabled: 这里不允许涩图哦
+      setu_cd: 太快了! 不行!
+      setu_error: 失败了喵, 请稍后再试

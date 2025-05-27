@@ -9,7 +9,7 @@ import aiofiles
 import graphviz
 import pyrogram
 
-from kmua import common, consts, database, i18n
+from kmua import common, database, i18n
 from kmua.database.models import ChatData, UserData
 
 
