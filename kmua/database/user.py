@@ -44,11 +44,13 @@ async def upsert_user(
         is_real_user = not user.is_bot
     elif isinstance(user, Chat):
         username = user.username
-        full_name = user.title
+        full_name = user.full_name
         is_bot = False
         is_real_user = user.type == ChatType.PRIVATE
     else:
         raise TypeError("user must be User, Chat or UserData")
+    if full_name is None:
+        raise ValueError("user.full_name must not be None")
     user_data = await session.get(UserData, user.id)
     if user_data is None:
         user_data = UserData(
