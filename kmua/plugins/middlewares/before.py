@@ -12,7 +12,7 @@ async def on_m(client: Client, message: Message):
     chat = message.chat
     if user is None or chat is None:
         return
-    logger.debug(f"[{chat.id}]({user.id}): {message.text or message.caption}")
+    logger.trace(f"[{chat.id}]({user.id}): {message.text or message.caption}")
     if chat.type == ChatType.CHANNEL:
         message.stop_propagation()
     user_db = await database.upsert_user(user)
@@ -29,7 +29,7 @@ async def on_cb(client: Client, callback_query: CallbackQuery):
     chat = callback_query.message.chat
     if user is None or chat is None:
         return
-    logger.debug(f"[{chat.id}]({user.id}): {callback_query.data}")
+    logger.trace(f"[{chat.id}]({user.id}): {callback_query.data}")
     if chat.type in (ChatType.CHANNEL, ChatType.GROUP):
         callback_query.stop_propagation()
     user_db = await database.upsert_user(user)
