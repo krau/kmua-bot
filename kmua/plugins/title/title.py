@@ -130,6 +130,8 @@ async def set_title_permissions_callback(
         return
     permission = query.data.split()[1]
     permissions = chat_config.title_permissions or {}
+    if isinstance(permissions, str):
+        permissions = json.loads(permissions)
     permissions[permission] = not permissions.get(permission, False)
     chat_config.title_permissions = permissions
     await database.update_chat_config(chat.id, chat_config)
