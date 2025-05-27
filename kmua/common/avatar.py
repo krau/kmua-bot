@@ -99,7 +99,7 @@ class ChatAvatar:
                     return None
                 force_refresh = False
                 if user.update_avatar_at is None or (
-                    datetime.datetime.now(datetime.timezone.utc) - user.update_avatar_at
+                    datetime.datetime.now() - user.update_avatar_at
                 ) > datetime.timedelta(seconds=app_config.avatar_expire):
                     force_refresh = True
                 if force_refresh:
@@ -144,7 +144,7 @@ class ChatAvatar:
                     return None
                 outdated = False
                 if user.update_avatar_at is None or (
-                    datetime.datetime.now(datetime.timezone.utc) - user.update_avatar_at
+                    datetime.datetime.now() - user.update_avatar_at
                 ) > datetime.timedelta(seconds=app_config.avatar_expire):
                     outdated = True
                 if outdated:

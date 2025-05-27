@@ -1,4 +1,21 @@
-token = '123'
-owners = [123]
-log_level = 'INFO'
-db_url = 'sqlite+aiosqlite:///./data/kmua.db'
+token = ""
+owners = []
+db_url = "sqlite+aiosqlite:///./data/kmua.db"
+session_name = "kmua"
+api_id = 1025907
+api_hash = "452b0359b988148995f22ff0f4229750"
+log_retention_days = 30
+log_level = "INFO"
+lang = "zh-CN"
+manyacg_api_url = "https://api.manyacg.top/v1"
+manyacg_api_key = ""
+manyacg_channel = "MoreACG"
+manyacg_bot = "kirakabot"
+manyacg_setu_cd = 1
+
+# workdir = Path(__file__).resolve().parent.parent.parent / "data"
+# debug = False
+# automigrate = True
+# cachedir = workdir / "cache"
+# avatar_cache_dir = cachedir / "avatar"
+# avatar_expire = 60 * 60 * 24  # 1 day
