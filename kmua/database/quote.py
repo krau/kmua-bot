@@ -9,6 +9,15 @@ from kmua.database.models import ChatData, Quote, UserChatAssociation, UserData
 
 
 @with_session
+async def count_quotes(
+    session: AsyncSession | None = None,
+) -> int:
+    stmt = sqlalchemy.select(sqlalchemy.func.count()).select_from(Quote)
+    result = await session.execute(stmt)
+    return result.scalar_one() or 0
+
+
+@with_session
 async def get_quote_by_link(
     link: str, session: AsyncSession | None = None
 ) -> Quote | None:

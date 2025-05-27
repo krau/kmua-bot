@@ -9,6 +9,13 @@ from .db import AsyncSessionFactory, with_session, with_tx
 from .models import ChatData, UserChatAssociation, UserData
 
 
+@with_session
+async def count_associations(session: AsyncSession | None = None):
+    stmt = sqlalchemy.select(sqlalchemy.func.count()).select_from(UserChatAssociation)
+    result = await session.execute(stmt)
+    return result.scalar() or 0
+
+
 @with_tx
 async def add_association_in_chat(
     chat: ChatData,

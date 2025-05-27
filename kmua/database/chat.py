@@ -1,8 +1,16 @@
+import sqlalchemy
 from pyrogram.types import Chat
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from .db import with_session, with_tx
 from .models import ChatConfig, ChatData
+
+
+@with_session
+async def count_chats(session: AsyncSession | None = None) -> int:
+    stmt = sqlalchemy.select(sqlalchemy.func.count()).select_from(ChatData)
+    result = await session.execute(stmt)
+    return result.scalar() or 0
 
 
 @with_tx

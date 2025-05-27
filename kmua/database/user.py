@@ -10,6 +10,13 @@ from .models import UserChatAssociation, UserConfig, UserData
 
 
 @with_session
+async def count_users(session: AsyncSession | None = None) -> int:
+    stmt = sqlalchemy.select(sqlalchemy.func.count()).select_from(UserData)
+    result = await session.execute(stmt)
+    return result.scalar() or 0
+
+
+@with_session
 async def get_user_by_id(id: int, session: AsyncSession | None = None) -> UserData:
     if id is None:
         raise ValueError("id must not be None")
