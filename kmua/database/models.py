@@ -159,7 +159,7 @@ class UserData(Base):
         onupdate=func.now(),
     )
     update_avatar_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True),
+        DateTime(),
         nullable=True,
         default=None,
     )

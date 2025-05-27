@@ -29,7 +29,7 @@ def upgrade() -> None:
         )
         op.add_column(
             "user_data",
-            sa.Column("update_avatar_at", sa.DateTime(timezone=True), nullable=True),
+            sa.Column("update_avatar_at", sa.DateTime(), nullable=True),
             if_not_exists=True,
         )
         op.drop_column("user_data", "avatar_big_blob")

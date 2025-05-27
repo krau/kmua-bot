@@ -98,7 +98,7 @@ async def update_user_avatar(
         raise ValueError(f"User with id {user_id} not found")
     user_data.avatar_big_id = avatar_big_id
     if refreshed:
-        user_data.update_avatar_at = datetime.datetime.now(datetime.timezone.utc)
+        user_data.update_avatar_at = datetime.datetime.now()
     return user_data
 
 
