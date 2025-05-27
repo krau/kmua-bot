@@ -17,6 +17,8 @@ async def bililink_convert(client: Client, message: Message):
     chat_config = await database.get_chat_config(chat.id) if in_group else None
     if in_group and not chat_config.convert_b23_enabled:
         return
+    if not message.text:
+        return
     b23code = re.search(r"(?:b23\.tv|bili2233\.cn)/([a-zA-Z0-9]+)", message.text)
     if not b23code:
         return

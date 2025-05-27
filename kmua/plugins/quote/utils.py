@@ -32,11 +32,13 @@ async def send_quote(
     quote_img = await gen_quote_img(
         avatar,
         message.text,
-        (user.username or user.full_name)
+        (user.username or user.full_name or "")
         if isinstance(user, pyrogram.types.User)
-        else (user.username or user.title),
+        else (user.username or user.title or ""),
     )
     sent = await client.send_photo(chat_id=chat_id, photo=io.BytesIO(quote_img))
+    if not sent or not sent.photo:
+        return None
     return sent.photo.file_id
 
 
@@ -77,7 +79,7 @@ async def gen_quote_img(avatar: bytes, text: str, name: str) -> bytes:
     name_width = right - left
     name_height = bottom - top
     name_x = 600 + int((560 - name_width) / 2)
-    name_y = img_height - name_height - 20
+    name_y = int(img_height - name_height - 20)
 
     with Pilmoji(img) as pilmoji:
         pilmoji.text(
@@ -98,10 +100,12 @@ async def gen_quote_img(avatar: bytes, text: str, name: str) -> bytes:
 def get_msg_link(message: pyrogram.types.Message) -> str:
     try:
         chat = message.chat
+        if chat is None:
+            raise ValueError("Chat is None")
         link = f"https://t.me/c/{str(chat.id).removeprefix('-100')}/{message.id}"
         return link
     except Exception as e:
-        return None
+        return ""
 
 
 def parse_msg_link(link: str) -> tuple[int, int] | None:
@@ -110,7 +114,7 @@ def parse_msg_link(link: str) -> tuple[int, int] | None:
         chat_id = int("-100" + split_link[-2])
         message_id = int(split_link[-1])
     except ValueError:
-        return None, None
+        return None
     return chat_id, message_id
 
 

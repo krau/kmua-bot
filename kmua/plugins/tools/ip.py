@@ -72,54 +72,53 @@ async def _get_ip_info(url: str, lang: str) -> str:
             },
         )
     ipinfo_json = data.json()
-    if ipinfo_json["status"] == "fail":
+    if ipinfo_json["status"] != "success":
         return i18n.t("bot.msg.ip.query_failed_reason", locale=lang).format(
             message=ipinfo_json["message"]
         )
-    if ipinfo_json["status"] == "success":
-        ipinfo_list = [i18n.t("bot.msg.ip.query_target", locale=lang).format(url=url)]
-        if ipinfo_json["query"] != url:
-            ipinfo_list.extend(
-                [
-                    i18n.t("bot.msg.ip.resolved_address", locale=lang).format(
-                        query=ipinfo_json["query"]
-                    )
-                ]
-            )
+    ipinfo_list = [i18n.t("bot.msg.ip.query_target", locale=lang).format(url=url)]
+    if ipinfo_json["query"] != url:
         ipinfo_list.extend(
             [
-                i18n.t("bot.msg.ip.location", locale=lang).format(
-                    country=ipinfo_json["country"],
-                    region=ipinfo_json["regionName"],
-                    city=ipinfo_json["city"],
-                ),
-                i18n.t("bot.msg.ip.coordinates", locale=lang).format(
-                    lat=str(ipinfo_json["lat"]), lon=str(ipinfo_json["lon"])
-                ),
-                i18n.t("bot.msg.ip.isp", locale=lang).format(isp=ipinfo_json["isp"]),
+                i18n.t("bot.msg.ip.resolved_address", locale=lang).format(
+                    query=ipinfo_json["query"]
+                )
             ]
         )
-        if ipinfo_json["org"] != "":
-            ipinfo_list.extend(
-                [
-                    i18n.t("bot.msg.ip.organization", locale=lang).format(
-                        org=ipinfo_json["org"]
-                    )
-                ]
-            )
-        with contextlib.suppress(Exception):
-            ipinfo_list.extend(
-                [
-                    i18n.t("bot.msg.ip.as_number", locale=lang).format(
-                        as_number=ipinfo_json["as"],
-                        as_link=ipinfo_json["as"].split()[0],
-                    )
-                ]
-            )
-        if ipinfo_json["mobile"]:
-            ipinfo_list.extend([i18n.t("bot.msg.ip.mobile_ip", locale=lang)])
-        if ipinfo_json["proxy"]:
-            ipinfo_list.extend([i18n.t("bot.msg.ip.proxy_ip", locale=lang)])
-        if ipinfo_json["hosting"]:
-            ipinfo_list.extend([i18n.t("bot.msg.ip.hosting_ip", locale=lang)])
-        return "\n".join(ipinfo_list)
+    ipinfo_list.extend(
+        [
+            i18n.t("bot.msg.ip.location", locale=lang).format(
+                country=ipinfo_json["country"],
+                region=ipinfo_json["regionName"],
+                city=ipinfo_json["city"],
+            ),
+            i18n.t("bot.msg.ip.coordinates", locale=lang).format(
+                lat=str(ipinfo_json["lat"]), lon=str(ipinfo_json["lon"])
+            ),
+            i18n.t("bot.msg.ip.isp", locale=lang).format(isp=ipinfo_json["isp"]),
+        ]
+    )
+    if ipinfo_json["org"] != "":
+        ipinfo_list.extend(
+            [
+                i18n.t("bot.msg.ip.organization", locale=lang).format(
+                    org=ipinfo_json["org"]
+                )
+            ]
+        )
+    with contextlib.suppress(Exception):
+        ipinfo_list.extend(
+            [
+                i18n.t("bot.msg.ip.as_number", locale=lang).format(
+                    as_number=ipinfo_json["as"],
+                    as_link=ipinfo_json["as"].split()[0],
+                )
+            ]
+        )
+    if ipinfo_json["mobile"]:
+        ipinfo_list.extend([i18n.t("bot.msg.ip.mobile_ip", locale=lang)])
+    if ipinfo_json["proxy"]:
+        ipinfo_list.extend([i18n.t("bot.msg.ip.proxy_ip", locale=lang)])
+    if ipinfo_json["hosting"]:
+        ipinfo_list.extend([i18n.t("bot.msg.ip.hosting_ip", locale=lang)])
+    return "\n".join(ipinfo_list)

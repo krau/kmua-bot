@@ -56,7 +56,7 @@ def with_session(func: Callable[P, Awaitable[T]]) -> Callable[P, Awaitable[T]]:
             return await func(*args, **kwargs)
         else:
             async with AsyncSessionFactory() as session:
-                return await func(*args, **kwargs, session=session)
+                return await func(*args, **kwargs, session=session)  # type: ignore
 
     return wrapper
 
@@ -76,7 +76,7 @@ def with_tx(func: Callable[P, Awaitable[T]]) -> Callable[P, Awaitable[T]]:
         else:
             async with AsyncSessionFactory() as session:
                 async with session.begin():
-                    return await func(*args, **kwargs, session=session)
+                    return await func(*args, **kwargs, session=session)  # type: ignore
 
     return wrapper
 

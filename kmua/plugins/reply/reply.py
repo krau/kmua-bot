@@ -52,7 +52,12 @@ mention_me_filter = filters.create(mention_me_filter_func)
     group=0,
 )
 async def word_reply(client: pyrogram.Client, message: pyrogram.types.Message):
-    user_config = await database.get_user_config(message.from_user)
+    user = message.from_user
+    if not user:
+        return
+    user_config = await database.get_user_config(user)
+    if not message.text or not client.me:
+        return
     text = zhconv.convert(
         message.text.replace(client.me.username, "").strip().lower(), "zh-cn"
     )

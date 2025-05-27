@@ -115,7 +115,7 @@ async def config_chat(
         return
     chat_config = await database.get_chat_config(chat)
     lang = chat_config.lang
-    data = callback_query.data.split(" ")
+    data = str(callback_query.data).split(" ")
     if data[1] == "toggle":
         match data[2]:
             case "waifu_enabled":

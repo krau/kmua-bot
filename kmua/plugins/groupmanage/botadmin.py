@@ -11,7 +11,9 @@ async def set_user_bot_admin_in_chat(
 ):
     user = message.sender_chat or message.from_user
     chat = message.chat
-    chat_config = await database.get_chat_config(chat.id)
+    if not chat or not user:
+        return
+    chat_config = await database.get_chat_config(chat)
     if not await common.can_user_manage_bot_in_chat(user, chat):
         await message.reply(
             i18n.t("bot.msg.no_permission_group", locale=chat_config.lang)

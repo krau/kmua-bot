@@ -91,20 +91,26 @@ async def parse_artwork(client: pyrogram.Client, message: pyrogram.types.Message
             ).format(count=artwork_pictures_count)
             if cache_id:
                 caption += f" <a href='https://t.me/{app_config.manyacg_bot}/?start=info_{cache_id}'>{i18n.t('bot.msg.manyacg.seefull', locale=lang)}</a>"
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient() as http_client:
             for picture in artwork_pictures:
-                photo = await utils.prepare_media(client, picture)
+                photo = await utils.prepare_media(http_client, picture)
                 media.append(
                     pyrogram.types.InputMediaPhoto(
-                        media=io.BytesIO(photo) if isinstance(photo, bytes) else photo,
+                        media=(
+                            io.BytesIO(photo)
+                            if isinstance(photo, (bytes, bytearray, memoryview))
+                            else photo
+                        ),
                         has_spoiler=artwork_r18,
-                        caption=caption if picture["index"] == 0 else None,
+                        caption=caption if picture["index"] == 0 else "",
                         parse_mode=pyrogram.enums.ParseMode.HTML,
                     )
                 )
         msgs = await message.reply_media_group(media=media)
         for idx, msg in enumerate(msgs):
             image_url = artwork_pictures[idx]["original"]
+            if msg.photo is None:
+                continue
             photo_file_id = msg.photo.file_id
             await common.memttlcache.set(
                 f"artwork:pic_file_id:{image_url}", photo_file_id, ttl=86400

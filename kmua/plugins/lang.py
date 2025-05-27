@@ -43,12 +43,14 @@ async def change_group_lang(client: pyrogram.Client, message: pyrogram.types.Mes
 async def change_lang(
     client: pyrogram.Client, callback_query: pyrogram.types.CallbackQuery
 ):
-    select_lang = callback_query.data.split("/")[1]
+    select_lang = str(callback_query.data).split("/")[1]
     if callback_query.message.chat.type == pyrogram.enums.ChatType.PRIVATE:
         config = await database.get_user_config(callback_query.from_user)
         config.lang = select_lang
         await database.update_user_config(callback_query.from_user.id, config)
     else:
+        if not callback_query.from_user or not callback_query.message.chat:
+            return
         if not await common.can_user_manage_bot_in_chat(
             callback_query.from_user, callback_query.message.chat
         ):

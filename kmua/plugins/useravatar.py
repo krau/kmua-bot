@@ -39,7 +39,7 @@ async def refresh_user_avatar(client: pyrogram.Client, message: pyrogram.types.M
             media=io.BytesIO(avatar_big),
         )
     )
-    if not msg:
+    if not msg or not msg.photo:
         await message.reply_text(
             i18n.t("bot.msg.refresh_failed", locale=db_user.user_config.lang)
         )

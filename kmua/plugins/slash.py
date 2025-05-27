@@ -33,6 +33,8 @@ slash_fliter = filters.create(slash_fliter_func)
 
 @Client.on_message(slash_fliter, group=0)
 async def slash(client: Client, message: Message):
+    if not message.text:
+        return
     if message.text.startswith("/"):
         if not message.text.startswith("//"):
             if re.match(r"^/[a-zA-Z0-9]+", message.text):
@@ -55,12 +57,12 @@ async def slash(client: Client, message: Message):
         else False
     )
     is_one_cmd = len(message.text.split(" ")) == 1
-    cmd1 = html.escape(_replace_char(message.text.split(" ")[0][1:]), 2)
+    cmd1 = html.escape(_replace_char(message.text.split(" ")[0][1:]))
     if not cmd1:
         return
     if not is_one_cmd:
         # TODO: i18n
-        cmd2 = html.escape(_replace_char(" ".join(message.text.split(" ")[1:])), 2)
+        cmd2 = html.escape(_replace_char(" ".join(message.text.split(" ")[1:])))
         text = (
             (
                 f"{replied_mention} {cmd1} {this_mention} {cmd2} !"

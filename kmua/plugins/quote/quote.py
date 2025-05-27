@@ -15,11 +15,13 @@ from . import utils
 async def make_quote(client: pyrogram.Client, message: pyrogram.types.Message):
     user = message.sender_chat or message.from_user
     chat = message.chat
+    if not chat or not user:
+        return
     db_user = await database.upsert_user(user)
     db_chat = await database.upsert_chat(chat)
     if not db_user or not db_chat:
         return
-    chat_config = await database.get_chat_config(chat.id)
+    chat_config = await database.get_chat_config(chat)
     lang = chat_config.lang
     cmd = message.command
     if len(cmd) > 1 and cmd[1] != "nopin":
@@ -85,7 +87,7 @@ async def random_quote_cmd(client: pyrogram.Client, message: pyrogram.types.Mess
         if len(quote.user.full_name) <= 16
         else quote.user.full_name[:16] + "..."
         if quote.user.full_name
-        else quote.user_id
+        else str(quote.user_id)
     )
     await client.copy_message(
         chat_id=chat.id,
@@ -105,10 +107,13 @@ async def set_quote_probability(
     client: pyrogram.Client, message: pyrogram.types.Message
 ):
     chat = message.chat
+    user = message.sender_chat or message.from_user
+    if not user or not chat:
+        return
     chat_config = await database.get_chat_config(chat.id)
     if not chat_config:
         return
-    if not await common.can_user_manage_bot_in_chat(message.from_user, chat):
+    if not await common.can_user_manage_bot_in_chat(user, chat):
         await message.reply_text(
             i18n.t("bot.msg.no_permission_group", locale=chat_config.lang)
         )
@@ -208,7 +213,13 @@ async def delete_quote_in_chat(
                 i18n.t("bot.msg.quote.only_delete_self", locale=chat_config.lang)
             )
             return
-        quote_chat_id, _ = utils.parse_msg_link(quote.link)
+        result = utils.parse_msg_link(quote.link)
+        if not result:
+            await message.reply_text(
+                i18n.t("bot.msg.quote.invalid_link", locale=chat_config.lang)
+            )
+            return
+        quote_chat_id, _ = result
         if quote_chat_id != chat.id:
             await message.reply_text(
                 i18n.t("bot.msg.quote.only_delete_or_group", locale=chat_config.lang)
@@ -246,7 +257,13 @@ async def delete_quote_in_private(
             i18n.t("bot.msg.quote.not_found", locale=user_config.lang)
         )
         return
-    quote_chat_id, _ = utils.parse_msg_link(quote.link)
+    result = utils.parse_msg_link(quote.link)
+    if not result:
+        await message.reply_text(
+            i18n.t("bot.msg.quote.invalid_link", locale=user_config.lang)
+        )
+        return
+    quote_chat_id, _ = result
     if user.id not in (quote.user_id, quote.qer_id) and not (
         await common.can_user_manage_bot_in_chat(user, quote_chat_id)
     ):
@@ -281,7 +298,7 @@ async def random_quote(client: pyrogram.Client, message: pyrogram.types.Message)
         if len(quote.user.full_name) <= 16
         else quote.user.full_name[:16] + "..."
         if quote.user.full_name
-        else quote.user_id
+        else str(quote.user_id)
     )
     await client.copy_message(
         chat_id=chat.id,
@@ -313,7 +330,7 @@ async def inline_quote_query(
                             if len(quote_db.user.full_name) <= 16
                             else quote_db.user.full_name[:16] + "..."
                             if quote_db.user.full_name
-                            else quote_db.user_id
+                            else str(quote_db.user_id)
                         ),
                         url=quote_db.link,
                     )
@@ -324,15 +341,15 @@ async def inline_quote_query(
             results.append(
                 pyrogram.types.InlineQueryResultCachedPhoto(
                     quote_db.img,
-                    title=quote_db.text,
+                    title=quote_db.text or "",
                     reply_markup=markup,
                 )
             )
         results.append(
             pyrogram.types.InlineQueryResultArticle(
-                title=quote_db.text,
+                title=quote_db.text or "",
                 input_message_content=pyrogram.types.InputTextMessageContent(
-                    message_text=quote_db.text
+                    message_text=quote_db.text or "",
                 ),
                 reply_markup=markup,
             )
@@ -392,7 +409,7 @@ async def user_quote_manage(
     keyboard, line = [], []
     for index, quote in enumerate(quotes):
         quote_content = (
-            html.escape(quote.text[:100], 2)
+            html.escape(quote.text[:100])
             if quote.text
             else i18n.t("bot.msg.quote.no_text", locale=lang)
         )

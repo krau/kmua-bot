@@ -15,7 +15,7 @@ async def channel_forward_filter_func(_, __, message: pyrogram.types.Message):
         return False
     if not message.automatic_forward:
         return False
-    chat_config = await database.get_chat_config(chat.id)
+    chat_config = await database.get_chat_config(chat)
     if not chat_config.unpin_channel_pin_enabled:
         return False
     return True
@@ -31,5 +31,5 @@ async def unpin_channel(client: pyrogram.Client, message: pyrogram.types.Message
         await message.unpin()
     except Exception as e:
         logger.warning(
-            f"Failed to unpin message {message.id} in chat {message.chat.id}: {e.__class__.__name__}:{e}"
+            f"Failed to unpin message {message.id} in chat {message.chat}: {e.__class__.__name__}:{e}"
         )

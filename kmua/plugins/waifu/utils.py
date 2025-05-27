@@ -181,7 +181,7 @@ async def render_waifu_graph(
         has_avatar = set()
         async for user in user_info:
             user_id = user["id"]
-            username = user.get("username")
+            username: str = user.get("username")  # type: ignore
             username = (
                 username[:6] + "..." if username and len(username) > 6 else username
             )
@@ -195,7 +195,7 @@ async def render_waifu_graph(
             avatar_path = os.path.join(tempdir, f"{user_id}_avatar.jpg")
             await _write_avatar(avatar_path, avatar)
 
-            with dot.subgraph(name=f"cluster_{user_id}") as subgraph:
+            with dot.subgraph(name=f"cluster_{user_id}") as subgraph:  # type: ignore
                 subgraph.attr(label=username)
                 subgraph.attr(rank="same")
                 subgraph.attr(labelloc="b")
@@ -257,9 +257,5 @@ async def send_waifu_graph(chat_id: int, reply_to_msg_id: int, client: pyrogram.
         ).format(count=participate_user_count),
         file_name=f"waifu_graph{chat_id}.{ext}",
         force_document=True,
-        reply_parameters=(
-            pyrogram.types.ReplyParameters(message_id=reply_to_msg_id)
-            if reply_to_msg_id
-            else None
-        ),
+        reply_parameters=pyrogram.types.ReplyParameters(message_id=reply_to_msg_id),
     )

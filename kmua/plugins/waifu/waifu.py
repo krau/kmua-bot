@@ -71,12 +71,19 @@ async def today_waifu(client: pyrogram.Client, message: pyrogram.types.Message):
             return
         try:
             msg = await message.reply_photo(
-                photo=BytesIO(photo) if isinstance(photo, bytes) else photo,
+                photo=(
+                    BytesIO(photo)
+                    if isinstance(photo, (bytes, bytearray, memoryview))
+                    else photo
+                ),
                 caption=text,
                 reply_markup=waifu_markup,
                 parse_mode=pyrogram.enums.ParseMode.HTML,
             )
-            await database.update_user_avatar(waifu.id, avatar_big_id=msg.photo.file_id)
+            if msg.photo is not None:
+                await database.update_user_avatar(
+                    waifu.id, avatar_big_id=msg.photo.file_id
+                )
         except pyrogram.errors.BadRequest as e:
             logger.error(f"failed to send photo in chat {raw_chat.id}: {e})")
             await message.reply_text(
@@ -119,7 +126,7 @@ async def remove_waifu(client: pyrogram.Client, query: pyrogram.types.CallbackQu
     db_chat = await database.get_chat_by_id(chat.id)
     chat_config = await database.get_chat_config(chat)
     lang = chat_config.lang
-    data = query.data.split(" ")
+    data = str(query.data).split(" ")
     waifu_id = int(data[1])
     user_id = int(data[2])
     db_waifu = await database.get_user_by_id(waifu_id)
@@ -141,13 +148,13 @@ async def remove_waifu(client: pyrogram.Client, query: pyrogram.types.CallbackQu
         if query.message.photo is not None:
             await query.message.edit_caption(
                 caption=text,
-                reply_markup=None,
+                # reply_markup=None,
                 parse_mode=pyrogram.enums.ParseMode.HTML,
             )
         else:
             await query.message.edit_text(
                 text=text,
-                reply_markup=None,
+                # reply_markup=None,
                 parse_mode=pyrogram.enums.ParseMode.HTML,
             )
         return
@@ -354,6 +361,8 @@ async def user_waifu_manage(
     lang = db_user.user_config.lang
     data = str(query.data)
     if "divorce_confirm" in data:
+        if not db_user.married_waifu_id or not db_user.is_married:
+            return
         married_waifu = await database.get_user_by_id(db_user.married_waifu_id)
         if not married_waifu:
             await query.answer(

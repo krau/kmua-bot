@@ -22,12 +22,16 @@ async def mention_html(chat: User | Chat | UserData | ChatData) -> str:
     return f"<a href='tg://user?id={chat.id}'>{html.escape(chat.full_name)}</a>"
 
 
-async def can_user_manage_bot_in_chat(user: User | int, chat: Chat | int) -> bool:
+async def can_user_manage_bot_in_chat(
+    user: User | Chat | int, chat: Chat | int
+) -> bool:
     if isinstance(chat, Chat):
         if chat.type == ChatType.PRIVATE:
             raise ValueError("Chat must not be private")
-    user_id = user.id if isinstance(user, User) else user
+    user_id = user.id if isinstance(user, (User, Chat)) else user
     chat_id = chat.id if isinstance(chat, Chat) else chat
+    if not user_id or not chat_id:
+        raise ValueError("User ID and Chat ID must not be None")
     if user_id == enums.ChatID.ANONYMOUS_ADMIN:
         return True
     db_user = await database.get_user_by_id(user_id)
