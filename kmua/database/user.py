@@ -5,6 +5,8 @@ from pyrogram.enums import ChatType
 from pyrogram.types import Chat, User
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from kmua.config import runtime_config
+
 from .db import with_session, with_tx
 from .models import UserChatAssociation, UserConfig, UserData
 
@@ -33,10 +35,12 @@ async def upsert_user(
     """
     if user.id is None:
         raise ValueError("user.id must not be None")
+
     username = None
     full_name = None
     is_real_user = True
     is_bot = False
+
     if isinstance(user, (User, UserData)):
         username = user.username
         full_name = user.full_name
@@ -49,24 +53,93 @@ async def upsert_user(
         is_real_user = user.type == ChatType.PRIVATE
     else:
         raise TypeError("user must be User, Chat or UserData")
+
     if full_name is None:
         raise ValueError("user.full_name must not be None")
-    user_data = await session.get(UserData, user.id)
-    if user_data is None:
-        user_data = UserData(
-            id=user.id,
-            username=username,
-            full_name=full_name,
-            is_bot=is_bot,
-            is_real_user=is_real_user,
+
+    if runtime_config.db_is_postgres:
+        stmt = (
+            sqlalchemy.dialects.postgresql.insert(UserData)
+            .values(
+                id=user.id,
+                username=username,
+                full_name=full_name,
+                is_bot=is_bot,
+                is_real_user=is_real_user,
+            )
+            .on_conflict_do_update(
+                index_elements=["id"],
+                set_={
+                    "username": username,
+                    "full_name": full_name,
+                    "is_bot": is_bot,
+                    "is_real_user": is_real_user,
+                },
+            )
+            .returning(UserData)
         )
-        session.add(user_data)
+    elif runtime_config.db_is_mysql:
+        stmt = (
+            sqlalchemy.dialects.mysql.insert(UserData)
+            .values(
+                id=user.id,
+                username=username,
+                full_name=full_name,
+                is_bot=is_bot,
+                is_real_user=is_real_user,
+            )
+            .on_duplicate_key_update(
+                username=username,
+                full_name=full_name,
+                is_bot=is_bot,
+                is_real_user=is_real_user,
+            )
+            .returning(UserData)
+        )
+    elif runtime_config.db_is_sqlite:
+        stmt = (
+            sqlalchemy.dialects.sqlite.insert(UserData)
+            .values(
+                id=user.id,
+                username=username,
+                full_name=full_name,
+                is_bot=is_bot,
+                is_real_user=is_real_user,
+            )
+            .on_conflict_do_update(
+                index_elements=["id"],
+                set_={
+                    "username": username,
+                    "full_name": full_name,
+                    "is_bot": is_bot,
+                    "is_real_user": is_real_user,
+                },
+            )
+            .returning(UserData)
+        )
     else:
-        user_data.username = username  # type: ignore
-        user_data.full_name = full_name  # type: ignore
-        user_data.is_bot = is_bot  # type: ignore
-        user_data.is_real_user = is_real_user  # type: ignore
-    return user_data
+        user_data = await session.get(UserData, user.id)
+        if user_data is None:
+            user_data = UserData(
+                id=user.id,
+                username=username,
+                full_name=full_name,
+                is_bot=is_bot,
+                is_real_user=is_real_user,
+            )
+            session.add(user_data)
+        else:
+            user_data.username = username  # type: ignore
+            user_data.full_name = full_name  # type: ignore
+            user_data.is_bot = is_bot  # type: ignore
+            user_data.is_real_user = is_real_user  # type: ignore
+        return user_data
+
+    result = await session.execute(stmt)
+    user_data = result.scalars().first()
+    if user_data is not None:
+        return user_data
+    return await session.get(UserData, user.id)
 
 
 async def get_user_config(user: int | UserData | User) -> UserConfig:

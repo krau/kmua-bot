@@ -1,6 +1,12 @@
 import sqlalchemy
+import sqlalchemy.dialects
+import sqlalchemy.dialects.mysql
+import sqlalchemy.dialects.postgresql
+import sqlalchemy.dialects.sqlite
 from pyrogram.types import Chat
 from sqlalchemy.ext.asyncio import AsyncSession
+
+from kmua.config import runtime_config
 
 from .db import with_session, with_tx
 from .models import ChatConfig, ChatData
@@ -15,18 +21,73 @@ async def count_chats(session: AsyncSession | None = None) -> int:
 
 @with_tx
 async def upsert_chat(chat: Chat, session: AsyncSession | None = None) -> ChatData:
-    chat_data = await session.get(ChatData, chat.id)
-    if chat_data is None:
-        chat_data = ChatData(
-            id=chat.id,
-            title=chat.title,
-            username=chat.username,
+    if runtime_config.db_is_postgres:
+        stmt = (
+            sqlalchemy.dialects.postgresql.insert(ChatData)
+            .values(
+                id=chat.id,
+                title=chat.title,
+                username=chat.username,
+            )
+            .on_conflict_do_update(
+                index_elements=["id"],
+                set_={
+                    "title": chat.title,
+                    "username": chat.username,
+                },
+            )
+            .returning(ChatData)
         )
-        session.add(chat_data)
+    elif runtime_config.db_is_mysql:
+        stmt = (
+            sqlalchemy.dialects.mysql.insert(ChatData)
+            .values(
+                id=chat.id,
+                title=chat.title,
+                username=chat.username,
+            )
+            .on_duplicate_key_update(
+                title=chat.title,
+                username=chat.username,
+            )
+            .returning(ChatData)
+        )
+    elif runtime_config.db_is_sqlite:
+        stmt = (
+            sqlalchemy.dialects.sqlite.insert(ChatData)
+            .values(
+                id=chat.id,
+                title=chat.title,
+                username=chat.username,
+            )
+            .on_conflict_do_update(
+                index_elements=["id"],
+                set_={
+                    "title": chat.title,
+                    "username": chat.username,
+                },
+            )
+            .returning(ChatData)
+        )
     else:
-        chat_data.title = chat.title  # type: ignore
-        chat_data.username = chat.username  # type: ignore
-    return chat_data
+        chat_data = await session.get(ChatData, chat.id)
+        if chat_data is None:
+            chat_data = ChatData(
+                id=chat.id,
+                title=chat.title,
+                username=chat.username,
+            )
+            session.add(chat_data)
+        else:
+            chat_data.title = chat.title  # type: ignore
+            chat_data.username = chat.username  # type: ignore
+        return chat_data
+
+    result = await session.execute(stmt)
+    chat_data = result.scalars().first()
+    if chat_data is not None:
+        return chat_data
+    return await session.get(ChatData, chat.id)
 
 
 @with_session

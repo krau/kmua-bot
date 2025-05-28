@@ -29,6 +29,12 @@ class _AppConfig(pydantic.BaseModel):
     avatar_expire: int = 60 * 60 * 24  # 1 day
 
 
+class _InternalConfig(pydantic.BaseModel):
+    db_is_sqlite: bool = False
+    db_is_postgres: bool = False
+    db_is_mysql: bool = False
+
+
 _T = TypeVar("_T", bound=pydantic.BaseModel)
 
 
@@ -53,5 +59,22 @@ _settings = Dynaconf(
 )
 
 app_config = _get_typed_config(_AppConfig)
+
+
+def _get_runtime_config() -> _InternalConfig:
+    cfg = _InternalConfig()
+    match app_config.db_url:
+        case url if url.startswith("sqlite"):
+            cfg.db_is_sqlite = True
+        case url if url.startswith("postgresql"):
+            cfg.db_is_postgres = True
+        case url if url.startswith("mysql"):
+            cfg.db_is_mysql = True
+        case _:
+            raise ValueError(f"Unsupported database URL: {app_config.db_url}")
+    return cfg
+
+
+runtime_config = _get_runtime_config()
 
 __all__ = ["app_config"]

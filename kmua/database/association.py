@@ -1,9 +1,15 @@
 from typing import AsyncGenerator
 
 import sqlalchemy
+import sqlalchemy.dialects
+import sqlalchemy.dialects.mysql
+import sqlalchemy.dialects.postgresql
+import sqlalchemy.dialects.sqlite
+import sqlalchemy.exc
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from kmua import enums
+from kmua.config import runtime_config
 
 from .db import AsyncSessionFactory, with_session, with_tx
 from .models import ChatData, UserChatAssociation, UserData
@@ -23,25 +29,62 @@ async def add_association_in_chat(
     waifu: UserData | None = None,
     session: AsyncSession | None = None,
 ) -> UserChatAssociation:
-    if data := await session.get(UserChatAssociation, (user.id, chat.id)):
-        return data
-    member = UserChatAssociation(
-        user_id=user.id,
-        chat_id=chat.id,
-        waifu_id=waifu.id if waifu else None,
-    )
-    session.add(member)
-    return member
+    if runtime_config.db_is_postgres:
+        stmt = (
+            sqlalchemy.dialects.postgresql.insert(UserChatAssociation)
+            .values(
+                user_id=user.id,
+                chat_id=chat.id,
+                waifu_id=waifu.id if waifu else None,
+            )
+            .on_conflict_do_nothing(index_elements=["user_id", "chat_id"])
+            .returning(UserChatAssociation)
+        )
+    elif runtime_config.db_is_mysql:
+        stmt = (
+            sqlalchemy.dialects.mysql.insert(UserChatAssociation)
+            .values(
+                user_id=user.id,
+                chat_id=chat.id,
+                waifu_id=waifu.id if waifu else None,
+            )
+            .prefix_with("IGNORE")
+            .returning(UserChatAssociation)
+        )
+    elif runtime_config.db_is_sqlite:
+        stmt = (
+            sqlalchemy.dialects.sqlite.insert(UserChatAssociation)
+            .values(
+                user_id=user.id,
+                chat_id=chat.id,
+                waifu_id=waifu.id if waifu else None,
+            )
+            .on_conflict_do_nothing(index_elements=["user_id", "chat_id"])
+            .returning(UserChatAssociation)
+        )
+    else:
+        if data := await session.get(UserChatAssociation, (user.id, chat.id)):
+            return data
+        member = UserChatAssociation(
+            user_id=user.id,
+            chat_id=chat.id,
+            waifu_id=waifu.id if waifu else None,
+        )
+        session.add(member)
+        return member
+
+    result = await session.execute(stmt)
+    association = result.scalars().first()
+    if association is not None:
+        return association
+    return await session.get(UserChatAssociation, (user.id, chat.id))
 
 
 @with_session
 async def get_association(
     user_id: int, chat_id: int, session: AsyncSession | None = None
 ) -> UserChatAssociation | None:
-    data = await session.get(UserChatAssociation, (user_id, chat_id))
-    if data is None:
-        return None
-    return data
+    return await session.get(UserChatAssociation, (user_id, chat_id))
 
 
 @with_tx
