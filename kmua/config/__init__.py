@@ -12,6 +12,7 @@ class _AppConfig(pydantic.BaseModel):
     session_name: str = "kmua"
     api_id: int = 1025907
     api_hash: str = "452b0359b988148995f22ff0f4229750"
+    use_ipv6: bool = False
     log_retention_days: int = 30
     log_level: str = "INFO"
     lang: str = "zh-CN"

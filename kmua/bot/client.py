@@ -9,4 +9,5 @@ client = Client(
     bot_token=app_config.token,
     workdir=app_config.workdir,
     plugins={"root": "kmua.plugins"},
+    ipv6=app_config.use_ipv6,
 )
