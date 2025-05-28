@@ -1,3 +1,4 @@
+import asyncio
 import io
 import random
 
@@ -42,7 +43,7 @@ async def send_quote(
     return sent.photo.file_id
 
 
-async def gen_quote_img(avatar: bytes, text: str, name: str) -> bytes:
+def _gen_quote_img(avatar: bytes, text: str, name: str) -> bytes:
     text = text.replace("\n", " ")
 
     img_width, img_height = 1200, 640
@@ -95,6 +96,14 @@ async def gen_quote_img(avatar: bytes, text: str, name: str) -> bytes:
     img.save(img_byte_arr, format="png")
     img_byte_arr.seek(0)
     return img_byte_arr.getvalue()
+
+
+async def gen_quote_img(
+    avatar: bytes,
+    text: str,
+    name: str,
+) -> bytes:
+    return await asyncio.to_thread(_gen_quote_img, avatar, text, name)
 
 
 def get_msg_link(message: pyrogram.types.Message) -> str:
