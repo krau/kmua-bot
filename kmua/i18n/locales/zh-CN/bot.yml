@@ -92,7 +92,7 @@ bot:
         - 让我看看是谁在说怪话!
         - 好!
       user_all_deleted: 已经没有语录啦
-      user_not_quote: 你还没有语录呢
+      user_no_quote: 你还没有语录呢
       page_invalid: 已经没有啦
       user_quote_list_head: |
         你的语录, 共 {count} 条, 第 {page}/{max_page} 页
