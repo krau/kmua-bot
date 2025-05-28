@@ -11,3 +11,4 @@ settings.dev*
 data/**
 .secret*
 pgload/
+test.*
