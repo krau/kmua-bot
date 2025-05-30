@@ -5,7 +5,7 @@ from pyrogram import filters
 async def base_filter_func(_, __, message: pyrogram.types.Message) -> bool:
     if not message.text:
         return False
-    if len(message.text) <= 1 or len(message.text) > 1024:
+    if len(message.text) <= 1:
         return False
     if (
         message.entities is not None
