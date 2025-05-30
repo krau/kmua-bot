@@ -1,7 +1,10 @@
 import time
+from dataclasses import dataclass
 
 import pyrogram
+from pydantic import BaseModel
 from pydantic_ai import Agent
+from pydantic_ai.common_tools.duckduckgo import duckduckgo_search_tool
 from pydantic_ai.models.openai import OpenAIModel
 from pydantic_ai.providers.openai import OpenAIProvider
 from pydantic_ai.tools import Tool
@@ -11,7 +14,7 @@ from kmua import common
 from kmua.config import app_config
 from kmua.logger import logger
 
-from . import myfilter, utils
+from . import myfilter, tools, types, utils
 from .simple_reply import word_reply
 
 agent = None
@@ -23,7 +26,17 @@ if app_config.agent:
             api_key=app_config.agent_api_key,
         ),
     )
-    agent = Agent(model=model, system_prompt=app_config.agent_prompt)
+    agent = Agent(
+        model=model,
+        system_prompt=app_config.agent_prompt,
+        tools=[
+            tools.get_user_info,
+            tools.get_chat_info,
+            tools.get_and_send_a_anime_photo,
+            duckduckgo_search_tool(),
+        ],
+        deps_type=types.ContextDeps,
+    )
 
 
 def _history_key(user_id: int) -> str:
@@ -50,6 +63,12 @@ async def wake_agent(client: pyrogram.Client, message: pyrogram.types.Message):
         async with agent.run_stream(
             message.text,
             message_history=history,
+            deps=types.ContextDeps(
+                user_id=user.id,
+                chat_id=message.chat.id if message.chat else None,
+                message_id=message.id,
+                client=client,
+            ),
         ) as result:
             replied = None
             buffer = ""
