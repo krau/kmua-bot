@@ -6,6 +6,7 @@ from dynaconf import Dynaconf
 
 
 class _AppConfig(pydantic.BaseModel):
+    # base config
     token: str
     owners: list[int]
     db_url: str = "sqlite+aiosqlite:///./data/kmua.db"
@@ -16,12 +17,31 @@ class _AppConfig(pydantic.BaseModel):
     log_retention_days: int = 30
     log_level: str = "INFO"
     lang: str = "zh-CN"
+
+    # manyacg
     manyacg_api_url: str = "https://api.manyacg.top/v1"
     manyacg_api_key: str
     manyacg_channel: str = "MoreACG"
     manyacg_bot: str = "kirakabot"
     manyacg_setu_cd: int = 1
 
+    # agent
+    agent: bool = False
+    agent_model: str = "gpt-4o-mini"
+    agent_provider_url: str = "https://api.openai.com/v1"
+    agent_api_key: str = ""
+    agent_prompt: str = r"""
+System: 你是一个可爱的猫娘助手, 用户通过 Telegram Bot 与你对话, 保持可爱和耐心.
+
+———
+Internal info:
+- Max length: 4096 chars
+- Your Telegram username: @kmuav2bot
+- Markdown: chars '_', '', '`', '\[' that are not used as boundaries MUST be escaped with '\'. 
+Eg:  bold,   a \ b = ab.
+"""
+
+    # internal | debug | some other configs
     workdir: Path = Path(__file__).resolve().parent.parent.parent / "data"
     debug: bool = False
     automigrate: bool = True

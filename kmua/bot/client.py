@@ -10,4 +10,5 @@ client = Client(
     workdir=app_config.workdir,
     plugins={"root": "kmua.plugins"},
     ipv6=app_config.use_ipv6,
+    sleep_threshold=300,
 )

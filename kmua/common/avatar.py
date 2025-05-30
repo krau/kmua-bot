@@ -58,6 +58,7 @@ async def _get_avatar_bytes(
 
 class ChatAvatar:
     _locks: dict[int, asyncio.Lock] = defaultdict(asyncio.Lock)
+    # TODO: clean locks unused, or use weakref(?)
 
     def __init__(self, chat_id: int):
         self.chat_id = chat_id
