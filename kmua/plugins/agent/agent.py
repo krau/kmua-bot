@@ -1,18 +1,14 @@
 import time
-from dataclasses import dataclass
 
 import pyrogram
-from pydantic import BaseModel
 from pydantic_ai import Agent
 from pydantic_ai.common_tools.duckduckgo import duckduckgo_search_tool
 from pydantic_ai.models.openai import OpenAIModel
 from pydantic_ai.providers.openai import OpenAIProvider
-from pydantic_ai.tools import Tool
 from pyrogram import filters
 
 from kmua import common
 from kmua.config import app_config
-from kmua.logger import logger
 
 from . import myfilter, tools, types, utils
 from .simple_reply import word_reply
@@ -89,6 +85,5 @@ async def wake_agent(client: pyrogram.Client, message: pyrogram.types.Message):
                 replied = await replied.edit_text(buffer)
         summary = await utils.summarize_history(agent, result.all_messages())
         await common.memttlcache.set(_history_key(user.id), summary, ttl=86400 * 2)
-        logger.debug(summary)
     finally:
         await common.memstore.delete(_waiting_key(user.id))
