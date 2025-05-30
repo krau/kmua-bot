@@ -1,6 +1,7 @@
 import asyncio
 import datetime
 import shutil
+import weakref
 from collections import defaultdict
 from io import BytesIO
 from pathlib import Path
@@ -57,12 +58,15 @@ async def _get_avatar_bytes(
 
 
 class ChatAvatar:
-    _locks: dict[int, asyncio.Lock] = defaultdict(asyncio.Lock)
-    # TODO: clean locks unused, or use weakref(?)
+    _locks = weakref.WeakValueDictionary[int, asyncio.Lock]()
 
     def __init__(self, chat_id: int):
         self.chat_id = chat_id
-        self._lock = self._locks[chat_id]
+        lock = self._locks.get(chat_id)
+        if lock is None:
+            lock = asyncio.Lock()
+            self._locks[chat_id] = lock
+        self._lock = lock
         self._path_big = _get_avatar_path(chat_id, True)
         self._path_small = _get_avatar_path(chat_id, False)
 
