@@ -1,0 +1,28 @@
+bot:
+  msg:
+    quote:
+      probability_usage: 主动发送语录的概率是小于1的小数哦, 如果设置为负则会禁用 /qrand 命令
+      probability_invalid: 请不要插入奇怪的东西 (//▲//)
+      reply_to_required: 请回复一条消息
+      topic_not_supported: 不支持在主话题外使用此功能
+      origin_not_found: 不知道这条消息是谁发送的呢...
+      get_link_failed: 获取消息链接失败, 本群可能不是超级群组
+      already_exists: 这条语录已经存在了哦
+      text_not_available: 非文本消息或文本过长不能生成图片哦
+      chat_no_quote: 本群还没有语录哦
+      not_found: 这条消息不在群语录中哦
+      only_delete_self: 你只能删除自己的语录哦
+      only_delete_or_group: 你只能删除自己的或本群的语录哦
+      deleted: 已删除该语录
+      created:
+        - 让我看看是谁在说怪话!
+        - 好!
+      user_all_deleted: 已经没有语录啦
+      user_no_quote: 你还没有语录呢
+      page_invalid: 已经没有啦
+      user_quote_list_head: |
+        你的语录, 共 {count} 条, 第 {page}/{max_page} 页
+        点击序号删除对应的语录
+      no_text: (无文本)
+      invalid_link: 请提供1个有效的语录消息链接
+      only_delete_self_or_admin_in_group: 你只能删除自己的或由你管理的群组的语录哦

@@ -1,0 +1,10 @@
+bot:
+  inline:
+    switch_pm_text: 了解详情
+    chat_quotes_title: 查询该群组语录
+    chat_quotes_description: 或直接输入 q [关键词] 查询『你能看到的』语录
+    chat_quotes_quering: 正在获取群组信息...
+    chat_quotes_button_noop: 少女祈祷中
+    chat_quotes_error: 解析群组信息失败惹...
+    chat_quotes_success: 点击下方按钮查询本群的语录
+    chat_quotes_button: 🔍

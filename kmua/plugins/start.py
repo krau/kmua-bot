@@ -46,13 +46,21 @@ class PrivateStartBotMarkup:
 async def start(client: Client, message: Message):
     user_config = await database.get_user_config(message.from_user)
     lang = user_config.lang
-    try:
+    if len(message.command) <= 1:
         await message.reply(
             text=i18n.t("bot.msg.private_start", locale=lang),
             reply_markup=PrivateStartBotMarkup(lang).build(),
         )
-    except Exception as e:
-        logger.error(e)
+        return
+    match message.command[1]:
+        case "inline_query":
+            await message.reply(
+                text=i18n.t("bot.msg.help_inline", locale=lang).format(
+                    me_username=client.me.username
+                )
+            )
+        case _:
+            pass
 
 
 @Client.on_message(filters.command("start") & filters.group, group=0)

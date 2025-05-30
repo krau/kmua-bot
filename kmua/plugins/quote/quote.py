@@ -311,60 +311,6 @@ async def random_quote(client: pyrogram.Client, message: pyrogram.types.Message)
     )
 
 
-@pyrogram.Client.on_inline_query()
-async def inline_quote_query(
-    client: pyrogram.Client, query: pyrogram.types.InlineQuery
-):
-    user = query.from_user
-    results = []
-    data = query.query.strip()
-    query.offset
-    quotes = await database.take_quotes_user_can_see(user.id, data, 50)
-    for quote_db in quotes:
-        # button_text = (
-        #     quote_db.user.full_name
-        #     if len(quote_db.user.full_name) <= 16
-        #     else quote_db.user.full_name[:16] + "..."
-        #     if quote_db.user.full_name
-        #     else str(quote_db.user_id)
-        # )
-        # markup = pyrogram.types.InlineKeyboardMarkup(
-        #     [
-        #         [
-        #             pyrogram.types.InlineKeyboardButton(
-        #                 text=button_text,
-        #                 url=quote_db.link,
-        #             )
-        #         ]
-        #     ]
-        # )
-
-        # https://github.com/krau/kmua-bot/issues/71
-        markup = pyrogram.types.InlineKeyboardMarkup(
-            [[pyrogram.types.InlineKeyboardButton(text="↗️", url=quote_db.link)]]
-        )
-        if quote_db.img:
-            results.append(
-                pyrogram.types.InlineQueryResultCachedPhoto(
-                    quote_db.img,
-                    title=quote_db.text or "",
-                    reply_markup=markup,
-                )
-            )
-        results.append(
-            pyrogram.types.InlineQueryResultArticle(
-                title=quote_db.text or "",
-                input_message_content=pyrogram.types.InputTextMessageContent(
-                    message_text=quote_db.text or "",
-                ),
-                reply_markup=markup,
-            )
-        )
-        if len(results) >= 50:
-            break
-    await query.answer(results[:49], cache_time=5, is_personal=True)
-
-
 @pyrogram.Client.on_callback_query(pyrogram.filters.regex(r"^user_quote_manage"))
 async def user_quote_manage(
     client: pyrogram.Client, query: pyrogram.types.CallbackQuery

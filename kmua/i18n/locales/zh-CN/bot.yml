@@ -1,20 +1,4 @@
 bot:
-  cmd:
-    start: 一键猫叫|召出菜单
-    waifu: 今日老婆!
-    waifu_graph: 老婆关系图!
-    q: 记录语录
-    d: 删除语录
-    qrand: 随机语录
-    qp: 设置随机主动发送语录的概率
-    t: 获取头衔|互赠头衔
-    sett: 更改 /t 命令所赋予的权限
-    id: 获取聊天ID
-    ip: 获取IP信息
-    setu: 来点涩图
-    config: 更改群组设置
-    greet: 设置群组欢迎语
-    help: 帮助|更多功能
   msg:
     private_start: Nya~
     group_start: 请私聊咱使用哦
@@ -41,65 +25,6 @@ bot:
         creator: 咱不能对群主使用喵
         rank_invalid: 头衔太长了! 进不去!
         user_id_invalid: 咱不能更改自己的或频道身份的头衔
-    waifu:
-      disabled: 这里不允许使用 waifu 功能哦
-      not_found: 你现在没有老婆, 因为咱的记录中找不到其他群友
-      retry: 你没能抽到老婆, 再试一次吧~
-      got: "{user}, 你今天已经抽过老婆了! {waifu} 是你今天的老婆!"
-      normal: "{user}, 你今天的群幼老婆是 {waifu}!"
-      got_nouser: "你今天已经抽过老婆了! {waifu} 是你今天的老婆!"
-      normal_nouser: "你今天的群幼老婆是 {waifu}!"
-      married: "{user}, 你和 {waifu} 已经结婚了哦~"
-      remove_not_found: 查无此人,可能已经被移除了
-      remove: 确定要移除ta吗?
-      removed: "已移除该用户, ta 曾是 {user} 的老婆"
-      marry_not_real: ＞﹏＜ Ta 不是真实用户哦.(不支持与匿名管理, 频道身份等结婚)
-      marry_self: (。・ω・。) 总会有人不远万里为你而来
-      marry_not_user: (￣ε(#￣) 别人的事情咱不要打扰呢
-      already_married: 你已经和 ta 结婚了哦
-      already_married_other: （＞人＜；）Ta 已经有别人了呢, 愿你找到对的人
-      user_already_married_other: ∑( 口 || 你已经有老婆了, 不要再去招惹别人了哦
-      marry_ask: "{waifu}, 你愿意和 {user} 结婚嘛?"
-      marry_success: "恭喜 {user} 和 {waifu} 结婚啦~"
-      marry_refused: "(´。＿。｀) 你拒绝了 ta 的求婚呢. 有些人一旦错过就不再..."
-      marry_cancel: 你取消了这个求婚请求
-      no_participate: 本群今日没有人抽过老婆哦
-      graph_caption: 群u关系图, 共 {count} 人参与
-      divorce_not_married: 可是...你还没有结婚呀qwq
-      divorce_not_found: 你的老婆找不到啦!
-      divorce_success: <i>愿你有一天和重要之人重逢</i>
-      divorce_notify: "{user} 和你解除了关系 QAQ..."
-      divorce_confirm: 你确定要和 {waifu} 离婚吗?
-      info: |
-        是否 @ 你: {mention}
-        已结婚: {married}
-        结婚的老婆id: {married_waifu_id}
-    quote:
-      probability_usage: 主动发送语录的概率是小于1的小数哦, 如果设置为负则会禁用 /qrand 命令
-      probability_invalid: 请不要插入奇怪的东西 (//▲//)
-      reply_to_required: 请回复一条消息
-      topic_not_supported: 不支持在主话题外使用此功能
-      origin_not_found: 不知道这条消息是谁发送的呢...
-      get_link_failed: 获取消息链接失败, 本群可能不是超级群组
-      already_exists: 这条语录已经存在了哦
-      text_not_available: 非文本消息或文本过长不能生成图片哦
-      chat_no_quote: 本群还没有语录哦
-      not_found: 这条消息不在群语录中哦
-      only_delete_self: 你只能删除自己的语录哦
-      only_delete_or_group: 你只能删除自己的或本群的语录哦
-      deleted: 已删除该语录
-      created:
-        - 让我看看是谁在说怪话!
-        - 好!
-      user_all_deleted: 已经没有语录啦
-      user_no_quote: 你还没有语录呢
-      page_invalid: 已经没有啦
-      user_quote_list_head: |
-        你的语录, 共 {count} 条, 第 {page}/{max_page} 页
-        点击序号删除对应的语录
-      no_text: (无文本)
-      invalid_link: 请提供1个有效的语录消息链接
-      only_delete_self_or_admin_in_group: 你只能删除自己的或由你管理的群组的语录哦
     ip:
       no_ip_provided: "请提供要查询的 IP/域名"
       querying: "正在查询: {ip}"
@@ -136,8 +61,12 @@ bot:
       /f5avatar - 刷新你的头像
       </blockquote>
       对其他人使用 "/" 或 "\" 即可对其施法
+    help_inline: |
+      在任意聊天框中输入 @{me_username} 即可进入 Inline 模式
 
-      语录可使用 Inline 模式查询
+      Inline 模式下可使用以下参数:
+
+      q [关键词] - 查询语录
     reply:
       default:
         - 喵喵?

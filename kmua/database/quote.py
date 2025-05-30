@@ -51,11 +51,19 @@ async def add_quote(
 
 @with_session
 async def get_chat_random_quote(
-    chat_id: int, session: AsyncSession | None = None
+    chat_id: int, with_text: bool = False, session: AsyncSession | None = None
 ) -> Quote | None:
-    count_stmt = sqlalchemy.select(sqlalchemy.func.count()).where(
-        Quote.chat_id == chat_id
-    )
+    if with_text:
+        count_stmt = sqlalchemy.select(sqlalchemy.func.count()).where(
+            sqlalchemy.and_(
+                Quote.chat_id == chat_id,
+                Quote.text.is_not(None),
+            )
+        )
+    else:
+        count_stmt = sqlalchemy.select(sqlalchemy.func.count()).where(
+            Quote.chat_id == chat_id
+        )
     result = await session.execute(count_stmt)
     count = result.scalar_one()
 
@@ -129,6 +137,27 @@ async def get_user_quotes_page(
         .where(Quote.user_id == user_id)
         .offset((page - 1) * page_size)
         .limit(page_size)
+    )
+    result = await session.execute(stmt)
+    return result.scalars().all()
+
+
+@with_session
+async def take_chat_quotes(
+    chat_id: int,
+    query: str = "",
+    limit: int = 50,
+    session: AsyncSession | None = None,
+) -> list[Quote]:
+    stmt = (
+        sqlalchemy.select(Quote)
+        .options(sqlalchemy.orm.selectinload(Quote.user))
+        .where(
+            Quote.chat_id == chat_id,
+            Quote.text.ilike(f"%{query}%"),
+        )
+        .order_by(sqlalchemy.func.random())
+        .limit(limit)
     )
     result = await session.execute(stmt)
     return result.scalars().all()

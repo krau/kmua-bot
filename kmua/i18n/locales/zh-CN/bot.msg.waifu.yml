@@ -1,0 +1,35 @@
+bot:
+  msg:
+    waifu:
+      disabled: 这里不允许使用 waifu 功能哦
+      not_found: 你现在没有老婆, 因为咱的记录中找不到其他群友
+      retry: 你没能抽到老婆, 再试一次吧~
+      got: "{user}, 你今天已经抽过老婆了! {waifu} 是你今天的老婆!"
+      normal: "{user}, 你今天的群幼老婆是 {waifu}!"
+      got_nouser: "你今天已经抽过老婆了! {waifu} 是你今天的老婆!"
+      normal_nouser: "你今天的群幼老婆是 {waifu}!"
+      married: "{user}, 你和 {waifu} 已经结婚了哦~"
+      remove_not_found: 查无此人,可能已经被移除了
+      remove: 确定要移除ta吗?
+      removed: "已移除该用户, ta 曾是 {user} 的老婆"
+      marry_not_real: ＞﹏＜ Ta 不是真实用户哦.(不支持与匿名管理, 频道身份等结婚)
+      marry_self: (。・ω・。) 总会有人不远万里为你而来
+      marry_not_user: (￣ε(#￣) 别人的事情咱不要打扰呢
+      already_married: 你已经和 ta 结婚了哦
+      already_married_other: （＞人＜；）Ta 已经有别人了呢, 愿你找到对的人
+      user_already_married_other: ∑( 口 || 你已经有老婆了, 不要再去招惹别人了哦
+      marry_ask: "{waifu}, 你愿意和 {user} 结婚嘛?"
+      marry_success: "恭喜 {user} 和 {waifu} 结婚啦~"
+      marry_refused: "(´。＿。｀) 你拒绝了 ta 的求婚呢. 有些人一旦错过就不再..."
+      marry_cancel: 你取消了这个求婚请求
+      no_participate: 本群今日没有人抽过老婆哦
+      graph_caption: 群u关系图, 共 {count} 人参与
+      divorce_not_married: 可是...你还没有结婚呀qwq
+      divorce_not_found: 你的老婆找不到啦!
+      divorce_success: <i>愿你有一天和重要之人重逢</i>
+      divorce_notify: "{user} 和你解除了关系 QAQ..."
+      divorce_confirm: 你确定要和 {waifu} 离婚吗?
+      info: |
+        是否 @ 你: {mention}
+        已结婚: {married}
+        结婚的老婆id: {married_waifu_id}
