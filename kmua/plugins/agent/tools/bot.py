@@ -48,6 +48,7 @@ async def get_and_send_a_anime_photo(
         return "Message ID is required to reply with the photo."
     if (
         ctx.deps.chat_id is not None
+        and ctx.deps.chat_id != ctx.deps.user_id
         and not (await database.get_chat_config(ctx.deps.chat_id)).setu_enabled
     ):
         return "Feature is disabled by group administrator."
