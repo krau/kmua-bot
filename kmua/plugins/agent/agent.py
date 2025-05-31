@@ -10,7 +10,7 @@ from pyrogram import filters
 from kmua import common
 from kmua.config import app_config
 
-from . import myfilter, tools, types, utils
+from . import datatype, myfilter, tools, utils
 from .simple_reply import word_reply
 
 agent = None
@@ -32,7 +32,7 @@ if app_config.agent:
             tools.get_and_send_a_anime_photo,
             duckduckgo_search_tool(),
         ],
-        deps_type=types.ContextDeps,
+        deps_type=datatype.ContextDeps,
     )
 
 
@@ -57,32 +57,46 @@ async def wake_agent(client: pyrogram.Client, message: pyrogram.types.Message):
     await common.memstore.set(_waiting_key(user.id), True)
     try:
         history = await common.memttlcache.get(_history_key(user.id), [])
-        async with agent.run_stream(
+        # async with agent.run_stream(
+        #     message.text,
+        #     message_history=history,
+        #     deps=datatype.ContextDeps(
+        #         user_id=user.id,
+        #         chat_id=message.chat.id if message.chat else None,
+        #         message_id=message.id,
+        #         client=client,
+        #     ),
+        # ) as result:
+        #     replied = None
+        #     buffer = ""
+        #     last_edit = time.monotonic()
+        #     async for msg in result.stream_text():
+        #         buffer = msg
+        #         if time.monotonic() - last_edit <= 2.33 and replied:
+        #             continue
+        #         if not replied:
+        #             replied = await message.reply_text(buffer)
+        #         else:
+        #             replied = await replied.edit_text(buffer)
+        #         last_edit = time.monotonic()
+        #     if not replied:
+        #         replied = await message.reply_text(buffer)
+        #     else:
+        #         replied = await replied.edit_text(buffer)
+        # 不知道为啥在有些模型里用 stream 会导致 tool call 推迟
+        result = await agent.run(
             message.text,
             message_history=history,
-            deps=types.ContextDeps(
+            deps=datatype.ContextDeps(
                 user_id=user.id,
                 chat_id=message.chat.id if message.chat else None,
                 message_id=message.id,
                 client=client,
             ),
-        ) as result:
-            replied = None
-            buffer = ""
-            last_edit = time.monotonic()
-            async for msg in result.stream_text():
-                buffer = msg
-                if time.monotonic() - last_edit <= 2.33 and replied:
-                    continue
-                if not replied:
-                    replied = await message.reply_text(buffer)
-                else:
-                    replied = await replied.edit_text(buffer)
-                last_edit = time.monotonic()
-            if not replied:
-                replied = await message.reply_text(buffer)
-            else:
-                replied = await replied.edit_text(buffer)
+        )
+        await message.reply_text(
+            result.output, parse_mode=pyrogram.enums.ParseMode.MARKDOWN
+        )
         summary = await utils.summarize_history(agent, result.all_messages())
         await common.memttlcache.set(_history_key(user.id), summary, ttl=86400 * 2)
     finally:

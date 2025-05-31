@@ -12,7 +12,7 @@ from kmua import common, database, i18n
 from kmua.config import app_config
 from kmua.logger import logger
 
-from . import types
+from . import datatype
 
 
 def get_current_time() -> datetime.datetime:
@@ -26,7 +26,7 @@ class UserInfo(BaseModel):
     username: str | None = None
 
 
-async def get_user_info(ctx: RunContext[types.ContextDeps]) -> UserInfo | None:
+async def get_user_info(ctx: RunContext[datatype.ContextDeps]) -> UserInfo | None:
     user_db = await database.get_user_by_id(ctx.deps.user_id)
     if user_db is None:
         return None
@@ -49,7 +49,7 @@ class ChatInfo(BaseModel):
     username: str | None = None
 
 
-async def get_chat_info(ctx: RunContext[types.ContextDeps]) -> ChatInfo | None:
+async def get_chat_info(ctx: RunContext[datatype.ContextDeps]) -> ChatInfo | None:
     """Get chat(group) full infomation.
 
 
@@ -82,7 +82,7 @@ async def get_chat_info(ctx: RunContext[types.ContextDeps]) -> ChatInfo | None:
     )
 
 
-async def get_and_send_a_anime_photo(ctx: RunContext[types.ContextDeps]) -> bool:
+async def get_and_send_a_anime_photo(ctx: RunContext[datatype.ContextDeps]) -> bool:
     """Get and send a random anime photo (some users call it setu/涩图).
 
     Returns:
