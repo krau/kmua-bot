@@ -105,16 +105,25 @@ MessageID: {message.id}
 """
         user_prompt = context_info + user_prompt
         logger.debug(f"User {user.id} prompt: {user_prompt}")
-        result = await agent.run(
-            user_prompt,
-            message_history=history,
-            deps=datatype.ContextDeps(
-                user_id=user.id,
-                chat_id=chat_id,
-                message=message,
-                client=client,
-            ),
-        )
+        try:
+            result = await agent.run(
+                user_prompt,
+                message_history=history,
+                deps=datatype.ContextDeps(
+                    user_id=user.id,
+                    chat_id=chat_id,
+                    message=message,
+                    client=client,
+                ),  # type: ignore
+            )
+        except TypeError as e:
+            # https://github.com/pydantic/pydantic-ai/issues/527
+            logger.error(f"Agent run error: {e}")
+            summary = await utils.summarize_history(agent, history)
+            await common.memttlcache.set(
+                _history_key(chat_id, user.id), summary, ttl=86400 * 2
+            )
+            return
         await message.reply_text(
             result.output,
             parse_mode=pyrogram.enums.ParseMode.MARKDOWN,

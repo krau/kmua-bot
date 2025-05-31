@@ -40,6 +40,7 @@ Internal info:
 - Markdown: chars '_', '', '`', '\[' that are not used as boundaries MUST be escaped with '\'. 
 Eg:  bold,   a \ b = ab.
 """
+    agent_messages_threshold: int = 20
 
     # external services
     redis: bool = False

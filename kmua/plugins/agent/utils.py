@@ -1,12 +1,14 @@
 from pydantic_ai import Agent
 from pydantic_ai.messages import ModelMessage, ModelRequest, SystemPromptPart
 
+from kmua.config import app_config
+
 
 async def summarize_history(
     summary_agent: Agent,
     message_history: list[ModelMessage],
     preserve_last_n: int = 4,
-    messages_threshold: int = 25,
+    messages_threshold: int = app_config.agent_messages_threshold,
 ) -> list[ModelMessage]:
     if preserve_last_n >= messages_threshold:
         raise ValueError(
@@ -25,7 +27,7 @@ async def summarize_history(
     )
 
     summary_part = SystemPromptPart(
-        content=f"CONVERSATION HISTORY: {summary_result.output}"
+        content=f"[CONVERSATION HISTORY]: {summary_result.output}"
     )
 
     return [
