@@ -69,9 +69,13 @@ def _waiting_key(user_id: int) -> str:
 )
 async def wake_agent(client: pyrogram.Client, message: pyrogram.types.Message):
     user = message.sender_chat or message.from_user
+    if not user:
+        return await word_reply(client, message)
     if not app_config.agent or await common.memstore.get(_waiting_key(user.id)):
         return await word_reply(client, message)
     chat = message.chat
+    if not chat:
+        return await word_reply(client, message)
     if chat.type == pyrogram.enums.ChatType.SUPERGROUP:
         chat_config = await database.get_chat_config(chat)
         if not chat_config.ai_reply:
@@ -80,12 +84,12 @@ async def wake_agent(client: pyrogram.Client, message: pyrogram.types.Message):
     await message.reply_chat_action(pyrogram.enums.ChatAction.TYPING)
     await common.memstore.set(_waiting_key(user.id), True)
     try:
-        chat_id = message.chat.id if message.chat else user.id
+        chat_id = message.chat.id
         history = await common.memttlcache.get(_history_key(chat_id, user.id), [])
         user_prompt = message.text or message.caption or ""
         if reply_to := message.reply_to_message:
             user_prompt += f"""
-[REPLY TO MESSAGE](ID: {reply_to.id}):
+[REPLY TO MESSAGE](MessageID: {reply_to.id}):
 {reply_to.text or reply_to.caption or "[NO TEXT]"}
 """
         context_info = f"""
