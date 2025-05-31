@@ -3,6 +3,8 @@ from typing import Any
 
 from aiocache import SimpleMemoryCache
 
+from kmua.config import app_config
+
 
 class _MemStore:
     def __init__(self) -> None:
@@ -31,7 +33,20 @@ memstore = _MemStore()
 
 class _MemTTLCache:
     def __init__(self) -> None:
-        self.cache = SimpleMemoryCache()
+        if app_config.redis:
+            from aiocache import RedisCache
+            from aiocache.serializers import PickleSerializer
+
+            self.cache = RedisCache(
+                serializer=PickleSerializer(),
+                namespace="kmua",
+                endpoint=app_config.redis_endpoint,
+                port=app_config.redis_port,
+                db=app_config.redis_db,
+                password=app_config.redis_password,
+            )
+        else:
+            self.cache = SimpleMemoryCache()
 
     async def set(self, key: str, value: Any, ttl: int = 60) -> None:
         await self.cache.set(key, value, ttl=ttl)

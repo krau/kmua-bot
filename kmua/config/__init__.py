@@ -41,6 +41,13 @@ Internal info:
 Eg:  bold,   a \ b = ab.
 """
 
+    # external services
+    redis: bool = False
+    redis_endpoint: str = "localhost"
+    redis_port: int = 6379
+    redis_db: int = 0
+    redis_password: str = ""
+
     # internal | debug | some other configs
     workdir: Path = Path(__file__).resolve().parent.parent.parent / "data"
     debug: bool = False
