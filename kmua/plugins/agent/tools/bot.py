@@ -1,6 +1,7 @@
 import datetime
 import random
 from dataclasses import dataclass
+from typing import Literal
 
 import pyrogram
 from pydantic_ai import ModelRetry, RunContext
@@ -123,33 +124,74 @@ def _chat_message_key(chat_id: int, message_id: int) -> str:
     return f"chat_history:{chat_id}:{message_id}"
 
 
-async def get_latest_messages(
-    ctx: RunContext[datatype.ContextDeps], count: int = 50
+async def get_history_messages(
+    ctx: RunContext[datatype.ContextDeps],
+    direction: Literal["latest", "before", "after", "between"] = "latest",
+    count: int = 50,
+    anchor_id: int | None = None,
+    start_id: int | None = None,
+    end_id: int | None = None,
 ) -> list[HistoryMessage] | str:
-    """Get latest messages in the chat, you can try using this tool if you missing some context.
+    """
+    Fetch historical messages from chat.
 
     Args:
-        count: (int) Number of messages to fetch, must be between 1 and 200, inclusive.
+        direction:
+            - "latest": fetch latest messages;
+            - "before": messages before anchor_id;
+            - "after": messages after anchor_id;
+            - "between": messages from start_id to end_id (inclusive of start, exclusive of end).
+        count: max number of messages to fetch (1~200).
+        anchor_id: used for "before"/"after" directions.
+        start_id: starting message ID (for "between" mode).
+        end_id: ending message ID (for "between" mode).
 
     Returns:
-        List of latest messages, or error string if failed.
+        A list of HistoryMessage or error string.
     """
-    logger.debug(
-        f"get_latest_messages called with chat_id: {ctx.deps.chat_id}, user_id: {ctx.deps.user_id}, message_id: {ctx.deps.message.id}, count: {count}"
-    )
-    client = ctx.deps.client
-    current_message_id = ctx.deps.message.id if ctx.deps.message else None
-    if current_message_id is None:
-        return "Current message ID is None, cannot fetch history."
+
     if count <= 0 or count > 200:
         raise ModelRetry("Count must be between 1 and 200, inclusive.")
 
     chat_id = ctx.deps.chat_id
+    client = ctx.deps.client
+
+    current_id = ctx.deps.message.id
+
+    if direction == "latest":
+        if current_id is None:
+            return "Cannot fetch latest messages: current message ID is unknown."
+        start_id = max(1, current_id - count + 1)
+        end_id = current_id + 1
+
+    elif direction == "before":
+        if anchor_id is None:
+            return "Missing anchor_id for direction 'before'."
+        start_id = max(1, anchor_id - count)
+        end_id = anchor_id
+
+    elif direction == "after":
+        if anchor_id is None:
+            return "Missing anchor_id for direction 'after'."
+        start_id = anchor_id + 1
+        end_id = anchor_id + 1 + count
+
+    elif direction == "between":
+        if start_id is None or end_id is None:
+            return "Both start_id and end_id are required for 'between'."
+        if end_id <= start_id:
+            return "end_id must be greater than start_id."
+        if end_id - start_id > 200:
+            return "Maximum allowed range is 200 messages."
+    else:
+        return f"Invalid direction: {direction}"
+
+    logger.debug(
+        f"get_history_messages called: direction={direction}, start_id={start_id}, end_id={end_id}, chat_id={chat_id}"
+    )
+
     message_ids_to_fetch = []
     cached_messages = {}
-
-    start_id = max(1, current_message_id - count + 1)
-    end_id = current_message_id + 1
 
     for i in range(start_id, end_id):
         cached_msg = await common.memttlcache.get(_chat_message_key(chat_id, i), None)
@@ -161,7 +203,7 @@ async def get_latest_messages(
     new_messages = []
     if message_ids_to_fetch:
         msgs = await client.get_messages(
-            chat_id=ctx.deps.chat_id, message_ids=message_ids_to_fetch, replies=1
+            chat_id=chat_id, message_ids=message_ids_to_fetch, replies=1
         )
 
         if isinstance(msgs, pyrogram.types.Message):
@@ -176,13 +218,11 @@ async def get_latest_messages(
                     time=msg.date,
                 )
                 new_messages.append(history_msg)
-
                 await common.memttlcache.set(
                     _chat_message_key(chat_id, msg.id), history_msg, ttl=86400
                 )
 
     all_messages: list[HistoryMessage] = list(cached_messages.values()) + new_messages
-
     all_messages.sort(key=lambda msg: 0 if msg.time is None else msg.time.timestamp())
 
     return all_messages

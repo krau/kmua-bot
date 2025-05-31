@@ -7,6 +7,7 @@ from pyrogram import filters
 
 from kmua import common, database, i18n
 from kmua.config import app_config
+from kmua.logger import logger
 from kmua.plugins.manyacg.manyacg import ARTWORK_ALL_REGEX
 
 from . import datatype, myfilter, tools, utils
@@ -25,7 +26,7 @@ if app_config.agent:
         model=model,
         system_prompt=app_config.agent_prompt,
         tools=[
-            tools.get_latest_messages,
+            tools.get_history_messages,
             tools.get_current_time,
             tools.get_ip_info,
             tools.get_user_info,
@@ -77,7 +78,17 @@ async def wake_agent(client: pyrogram.Client, message: pyrogram.types.Message):
         history = await common.memttlcache.get(_history_key(chat_id, user.id), [])
         user_prompt = message.text or message.caption or ""
         if reply_to := message.reply_to_message:
-            user_prompt += f"\n[REPLY TO MESSAGE]({reply_to.link}):\n{reply_to.text or reply_to.caption or '[NO TEXT]'}"
+            user_prompt += f"""
+[REPLY TO MESSAGE](ID: {reply_to.id}):
+{reply_to.text or reply_to.caption or "[NO TEXT]"}
+"""
+        context_info = f"""
+[CONTEXT INFO]:
+MessageID: {message.id}
+[USER MESSAGE]:
+"""
+        user_prompt = context_info + user_prompt
+        logger.debug(f"User {user.id} prompt: {user_prompt}")
         result = await agent.run(
             user_prompt,
             message_history=history,
