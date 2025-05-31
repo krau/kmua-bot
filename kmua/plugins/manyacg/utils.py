@@ -40,8 +40,6 @@ async def prepare_media(
         len(pic_bytes) > 1024 * 1024 * 10
         or picture["width"] + picture["height"] > 10000
     ):
-        pic_bytes = await asyncio.to_thread(
-            _resize_image, pic_bytes, picture["width"], picture["height"]
-        )
+        pic_bytes = await asyncio.to_thread(_resize_image, pic_bytes)
 
     return pic_bytes
