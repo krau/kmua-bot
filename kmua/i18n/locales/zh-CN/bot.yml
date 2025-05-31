@@ -59,6 +59,7 @@ bot:
       /ip - 查询IP/域名信息
       /botpromote - 在群组中设置bot管理员 (对于bot该用户将具有同等于群主的权限)
       /f5avatar - 刷新你的头像
+      /forget - 让 bot 忘记与你的对话记录
       </blockquote>
       对其他人使用 "/" 或 "\" 即可对其施法
     help_inline: |
@@ -108,3 +109,6 @@ bot:
       user_not_real: 该用户不是真实用户
       user_not_in_chat: 该用户似乎不在数据里, 让 ta 出来发个言吧~
       success: 已将 {user} 在本群的 Bot 管理权限设为 {status}
+    agent:
+      waiting: 正在等待响应, 请稍等一会儿...
+      forgot: 刚刚发生了什么, 好像忘记了呢...

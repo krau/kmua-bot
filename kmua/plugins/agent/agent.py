@@ -8,7 +8,7 @@ from pydantic_ai.models.openai import OpenAIModel
 from pydantic_ai.providers.openai import OpenAIProvider
 from pyrogram import filters
 
-from kmua import common
+from kmua import common, database, i18n
 from kmua.config import app_config
 from kmua.plugins.manyacg.manyacg import ARTWORK_ALL_REGEX
 
@@ -36,6 +36,20 @@ if app_config.agent:
         ],
         deps_type=datatype.ContextDeps,
     )
+
+    @pyrogram.Client.on_message(pyrogram.filters.command("forget"), group=0)
+    async def forget_history(client: pyrogram.Client, message: pyrogram.types.Message):
+        user = message.sender_chat or message.from_user
+        user_config = await database.get_user_config(user)
+        if await common.memstore.get(_waiting_key(user.id)):
+            await message.reply_text(
+                i18n.t("bot.msg.agent.waiting", locale=user_config.lang)
+            )
+            return
+        await common.memttlcache.delete(_history_key(user.id))
+        await message.reply_text(
+            i18n.t("bot.msg.agent.forgot", locale=user_config.lang)
+        )
 
 
 def _history_key(user_id: int) -> str:
