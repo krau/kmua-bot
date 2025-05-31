@@ -30,10 +30,10 @@ async def today_waifu(client: pyrogram.Client, message: pyrogram.types.Message):
     if await common.memstore.get(lock_key):
         return
     await common.memstore.set(lock_key, True)
-    waifu: UserData | None = None
-    user = await database.upsert_user(raw_user)
-    chat: ChatData = await database.upsert_chat(raw_chat)
     try:
+        waifu: UserData | None = None
+        user = await database.upsert_user(raw_user)
+        chat: ChatData = await database.upsert_chat(raw_chat)
         await message.reply_chat_action(pyrogram.enums.ChatAction.TYPING)
         waifu, is_got = await utils.get_waifu_for_user(user, chat)
         if not waifu:
