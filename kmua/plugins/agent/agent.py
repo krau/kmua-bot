@@ -1,7 +1,4 @@
-import asyncio
-
 import pyrogram
-import pyrogram.errors
 from pydantic_ai import Agent
 from pydantic_ai.common_tools.duckduckgo import duckduckgo_search_tool
 from pydantic_ai.models.openai import OpenAIModel
@@ -31,6 +28,7 @@ if app_config.agent:
             tools.get_current_time,
             tools.get_user_info,
             tools.get_chat_info,
+            tools.get_latest_messages,
             tools.get_and_send_a_anime_photo,
             duckduckgo_search_tool(),
         ],
@@ -74,45 +72,13 @@ async def wake_agent(client: pyrogram.Client, message: pyrogram.types.Message):
     await common.memstore.set(_waiting_key(user.id), True)
     try:
         history = await common.memttlcache.get(_history_key(user.id), [])
-        # async with agent.run_stream(
-        #     message.text,
-        #     message_history=history,
-        #     deps=datatype.ContextDeps(
-        #         user_id=user.id,
-        #         chat_id=message.chat.id if message.chat else None,
-        #         message_id=message.id,
-        #         client=client,
-        #     ),
-        # ) as result:
-        #     replied = None
-        #     buffer = ""
-        #     last_edit = asyncio.get_event_loop().time()
-        #     async for msg in result.stream_text():
-        #         buffer = msg
-        #         current_time = asyncio.get_event_loop().time()
-        #         if current_time - last_edit <= 2.33 and replied:
-        #             continue
-        #         if not replied:
-        #             replied = await message.reply_text(buffer)
-        #         else:
-        #             replied = await replied.edit_text(buffer)
-        #         last_edit = current_time
-        #     if buffer and replied:
-        #         try:
-        #             await replied.edit_text(
-        #                 buffer, parse_mode=pyrogram.enums.ParseMode.MARKDOWN
-        #             )
-        #         except pyrogram.errors.MessageNotModified:
-        #             pass
-        # run_stream 副作用有点多, 官方已经准备弃用了
-        # https://github.com/pydantic/pydantic-ai/issues/1007
         result = await agent.run(
             message.text,
             message_history=history,
             deps=datatype.ContextDeps(
                 user_id=user.id,
                 chat_id=message.chat.id if message.chat else None,
-                message_id=message.id,
+                message=message,
                 client=client,
             ),
         )

@@ -2,6 +2,7 @@ from pydantic import BaseModel
 from pydantic_ai import RunContext
 
 from kmua import common, database
+from kmua.logger import logger
 
 from .. import datatype
 
@@ -14,6 +15,7 @@ class UserInfo(BaseModel):
 
 
 async def get_user_info(ctx: RunContext[datatype.ContextDeps]) -> UserInfo | None:
+    logger.debug("Fetching user info for user_id: %s", ctx.deps.user_id)
     user_db = await database.get_user_by_id(ctx.deps.user_id)
     if user_db is None:
         return None
@@ -39,13 +41,14 @@ class ChatInfo(BaseModel):
 async def get_chat_info(ctx: RunContext[datatype.ContextDeps]) -> ChatInfo | None:
     """Get chat(group) full infomation.
 
-
     Returns:
         ChatInfo object if session in a chat and chat exists in database,
         None otherwise.
     """
+    
     if ctx.deps.chat_id is None:
         return None
+    logger.debug("Fetching chat info for chat_id: %s", ctx.deps.chat_id)
     chat_db = await database.get_chat_by_id(ctx.deps.chat_id)
     if chat_db is None:
         return None
