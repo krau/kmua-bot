@@ -7,5 +7,5 @@ import pyrogram
 class ContextDeps:
     client: pyrogram.Client
     user_id: int
-    chat_id: int | None = None
-    message: pyrogram.types.Message | None = None
+    chat_id: int
+    message: pyrogram.types.Message

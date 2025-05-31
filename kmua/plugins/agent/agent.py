@@ -44,14 +44,15 @@ if app_config.agent:
                 i18n.t("bot.msg.agent.waiting", locale=user_config.lang)
             )
             return
-        await common.memttlcache.delete(_history_key(user.id))
+        chat_id = message.chat.id if message.chat else user.id
+        await common.memttlcache.delete(_history_key(chat_id, user.id))
         await message.reply_text(
             i18n.t("bot.msg.agent.forgot", locale=user_config.lang)
         )
 
 
-def _history_key(user_id: int) -> str:
-    return f"message_history_with_agent:{user_id}"
+def _history_key(chat_id: int, user_id: int) -> str:
+    return f"message_history_with_agent:{chat_id}:{user_id}"
 
 
 def _waiting_key(user_id: int) -> str:
@@ -71,13 +72,14 @@ async def wake_agent(client: pyrogram.Client, message: pyrogram.types.Message):
     await message.reply_chat_action(pyrogram.enums.ChatAction.TYPING)
     await common.memstore.set(_waiting_key(user.id), True)
     try:
-        history = await common.memttlcache.get(_history_key(user.id), [])
+        chat_id = message.chat.id if message.chat else user.id
+        history = await common.memttlcache.get(_history_key(chat_id, user.id), [])
         result = await agent.run(
             message.text,
             message_history=history,
             deps=datatype.ContextDeps(
                 user_id=user.id,
-                chat_id=message.chat.id if message.chat else None,
+                chat_id=chat_id,
                 message=message,
                 client=client,
             ),
@@ -87,6 +89,8 @@ async def wake_agent(client: pyrogram.Client, message: pyrogram.types.Message):
             parse_mode=pyrogram.enums.ParseMode.MARKDOWN,
         )
         summary = await utils.summarize_history(agent, result.all_messages())
-        await common.memttlcache.set(_history_key(user.id), summary, ttl=86400 * 2)
+        await common.memttlcache.set(
+            _history_key(chat_id, user.id), summary, ttl=86400 * 2
+        )
     finally:
         await common.memstore.delete(_waiting_key(user.id))

@@ -15,7 +15,7 @@ class UserInfo(BaseModel):
 
 
 async def get_user_info(ctx: RunContext[datatype.ContextDeps]) -> UserInfo | None:
-    logger.debug("Fetching user info for user_id: %s", ctx.deps.user_id)
+    logger.debug(f"Fetching user info for user_id: {ctx.deps.user_id}")
     user_db = await database.get_user_by_id(ctx.deps.user_id)
     if user_db is None:
         return None
@@ -45,22 +45,34 @@ async def get_chat_info(ctx: RunContext[datatype.ContextDeps]) -> ChatInfo | Non
         ChatInfo object if session in a chat and chat exists in database,
         None otherwise.
     """
-    
-    if ctx.deps.chat_id is None:
-        return None
-    logger.debug("Fetching chat info for chat_id: %s", ctx.deps.chat_id)
-    chat_db = await database.get_chat_by_id(ctx.deps.chat_id)
-    if chat_db is None:
-        return None
-    chat_full = await common.memttlcache.get(f"chatfull_{chat_db.id}", None)
+    chat_id = ctx.deps.chat_id
+    chat_title = ""
+    chat_username = None
+    chat_config = {}
+    logger.debug(f"Fetching chat info for chat_id: {ctx.deps.chat_id}")
+    if chat_id == ctx.deps.user_id:
+        user_db = await database.get_user_by_id(ctx.deps.user_id)
+        if user_db is None:
+            return None
+        chat_title = user_db.full_name
+        chat_username = user_db.username
+        chat_config = user_db.config
+    else:
+        chat_db = await database.get_chat_by_id(ctx.deps.chat_id)
+        if chat_db is None:
+            return None
+        chat_title = chat_db.title
+        chat_username = chat_db.username
+        chat_config = chat_db.config
+    chat_full = await common.memttlcache.get(f"chatfull_{chat_id}", None)
     if not chat_full:
-        chat_full = await ctx.deps.client.get_chat(chat_db.id)
-        await common.memttlcache.set(f"chatfull_{chat_db.id}", chat_full, 86400)
+        chat_full = await ctx.deps.client.get_chat(chat_id)
+        await common.memttlcache.set(f"chatfull_{chat_id}", chat_full, 86400)
     return ChatInfo(
-        chat_id=chat_db.id,
-        title=chat_db.title,
-        username=chat_db.username,
-        config=chat_db.config,
+        chat_id=chat_id,
+        title=chat_title,
+        username=chat_username,
+        config=chat_config,
         description=chat_full.description or chat_full.bio,
         linked_channel=chat_full.linked_chat.title if chat_full.linked_chat else None,
         members_count=chat_full.members_count

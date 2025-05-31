@@ -41,7 +41,9 @@ async def get_and_send_a_anime_photo(
     Returns:
         An AnimePhotoInfo object if successful, or an error message string.
     """
-    logger.debug(f"get_and_send_a_anime_photo called with deps: {ctx.deps}")
+    logger.debug(
+        f"get_and_send_a_anime_photo called with chat_id: {ctx.deps.chat_id}, user_id: {ctx.deps.user_id}"
+    )
     if ctx.deps.message is None or ctx.deps.message.id is None:
         return "Message ID is required to reply with the photo."
     if (
@@ -116,7 +118,7 @@ class HistoryMessage:
     time: datetime.datetime | None = None
 
 
-def _chat_history_key(chat_id: int, message_id: int) -> str:
+def _chat_message_key(chat_id: int, message_id: int) -> str:
     return f"chat_history:{chat_id}:{message_id}"
 
 
@@ -128,7 +130,9 @@ async def get_latest_messages(
     Returns:
         List of latest messages, or error string if failed.
     """
-    logger.debug(f"get_latest_messages called with deps: {ctx.deps}, count: {count}")
+    logger.debug(
+        f"get_latest_messages called with chat_id: {ctx.deps.chat_id}, user_id: {ctx.deps.user_id}, message_id: {ctx.deps.message.id}, count: {count}"
+    )
     client = ctx.deps.client
     current_message_id = ctx.deps.message.id if ctx.deps.message else None
     if current_message_id is None:
@@ -144,7 +148,7 @@ async def get_latest_messages(
     end_id = current_message_id + 1
 
     for i in range(start_id, end_id):
-        cached_msg = await common.memttlcache.get(_chat_history_key(chat_id, i), None)
+        cached_msg = await common.memttlcache.get(_chat_message_key(chat_id, i), None)
         if cached_msg is None:
             message_ids_to_fetch.append(i)
         else:
@@ -170,7 +174,7 @@ async def get_latest_messages(
                 new_messages.append(history_msg)
 
                 await common.memttlcache.set(
-                    _chat_history_key(chat_id, msg.id), history_msg, ttl=86400
+                    _chat_message_key(chat_id, msg.id), history_msg, ttl=86400
                 )
 
     all_messages: list[HistoryMessage] = list(cached_messages.values()) + new_messages
