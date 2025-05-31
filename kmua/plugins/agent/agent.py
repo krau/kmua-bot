@@ -26,6 +26,7 @@ if app_config.agent:
         system_prompt=app_config.agent_prompt,
         tools=[
             tools.get_current_time,
+            tools.get_ip_info,
             tools.get_user_info,
             tools.get_chat_info,
             tools.get_latest_messages,
@@ -74,8 +75,11 @@ async def wake_agent(client: pyrogram.Client, message: pyrogram.types.Message):
     try:
         chat_id = message.chat.id if message.chat else user.id
         history = await common.memttlcache.get(_history_key(chat_id, user.id), [])
+        user_prompt = message.text or message.caption or ""
+        if reply_to := message.reply_to_message:
+            user_prompt += f"\n[REPLY TO MESSAGE]({reply_to.link}):\n{reply_to.text or reply_to.caption or '[NO TEXT]'}"
         result = await agent.run(
-            message.text,
+            user_prompt,
             message_history=history,
             deps=datatype.ContextDeps(
                 user_id=user.id,
