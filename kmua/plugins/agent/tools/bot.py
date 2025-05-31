@@ -114,8 +114,9 @@ async def get_and_send_a_anime_photo(
 
 @dataclass
 class HistoryMessage:
+    # chat_id: int
     user_id: int
-    chat_id: int
+    username: str | None = None
     text: str | None = None
     time: datetime.datetime | None = None
 
@@ -210,10 +211,14 @@ async def get_history_messages(
             msgs = [msgs]
 
         for msg in msgs:
-            if msg and msg.from_user and (msg.text or msg.caption):
+            if msg and (msg.sender_chat or msg.from_user) and (msg.text or msg.caption):
+                user = msg.sender_chat or msg.from_user
+                user_db = await database.get_user_by_id(user.id)
                 history_msg = HistoryMessage(
-                    user_id=(msg.sender_chat or msg.from_user).id,
-                    chat_id=msg.chat.id if msg.chat else 0,
+                    # user_id=(msg.sender_chat or msg.from_user).id,
+                    # chat_id=msg.chat.id if msg.chat else 0,
+                    user_id=user.id,
+                    username=user_db.full_name or str(user_db.id),
                     text=msg.text or msg.caption,
                     time=msg.date,
                 )
