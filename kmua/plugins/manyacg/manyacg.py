@@ -53,6 +53,8 @@ async def parse_artwork(client: pyrogram.Client, message: pyrogram.types.Message
         lang = user_config.lang
     if not message.matches:
         return
+    if not message.text:
+        return
     artwork_url = message.matches[0].group()
     if not artwork_url:
         return
