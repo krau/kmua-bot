@@ -34,19 +34,23 @@ if app_config.agent:
             tools.get_and_send_a_anime_photo,
             duckduckgo_search_tool(),
         ],
-        deps_type=datatype.ContextDeps,
-    )
+        deps_type=datatype.ContextDeps,  # type: ignore
+    )  # type: ignore
 
     @pyrogram.Client.on_message(pyrogram.filters.command("forget"), group=0)
     async def forget_history(client: pyrogram.Client, message: pyrogram.types.Message):
         user = message.sender_chat or message.from_user
-        user_config = await database.get_user_config(user)
+        if not user or user.id is None:
+            return
+        user_config = await database.get_user_config(user.id)
         if await common.memstore.get(_waiting_key(user.id)):
             await message.reply_text(
                 i18n.t("bot.msg.agent.waiting", locale=user_config.lang)
             )
             return
         chat_id = message.chat.id if message.chat else user.id
+        if not chat_id:
+            return
         await common.memttlcache.delete(_history_key(chat_id, user.id))
         await message.reply_text(
             i18n.t("bot.msg.agent.forgot", locale=user_config.lang)
@@ -69,22 +73,24 @@ def _waiting_key(user_id: int) -> str:
 )
 async def wake_agent(client: pyrogram.Client, message: pyrogram.types.Message):
     user = message.sender_chat or message.from_user
-    if not user:
+    if not user or not user.id:
         return await word_reply(client, message)
     if not app_config.agent or await common.memstore.get(_waiting_key(user.id)):
         return await word_reply(client, message)
     chat = message.chat
-    if not chat:
+    if not chat or not chat.id:
         return await word_reply(client, message)
     if chat.type == pyrogram.enums.ChatType.SUPERGROUP:
         chat_config = await database.get_chat_config(chat)
         if not chat_config.ai_reply:
             return await word_reply(client, message)
+    if not agent:
+        return await word_reply(client, message)
 
     await message.reply_chat_action(pyrogram.enums.ChatAction.TYPING)
     await common.memstore.set(_waiting_key(user.id), True)
     try:
-        chat_id = message.chat.id
+        chat_id = chat.id
         history = await common.memttlcache.get(_history_key(chat_id, user.id), [])
         user_prompt = message.text or message.caption or ""
         if reply_to := message.reply_to_message:

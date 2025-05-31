@@ -209,23 +209,29 @@ async def get_history_messages(
 
         if isinstance(msgs, pyrogram.types.Message):
             msgs = [msgs]
-
-        for msg in msgs:
-            if msg and (msg.sender_chat or msg.from_user) and (msg.text or msg.caption):
-                user = msg.sender_chat or msg.from_user
-                user_db = await database.get_user_by_id(user.id)
-                history_msg = HistoryMessage(
-                    # user_id=(msg.sender_chat or msg.from_user).id,
-                    # chat_id=msg.chat.id if msg.chat else 0,
-                    user_id=user.id,
-                    username=user_db.full_name or str(user_db.id),
-                    text=msg.text or msg.caption,
-                    time=msg.date,
-                )
-                new_messages.append(history_msg)
-                await common.memttlcache.set(
-                    _chat_message_key(chat_id, msg.id), history_msg, ttl=86400
-                )
+        if msgs:
+            for msg in msgs:
+                if (
+                    msg
+                    and (msg.sender_chat or msg.from_user)
+                    and (msg.text or msg.caption)
+                ):
+                    user = msg.sender_chat or msg.from_user
+                    if user is None or user.id is None:
+                        continue
+                    user_db = await database.get_user_by_id(user.id)
+                    history_msg = HistoryMessage(
+                        # user_id=(msg.sender_chat or msg.from_user).id,
+                        # chat_id=msg.chat.id if msg.chat else 0,
+                        user_id=user.id,
+                        username=user_db.full_name or str(user_db.id),
+                        text=msg.text or msg.caption,
+                        time=msg.date,
+                    )
+                    new_messages.append(history_msg)
+                    await common.memttlcache.set(
+                        _chat_message_key(chat_id, msg.id), history_msg, ttl=86400
+                    )
 
     all_messages: list[HistoryMessage] = list(cached_messages.values()) + new_messages
     all_messages.sort(key=lambda msg: 0 if msg.time is None else msg.time.timestamp())
