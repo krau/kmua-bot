@@ -71,6 +71,13 @@ async def wake_agent(client: pyrogram.Client, message: pyrogram.types.Message):
     user = message.sender_chat or message.from_user
     if not app_config.agent or await common.memstore.get(_waiting_key(user.id)):
         return await word_reply(client, message)
+    chat = message.chat
+    if chat.type == pyrogram.enums.ChatType.SUPERGROUP:
+        chat_config = await database.get_chat_config(chat)
+        if not chat_config.ai_reply:
+            return await word_reply(client, message)
+
+
     await message.reply_chat_action(pyrogram.enums.ChatAction.TYPING)
     await common.memstore.set(_waiting_key(user.id), True)
     try:
