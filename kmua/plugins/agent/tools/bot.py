@@ -125,7 +125,10 @@ def _chat_message_key(chat_id: int, message_id: int) -> str:
 async def get_latest_messages(
     ctx: RunContext[datatype.ContextDeps], count: int = 50
 ) -> list[HistoryMessage] | str:
-    """Get latest messages in the chat.
+    """Get latest messages in the chat, you can try using this tool if you missing some context.
+
+    Args:
+        count: (int) Number of messages to fetch, must be between 1 and 200, inclusive.
 
     Returns:
         List of latest messages, or error string if failed.

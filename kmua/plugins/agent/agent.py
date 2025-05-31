@@ -25,11 +25,11 @@ if app_config.agent:
         model=model,
         system_prompt=app_config.agent_prompt,
         tools=[
+            tools.get_latest_messages,
             tools.get_current_time,
             tools.get_ip_info,
             tools.get_user_info,
             tools.get_chat_info,
-            tools.get_latest_messages,
             tools.get_and_send_a_anime_photo,
             duckduckgo_search_tool(),
         ],
