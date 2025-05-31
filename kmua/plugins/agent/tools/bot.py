@@ -142,7 +142,7 @@ async def get_history_messages(
             - "after": messages after anchor_id;
             - "between": messages from start_id to end_id (inclusive of start, exclusive of end).
         count: max number of messages to fetch (1~200).
-        anchor_id: used for "before"/"after" directions.
+        anchor_id: used for "before"/"after" directions, usually can be the current message ID or reply to message ID.
         start_id: starting message ID (for "between" mode).
         end_id: ending message ID (for "between" mode).
 
