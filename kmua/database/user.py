@@ -1,6 +1,10 @@
 import datetime
 
 import sqlalchemy
+import sqlalchemy.dialects
+import sqlalchemy.dialects.mysql
+import sqlalchemy.dialects.postgresql
+import sqlalchemy.dialects.sqlite
 from pyrogram.enums import ChatType
 from pyrogram.types import Chat, User
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -37,7 +41,7 @@ async def upsert_user(
         raise ValueError("user.id must not be None")
 
     username = None
-    full_name = None
+    full_name = str(user.id)
     is_real_user = True
     is_bot = False
 
