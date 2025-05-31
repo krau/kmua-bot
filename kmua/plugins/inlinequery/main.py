@@ -45,6 +45,34 @@ async def inline_query_handler(
                     ),
                 )
             )
+        else:
+            results.append(
+                pyrogram.types.InlineQueryResultArticle(
+                    id="quotes",
+                    title=i18n.t("bot.inline.quotes_title", locale=user_config.lang),
+                    description=i18n.t(
+                        "bot.inline.quotes_description", locale=user_config.lang
+                    ),
+                    input_message_content=pyrogram.types.InputTextMessageContent(
+                        message_text=i18n.t(
+                            "bot.inline.quotes_message", locale=user_config.lang
+                        ),
+                    ),
+                    reply_markup=pyrogram.types.InlineKeyboardMarkup(
+                        [
+                            [
+                                pyrogram.types.InlineKeyboardButton(
+                                    text=i18n.t(
+                                        "bot.inline.quotes_button",
+                                        locale=user_config.lang,
+                                    ),
+                                    switch_inline_query_current_chat="q ",
+                                )
+                            ]
+                        ]
+                    ),
+                )
+            )
         await query.answer(
             results=results,
             switch_pm_text=i18n.t("bot.inline.switch_pm_text"),
@@ -88,7 +116,7 @@ async def chosen_inline_result(
                 [
                     [
                         pyrogram.types.InlineKeyboardButton(
-                            switch_inline_query_current_chat=f"q_{info.chat_id}",
+                            switch_inline_query_current_chat=f"q_{info.chat_id} ",
                             text=i18n.t(
                                 "bot.inline.chat_quotes_button", locale=user_config.lang
                             ),

@@ -8,3 +8,7 @@ bot:
     chat_quotes_error: 解析群组信息失败惹...
     chat_quotes_success: 点击下方按钮查询本群的语录
     chat_quotes_button: 🔍
+    quotes_title: 查询语录
+    quotes_description: 输入 q [关键词] 查询『你能看到的』语录
+    quotes_message: 点击下方按钮查询语录
+    quotes_button: 🔍
