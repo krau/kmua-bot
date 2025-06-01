@@ -113,16 +113,12 @@ async def get_and_send_a_anime_photo(
 
 
 @dataclass
-class HistoryMessage:
+class ChatMessage:
     # chat_id: int
     user_id: int
     username: str | None = None
     text: str | None = None
     time: datetime.datetime | None = None
-
-
-def _chat_message_key(chat_id: int, message_id: int) -> str:
-    return f"chat_history:{chat_id}:{message_id}"
 
 
 async def get_history_messages(
@@ -132,7 +128,7 @@ async def get_history_messages(
     anchor_id: int | None = None,
     start_id: int | None = None,
     end_id: int | None = None,
-) -> list[HistoryMessage] | str:
+) -> list[ChatMessage] | str:
     """
     Fetch historical messages from chat.
 
@@ -191,49 +187,63 @@ async def get_history_messages(
         f"get_history_messages called: direction={direction}, start_id={start_id}, end_id={end_id}, chat_id={chat_id}"
     )
 
-    message_ids_to_fetch = []
-    cached_messages = {}
+    # message_ids_to_fetch = []
+    # cached_messages = {}
 
-    for i in range(start_id, end_id):
-        cached_msg = await common.memttlcache.get(_chat_message_key(chat_id, i), None)
-        if cached_msg is None:
-            message_ids_to_fetch.append(i)
-        else:
-            cached_messages[i] = cached_msg
+    # for i in range(start_id, end_id):
+    #     cached_msg = await common.memttlcache.get(_chat_message_key(chat_id, i), None)
+    #     if cached_msg is None:
+    #         message_ids_to_fetch.append(i)
+    #     else:
+    #         cached_messages[i] = cached_msg
 
-    new_messages = []
-    if message_ids_to_fetch:
-        msgs = await client.get_messages(
-            chat_id=chat_id, message_ids=message_ids_to_fetch, replies=1
+    # new_messages = []
+    # if message_ids_to_fetch:
+    #     msgs = await client.get_messages(
+    #         chat_id=chat_id, message_ids=message_ids_to_fetch, replies=1
+    #     )
+
+    #     if isinstance(msgs, pyrogram.types.Message):
+    #         msgs = [msgs]
+    #     if msgs:
+    #         for msg in msgs:
+    #             if (
+    #                 msg
+    #                 and (msg.sender_chat or msg.from_user)
+    #                 and (msg.text or msg.caption)
+    #             ):
+    #                 user = msg.sender_chat or msg.from_user
+    #                 if user is None or user.id is None:
+    #                     continue
+    #                 user_db = await database.get_user_by_id(user.id)
+    #                 history_msg = HistoryMessage(
+    #                     # user_id=(msg.sender_chat or msg.from_user).id,
+    #                     # chat_id=msg.chat.id if msg.chat else 0,
+    #                     user_id=user.id,
+    #                     username=user_db.full_name or str(user_db.id),
+    #                     text=msg.text or msg.caption,
+    #                     time=msg.date,
+    #                 )
+    #                 new_messages.append(history_msg)
+    #                 await common.memttlcache.set(
+    #                     _chat_message_key(chat_id, msg.id), history_msg, ttl=86400
+    #                 )
+
+    # all_messages: list[HistoryMessage] = list(cached_messages.values()) + new_messages
+    # all_messages.sort(key=lambda msg: 0 if msg.time is None else msg.time.timestamp())
+
+    # return all_messages
+    msgs = await common.get_messages_with_cache(
+        chat_id=chat_id, message_ids=range(start_id, end_id), replies=1
+    )
+    return [
+        ChatMessage(
+            user_id=msg.user_id,
+            username=(await database.get_user_by_id(msg.user_id)).full_name
+            if msg.user_id
+            else None,
+            text=msg.text,
+            time=msg.time,
         )
-
-        if isinstance(msgs, pyrogram.types.Message):
-            msgs = [msgs]
-        if msgs:
-            for msg in msgs:
-                if (
-                    msg
-                    and (msg.sender_chat or msg.from_user)
-                    and (msg.text or msg.caption)
-                ):
-                    user = msg.sender_chat or msg.from_user
-                    if user is None or user.id is None:
-                        continue
-                    user_db = await database.get_user_by_id(user.id)
-                    history_msg = HistoryMessage(
-                        # user_id=(msg.sender_chat or msg.from_user).id,
-                        # chat_id=msg.chat.id if msg.chat else 0,
-                        user_id=user.id,
-                        username=user_db.full_name or str(user_db.id),
-                        text=msg.text or msg.caption,
-                        time=msg.date,
-                    )
-                    new_messages.append(history_msg)
-                    await common.memttlcache.set(
-                        _chat_message_key(chat_id, msg.id), history_msg, ttl=86400
-                    )
-
-    all_messages: list[HistoryMessage] = list(cached_messages.values()) + new_messages
-    all_messages.sort(key=lambda msg: 0 if msg.time is None else msg.time.timestamp())
-
-    return all_messages
+        for msg in msgs
+    ]

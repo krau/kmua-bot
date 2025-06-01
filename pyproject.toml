@@ -28,6 +28,7 @@ dependencies = [
     "sqlalchemy[asyncio]>=2.0.41",
     "tgcrypto>=1.2.5",
     "uvloop>=0.21.0",
+    "wordcloud>=1.9.4",
     "zhconv>=1.4.3",
 ]
 
