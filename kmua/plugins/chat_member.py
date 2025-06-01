@@ -37,10 +37,11 @@ async def chat_member_updated(client: Client, chat_member_updated: ChatMemberUpd
     db_chat = await database.upsert_chat(chat)
     if not db_user or not db_chat:
         return
-    if old_obj is None and new_obj is not None:
-        logger.info(f"[{chat.id}]({user.id}): {user.full_name} joined the chat")
-        await database.add_association_in_chat(db_chat, db_user)
-    elif (old_obj is not None and old_obj.user and new_obj is None) or (
+    # if old_obj is None and new_obj is not None:
+    #     # Joined the chat
+    #     logger.info(f"[{chat.id}]({user.id}): {user.full_name} joined the chat")
+    #     await database.add_association_in_chat(db_chat, db_user)
+    if (old_obj is not None and old_obj.user and new_obj is None) or (
         old_obj is not None
         and new_obj is not None
         and new_obj.status == ChatMemberStatus.BANNED
