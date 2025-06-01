@@ -24,6 +24,7 @@ class _AppConfig(pydantic.BaseModel):
     manyacg_channel: str = "MoreACG"
     manyacg_bot: str = "kirakabot"
     manyacg_setu_cd: int = 1
+    manyacg_hybrid_search: bool = True
 
     # agent
     agent: bool = False

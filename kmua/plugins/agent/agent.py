@@ -9,7 +9,7 @@ from pyrogram import filters
 from kmua import common, database, i18n
 from kmua.config import app_config
 from kmua.logger import logger
-from kmua.plugins.manyacg.manyacg import ARTWORK_ALL_REGEX
+from kmua.plugins.manyacg import manyacg
 
 from . import datatype, myfilter, tools, utils
 from .simple_reply import word_reply
@@ -68,7 +68,7 @@ def _waiting_key(user_id: int) -> str:
 
 
 @pyrogram.Client.on_message(
-    ~pyrogram.filters.regex("|".join([r.pattern for r in ARTWORK_ALL_REGEX]))
+    ~pyrogram.filters.regex("|".join([r.pattern for r in manyacg.ARTWORK_ALL_REGEX]))
     & myfilter.base_filter
     & (myfilter.reply_me_filter | filters.private | myfilter.mention_me_filter),
     group=0,

@@ -7,12 +7,10 @@ from typing import Literal
 import pyrogram
 from pydantic_ai import ModelRetry, RunContext
 
-import kmua.plugins
-import kmua.plugins.manyacg
-import kmua.plugins.manyacg.manyacg
 from kmua import common, database, i18n
 from kmua.config import app_config
 from kmua.logger import logger
+from kmua.plugins.manyacg import manyacg
 
 from .. import datatype
 
@@ -37,14 +35,18 @@ class AnimePhotoInfo:
 
 async def get_and_send_a_anime_photo(
     ctx: RunContext[datatype.ContextDeps],
+    keyword: str = "",
 ) -> AnimePhotoInfo | str:
     """Get and send a random anime photo (some users call it setu/涩图).
+
+    Args:
+        keyword: Optional keyword to search for specific anime photos, max length is 100 characters.
 
     Returns:
         An AnimePhotoInfo object if successful, or an error message string.
     """
     logger.debug(
-        f"get_and_send_a_anime_photo called with chat_id: {ctx.deps.chat_id}, user_id: {ctx.deps.user_id}"
+        f"get_and_send_a_anime_photo called with chat_id: {ctx.deps.chat_id}, user_id: {ctx.deps.user_id}, keyword: {keyword}"
     )
     if ctx.deps.message is None or ctx.deps.message.id is None:
         return "Message ID is required to reply with the photo."
@@ -57,8 +59,16 @@ async def get_and_send_a_anime_photo(
     try:
         user_config = await database.get_user_config(ctx.deps.user_id)
         lang = user_config.lang
-        resp = await kmua.plugins.manyacg.manyacg.httpx_client.get(
-            url="/artwork/random", params={"r18": 2}
+        params = {
+            "r18": 2,
+            "page_size": 1,
+            "hybrid": app_config.manyacg_hybrid_search,
+        }
+        if keyword:
+            params["keyword"] = keyword
+        resp = await manyacg.httpx_client.get(
+            url="/artwork/list",
+            params=params,
         )
         if resp.status_code != 200:
             return f"Api request failed with code: {resp.status_code}"
