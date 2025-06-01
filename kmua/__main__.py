@@ -16,8 +16,16 @@ async def init_bot(client: Client = client):
         app_config.avatar_cache_dir.mkdir(parents=True, exist_ok=True)
     logger.debug(i18n.t("log.getting_me", locale=app_config.lang))
     me = await client.get_me()
-    await database.upsert_user(me)
+    db_me = await database.upsert_user(me)
+    logger.info(
+        i18n.t("log.welcome", locale=app_config.lang).format(
+            name=db_me.full_name,
+            username=db_me.username,
+            id=db_me.id,
+        )
+    )
     logger.debug(i18n.t("log.setting_commands", locale=app_config.lang))
+    await client.delete_bot_commands()
     await client.set_bot_commands(
         [
             BotCommand(

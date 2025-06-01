@@ -58,7 +58,7 @@ async def on_left_chat_member(client: Client, message: Message):
     """
     chat = message.chat
     user = message.left_chat_member
-    if not user:
+    if not user or not chat:
         return
     db_user = await database.upsert_user(user)
     db_chat = await database.upsert_chat(chat)
