@@ -19,6 +19,7 @@ bot:
       set_self: 好, 你现在是 {title} 啦
       set_other: "{user} 把 {target} 变成 {title} !"
       set_permissions: 点击按钮更改 /t 命令赋予成员的权限
+      deleted: 已删除你的头衔
       errors:
         generic: 失败了喵
         admin_required: 咱没有足够的权限或正在尝试更改其他管理员设置的头衔
@@ -52,6 +53,7 @@ bot:
       /qrand - 随机语录
       /qp - 设置随机主动发送语录的概率
       /t - 获取头衔|互赠头衔
+      /td - 删除你的头衔
       /sett - 更改 /t 命令所赋予的权限
       /setu - 来点色图 (/ω＼*)
       /greet - 设置群组欢迎语

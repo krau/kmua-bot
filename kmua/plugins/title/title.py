@@ -138,3 +138,54 @@ async def set_title_permissions_callback(
     await query.message.edit_reply_markup(
         utils.TitlePermissionsMarkup(permissions, chat_config.lang).build()
     )
+
+
+@pyrogram.Client.on_message(
+    pyrogram.filters.command("td") & pyrogram.filters.group, group=0
+)
+async def delete_member_title(client: pyrogram.Client, message: pyrogram.types.Message):
+    chat = message.chat
+    user = message.from_user
+    lang = (await database.get_chat_config(chat)).lang
+    if not user or not chat:
+        await message.reply_text(
+            i18n.t("bot.msg.title.errors.no_chat_or_user", locale=lang),
+            parse_mode=pyrogram.enums.ParseMode.HTML,
+        )
+        return
+    try:
+        await client.promote_chat_member(
+            chat_id=chat.id,
+            user_id=user.id,
+            privileges=pyrogram.types.ChatPrivileges(can_manage_chat=False),
+        )
+        await message.reply_text(
+            i18n.t("bot.msg.title.deleted", locale=lang),
+            parse_mode=pyrogram.enums.ParseMode.HTML,
+        )
+    except pyrogram.errors.UserCreator as e:
+        await message.reply_text(
+            i18n.t("bot.msg.title.errors.creator", locale=lang),
+            parse_mode=pyrogram.enums.ParseMode.HTML,
+        )
+    except pyrogram.errors.ChatAdminRequired as e:
+        await message.reply_text(
+            i18n.t("bot.msg.title.errors.admin_required", locale=lang),
+            parse_mode=pyrogram.enums.ParseMode.HTML,
+        )
+    except pyrogram.errors.AdminRankInvalid:
+        await message.reply_text(
+            i18n.t("bot.msg.title.errors.rank_invalid", locale=lang),
+            parse_mode=pyrogram.enums.ParseMode.HTML,
+        )
+    except pyrogram.errors.UserIdInvalid:
+        await message.reply_text(
+            i18n.t("bot.msg.title.errors.user_id_invalid", locale=lang),
+            parse_mode=pyrogram.enums.ParseMode.HTML,
+        )
+    except Exception as e:
+        logger.error(f"Error deleting title: {e}")
+        await message.reply_text(
+            i18n.t("bot.msg.title.errors.generic", locale=lang),
+            parse_mode=pyrogram.enums.ParseMode.HTML,
+        )
