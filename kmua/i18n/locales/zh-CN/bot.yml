@@ -59,6 +59,7 @@ bot:
       /greet - 设置群组欢迎语
       /id - 获取聊天ID
       /ip - 查询IP/域名信息
+      /wordcloud - 生成聊天记录词云
       /botpromote - 在群组中设置bot管理员 (对于bot该用户将具有同等于群主的权限)
       /f5avatar - 刷新你的头像
       /forget - 让 bot 忘记与你的对话记录
@@ -114,3 +115,6 @@ bot:
     agent:
       waiting: 正在等待响应, 请稍等一会儿...
       forgot: 刚刚发生了什么, 好像忘记了呢...
+    wordcloud:
+      generating: 已经正在生成啦, 请稍等一会儿...
+      generated: 最近聊天记录的词云图

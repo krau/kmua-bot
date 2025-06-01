@@ -11,6 +11,7 @@ from kmua import database, enums
 from kmua.bot import client
 from kmua.common import client
 from kmua.database.models import ChatData, UserData
+from kmua.logger import logger
 
 from .memory_store import memttlcache
 
@@ -31,11 +32,12 @@ class HistoryMessage:
 
 async def get_messages_with_cache(
     chat_id: int,
-    message_ids: Iterable[int],
+    message_ids: list[int],
     reply: bool = False,
     pinned: bool = False,
     replies: int = 1,
 ) -> list[HistoryMessage]:
+    logger.debug(f"Fetching {len(message_ids)} messages for {chat_id}")
     to_fetch_ids = []
     cached_messages: dict[int, HistoryMessage] = {}
     for i in message_ids:
