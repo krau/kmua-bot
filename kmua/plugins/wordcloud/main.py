@@ -10,14 +10,19 @@ from kmua import common, consts, database, i18n
 
 @pyrogram.Client.on_message(pyrogram.filters.command("wordcloud"), group=0)
 async def wordcloud_command(client: pyrogram.Client, message: pyrogram.types.Message):
-    chat_id = message.chat.id if message.chat else 0
-    if not chat_id:
+    chat = message.chat
+    if not chat or not chat.id:
         return
-    chat_config = await database.get_chat_config(chat_id)
+    chat_id = chat.id
+    user = message.sender_chat or message.from_user
+    if not user or not user.id:
+        return
+    if chat.type == pyrogram.enums.ChatType.PRIVATE:
+        lang = (await database.get_user_config(user.id)).lang
+    else:
+        lang = (await database.get_chat_config(chat_id)).lang
     if await common.memstore.get(f"wordcloud_gen:{chat_id}"):
-        await message.reply_text(
-            i18n.t("bot.msg.wordcloud.generating", chat_config.lang)
-        )
+        await message.reply_text(i18n.t("bot.msg.wordcloud.generating", lang))
         return
     await common.memstore.set(f"wordcloud_gen:{chat_id}", True)
     try:
@@ -27,13 +32,11 @@ async def wordcloud_command(client: pyrogram.Client, message: pyrogram.types.Mes
         )
         historys = await common.get_messages_with_cache(
             chat_id=chat_id,
-            message_ids=range(stop_message_id - 200, stop_message_id),
+            message_ids=list(range(stop_message_id - 200, stop_message_id)),
         )
         text = "\n".join(msg.text for msg in historys if msg.text)
         if not text:
-            await message.reply_text(
-                i18n.t("bot.msg.wordcloud.no_text", chat_config.lang)
-            )
+            await message.reply_text(i18n.t("bot.msg.wordcloud.no_text", lang))
             return
         result = await asyncio.to_thread(
             WordCloud(
@@ -52,7 +55,7 @@ async def wordcloud_command(client: pyrogram.Client, message: pyrogram.types.Mes
         img_bytes.seek(0)
         await message.reply_photo(
             photo=img_bytes,
-            caption=i18n.t("bot.msg.wordcloud.generated", chat_config.lang),
+            caption=i18n.t("bot.msg.wordcloud.generated", lang),
         )
     finally:
         await common.memstore.delete(f"wordcloud_gen:{chat_id}")
