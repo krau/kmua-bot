@@ -144,7 +144,7 @@ async def get_history_messages(
         end_id: ending message ID (for "between" mode).
 
     Returns:
-        A list of HistoryMessage or error string.
+        A list of ChatMessage or error string.
     """
 
     if count <= 0 or count > 200:
@@ -234,7 +234,7 @@ async def get_history_messages(
 
     # return all_messages
     msgs = await common.get_messages_with_cache(
-        chat_id=chat_id, message_ids=range(start_id, end_id), replies=1
+        chat_id=chat_id, message_ids=list(range(start_id, end_id)), replies=1
     )
     return [
         ChatMessage(

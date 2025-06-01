@@ -1,7 +1,6 @@
 import datetime
 import html
 from dataclasses import dataclass
-from typing import Iterable
 
 import pyrogram
 from pyrogram.enums import ChatMemberStatus, ChatType
