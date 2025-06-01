@@ -6,6 +6,8 @@ from apscheduler.triggers.cron import CronTrigger
 from apscheduler.triggers.date import DateTrigger
 from apscheduler.triggers.interval import IntervalTrigger
 
+from kmua.logger import logger
+
 
 class _TaskScheduler:
     def __init__(self):
@@ -28,6 +30,7 @@ class _TaskScheduler:
         kwargs: Optional[dict] = None,
     ) -> None:
         trigger = DateTrigger(run_date=run_date)
+        logger.debug(f"add one-time job: {job_id} at {run_date}")
         job = self._scheduler.add_job(
             func=func,
             trigger=trigger,
@@ -58,6 +61,9 @@ class _TaskScheduler:
             days=days,
             start_date=start_date,
             end_date=end_date,
+        )
+        logger.debug(
+            f"add interval job: {job_id} every {seconds}s, {minutes}m, {hours}h, {days}d"
         )
         job = self._scheduler.add_job(
             func=func,
@@ -90,6 +96,7 @@ class _TaskScheduler:
             start_date=start_date,
             end_date=end_date,
         )
+        logger.debug(f"add daily job: {job_id} at {hour}:{minute}:{second} {timezone}")
         job = self._scheduler.add_job(
             func=func,
             trigger=trigger,
@@ -104,6 +111,7 @@ class _TaskScheduler:
         if job_id in self._jobs:
             self._scheduler.remove_job(job_id)
             del self._jobs[job_id]
+            logger.debug(f"Removed job: {job_id}")
 
 
 jobqueue = _TaskScheduler()

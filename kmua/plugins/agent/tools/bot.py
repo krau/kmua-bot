@@ -1,6 +1,7 @@
 import datetime
 import random
 from dataclasses import dataclass
+from hashlib import md5
 from typing import Literal
 
 import pyrogram
@@ -151,8 +152,6 @@ async def get_history_messages(
         raise ModelRetry("Count must be between 1 and 200, inclusive.")
 
     chat_id = ctx.deps.chat_id
-    client = ctx.deps.client
-
     current_id = ctx.deps.message.id
 
     if direction == "latest":
@@ -186,53 +185,6 @@ async def get_history_messages(
     logger.debug(
         f"get_history_messages called: direction={direction}, start_id={start_id}, end_id={end_id}, chat_id={chat_id}"
     )
-
-    # message_ids_to_fetch = []
-    # cached_messages = {}
-
-    # for i in range(start_id, end_id):
-    #     cached_msg = await common.memttlcache.get(_chat_message_key(chat_id, i), None)
-    #     if cached_msg is None:
-    #         message_ids_to_fetch.append(i)
-    #     else:
-    #         cached_messages[i] = cached_msg
-
-    # new_messages = []
-    # if message_ids_to_fetch:
-    #     msgs = await client.get_messages(
-    #         chat_id=chat_id, message_ids=message_ids_to_fetch, replies=1
-    #     )
-
-    #     if isinstance(msgs, pyrogram.types.Message):
-    #         msgs = [msgs]
-    #     if msgs:
-    #         for msg in msgs:
-    #             if (
-    #                 msg
-    #                 and (msg.sender_chat or msg.from_user)
-    #                 and (msg.text or msg.caption)
-    #             ):
-    #                 user = msg.sender_chat or msg.from_user
-    #                 if user is None or user.id is None:
-    #                     continue
-    #                 user_db = await database.get_user_by_id(user.id)
-    #                 history_msg = HistoryMessage(
-    #                     # user_id=(msg.sender_chat or msg.from_user).id,
-    #                     # chat_id=msg.chat.id if msg.chat else 0,
-    #                     user_id=user.id,
-    #                     username=user_db.full_name or str(user_db.id),
-    #                     text=msg.text or msg.caption,
-    #                     time=msg.date,
-    #                 )
-    #                 new_messages.append(history_msg)
-    #                 await common.memttlcache.set(
-    #                     _chat_message_key(chat_id, msg.id), history_msg, ttl=86400
-    #                 )
-
-    # all_messages: list[HistoryMessage] = list(cached_messages.values()) + new_messages
-    # all_messages.sort(key=lambda msg: 0 if msg.time is None else msg.time.timestamp())
-
-    # return all_messages
     msgs = await common.get_messages_with_cache(
         chat_id=chat_id, message_ids=list(range(start_id, end_id)), replies=1
     )
@@ -247,3 +199,42 @@ async def get_history_messages(
         )
         for msg in msgs
     ]
+
+
+async def schedule_message(
+    ctx: RunContext[datatype.ContextDeps],
+    message: str,
+    schedule_time: datetime.datetime,
+):
+    """Schedule a message to be sent at a specific time,
+    can be used to send reminders or scheduled announcements.
+
+    Arguments:
+        message: text message to be sent.
+        schedule_time: datetime when the message should be sent.
+    """
+    logger.debug(
+        f"schedule_message called with chat_id: {ctx.deps.chat_id}, user_id: {ctx.deps.user_id}, message: {message}, schedule_time: {schedule_time}"
+    )
+    if schedule_time < datetime.datetime.now():
+        raise ModelRetry("Schedule time must be in the future.")
+
+    async def _send_scheduled_message():
+        try:
+            await ctx.deps.client.send_message(
+                chat_id=ctx.deps.chat_id,
+                text=message,
+                reply_parameters=pyrogram.types.ReplyParameters(
+                    message_id=ctx.deps.message.id if ctx.deps.message else None
+                ),
+            )
+        except Exception as e:
+            logger.error(
+                f"Failed to send scheduled message: {e.__class__.__name__}:{e}"
+            )
+
+    common.jobqueue.add_onetime_job(
+        f"agent_schedule_message:{ctx.deps.chat_id}:{ctx.deps.user_id}:{schedule_time.timestamp()}:{md5(message.encode()).hexdigest()}",
+        run_date=schedule_time,
+        func=_send_scheduled_message,
+    )
