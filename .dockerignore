@@ -2,3 +2,10 @@
 .github/
 docs/
 .venv/
+.git
+__pycache__
+*.pyc
+*.md
+docker-compose.yml
+data/
+logs/
