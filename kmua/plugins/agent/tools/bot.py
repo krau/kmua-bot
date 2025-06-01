@@ -221,13 +221,7 @@ async def schedule_message(
 
     async def _send_scheduled_message():
         try:
-            await ctx.deps.client.send_message(
-                chat_id=ctx.deps.chat_id,
-                text=message,
-                reply_parameters=pyrogram.types.ReplyParameters(
-                    message_id=ctx.deps.message.id if ctx.deps.message else None
-                ),
-            )
+            await ctx.deps.message.reply(text=message)
         except Exception as e:
             logger.error(
                 f"Failed to send scheduled message: {e.__class__.__name__}:{e}"

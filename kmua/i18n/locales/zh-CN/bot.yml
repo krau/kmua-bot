@@ -26,6 +26,7 @@ bot:
         creator: 咱不能对群主使用喵
         rank_invalid: 头衔太长了! 进不去!
         user_id_invalid: 咱不能更改自己的或频道身份的头衔
+        no_chat_or_user: 找不到对应的用户或群组...
     ip:
       no_ip_provided: "请提供要查询的 IP/域名"
       querying: "正在查询: {ip}"
