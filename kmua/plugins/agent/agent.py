@@ -1,3 +1,4 @@
+import pydantic_ai
 import pyrogram
 from pydantic_ai import Agent
 from pydantic_ai.common_tools.duckduckgo import duckduckgo_search_tool
@@ -88,6 +89,11 @@ async def wake_agent(client: pyrogram.Client, message: pyrogram.types.Message):
     if not agent:
         return await word_reply(client, message)
 
+    if chat.type == pyrogram.enums.ChatType.PRIVATE:
+        lang = (await database.get_user_config(user.id)).lang
+    else:
+        lang = (await database.get_chat_config(chat.id)).lang
+
     await message.reply_chat_action(pyrogram.enums.ChatAction.TYPING)
     await common.memstore.set(_waiting_key(user.id), True)
     try:
@@ -125,6 +131,15 @@ MessageID: {message.id}
                 _history_key(chat_id, user.id), summary, ttl=86400 * 2
             )
             return
+        except pydantic_ai.exceptions.ModelHTTPError as e:
+            logger.error(f"Agent HTTP error: {e}")
+            if e.status_code == 400:
+                await message.reply_text(
+                    i18n.t("bot.msg.agent.errors.model_http_400", locale=lang)
+                )
+                return
+            else:
+                raise e
         await message.reply_text(
             result.output,
             parse_mode=pyrogram.enums.ParseMode.MARKDOWN,

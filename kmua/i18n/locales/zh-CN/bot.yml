@@ -116,6 +116,9 @@ bot:
     agent:
       waiting: 正在等待响应, 请稍等一会儿...
       forgot: 刚刚发生了什么, 好像忘记了呢...
+      errors:
+        model_http_400: |
+          太涩了, 不行! (400)
     wordcloud:
       generating: 已经正在生成啦, 请稍等一会儿...
       generated: 最近聊天记录的词云图
