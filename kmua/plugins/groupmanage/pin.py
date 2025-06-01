@@ -31,5 +31,5 @@ async def unpin_channel(client: pyrogram.Client, message: pyrogram.types.Message
         await message.unpin()
     except Exception as e:
         logger.warning(
-            f"Failed to unpin message {message.id} in chat {message.chat}: {e.__class__.__name__}:{e}"
+            f"Failed to unpin message {message.id} in chat {message.chat.id}: {e.__class__.__name__}:{e}"
         )
