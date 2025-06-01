@@ -67,26 +67,34 @@ def _waiting_key(user_id: int) -> str:
     return f"agent_waiting:{user_id}"
 
 
-@pyrogram.Client.on_message(
-    ~pyrogram.filters.regex("|".join([r.pattern for r in manyacg.ARTWORK_ALL_REGEX]))
-    & myfilter.base_filter
-    & (myfilter.reply_me_filter | filters.private | myfilter.mention_me_filter),
-    group=0,
+_filter = (
+    myfilter.base_filter
+    & (myfilter.reply_me_filter | filters.private | myfilter.mention_me_filter)
+    & ~pyrogram.filters.regex("|".join([r.pattern for r in manyacg.ARTWORK_ALL_REGEX]))
 )
+
+
+@pyrogram.Client.on_message(_filter, group=0)
 async def wake_agent(client: pyrogram.Client, message: pyrogram.types.Message):
+    if not app_config.agent or not agent:
+        return await word_reply(client, message)
     user = message.sender_chat or message.from_user
     if not user or not user.id:
         return await word_reply(client, message)
-    if not app_config.agent or await common.memstore.get(_waiting_key(user.id)):
-        return await word_reply(client, message)
     chat = message.chat
     if not chat or not chat.id:
+        return await word_reply(client, message)
+    if (
+        app_config.agent_whitelist_mode
+        and user.id not in app_config.agent_whitelist
+        and chat.id not in app_config.agent_whitelist
+    ):
         return await word_reply(client, message)
     if chat.type == pyrogram.enums.ChatType.SUPERGROUP:
         chat_config = await database.get_chat_config(chat)
         if not chat_config.ai_reply:
             return await word_reply(client, message)
-    if not agent:
+    if await common.memstore.get(_waiting_key(user.id)):
         return await word_reply(client, message)
 
     if chat.type == pyrogram.enums.ChatType.PRIVATE:

@@ -31,6 +31,13 @@ class _AppConfig(pydantic.BaseModel):
     agent_model: str = "gpt-4o-mini"
     agent_provider_url: str = "https://api.openai.com/v1"
     agent_api_key: str = ""
+    agent_messages_threshold: int = 20
+
+    # experimental, maybe removed in the future
+    agent_whitelist_mode: bool = False
+    agent_whitelist: list[int] = []
+
+    ############################################################################
     agent_prompt: str = r"""
 System: 你是一个可爱的猫娘助手, 用户通过 Telegram Bot 与你对话, 保持可爱和耐心.
 
@@ -41,8 +48,7 @@ Internal info:
 - Markdown: chars '_', '', '`', '\[' that are not used as boundaries MUST be escaped with '\'. 
 Eg:  bold,   a \ b = ab.
 """
-    agent_messages_threshold: int = 20
-
+    ############################################################################
     # external services
     redis: bool = False
     redis_endpoint: str = "localhost"
