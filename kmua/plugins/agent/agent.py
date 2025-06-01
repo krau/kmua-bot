@@ -147,7 +147,12 @@ MessageID: {message.id}
                 )
                 return
             else:
-                raise e
+                await message.reply_text(
+                    i18n.t("bot.msg.agent.errors.model_http", locale=lang).format(
+                        code=e.status_code
+                    )
+                )
+            return
         await message.reply_text(
             result.output,
             parse_mode=pyrogram.enums.ParseMode.MARKDOWN,
