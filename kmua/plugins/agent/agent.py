@@ -180,6 +180,10 @@ MessageID: {message.id}
                             await common.memttlcache.set(
                                 _history_key(chat_id, user.id), summary, ttl=86400 * 2
                             )
+                        else:
+                            logger.error(
+                                f"Agent run ended with no result for user {user.id} in chat {chat_id}"
+                            )
         except TypeError as e:
             # https://github.com/pydantic/pydantic-ai/issues/527
             logger.error(f"Agent run error: {e}")
