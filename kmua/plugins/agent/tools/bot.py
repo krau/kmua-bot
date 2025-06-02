@@ -62,7 +62,7 @@ async def get_and_send_a_anime_photo(
         if keyword:
             params = {
                 "r18": 2,
-                "page_size": 1,
+                "page_size": 50,
                 "hybrid": app_config.manyacg_hybrid_search,
             }
             if keyword:
@@ -78,7 +78,7 @@ async def get_and_send_a_anime_photo(
             )
         if resp.status_code != 200:
             return f"Api request failed with code: {resp.status_code}"
-        artwork: dict = resp.json()["data"][0]
+        artwork: dict = random.choice(resp.json()["data"])
         picture: dict = artwork["pictures"][
             random.randint(0, len(artwork["pictures"]) - 1)
         ]
