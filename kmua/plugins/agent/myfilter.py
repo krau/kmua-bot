@@ -1,9 +1,13 @@
 import pyrogram
 from pyrogram import filters
 
+from kmua.config import app_config
+
 
 async def base_filter_func(_, __, message: pyrogram.types.Message) -> bool:
-    if not message.text:
+    if not app_config.agent:
+        return False
+    if not message or not message.text:
         return False
     if len(message.text) <= 1:
         return False

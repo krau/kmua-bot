@@ -78,7 +78,7 @@ _filter = (
 @pyrogram.Client.on_message(_filter, group=0)
 async def wake_agent(client: pyrogram.Client, message: pyrogram.types.Message):
     # some check
-    if not app_config.agent or not agent:
+    if not agent:
         return await word_reply(client, message)
     user = message.sender_chat or message.from_user
     if not user or not user.id:
