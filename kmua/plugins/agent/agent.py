@@ -1,5 +1,6 @@
 import pydantic_ai
 import pyrogram
+import pyrogram.errors
 from pydantic_ai import Agent
 from pydantic_ai.common_tools.duckduckgo import duckduckgo_search_tool
 from pydantic_ai.models.openai import OpenAIModel
@@ -76,6 +77,7 @@ _filter = (
 
 @pyrogram.Client.on_message(_filter, group=0)
 async def wake_agent(client: pyrogram.Client, message: pyrogram.types.Message):
+    # some check
     if not app_config.agent or not agent:
         return await word_reply(client, message)
     user = message.sender_chat or message.from_user
@@ -97,6 +99,7 @@ async def wake_agent(client: pyrogram.Client, message: pyrogram.types.Message):
     if await common.memstore.get(_waiting_key(user.id)):
         return await word_reply(client, message)
 
+    # set language
     if chat.type == pyrogram.enums.ChatType.PRIVATE:
         lang = (await database.get_user_config(user.id)).lang
     else:
@@ -104,6 +107,7 @@ async def wake_agent(client: pyrogram.Client, message: pyrogram.types.Message):
 
     await message.reply_chat_action(pyrogram.enums.ChatAction.TYPING)
     await common.memstore.set(_waiting_key(user.id), True)
+    # agent run
     try:
         chat_id = chat.id
         history = await common.memttlcache.get(_history_key(chat_id, user.id), [])
@@ -121,7 +125,38 @@ MessageID: {message.id}
         user_prompt = context_info + user_prompt
         logger.debug(f"User {user.id} prompt: {user_prompt}")
         try:
-            result = await agent.run(
+            repiled: pyrogram.types.Message | None = None
+
+            async def _reply_or_edit(text: str):
+                nonlocal repiled
+                try:
+                    if repiled:
+                        if repiled.text and text.startswith(repiled.text):
+                            await repiled.edit_text(
+                                text,
+                                parse_mode=pyrogram.enums.ParseMode.MARKDOWN,
+                            )
+                        elif repiled.text and len(repiled.text) + len(text) < 1000:
+                            await repiled.edit_text(
+                                repiled.text + "\n" + text,
+                                parse_mode=pyrogram.enums.ParseMode.MARKDOWN,
+                            )
+                        else:
+                            repiled = await repiled.edit_text(
+                                text,
+                                parse_mode=pyrogram.enums.ParseMode.MARKDOWN,
+                            )
+                    else:
+                        repiled = await message.reply_text(
+                            text,
+                            parse_mode=pyrogram.enums.ParseMode.MARKDOWN,
+                        )
+                except pyrogram.errors.MessageNotModified:
+                    pass
+                except Exception as e:
+                    logger.error(f"Error replying or editing message: {e}")
+
+            async with agent.iter(
                 user_prompt,
                 message_history=history,
                 deps=datatype.ContextDeps(
@@ -130,7 +165,21 @@ MessageID: {message.id}
                     message=message,
                     client=client,
                 ),  # type: ignore
-            )
+            ) as agent_run:
+                async for node in agent_run:
+                    if Agent.is_call_tools_node(node):
+                        for part in node.model_response.parts:
+                            if part.part_kind == "text" and part.content:
+                                await _reply_or_edit(part.content)
+                    elif Agent.is_end_node(node):
+                        if agent_run.result:
+                            await _reply_or_edit(agent_run.result.output)
+                            summary = await utils.summarize_history(
+                                agent, agent_run.result.all_messages()
+                            )
+                            await common.memttlcache.set(
+                                _history_key(chat_id, user.id), summary, ttl=86400 * 2
+                            )
         except TypeError as e:
             # https://github.com/pydantic/pydantic-ai/issues/527
             logger.error(f"Agent run error: {e}")
@@ -153,13 +202,6 @@ MessageID: {message.id}
                     )
                 )
             return
-        await message.reply_text(
-            result.output,
-            parse_mode=pyrogram.enums.ParseMode.MARKDOWN,
-        )
-        summary = await utils.summarize_history(agent, result.all_messages())
-        await common.memttlcache.set(
-            _history_key(chat_id, user.id), summary, ttl=86400 * 2
-        )
+
     finally:
         await common.memstore.delete(_waiting_key(user.id))
