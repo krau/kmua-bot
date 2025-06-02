@@ -5,7 +5,7 @@ from pyrogram import Client, filters
 from pyrogram.enums import ChatType, ParseMode
 from pyrogram.types import Message
 
-from kmua import database, i18n
+from kmua import common, database, i18n
 
 
 @Client.on_message(
@@ -31,8 +31,9 @@ async def bililink_convert(client: Client, message: Message):
             return
         real_url = real_url.split("?")[0]
     if in_group:
+        user = message.sender_chat or message.from_user
         text = i18n.t("bot.msg.b23_converted_group", locale=chat_config.lang).format(
-            real_url=real_url, from_user=message.from_user.mention(style="html")
+            real_url=real_url, from_user=(await common.mention_html(user))
         )
     else:
         user_config = await database.get_user_config(message.from_user.id)

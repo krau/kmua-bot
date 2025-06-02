@@ -2,7 +2,6 @@ import asyncio
 import datetime
 import shutil
 import weakref
-from collections import defaultdict
 from io import BytesIO
 from pathlib import Path
 
