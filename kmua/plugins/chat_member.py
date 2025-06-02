@@ -33,6 +33,9 @@ async def chat_member_updated(client: Client, chat_member_updated: ChatMemberUpd
     user = new_obj.user if new_obj else old_obj.user
     if user is None:
         return
+    if user.is_deleted:
+        logger.warning(f"User is deleted: {user.id}")
+        return
     if user.full_name is None:
         logger.warning(f"user.full_name is None: {user}")
         return
