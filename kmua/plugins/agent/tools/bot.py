@@ -163,11 +163,15 @@ async def get_history_messages(
     Returns:
         A list of ChatMessage or error string.
     """
+    chat_id = ctx.deps.chat_id
+    user_id = ctx.deps.user_id
+
+    if chat_id == user_id:
+        return "This tool is not available in private chats."
 
     if count <= 0 or count > 200:
         raise ModelRetry("Count must be between 1 and 200, inclusive.")
 
-    chat_id = ctx.deps.chat_id
     current_id = ctx.deps.message.id
 
     if direction == "latest":
