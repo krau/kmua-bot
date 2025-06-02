@@ -193,10 +193,13 @@ MessageID: {message.id}
         except TypeError as e:
             # https://github.com/pydantic/pydantic-ai/issues/527
             logger.error(f"Agent run error: {e}")
-            summary = await utils.summarize_history(agent, history)
-            await common.memttlcache.set(
-                _history_key(chat_id, user.id), summary, ttl=86400 * 2
+            await message.reply_text(
+                i18n.t("bot.msg.agent.errors.too_fast", locale=lang)
             )
+            # summary = await utils.summarize_history(agent, history)
+            # await common.memttlcache.set(
+            #     _history_key(chat_id, user.id), summary, ttl=86400 * 2
+            # )
             return
         except pydantic_ai.exceptions.ModelHTTPError as e:
             logger.error(f"Agent HTTP error: {e}")
