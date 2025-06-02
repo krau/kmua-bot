@@ -59,17 +59,23 @@ async def get_and_send_a_anime_photo(
     try:
         user_config = await database.get_user_config(ctx.deps.user_id)
         lang = user_config.lang
-        params = {
-            "r18": 2,
-            "page_size": 1,
-            "hybrid": app_config.manyacg_hybrid_search,
-        }
         if keyword:
-            params["keyword"] = keyword
-        resp = await manyacg.httpx_client.get(
-            url="/artwork/list",
-            params=params,
-        )
+            params = {
+                "r18": 2,
+                "page_size": 1,
+                "hybrid": app_config.manyacg_hybrid_search,
+            }
+            if keyword:
+                params["keyword"] = keyword
+            resp = await manyacg.httpx_client.get(
+                url="/artwork/list",
+                params=params,
+            )
+        else:
+            resp = await manyacg.httpx_client.get(
+                url="/artwork/random",
+                params={"r18": 2},
+            )
         if resp.status_code != 200:
             return f"Api request failed with code: {resp.status_code}"
         artwork: dict = resp.json()["data"][0]
