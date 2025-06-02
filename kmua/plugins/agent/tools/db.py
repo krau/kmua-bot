@@ -10,7 +10,7 @@ from .. import datatype
 class UserInfo(BaseModel):
     user_id: int
     full_name: str
-    config: dict
+    config: dict | None
     username: str | None = None
 
 
@@ -30,7 +30,7 @@ async def get_user_info(ctx: RunContext[datatype.ContextDeps]) -> UserInfo | Non
 class ChatInfo(BaseModel):
     chat_id: int
     title: str
-    config: dict
+    config: dict | str | None = None
     members_count: int | None = None
     admins_count: int | None = None
     linked_channel: str | None = None
