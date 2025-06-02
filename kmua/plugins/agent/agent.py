@@ -142,7 +142,7 @@ MessageID: {message.id}
                                 text,
                                 parse_mode=pyrogram.enums.ParseMode.MARKDOWN,
                             )
-                        elif repiled.text and len(repiled.text) + len(text) < 1000:
+                        elif repiled.text and (len(repiled.text) + len(text)) < 1000:
                             await repiled.edit_text(
                                 repiled.text + "\n" + text,
                                 parse_mode=pyrogram.enums.ParseMode.MARKDOWN,
