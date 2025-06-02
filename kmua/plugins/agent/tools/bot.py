@@ -184,67 +184,80 @@ async def get_history_messages(
 
     elif direction == "after":
         if anchor_id is None:
-            return "Missing anchor_id for direction 'after'."
+            raise ModelRetry("Missing anchor_id for direction 'after'.")
         start_id = anchor_id + 1
         end_id = anchor_id + 1 + count
 
     elif direction == "between":
         if start_id is None or end_id is None:
-            return "Both start_id and end_id are required for 'between'."
+            raise ModelRetry("Both start_id and end_id are required for 'between'.")
         if end_id <= start_id:
-            return "end_id must be greater than start_id."
+            raise ModelRetry("end_id must be greater than start_id.")
         if end_id - start_id > 200:
-            return "Maximum allowed range is 200 messages."
+            raise ModelRetry("Maximum allowed range is 200 messages.")
     else:
-        return f"Invalid direction: {direction}"
+        raise ModelRetry(
+            "Invalid direction. Use 'latest', 'before', 'after', or 'between'."
+        )
 
     logger.debug(
         f"get_history_messages called: direction={direction}, start_id={start_id}, end_id={end_id}, chat_id={chat_id}"
     )
-    msgs = await common.get_messages_with_cache(
-        chat_id=chat_id, message_ids=list(range(start_id, end_id)), replies=1
-    )
-    return [
-        ChatMessage(
-            user_id=msg.user_id,
-            username=(await database.get_user_by_id(msg.user_id)).full_name
-            if msg.user_id
-            else None,
-            text=msg.text,
-            time=msg.time,
+    try:
+        msgs = await common.get_messages_with_cache(
+            chat_id=chat_id, message_ids=list(range(start_id, end_id)), replies=1
         )
-        for msg in msgs
-    ]
+        return [
+            ChatMessage(
+                user_id=msg.user_id,
+                username=(await database.get_user_by_id(msg.user_id)).full_name
+                if msg.user_id
+                else None,
+                text=msg.text,
+                time=msg.time,
+            )
+            for msg in msgs
+        ]
+    except Exception as e:
+        logger.error(f"Error fetching history messages: {e.__class__.__name__}:{e}")
+        return f"Error fetching history messages: {e.__class__.__name__}"
 
 
 async def schedule_message(
     ctx: RunContext[datatype.ContextDeps],
     message: str,
     schedule_time: datetime.datetime,
-):
+) -> str | None:
     """Schedule a message to be sent at a specific time,
     can be used to send reminders or scheduled announcements.
 
     Arguments:
         message: text message to be sent.
         schedule_time: datetime when the message should be sent.
+
+    Returns:
+        None if successful, or an error message string.
     """
     logger.debug(
         f"schedule_message called with chat_id: {ctx.deps.chat_id}, user_id: {ctx.deps.user_id}, message: {message}, schedule_time: {schedule_time}"
     )
     if schedule_time < datetime.datetime.now():
         raise ModelRetry("Schedule time must be in the future.")
+    try:
 
-    async def _send_scheduled_message():
-        try:
-            await ctx.deps.message.reply(text=message)
-        except Exception as e:
-            logger.error(
-                f"Failed to send scheduled message: {e.__class__.__name__}:{e}"
-            )
+        async def _send_scheduled_message():
+            try:
+                await ctx.deps.message.reply(text=message)
+            except Exception as e:
+                logger.error(
+                    f"Failed to send scheduled message: {e.__class__.__name__}:{e}"
+                )
 
-    common.jobqueue.add_onetime_job(
-        f"agent_schedule_message:{ctx.deps.chat_id}:{ctx.deps.user_id}:{schedule_time.timestamp()}:{md5(message.encode()).hexdigest()}",
-        run_date=schedule_time,
-        func=_send_scheduled_message,
-    )
+        common.jobqueue.add_onetime_job(
+            f"agent_schedule_message:{ctx.deps.chat_id}:{ctx.deps.user_id}:{schedule_time.timestamp()}:{md5(message.encode()).hexdigest()}",
+            run_date=schedule_time,
+            func=_send_scheduled_message,
+        )
+    except Exception as e:
+        logger.error(f"Error scheduling message: {e.__class__.__name__}:{e}")
+        return f"Error scheduling message: {e.__class__.__name__}"
