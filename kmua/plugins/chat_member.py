@@ -33,6 +33,9 @@ async def chat_member_updated(client: Client, chat_member_updated: ChatMemberUpd
     user = new_obj.user if new_obj else old_obj.user
     if user is None:
         return
+    if user.full_name is None:
+        logger.warning(f"user.full_name is None: {user}")
+        return
     db_user = await database.upsert_user(user)
     db_chat = await database.upsert_chat(chat)
     if not db_user or not db_chat:
