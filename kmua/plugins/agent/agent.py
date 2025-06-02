@@ -124,44 +124,44 @@ MessageID: {message.id}
 """
         user_prompt = context_info + user_prompt
         logger.debug(f"User {user.id} prompt: {user_prompt}")
-        try:
-            repiled: pyrogram.types.Message | None = None
+        repiled: pyrogram.types.Message | None = None
 
-            async def _reply_or_edit(text: str, final: bool = False):
-                nonlocal repiled
-                try:
-                    if repiled:
-                        if final:
-                            await repiled.edit_text(
-                                text,
-                                parse_mode=pyrogram.enums.ParseMode.MARKDOWN,
-                            )
-                            return
-                        if repiled.text and text.startswith(repiled.text):
-                            await repiled.edit_text(
-                                text,
-                                parse_mode=pyrogram.enums.ParseMode.MARKDOWN,
-                            )
-                        elif repiled.text and (len(repiled.text) + len(text)) < 1000:
-                            await repiled.edit_text(
-                                repiled.text + "\n" + text,
-                                parse_mode=pyrogram.enums.ParseMode.MARKDOWN,
-                            )
-                        else:
-                            repiled = await repiled.edit_text(
-                                text,
-                                parse_mode=pyrogram.enums.ParseMode.MARKDOWN,
-                            )
-                    else:
-                        repiled = await message.reply_text(
+        async def _reply_or_edit(text: str, final: bool = False):
+            nonlocal repiled
+            try:
+                if repiled:
+                    if final:
+                        await repiled.edit_text(
                             text,
                             parse_mode=pyrogram.enums.ParseMode.MARKDOWN,
                         )
-                except pyrogram.errors.MessageNotModified:
-                    pass
-                except Exception as e:
-                    logger.error(f"Error replying or editing message: {e}")
+                        return
+                    if repiled.text and text.startswith(repiled.text):
+                        await repiled.edit_text(
+                            text,
+                            parse_mode=pyrogram.enums.ParseMode.MARKDOWN,
+                        )
+                    elif repiled.text and (len(repiled.text) + len(text)) < 1000:
+                        await repiled.edit_text(
+                            repiled.text + "\n" + text,
+                            parse_mode=pyrogram.enums.ParseMode.MARKDOWN,
+                        )
+                    else:
+                        repiled = await repiled.edit_text(
+                            text,
+                            parse_mode=pyrogram.enums.ParseMode.MARKDOWN,
+                        )
+                else:
+                    repiled = await message.reply_text(
+                        text,
+                        parse_mode=pyrogram.enums.ParseMode.MARKDOWN,
+                    )
+            except pyrogram.errors.MessageNotModified:
+                pass
+            except Exception as e:
+                logger.error(f"Error replying or editing message: {e}")
 
+        try:
             async with agent.iter(
                 user_prompt,
                 message_history=history,
@@ -198,11 +198,11 @@ MessageID: {message.id}
             await message.reply_text(
                 i18n.t("bot.msg.agent.errors.too_fast", locale=lang)
             )
+            raise e
             # summary = await utils.summarize_history(agent, history)
             # await common.memttlcache.set(
             #     _history_key(chat_id, user.id), summary, ttl=86400 * 2
             # )
-            return
         except pydantic_ai.exceptions.ModelHTTPError as e:
             logger.error(f"Agent HTTP error: {e}")
             if e.status_code == 400:
