@@ -4,6 +4,7 @@ from pydantic_ai import Agent
 from pydantic_ai.messages import ModelMessage, ModelRequest, SystemPromptPart
 
 from kmua.config import app_config
+from kmua.logger import logger
 
 
 async def summarize_history(
@@ -22,17 +23,20 @@ async def summarize_history(
     messages_to_preserve = filter_tool_return_if_needed(
         message_history[-preserve_last_n:]
     )
-
-    summary_result = await summary_agent.run(
-        f"Summarize this conversation: {message_history}"
-    )
-    summary_part = SystemPromptPart(
-        content=f"[CONVERSATION HISTORY]: {summary_result.output}"
-    )
-    return [
-        *messages_to_preserve,
-        ModelRequest(parts=[summary_part]),
-    ]
+    try:
+        summary_result = await summary_agent.run(
+            f"Summarize this conversation: {message_history}"
+        )
+        summary_part = SystemPromptPart(
+            content=f"[CONVERSATION HISTORY]: {summary_result.output}"
+        )
+        return [
+            *messages_to_preserve,
+            ModelRequest(parts=[summary_part]),
+        ]
+    except Exception as e:
+        logger.error(f"Error summarizing history with agent {summary_agent.name}: {e}")
+        return filter_tool_return_if_needed(message_history[-messages_threshold:])
 
 
 def filter_tool_return_if_needed(messages: list[ModelMessage]) -> list[ModelMessage]:

@@ -194,6 +194,7 @@ MessageID: {message.id}
                             )
         except TypeError as e:
             # https://github.com/pydantic/pydantic-ai/issues/527
+            # https://github.com/pydantic/pydantic-ai/issues/1813
             logger.error(f"Agent run error: {e}")
             await message.reply_text(
                 i18n.t("bot.msg.agent.errors.too_fast", locale=lang)
