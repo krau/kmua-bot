@@ -115,7 +115,7 @@ async def parse_artwork(client: pyrogram.Client, message: pyrogram.types.Message
                 continue
             photo_file_id = msg.photo.file_id
             await common.memttlcache.set(
-                f"artwork:pic_file_id:{image_url}", photo_file_id, ttl=86400
+                f"artwork:pic_file_id:{image_url}", photo_file_id, ttl=app_config.cachettl_artwork_pic_file_id
             )
     except Exception as e:
         logger.error(f"parse_artwork error: {e.__class__.__name__}:{e}")

@@ -5,6 +5,7 @@ from typing import BinaryIO
 import pyrogram
 
 from kmua import common
+from kmua.config import app_config
 
 
 @pyrogram.Client.on_message(
@@ -39,5 +40,5 @@ async def handle_sticker(client: pyrogram.Client, message: pyrogram.types.Messag
         await common.memttlcache.set(
             f"sticker_file:{sticker.file_unique_id}",
             msg.document.file_id,
-            ttl=86400 * 3,
+            ttl=app_config.cachettl_sticker_fileid,  # type: ignore[union-attr]
         )

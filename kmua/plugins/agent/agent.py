@@ -184,7 +184,9 @@ MessageID: {message.id}
                                 agent, agent_run.result.all_messages()
                             )
                             await common.memttlcache.set(
-                                _history_key(chat_id, user.id), summary, ttl=86400 * 2
+                                _history_key(chat_id, user.id),
+                                summary,
+                                ttl=app_config.cachettl_agent_history,
                             )
                         else:
                             logger.error(

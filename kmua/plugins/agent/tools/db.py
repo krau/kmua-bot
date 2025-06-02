@@ -2,6 +2,7 @@ from pydantic import BaseModel
 from pydantic_ai import RunContext
 
 from kmua import common, database
+from kmua.config import app_config
 from kmua.logger import logger
 
 from .. import datatype
@@ -67,7 +68,9 @@ async def get_chat_info(ctx: RunContext[datatype.ContextDeps]) -> ChatInfo | Non
     chat_full = await common.memttlcache.get(f"chatfull_{chat_id}", None)
     if not chat_full:
         chat_full = await ctx.deps.client.get_chat(chat_id)
-        await common.memttlcache.set(f"chatfull_{chat_id}", chat_full, 86400)
+        await common.memttlcache.set(
+            f"chatfull_{chat_id}", chat_full, app_config.cachettl_chatfull
+        )
     return ChatInfo(
         chat_id=chat_id,
         title=chat_title,

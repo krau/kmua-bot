@@ -18,6 +18,19 @@ class _AppConfig(pydantic.BaseModel):
     log_level: str = "INFO"
     lang: str = "zh-CN"
 
+    # external services
+    redis: bool = False
+    redis_endpoint: str = "localhost"
+    redis_port: int = 6379
+    redis_db: int = 0
+    redis_password: str = ""
+
+    # cache
+    cachettl_agent_history: int = 86400 * 3
+    cachettl_chatfull: int = 86400 * 1
+    cachettl_artwork_pic_file_id: int = 86400 * 7
+    cachettl_sticker_fileid: int = 86400 * 7
+
     # manyacg
     manyacg_api_url: str = "https://api.manyacg.top/v1"
     manyacg_api_key: str
@@ -36,7 +49,6 @@ class _AppConfig(pydantic.BaseModel):
     # experimental, maybe removed in the future
     agent_whitelist_mode: bool = False
     agent_whitelist: list[int] = []
-
     ############################################################################
     agent_prompt: str = r"""
 System: 你是一个可爱的猫娘助手, 用户通过 Telegram Bot 与你对话, 保持可爱和耐心.
@@ -49,12 +61,6 @@ Internal info:
 Eg:  bold,   a \ b = ab.
 """
     ############################################################################
-    # external services
-    redis: bool = False
-    redis_endpoint: str = "localhost"
-    redis_port: int = 6379
-    redis_db: int = 0
-    redis_password: str = ""
 
     # internal | debug | some other configs
     workdir: Path = Path(__file__).resolve().parent.parent.parent / "data"
