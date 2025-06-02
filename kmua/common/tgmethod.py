@@ -9,6 +9,7 @@ from pyrogram.types import Chat, User
 from kmua import database, enums
 from kmua.bot import client
 from kmua.common import client
+from kmua.config import app_config
 from kmua.database.models import ChatData, UserData
 from kmua.logger import logger
 
@@ -78,7 +79,9 @@ async def get_messages_with_cache(
     history_messages.extend(cached_messages.values())
     for msg in history_messages:
         await memttlcache.set(
-            chat_message_cache_key(chat_id, msg.message_id), msg, ttl=86400
+            chat_message_cache_key(chat_id, msg.message_id),
+            msg,
+            ttl=app_config.cachettl_history_message,
         )
     history_messages.sort(key=lambda x: 0 if x.time is None else x.time.timestamp())
     return history_messages
