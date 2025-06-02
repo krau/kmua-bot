@@ -127,10 +127,16 @@ MessageID: {message.id}
         try:
             repiled: pyrogram.types.Message | None = None
 
-            async def _reply_or_edit(text: str):
+            async def _reply_or_edit(text: str, final: bool = False):
                 nonlocal repiled
                 try:
                     if repiled:
+                        if final:
+                            await repiled.edit_text(
+                                text,
+                                parse_mode=pyrogram.enums.ParseMode.MARKDOWN,
+                            )
+                            return
                         if repiled.text and text.startswith(repiled.text):
                             await repiled.edit_text(
                                 text,
@@ -173,7 +179,7 @@ MessageID: {message.id}
                                 await _reply_or_edit(part.content)
                     elif Agent.is_end_node(node):
                         if agent_run.result:
-                            await _reply_or_edit(agent_run.result.output)
+                            await _reply_or_edit(agent_run.result.output, final=True)
                             summary = await utils.summarize_history(
                                 agent, agent_run.result.all_messages()
                             )
