@@ -230,14 +230,15 @@ async def get_history_messages(
 async def schedule_message(
     ctx: RunContext[datatype.ContextDeps],
     message: str,
-    schedule_time: datetime.datetime,
+    schedule_time: str,
 ) -> str | None:
     """Schedule a message to be sent at a specific time,
     can be used to send reminders or scheduled announcements.
 
     Arguments:
         message: text message to be sent.
-        schedule_time: datetime when the message should be sent.
+        schedule_time: ISO 8601 formatted string representing the time to send the message.
+        Example: "2025-06-04T15:00:00+08:00"
 
     Returns:
         None if successful, or an error message string.
@@ -245,7 +246,13 @@ async def schedule_message(
     logger.debug(
         f"schedule_message called with chat_id: {ctx.deps.chat_id}, user_id: {ctx.deps.user_id}, message: {message}, schedule_time: {schedule_time}"
     )
-    if schedule_time < datetime.datetime.now():
+    try:
+        schedule_datetime = datetime.datetime.fromisoformat(schedule_time)
+    except ValueError as e:
+        raise ModelRetry(
+            f"Invalid schedule_time format. Use ISO 8601 format, e.g., '2025-06-04T15:00:00+08:00'.\nError: {e}"
+        )
+    if schedule_datetime < datetime.datetime.now():
         raise ModelRetry("Schedule time must be in the future.")
     try:
 
@@ -258,8 +265,8 @@ async def schedule_message(
                 )
 
         common.jobqueue.add_onetime_job(
-            f"agent_schedule_message:{ctx.deps.chat_id}:{ctx.deps.user_id}:{schedule_time.timestamp()}:{md5(message.encode()).hexdigest()}",
-            run_date=schedule_time,
+            f"agent_schedule_message:{ctx.deps.chat_id}:{ctx.deps.user_id}:{schedule_datetime.timestamp()}:{md5(message.encode()).hexdigest()}",
+            run_date=schedule_datetime,
             func=_send_scheduled_message,
         )
     except Exception as e:
