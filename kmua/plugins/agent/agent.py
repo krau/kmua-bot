@@ -179,6 +179,9 @@ MessageID: {message.id}
                                 await _reply_or_edit(part.content)
                     elif Agent.is_end_node(node):
                         if agent_run.result:
+                            logger.debug(
+                                f"Agent run end with result: {agent_run.result.output}"
+                            )
                             await _reply_or_edit(agent_run.result.output, final=True)
                             summary = await utils.summarize_history(
                                 agent, agent_run.result.all_messages()

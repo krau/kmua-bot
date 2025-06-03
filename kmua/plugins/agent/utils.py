@@ -1,7 +1,7 @@
 from collections import defaultdict
 
 from pydantic_ai import Agent
-from pydantic_ai.messages import ModelMessage, ModelRequest, SystemPromptPart
+from pydantic_ai.messages import ModelMessage, ModelRequest, UserPromptPart
 
 from kmua.config import app_config
 from kmua.logger import logger
@@ -24,10 +24,36 @@ async def summarize_history(
         message_history[-preserve_last_n:]
     )
     try:
+        text_lines = []
+        added_system_prompt = False
+        for msg in message_history:
+            for part in msg.parts:
+                match part.part_kind:
+                    case "system-prompt":
+                        if not added_system_prompt:
+                            added_system_prompt = True
+                            text_lines.append(f"[SYSTEM PROMPT]: {part.content}")
+                    case "user-prompt":
+                        text_lines.append(f"[USER]: {part.content}")
+                    case "text":
+                        if msg.kind == "response":
+                            text_lines.append(f"[ASSISTANT]: {part.content}")
+                    case "tool-call":
+                        text_lines.append(
+                            f"[TOOL {part.tool_name} CALLED WITH ARGS]: {part.args}"
+                        )
+                    case "tool-return":
+                        text_lines.append(
+                            f"[TOOL {part.tool_name} RETURNED]: {part.content}"
+                        )
+                    case "retry-prompt":
+                        pass
+        message_text = "\n".join(text_lines)
+
         summary_result = await summary_agent.run(
-            f"Summarize this conversation: {message_history}"
+            f"Summarize this conversation: {message_text}"
         )
-        summary_part = SystemPromptPart(
+        summary_part = UserPromptPart(
             content=f"[CONVERSATION HISTORY]: {summary_result.output}"
         )
         return [
