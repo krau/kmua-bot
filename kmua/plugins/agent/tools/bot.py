@@ -234,7 +234,7 @@ async def schedule_message(
 ) -> str | None:
     """Schedule a message to be sent at a specific time,
     can be used to send reminders or scheduled announcements,
-    use get_current_time to get the current time in ISO 8601 format.
+    use get_current_time to get the current time in python datetime object.
 
     Arguments:
         message: text message to be sent.
