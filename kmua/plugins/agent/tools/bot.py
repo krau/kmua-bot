@@ -233,12 +233,13 @@ async def schedule_message(
     schedule_time: str,
 ) -> str | None:
     """Schedule a message to be sent at a specific time,
-    can be used to send reminders or scheduled announcements.
+    can be used to send reminders or scheduled announcements,
+    use get_current_time to get the current time in ISO 8601 format.
 
     Arguments:
         message: text message to be sent.
-        schedule_time: ISO 8601 formatted string representing the time to send the message.
-        Example: "2025-06-04T15:00:00+08:00"
+        schedule_time: ISO 8601 formatted string representing the time to send the message,
+            Example: "2025-06-04T15:00:00+08:00"
 
     Returns:
         None if successful, or an error message string.
@@ -252,7 +253,7 @@ async def schedule_message(
         raise ModelRetry(
             f"Invalid schedule_time format. Use ISO 8601 format, e.g., '2025-06-04T15:00:00+08:00'.\nError: {e}"
         )
-    if schedule_datetime < datetime.datetime.now():
+    if schedule_datetime < datetime.datetime.now(datetime.timezone.utc):
         raise ModelRetry("Schedule time must be in the future.")
     try:
 
