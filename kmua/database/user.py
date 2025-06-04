@@ -54,7 +54,7 @@ async def upsert_user(
         username = user.username
         full_name = user.title
         is_bot = False
-        is_real_user = user.type is not None and user.type != ChatType.PRIVATE
+        is_real_user = not (user.type is not None and user.type != ChatType.PRIVATE)
     else:
         raise TypeError("user must be User, Chat or UserData")
 
