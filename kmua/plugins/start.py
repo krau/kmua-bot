@@ -60,7 +60,10 @@ async def start(client: Client, message: Message):
                 )
             )
         case _:
-            pass
+            await message.reply(
+                text=i18n.t("bot.msg.private_start", locale=lang),
+                reply_markup=PrivateStartBotMarkup(lang).build(),
+            )
 
 
 @Client.on_message(filters.command("start") & filters.group, group=0)
