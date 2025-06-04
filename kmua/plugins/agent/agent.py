@@ -33,7 +33,7 @@ if app_config.agent:
             tools.get_ip_info,
             tools.get_user_info,
             tools.get_chat_info,
-            tools.get_and_send_a_anime_photo,
+            tools.send_anime_photo,
             tools.schedule_message,
             duckduckgo_search_tool(),
         ],

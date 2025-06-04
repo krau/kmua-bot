@@ -53,6 +53,9 @@ async def summarize_history(
         summary_result = await summary_agent.run(
             f"Summarize this conversation: {message_text}"
         )
+        logger.debug(
+            f"Agent summarize: {summary_result.output}"
+        )
         summary_part = UserPromptPart(
             content=f"[CONVERSATION HISTORY]: {summary_result.output}"
         )
