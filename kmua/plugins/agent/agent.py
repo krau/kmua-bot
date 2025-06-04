@@ -38,6 +38,7 @@ if app_config.agent:
             duckduckgo_search_tool(),
         ],
         deps_type=datatype.ContextDeps,  # type: ignore
+        retries=3,
     )  # type: ignore
 
     @pyrogram.Client.on_message(pyrogram.filters.command("forget"), group=0)
