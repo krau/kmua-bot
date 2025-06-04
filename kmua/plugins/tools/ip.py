@@ -12,8 +12,7 @@ from kmua.logger import logger
 
 @Client.on_message(filters.command("ip"), group=0)
 async def ipinfo(client: Client, message: Message):
-    user = message.from_user
-
+    user = message.from_user or message.sender_chat
     chat = message.chat
     in_group = chat.type in (ChatType.GROUP, ChatType.SUPERGROUP)
     if in_group:
