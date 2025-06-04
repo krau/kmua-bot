@@ -3,7 +3,7 @@ bot:
     private_start: Nya~
     group_start: 请私聊咱使用哦
     lang_changed: 语言已更改为 {lang}
-    no_permission_group: 你没有权限更改该群组中 bot 的设置哦
+    no_permission_group: 你没有本群组中管理 bot 的权限哦
     group_config: 点击按钮更改群组设置哦
     unknown_operation: 未知操作, 不可以干坏事哦
     group_config_saved: 群组设置已保存~
@@ -11,6 +11,8 @@ bot:
     refresh_success: 刷新成功
     refreshing_avatar: 正在刷新你的头像...
     cleanning: kmua 正在打扫房间...
+    sync_members_cd: 不要频繁使用哦, 请稍后再试
+    sync_members_done: 同步完成! 清理了 {count} 个人呢
     b23_converted: "{real_url}"
     b23_converted_group: |
       {real_url}

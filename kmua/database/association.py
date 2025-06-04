@@ -5,7 +5,6 @@ import sqlalchemy.dialects
 import sqlalchemy.dialects.mysql
 import sqlalchemy.dialects.postgresql
 import sqlalchemy.dialects.sqlite
-import sqlalchemy.exc
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from kmua import enums
@@ -311,3 +310,14 @@ async def cleanup_waifu_data(session: AsyncSession | None = None):
         .values(waifu_id=None)
     )
     await session.execute(stmt)
+
+
+@with_session
+async def get_chat_associations(
+    chat_id: int, session: AsyncSession | None = None
+) -> list[UserChatAssociation]:
+    stmt = sqlalchemy.select(UserChatAssociation).where(
+        UserChatAssociation.chat_id == chat_id
+    )
+    result = await session.execute(stmt)
+    return result.scalars().all()

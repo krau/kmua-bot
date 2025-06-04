@@ -31,6 +31,7 @@ class _AppConfig(pydantic.BaseModel):
     cachettl_artwork_pic_file_id: int = 86400 * 7
     cachettl_sticker_fileid: int = 86400 * 7
     cachettl_history_message: int = 86400 * 3
+    cachettl_sync_members: int = 86400
 
     # manyacg
     manyacg_api_url: str = "https://api.manyacg.top/v1"
