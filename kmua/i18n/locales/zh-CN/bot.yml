@@ -119,9 +119,9 @@ bot:
     agent:
       waiting: 正在等待响应, 请稍等一会儿...
       forgot: 刚刚发生了什么, 好像忘记了呢...
+      summary_prompt: 总结对话内容
       errors:
-        model_http_400: |
-          太涩了, 不行! (400)
+        model_http_400: 太涩了, 不行! (400)
         model_http: 失败了喵, 请稍后再试 (HTTP {code})
         too_fast: 太快了! 不行!
     wordcloud:

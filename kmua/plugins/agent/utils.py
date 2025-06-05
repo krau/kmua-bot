@@ -4,6 +4,7 @@ from pydantic_ai import Agent
 from pydantic_ai.messages import ModelMessage, ModelRequest, SystemPromptPart
 
 from kmua.config import app_config
+from kmua.i18n import i18n
 from kmua.logger import logger
 
 
@@ -51,7 +52,7 @@ async def summarize_history(
         message_text = "\n".join(text_lines)
 
         summary_result = await summary_agent.run(
-            f"Summarize this conversation: {message_text}"
+            f"{i18n.t('bot.msg.agent.summary_prompt', locale=app_config.lang)}: {message_text}"
         )
         logger.debug(f"Agent summarize: {summary_result.output}")
         summary_part = SystemPromptPart(
