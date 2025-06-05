@@ -23,8 +23,10 @@ async def summarize_history(
     for msg in message_history:
         for part in msg.parts:
             if part.part_kind == "user-prompt" and not isinstance(part.content, str):
-                has_multimodal_content = True
-                break
+                for content in part.content:
+                    if not isinstance(content, str):
+                        has_multimodal_content = True
+                        break
         if has_multimodal_content:
             break
 
