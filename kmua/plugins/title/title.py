@@ -19,7 +19,10 @@ async def set_member_title(client: pyrogram.Client, message: pyrogram.types.Mess
     target = message.reply_to_message.from_user if message.reply_to_message else user
     if not target:
         await message.reply_text(
-            i18n.t("bot.msg.title.errors.user_id_invalid", locale=(await database.get_chat_config(chat)).lang),
+            i18n.t(
+                "bot.msg.title.errors.user_id_invalid",
+                locale=(await database.get_chat_config(chat)).lang,
+            ),
             parse_mode=pyrogram.enums.ParseMode.HTML,
         )
         return

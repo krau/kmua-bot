@@ -8,7 +8,9 @@ from wordcloud import WordCloud
 from kmua import common, consts, database, i18n
 
 
-@pyrogram.Client.on_message(pyrogram.filters.command("wordcloud") & pyrogram.filters.group, group=0)
+@pyrogram.Client.on_message(
+    pyrogram.filters.command("wordcloud") & pyrogram.filters.group, group=0
+)
 async def wordcloud_command(client: pyrogram.Client, message: pyrogram.types.Message):
     chat = message.chat
     if not chat or not chat.id:
