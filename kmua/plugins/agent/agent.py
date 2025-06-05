@@ -1,8 +1,12 @@
+from io import BytesIO
+from typing import Callable
+
 import pydantic_ai
 import pyrogram
 import pyrogram.errors
-from pydantic_ai import Agent
+from pydantic_ai import Agent, BinaryContent
 from pydantic_ai.common_tools.duckduckgo import duckduckgo_search_tool
+from pydantic_ai.messages import UserContent
 from pydantic_ai.models.openai import OpenAIModel
 from pydantic_ai.providers.openai import OpenAIProvider
 from pyrogram import filters
@@ -40,6 +44,7 @@ if app_config.agent:
         deps_type=datatype.ContextDeps,  # type: ignore
         retries=3,
     )  # type: ignore
+    summary_agent = Agent(model=model, system_prompt=app_config.agent_summary_prompt)
 
     @pyrogram.Client.on_message(pyrogram.filters.command("forget"), group=0)
     async def forget_history(client: pyrogram.Client, message: pyrogram.types.Message):
@@ -112,9 +117,9 @@ async def wake_agent(client: pyrogram.Client, message: pyrogram.types.Message):
     try:
         chat_id = chat.id
         history = await common.memttlcache.get(_history_key(chat_id, user.id), [])
-        user_prompt = message.text or message.caption or ""
+        user_prompt_text = message.text or message.caption or ""
         if reply_to := message.reply_to_message:
-            user_prompt += f"""
+            user_prompt_text += f"""
 [REPLY TO MESSAGE](MessageID: {reply_to.id}):
 {reply_to.text or reply_to.caption or "[NO TEXT]"}
 """
@@ -123,8 +128,36 @@ async def wake_agent(client: pyrogram.Client, message: pyrogram.types.Message):
 MessageID: {message.id}
 [USER MESSAGE]:
 """
-        user_prompt = context_info + user_prompt
-        logger.debug(f"User {user.id} prompt: {user_prompt}")
+        user_prompt: list[UserContent] = [
+            f"{context_info}{user_prompt_text}",
+        ]
+        get_media_and_message: Callable[
+            [pyrogram.types.Message],
+            tuple[
+                pyrogram.enums.MessageMediaType | None, pyrogram.types.Message | None
+            ],
+        ] = lambda m: (
+            (m.media, m)
+            if m.media
+            else (m.reply_to_message.media, m.reply_to_message)
+            if m.reply_to_message and m.reply_to_message.media
+            else (None, None)
+        )
+        media, media_message = get_media_and_message(message)
+        if media and media_message and app_config.agent_multimodal:
+            match media:
+                case pyrogram.enums.MessageMediaType.PHOTO:
+                    if media_message.photo and media_message.photo.file_id:
+                        photo_file = await client.download_media(
+                            media_message.photo.file_id, in_memory=True
+                        )
+                        if isinstance(photo_file, BytesIO):
+                            photo_bytes = photo_file.getvalue()
+                            user_prompt.append(
+                                BinaryContent(data=photo_bytes, media_type="image/jpeg")
+                            )
+
+        logger.debug(f"User {user.id} prompt: {user_prompt_text}")
         repiled: pyrogram.types.Message | None = None
 
         async def _reply_or_edit(text: str, final: bool = False):
@@ -185,7 +218,7 @@ MessageID: {message.id}
                             )
                             await _reply_or_edit(agent_run.result.output, final=True)
                             summary = await utils.summarize_history(
-                                agent, agent_run.result.all_messages()
+                                summary_agent, agent_run.result.all_messages()
                             )
                             await common.memttlcache.set(
                                 _history_key(chat_id, user.id),

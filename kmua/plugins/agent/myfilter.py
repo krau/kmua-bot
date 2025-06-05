@@ -7,16 +7,17 @@ from kmua.config import app_config
 async def base_filter_func(_, __, message: pyrogram.types.Message) -> bool:
     if not app_config.agent:
         return False
-    if not message or not message.text:
+    if not message:
         return False
-    if len(message.text) <= 1:
+    text = message.text or message.caption
+    if not text or len(text.strip()) == 0 or len(text) <= 1:
         return False
     if (
         message.entities is not None
         and message.entities[0].type == pyrogram.enums.MessageEntityType.BOT_COMMAND
     ):
         return False
-    if message.text.startswith("/") or message.text.startswith("\\"):
+    if text.startswith("/") or text.startswith("\\"):
         return False
     return True
 

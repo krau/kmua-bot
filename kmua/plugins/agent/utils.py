@@ -35,7 +35,14 @@ async def summarize_history(
                             added_system_prompt = True
                             text_lines.append(f"[SYSTEM PROMPT]: {part.content}")
                     case "user-prompt":
-                        text_lines.append(f"[USER]: {part.content}")
+                        if isinstance(part.content, str):
+                            text_lines.append(f"[USER]: {part.content}")
+                        else:
+                            content_text_lines = []
+                            for content in part.content:
+                                if isinstance(content, str):
+                                    content_text_lines.append(content)
+                            text_lines.append(f"[USER]: {' '.join(content_text_lines)}")
                     case "text":
                         if msg.kind == "response":
                             text_lines.append(f"[ASSISTANT]: {part.content}")
