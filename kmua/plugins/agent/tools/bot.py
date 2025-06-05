@@ -147,7 +147,7 @@ async def get_history_messages(
     end_id: int | None = None,
 ) -> list[ChatMessage] | str:
     """
-    Fetch historical messages from chat.
+    Fetch historical messages from chat, can not be used in private chats.
 
     Args:
         direction:

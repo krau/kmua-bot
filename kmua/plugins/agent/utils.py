@@ -18,7 +18,17 @@ async def summarize_history(
         raise ValueError(
             f"'preserve_last_n' ({preserve_last_n}) must be less than 'messages_threshold' ({messages_threshold})"
         )
-    if len(message_history) <= messages_threshold:
+
+    has_multimodal_content = False
+    for msg in message_history:
+        for part in msg.parts:
+            if part.part_kind == "user-prompt" and not isinstance(part.content, str):
+                has_multimodal_content = True
+                break
+        if has_multimodal_content:
+            break
+
+    if not has_multimodal_content and len(message_history) <= messages_threshold:
         return message_history
 
     messages_to_preserve = filter_tool_return_if_needed(
@@ -65,13 +75,54 @@ async def summarize_history(
         summary_part = SystemPromptPart(
             content=f"[CONVERSATION HISTORY]: {summary_result.output}"
         )
+
+        filtered_preserve_messages = []
+        for msg in messages_to_preserve:
+            if msg.kind != "request":
+                filtered_preserve_messages.append(msg)
+                continue
+
+            filtered_parts = []
+            for part in msg.parts:
+                if part.part_kind == "user-prompt" and not isinstance(
+                    part.content, str
+                ):
+                    continue
+                filtered_parts.append(part)
+
+            if filtered_parts:
+                new_msg = ModelRequest(parts=filtered_parts)
+                filtered_preserve_messages.append(new_msg)
+
         return [
-            *messages_to_preserve,
+            *filtered_preserve_messages,
             ModelRequest(parts=[summary_part]),
         ]
     except Exception as e:
         logger.error(f"Error summarizing history with agent {summary_agent.name}: {e}")
-        return filter_tool_return_if_needed(message_history[-messages_threshold:])
+        filtered_messages = filter_tool_return_if_needed(
+            message_history[-messages_threshold:]
+        )
+
+        result_messages = []
+        for msg in filtered_messages:
+            if msg.kind != "request":
+                result_messages.append(msg)
+                continue
+
+            filtered_parts = []
+            for part in msg.parts:
+                if part.part_kind == "user-prompt" and not isinstance(
+                    part.content, str
+                ):
+                    continue
+                filtered_parts.append(part)
+
+            if filtered_parts:
+                new_msg = ModelRequest(parts=filtered_parts)
+                result_messages.append(new_msg)
+
+        return result_messages
 
 
 def filter_tool_return_if_needed(messages: list[ModelMessage]) -> list[ModelMessage]:

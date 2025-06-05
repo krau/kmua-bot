@@ -119,15 +119,30 @@ async def wake_agent(client: pyrogram.Client, message: pyrogram.types.Message):
         history = await common.memttlcache.get(_history_key(chat_id, user.id), [])
         user_prompt_text = message.text or message.caption or ""
         if reply_to := message.reply_to_message:
-            user_prompt_text += f"""
+            user_prompt_text += (
+                f"""
 [REPLY TO MESSAGE](MessageID: {reply_to.id}):
 {reply_to.text or reply_to.caption or "[NO TEXT]"}
 """
-        context_info = f"""
+                if chat.type != pyrogram.enums.ChatType.PRIVATE
+                else f"""
+[REPLY TO MESSAGE]:
+{reply_to.text or reply_to.caption or "[NO TEXT]"}
+"""
+            )
+        context_info = (
+            f"""
 [CONTEXT INFO]:
 MessageID: {message.id}
 [USER MESSAGE]:
 """
+            if chat.type != pyrogram.enums.ChatType.PRIVATE
+            else f"""
+[CONTEXT INFO]:
+In Private Chat
+[USER MESSAGE]:
+"""
+        )
         user_prompt: list[UserContent] = [
             f"{context_info}{user_prompt_text}",
         ]
