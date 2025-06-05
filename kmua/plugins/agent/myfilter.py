@@ -10,7 +10,7 @@ async def base_filter_func(_, __, message: pyrogram.types.Message) -> bool:
     if not message:
         return False
     text = message.text or message.caption
-    if not text or len(text.strip()) == 0 or len(text) <= 1:
+    if not text or len(text.strip()) == 0 or len(text) <= 1 or len(text) >= 2048:
         return False
     if (
         message.entities is not None
