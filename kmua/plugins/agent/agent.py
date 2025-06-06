@@ -193,7 +193,9 @@ In Private Chat
             except pyrogram.errors.MessageNotModified:
                 pass
             except Exception as e:
-                logger.error(f"Error replying or editing message: {e}")
+                logger.error(
+                    f"Error replying or editing message: {e.__class__.__name__} - {e}"
+                )
 
         try:
             async with agent.iter(
@@ -232,14 +234,14 @@ In Private Chat
         except TypeError as e:
             # https://github.com/pydantic/pydantic-ai/issues/527
             # https://github.com/pydantic/pydantic-ai/issues/1813
-            logger.error(f"Agent run error: {e}")
+            logger.exception(f"Agent run error: {e}")
             await message.reply_text(
                 f"{i18n.t('bot.msg.agent.errors.too_fast', locale=lang)}\n<code>{e}</code>",
                 parse_mode=pyrogram.enums.ParseMode.HTML,
             )
             raise e
         except pydantic_ai.exceptions.ModelHTTPError as e:
-            logger.error(f"Agent HTTP error: {e}")
+            logger.exception(f"Agent HTTP error: {e}")
             if e.status_code == 400:
                 await message.reply_text(
                     i18n.t("bot.msg.agent.errors.model_http_400", locale=lang)

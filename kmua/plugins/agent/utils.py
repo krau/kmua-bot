@@ -101,7 +101,9 @@ async def summarize_history(
             ModelRequest(parts=[summary_part]),
         ]
     except Exception as e:
-        logger.error(f"Error summarizing history with agent {summary_agent.name}: {e}")
+        logger.exception(
+            f"Error summarizing history with agent: {e.__class__.__name__} - {e}"
+        )
         filtered_messages = filter_tool_return_if_needed(
             message_history[-messages_threshold:]
         )
