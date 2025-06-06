@@ -180,31 +180,16 @@ In Private Chat
             try:
                 if repiled:
                     if final:
-                        await repiled.edit_text(
-                            text,
-                            parse_mode=pyrogram.enums.ParseMode.MARKDOWN,
-                        )
+                        await repiled.edit_text(text)
                         return
                     if repiled.text and text.startswith(repiled.text):
-                        await repiled.edit_text(
-                            text,
-                            parse_mode=pyrogram.enums.ParseMode.MARKDOWN,
-                        )
+                        await repiled.edit_text(text)
                     elif repiled.text and (len(repiled.text) + len(text)) < 1000:
-                        await repiled.edit_text(
-                            repiled.text + "\n" + text,
-                            parse_mode=pyrogram.enums.ParseMode.MARKDOWN,
-                        )
+                        await repiled.edit_text(repiled.text + "\n" + text)
                     else:
-                        repiled = await repiled.edit_text(
-                            text,
-                            parse_mode=pyrogram.enums.ParseMode.MARKDOWN,
-                        )
+                        repiled = await repiled.edit_text(text)
                 else:
-                    repiled = await message.reply_text(
-                        text,
-                        parse_mode=pyrogram.enums.ParseMode.MARKDOWN,
-                    )
+                    repiled = await message.reply_text(text)
             except pyrogram.errors.MessageNotModified:
                 pass
             except Exception as e:
@@ -253,10 +238,6 @@ In Private Chat
                 parse_mode=pyrogram.enums.ParseMode.HTML,
             )
             raise e
-            # summary = await utils.summarize_history(agent, history)
-            # await common.memttlcache.set(
-            #     _history_key(chat_id, user.id), summary, ttl=86400 * 2
-            # )
         except pydantic_ai.exceptions.ModelHTTPError as e:
             logger.error(f"Agent HTTP error: {e}")
             if e.status_code == 400:
