@@ -101,6 +101,7 @@ async def update_association(
             {
                 "waifu_id": association.waifu_id,
                 "is_bot_admin": association.is_bot_admin,
+                "promoted_by": association.promoted_by,
             }
         )
     )

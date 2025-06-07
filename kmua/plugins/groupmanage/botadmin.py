@@ -4,7 +4,9 @@ from kmua import common, database, enums, i18n
 
 
 @pyrogram.Client.on_message(
-    pyrogram.filters.command("botpromote") & pyrogram.filters.group, group=0
+    (pyrogram.filters.command("botpromote") | pyrogram.filters.command("botdemote"))
+    & pyrogram.filters.group,
+    group=0,
 )
 async def set_user_bot_admin_in_chat(
     client: pyrogram.Client, message: pyrogram.types.Message
@@ -19,8 +21,10 @@ async def set_user_bot_admin_in_chat(
             i18n.t("bot.msg.no_permission_group", locale=chat_config.lang)
         )
         return
+    if not message.command:
+        return
     try:
-        to_promote_user_id = (
+        target_user_id = (
             (
                 message.reply_to_message.sender_chat
                 or message.reply_to_message.from_user
@@ -35,7 +39,7 @@ async def set_user_bot_admin_in_chat(
             i18n.t("bot.msg.botadmin.invalid_user", locale=chat_config.lang)
         )
         return
-    if not to_promote_user_id or to_promote_user_id in (
+    if not target_user_id or target_user_id in (
         enums.ChatID.FAKE_CHANNEL,
         enums.ChatID.SERVICE_CHAT,
         enums.ChatID.ANONYMOUS_ADMIN,
@@ -45,15 +49,29 @@ async def set_user_bot_admin_in_chat(
             i18n.t("bot.msg.botadmin.invalid_user", locale=chat_config.lang)
         )
         return
-    db_user = await database.get_user_by_id(to_promote_user_id)
+    demote = message.command[0] == "botdemote"
+    user_association = await database.get_association(user.id, chat.id)
+    if (
+        not user_association
+        or not user_association.is_bot_admin
+        or (
+            user_association.promoted_by is not None
+            and user_association.promoted_by == target_user_id
+        )
+    ):
+        await message.reply(
+            i18n.t("bot.msg.botadmin.target_is_upstream", locale=chat_config.lang)
+        )
+        return
+    db_user = await database.get_user_by_id(target_user_id)
     if not db_user:
         await message.reply(
             i18n.t("bot.msg.botadmin.user_not_found", locale=chat_config.lang)
         )
         return
-    if not db_user.is_real_user:
+    if db_user.is_bot:
         await message.reply(
-            i18n.t("bot.msg.botadmin.user_not_real", locale=chat_config.lang)
+            i18n.t("bot.msg.botadmin.user_is_bot", locale=chat_config.lang)
         )
         return
     association = await database.get_association(db_user.id, chat.id)
@@ -62,7 +80,16 @@ async def set_user_bot_admin_in_chat(
             i18n.t("bot.msg.botadmin.user_not_in_chat", locale=chat_config.lang)
         )
         return
-    association.is_bot_admin = not association.is_bot_admin
+    if association.is_bot_admin == (not demote):
+        await message.reply(
+            i18n.t(
+                "bot.msg.botadmin.already_set",
+                locale=chat_config.lang,
+            )
+        )
+        return
+    association.is_bot_admin = False if demote else True
+    association.promoted_by = user.id if not demote else None
     await database.update_association(association)
     await message.reply(
         i18n.t(

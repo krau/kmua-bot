@@ -100,6 +100,7 @@ class UserChatAssociation(Base):
         index=True,
     )
     is_bot_admin: Mapped[bool] = mapped_column(Boolean, default=False)
+    promoted_by: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
@@ -110,9 +111,6 @@ class UserChatAssociation(Base):
         server_default=func.now(),
         onupdate=func.now(),
     )
-
-    def __repr__(self) -> str:
-        return f"<UserChatAssociation(user_id={self.user_id}, chat_id={self.chat_id})>"
 
 
 class UserData(Base):

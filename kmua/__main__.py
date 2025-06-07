@@ -76,5 +76,7 @@ def exception_handler(loop, context):
 
 
 if __name__ == "__main__":
+    if app_config.automigrate:
+        db.migrate_db()
     client.loop.set_exception_handler(exception_handler)
     client.loop.run_until_complete(main())

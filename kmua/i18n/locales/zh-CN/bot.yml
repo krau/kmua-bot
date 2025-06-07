@@ -113,9 +113,11 @@ bot:
         无效的用户, 请提供有效的用户 ID, 或回复一条消息
         (不能将频道身份, 匿名管理等设置为 bot 管理员, 该命令也不能对自己使用哦)
       user_not_found: 找不到该用户
-      user_not_real: 该用户不是真实用户
-      user_not_in_chat: 该用户似乎不在数据里, 让 ta 出来发个言吧~
+      user_is_bot: 不能对 Bot 使用此命令哦
+      user_not_in_chat: 该用户似乎不在群组里, 让 ta 出来发个言吧~
       success: 已将 {user} 在本群的 Bot 管理权限设为 {status}
+      target_is_upstream: 你不能对该用户使用此命令, 因为你的权限由该用户授予
+      already_set: 用户状态未更改
     agent:
       waiting: 正在等待响应, 请稍等一会儿...
       forgot: 刚刚发生了什么, 好像忘记了呢...
