@@ -1,0 +1,319 @@
+bot:
+  msg:
+    lang_changed: 言語が {lang} に変更されました
+    no_permission_group: このグループでBotを管理する権限がありませんにゃ
+    group_config: ボタンをタップしてグループ設定を変更してにゃ
+    unknown_operation: 不明な操作です、いたずらは禁止にゃ！
+    group_config_saved: グループ設定を保存したよ〜
+    refresh_failed: 更新に失敗しました、時間をおいて再試行してくださいにゃ
+    refresh_success: 更新成功にゃ！
+    refreshing_avatar: アバターを更新中にゃ…
+    cleanning: kmuaがルームをお掃除中だよ〜
+    sync_members_cd: あまり連続で使わないでにゃ、少し待ってからもう一度ね
+    sync_members_done: 同期完了！{count}人をお掃除したにゃ〜
+    b23_converted: "{real_url}"
+    b23_converted_group: |
+      {real_url}
+      {from_user} さんから送られた b23 短縮リンクを変換したにゃ〜
+    title:
+      set_self: "はい、あなたは今 {title} ですよ"
+      set_other: "{user} さんが {target} を {title} にしました！"
+      set_permissions: "ボタンをクリックして /t コマンドの権限を変更してください"
+      deleted: "あなたの称号を削除しました"
+      errors:
+        generic: "失敗しましたにゃん"
+        admin_required: "十分な権限がないか、他の管理者が設定した称号を変更しようとしています"
+        creator: "グループのオーナーには使えませんにゃん"
+        rank_invalid: "称号が長すぎます！入りません！"
+        user_id_invalid: "自分自身やチャンネルの称号は変更できません"
+        no_chat_or_user: "対応するユーザーやグループが見つかりません..."
+    ip:
+      no_ip_provided: "クエリするIP/ドメインを入力してください"
+      querying: "クエリ中: {ip}"
+      query_failed: "クエリ失敗: {error_type}: {error}"
+      query_failed_reason: "クエリ失敗: {message}"
+      query_target: "クエリ対象: <code>{url}</code>"
+      resolved_address: "解決されたアドレス: <code>{query}</code>"
+      location: "地域: <code>{country} - {region} - {city}</code>"
+      coordinates: "座標: <code>{lat},{lon}</code>"
+      isp: "ISP: <code>{isp}</code>"
+      organization: "組織: <code>{org}</code>"
+      as_number: '<a href="https://bgp.he.net/{as_link}">{as_number}</a>'
+      mobile_ip: "このIPは<b>モバイルデータIP</b>の可能性があります"
+      proxy_ip: "このIPは<b>プロキシIP</b>の可能性があります"
+      hosting_ip: "このIPは<b>データセンターIP</b>の可能性があります"
+    help: |
+      <blockquote expandable="true">
+      /start - 使い始める|メニューを開く
+      /help - このヘルプを表示
+      /config - グループでのBot設定を変更
+      /waifu - 今日のグループ嫁！
+      /waifu_graph - 嫁関係図！
+      /q - 名言を記録
+      /d - 名言を削除|グループ名言を管理
+      /qrand - ランダム名言
+      /qp - ランダム名言送信確率を設定
+      /t - 称号を取得|称号を交換
+      /td - あなたの称号を削除
+      /sett - /t コマンドの権限を変更
+      /setu - エッチな画像をお届け (／ω＼)
+      /greet - グループウェルカムメッセージを設定
+      /id - チャットIDを取得
+      /ip - IP/ドメイン情報をクエリ
+      /wordcloud - チャット記録のワードクラウドを生成
+      /botpromote - グループでBot管理者を設定 (Botに対してグループオーナーと同等の権限)
+      /botdemote - グループでBot管理者権限を解除
+      /syncmembers - グループメンバーを同期
+      /f5avatar - あなたのアバターを更新
+      /forget - Botとの会話記録を消去
+      </blockquote>
+      他の人に "/" や "\" を使うと魔法をかけられます
+    help_inline: |
+      任意のチャットボックスで @{me_username} と入力すると Inline モードに入ります
+
+      Inline モードで使えるパラメータ:
+
+      q [キーワード] - 名言を検索
+    reply:
+      default:
+        - "にゃんにゃん？"
+    manyacg:
+      artwork_pictures_count: "この作品には {count} 枚の画像があります"
+      seefull: ->詳細を見る
+      chat_setu_disabled: "ここではエッチな画像は禁止ですよ"
+      setu_cd: "速すぎます！ダメです！"
+      setu_error: "失敗しましたにゃん、しばらくしてからもう一度試してください"
+    greeting:
+      usage: |
+        使い方: /greet <アクション> [パラメータ]
+        利用可能なアクション: set, remove, show
+        - set <ウェルカムメッセージ>:     
+          グループウェルカムメッセージを設定、以下の変数が使えます:
+          ${user} - 新規ユーザー名
+          ${chat} - グループタイトル
+          HTMLが使用可能
+        - remove:
+          グループウェルカムメッセージを削除
+        - プレビュー:
+          現在のグループウェルカムメッセージを表示
+      set_usage: |
+        使い方: /greet set <ウェルカムメッセージ>
+        利用可能な変数:
+        ${user} - 新規ユーザー名
+        ${chat} - グループタイトル
+        HTMLが使用可能
+      too_long: "長すぎます！ダメです！"
+      set_success: "グループウェルカムメッセージを設定しました"
+      remove_success: "グループウェルカムメッセージを削除しました"
+      not_set: "このグループにはまだウェルカムメッセージが設定されていません"
+      template_error: "ウェルカムメッセージの解析中にエラーが発生しました、変なものを入れないでください"
+    botadmin:
+      invalid_user: |
+        無効なユーザーです、有効なユーザーIDを入力するか、メッセージに返信してください
+        (チャンネルや匿名管理者などをBot管理者に設定できません、また自分自身にも使えません)
+      user_not_found: "ユーザーが見つかりません"
+      user_is_bot: "Botには使えませんよ"
+      user_not_in_chat: "このユーザーはグループにいないようです、一度発言させてください～"
+      success: "{user} さんのBot管理権限を {status} に設定しました"
+      target_is_upstream: "このユーザーには使えません、あなたの権限はこのユーザーから与えられたものです"
+      already_set: "ユーザーステータスは変更されていません"
+    agent:
+      waiting: "応答を待っています、少々お待ちください..."
+      forgot: "何があったんだっけ、忘れちゃったみたい..."
+      summary_prompt: "会話内容を要約"
+      errors:
+        model_http_400: "エッチすぎます！ダメです！(400)"
+        model_http: "失敗しましたにゃん、しばらくしてからもう一度試してください (HTTP {code})"
+        too_fast: "速すぎます！ダメです！"
+    wordcloud:
+      generating: "生成中です、少々お待ちください..."
+      generated: "最近のチャット記録のワードクラウド"
+    waifu:
+      disabled: "ここではwaifu機能は使えませんよ"
+      not_found: "あなたには今嫁がいません、記録に他のグループメンバーが見つかりませんでした"
+      retry: "嫁を抽選できませんでした、もう一度試してください～"
+      got: "{user}さん、あなたは今日既に嫁を抽選しています！{waifu}さんが今日の嫁です！"
+      normal: "{user}さん、あなたの今日のグループ嫁は {waifu}さんです！"
+      got_nouser: "あなたは今日既に嫁を抽選しています！{waifu}さんが今日の嫁です！"
+      normal_nouser: "あなたの今日のグループ嫁は {waifu}さんです！"
+      married: "{user}さん、あなたと {waifu}さんは既に結婚していますよ～"
+      remove_not_found: "該当者なし、既に削除されているかもしれません"
+      remove: "本当に削除しますか？"
+      removed: "このユーザーを削除しました、ta は {user} さんの嫁でした"
+      marry_not_real: "＞﹏＜ ta は実在ユーザーではありません(匿名管理者、チャンネルなどとは結婚できません)"
+      marry_self: "(。・ω・。) いつかきっとあなたを求めて誰かが来るでしょう"
+      marry_not_user: "(￣ε(#￣) 他人のことに干渉しないでくださいね"
+      already_married: "あなたは既にtaと結婚していますよ"
+      already_married_other: "（＞人＜；）ta は既に他の人と一緒です、あなたにふさわしい人を見つけられますように"
+      user_already_married_other: "∑( 口 || あなたには既に嫁がいます、他の人を誘わないでくださいね"
+      marry_ask: "{waifu}さん、{user}さんと結婚してくれますか？"
+      marry_success: "おめでとうございます {user}さんと {waifu}さんの結婚です～"
+      marry_refused: "(´。＿。｀) あなたはtaのプロポーズを断りました。一度逃したチャンスは二度と..."
+      marry_cancel: "プロポーズリクエストをキャンセルしました"
+      no_participate: "今日はこのグループで誰も嫁を抽選していません"
+      graph_caption: "グループ嫁関係図、{count} 人が参加"
+      divorce_not_married: "でも...あなたはまだ結婚していませんよqwq"
+      divorce_not_found: "あなたの嫁が見つかりません！"
+      divorce_success: "<i>いつか大切な人と再会できますように</i>"
+      divorce_notify: "{user} さんがあなたとの関係を解消しました QAQ..."
+      divorce_confirm: "本当に {waifu} さんと離婚しますか？"
+      info: |
+        @ するか: {mention}
+        既婚: {married}
+        結婚相手ID: {married_waifu_id}
+    quote:
+      probability_usage: "自動名言送信確率は1未満の小数です、負の値を設定すると /qrand コマンドが無効になります"
+      probability_invalid: "変なものを入れないでください (//▲//)"
+      reply_to_required: "メッセージに返信してください"
+      topic_not_supported: "メインスレッド以外では使えません"
+      origin_not_found: "このメッセージを送信した人が分かりません..."
+      get_link_failed: "メッセージリンクの取得に失敗、このグループはスーパーグループではないかもしれません"
+      already_exists: "この名言は既に存在しますよ"
+      text_not_available: "非テキストメッセージかテキストが長すぎて画像生成できません"
+      chat_no_quote: "このグループにはまだ名言がありません"
+      not_found: "このメッセージはグループ名言にありません"
+      only_delete_self: "自分の名言しか削除できません"
+      only_delete_or_group: "自分の名言かグループの名言しか削除できません"
+      deleted: "この名言を削除しました"
+      created:
+        - "誰が変なこと言ってるのか見てみよう！"
+        - "はい！"
+      user_all_deleted: "もう名言はありません"
+      user_no_quote: "あなたにはまだ名言がありません"
+      page_invalid: "もうありません"
+      user_quote_list_head: |
+        あなたの名言、全 {count} 件、{page}/{max_page} ページ
+        番号をクリックで対応する名言を削除
+      no_text: "(テキストなし)"
+      invalid_link: "有効な名言メッセージリンクを1つ入力してください"
+      only_delete_self_or_admin_in_group: "自分の名言か管理しているグループの名言しか削除できません"
+    loading:
+      - "少女祈祷中"
+      - "少女折寿中"
+      - "にゃんにゃん中"
+      - "海内存知己、天涯若比邻"
+      - "エッチな画像描画中"
+      - "座ってリラックス"
+      - "少し時間がかかるかもしれません"
+      - "もう少し時間がかかるかもしれません"
+      - "もうちょっと時間がかかるかもしれません"
+      - "数世紀かかるかもしれません"
+      - "PCの電源を切らないでください"
+      - "スマホの電源を切らないでください"
+      - "ベッドに急いでます"
+      - "ベッドでくっつき中"
+      - "ベッドで寝てます"
+      - "エッチな画像送信中"
+      - "少女偽街中"
+      - "少女ロリコン中"
+      - "少女ガチャ中"
+      - "少女Steamアップデート中"
+      - "少女バグ作成中"
+      - "少女バグ修正中"
+      - "少女マクドナルド食べ中"
+      - "少女オフ会中"
+      - "少女抱きしめ中"
+      - "少女くっつき中"
+      - "少女なでなで中"
+      - "少女0721中"
+      - "少女にゃんにゃん中"
+      - "少女アニメ視聴中"
+      - "Loading..."
+      - "少女家出中"
+      - "少女睡眠中"
+      - "少女夜更かし中"
+      - "少女 ALL PERFECT 中"
+      - "少女 FULL COMBO 中"
+      - "少女扇風機中"
+      - "少女ハート中"
+      - "猫娘コスプレ中"
+      - "少女原神中"
+      - "必死にロード中"
+      - "QAQ中"
+      - "qwq中"
+      - "ovo中"
+      - "少女メニュー暗唱中"
+      - "少女泣き中"
+      - "少女投げ銭中"
+      - "少女周回中"
+      - "少女草生やし中"
+  inline:
+    switch_pm_text: "詳細を知る"
+    chat_quotes_title: "このグループの名言を検索"
+    chat_quotes_description: "または直接 q [キーワード] で『あなたが見える』名言を検索"
+    chat_quotes_quering: "グループ情報を取得中..."
+    chat_quotes_button_noop: "少女祈祷中"
+    chat_quotes_error: "グループ情報の解析に失敗しました..."
+    chat_quotes_success: "下のボタンでこのグループの名言を検索"
+    chat_quotes_button: "🔍"
+    quotes_title: "名言を検索"
+    quotes_description: "q [キーワード] で『あなたが見える』名言を検索"
+    quotes_message: "下のボタンで名言を検索"
+    quotes_button: "🔍"
+  cmd:
+    start: "にゃんにゃん|メニューを開く"
+    waifu: "今日の嫁！"
+    waifu_graph: "嫁関係図！"
+    q: "名言を記録"
+    d: "名言を削除"
+    qrand: "ランダム名言"
+    qp: "ランダム名言送信確率を設定"
+    t: "称号を取得|称号を交換"
+    sett: "/t コマンドの権限を変更"
+    id: "チャットIDを取得"
+    ip: "IP情報を取得"
+    setu: "エッチな画像をお届け"
+    config: "グループ設定を変更"
+    greet: "グループウェルカムメッセージを設定"
+    help: "ヘルプ|その他の機能"
+  button:
+    back: "戻る"
+    repo: "リポジトリ"
+    docs: "詳細ヘルプ"
+    user_data: "個人情報"
+    user_quote: "名言管理"
+    user_waifu: "嫁管理"
+    start_noop: "にゃんにゃん"
+    pm_me: "プライベートチャットを開く"
+    page_prev: "前のページ"
+    page_next: "次のページ"
+    chat_config:
+      waifu: "毎日嫁"
+      delete_events: "イベント削除"
+      message_search: "メッセージ検索"
+      quote_pin_message: "名言ピン留め"
+      ai_reply: "AI返信"
+      setu_enabled: "ランダムエッチ画像"
+      unpin_channel_pin_enabled: "チャンネルピン留め解除"
+      convert_b23_enabled: "b23短縮URL変換"
+      parse_artwork_enabled: "イラストリンク解析"
+      save: "設定を保存"
+    waifu:
+      remove: "削除(管理者)"
+      marry: "嫁にする！"
+      remove_confirm: "削除"
+      remove_cancel: "やめる"
+      agree_marry_waifu: "いいよ"
+      refuse_marry_waifu: "やだよ"
+      cancel_marry_waifu: "キャンセル(?)"
+      divorce: "離婚"
+      divorce_confirm: "離婚"
+      divorce_cancel: "やめる"
+      mention_enabled: "@ しない"
+      mention_disabled: "抽選時 @ する"
+    title_permissions:
+      can_change_info: "情報変更"
+      can_delete_messages: "メッセージ削除"
+      can_edit_messages: "メッセージ編集"
+      can_restrict_members: "ユーザー制限"
+      can_invite_users: "ユーザー招待"
+      can_promote_members: "メンバー昇格"
+      can_post_stories: "ストーリー投稿"
+      can_edit_stories: "ストーリー編集"
+      can_delete_stories: "ストーリー削除"
+      can_manage_video_chats: "ビデオチャット"
+      can_manage_topics: "トピック管理"
+      can_pin_messages: "メッセージピン留め"
+    manyacg:
+      detail: "詳細"
+      original: "原図"

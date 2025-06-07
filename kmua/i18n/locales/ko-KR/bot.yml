@@ -1,0 +1,318 @@
+bot:
+  msg:
+    lang_changed: 언어가 {lang}으로 변경되었어요.
+    no_permission_group: 이 그룹에서 봇을 관리할 권한이 없어요!
+    group_config: 버튼을 눌러 그룹 설정을 변경하세요!
+    unknown_operation: 알 수 없는 명령어예요. 나쁜 짓은 안돼요~
+    group_config_saved: 그룹 설정이 저장되었어요~
+    refresh_failed: 새로고침에 실패했어요. 잠시 후에 다시 시도해주세요.
+    refresh_success: 새로고침 성공!
+    refreshing_avatar: 프로필 사진을 새로고침하는 중...
+    cleanning: kmua가 방을 청소하는 중...
+    sync_members_cd: 너무 자주 사용하면 안돼요! 잠시 후에 다시 시도해주세요.
+    sync_members_done: 동기화 완료! {count}명의 멤버를 정리했어요.
+    b23_converted: "{real_url}"
+    b23_converted_group: |
+      {real_url}
+      {from_user}님이 보낸 b23 짧은 링크를 변환했어요~
+    title:
+      set_self: 좋아요, 이제 당신은 {title}이에요!
+      set_other: "{user}님이 {target}님을 {title}(으)로 만들었어요!"
+      set_permissions: 버튼을 눌러 /t 명령어로 부여할 권한을 변경하세요.
+      deleted: 당신의 칭호가 삭제되었어요.
+      errors:
+        generic: 실패했어요, 냥...
+        admin_required: 권한이 부족하거나, 다른 관리자가 설정한 칭호를 변경하려고 하고 있어요.
+        creator: 그룹 소유자에게는 사용할 수 없어요, 냥.
+        rank_invalid: 칭호가 너무 길어서 안들어가요!
+        user_id_invalid: 제 자신이나 채널의 칭호는 변경할 수 없어요.
+        no_chat_or_user: 해당하는 유저나 그룹을 찾을 수 없어요...
+    ip:
+      no_ip_provided: "조회할 IP/도메인을 입력해주세요."
+      querying: "조회 중: {ip}"
+      query_failed: "조회 실패: {error_type}: {error}"
+      query_failed_reason: "조회 실패: {message}"
+      query_target: "조회 대상: <code>{url}</code>"
+      resolved_address: "분석된 주소: <code>{query}</code>"
+      location: "위치: <code>{country} - {region} - {city}</code>"
+      coordinates: "좌표: <code>{lat},{lon}</code>"
+      isp: "ISP: <code>{isp}</code>"
+      organization: "기관: <code>{org}</code>"
+      as_number: '<a href="https://bgp.he.net/{as_link}">{as_number}</a>'
+      mobile_ip: "이 IP는 <b>모바일 데이터 IP</b>일 수 있습니다."
+      proxy_ip: "이 IP는 <b>프록시 IP</b>일 수 있습니다."
+      hosting_ip: "이 IP는 <b>데이터 센터 IP</b>일 수 있습니다."
+    help: |
+      <blockquote expandable="true">
+      /start - 시작하기 | 메뉴 열기
+      /help - 이 도움말 메시지를 표시합니다
+      /config - 이 그룹의 봇 설정을 변경합니다
+      /waifu - 오늘의 그룹 와이프!
+      /waifu_graph - 와이프 관계도!
+      /q - 인용하기
+      /d - 인용 삭제 | 그룹 인용 관리
+      /qrand - 랜덤 인용
+      /qp - 랜덤 인용 전송 확률 설정
+      /t - 칭호 얻기 | 칭호 선물하기
+      /td - 내 칭호 삭제
+      /sett - /t 명령어 권한 변경
+      /setu - 숭한 짤 좀... (/ω＼*)
+      /greet - 그룹 환영 메시지 설정
+      /id - 채팅 ID 얻기
+      /ip - IP/도메인 정보 조회
+      /wordcloud - 채팅 기록으로 워드 클라우드 생성
+      /botpromote - 유저를 봇 관리자로 지정 (봇에 대한 소유자급 권한 부여)
+      /botdemote - 봇 관리자 권한 해제
+      /syncmembers - 그룹 멤버 동기화
+      /f5avatar - 내 프로필 사진 새로고침
+      /forget - 봇이 나와의 대화 기록을 잊게 합니다
+      </blockquote>
+      다른 사용자에게 "/" 또는 "\"를 사용해서 마법을 걸어보세요!
+    help_inline: |
+      아무 채팅방에서나 @{me_username}을 입력하여 인라인 모드를 사용하세요.
+
+      인라인 모드에서 사용 가능한 명령어:
+
+      q [키워드] - 인용 검색하기
+    reply:
+      default:
+        - 냥?
+    manyacg:
+      artwork_pictures_count: 이 작품에는 {count}개의 이미지가 있어요.
+      seefull: ->클릭해서 보기
+      chat_setu_disabled: 여기서는 숭한 짤은 안돼요!
+      setu_cd: 너무 빨라요! 아직 안돼요!
+      setu_error: 실패했어요, 냥~ 잠시 후에 다시 시도해주세요.
+    greeting:
+      usage: |
+        사용법: /greet <명령> [인수]
+        사용 가능한 명령: set, remove, show
+        - set <환영 메시지>:     
+          그룹 환영 메시지를 설정합니다. 아래 변수를 사용할 수 있습니다:
+          ${user} - 새 멤버 유저명
+          ${chat} - 그룹 이름
+          HTML을 사용할 수 있습니다.
+        - remove:
+          그룹 환영 메시지를 삭제합니다.
+        - show:
+          현재 그룹의 환영 메시지를 봅니다.
+      set_usage: |
+        사용법: /greet set <환영 메시지>
+        사용 가능한 변수:
+        ${user} - 새 멤버 유저명
+        ${chat} - 그룹 이름
+        HTML을 사용할 수 있습니다.
+      too_long: 너무 길어서 안돼요!
+      set_success: 환영 메시지가 설정되었어요!
+      remove_success: 환영 메시지가 삭제되었어요.
+      not_set: 이 그룹은 아직 환영 메시지가 없어요.
+      template_error: 환영 메시지 양식을 분석하는 중 오류가 발생했어요. 이상한 건 넣지 말아주세요.
+    botadmin:
+      invalid_user: |
+        잘못된 유저예요. 올바른 유저 ID를 입력하거나 메시지에 답장해주세요.
+        (채널, 익명 관리자 등은 봇 관리자로 설정할 수 없으며, 자기 자신에게도 사용할 수 없어요!)
+      user_not_found: 유저를 찾을 수 없어요.
+      user_is_bot: 봇에게는 이 명령어를 사용할 수 없어요!
+      user_not_in_chat: 이 유저는 그룹에 없는 것 같아요. 말을 걸어서 불러보세요~
+      success: "{user}님의 이 그룹 내 봇 관리자 권한을 {status}(으)로 설정했어요."
+      target_is_upstream: 당신의 권한을 부여한 유저에게는 이 명령어를 사용할 수 없어요.
+      already_set: 유저 상태가 변경되지 않았어요.
+    agent:
+      waiting: 응답을 기다리는 중, 잠시만 기다려주세요...
+      forgot: 방금 무슨 일이 있었죠? 깜빡 잊어버린 것 같아요...
+      summary_prompt: 대화 내용 요약하기
+      errors:
+        model_http_400: 너무 숭해요! 안돼요! (400)
+        model_http: 실패했어요, 냥. 잠시 후에 다시 시도해주세요 (HTTP {code})
+        too_fast: 너무 빨라요! 아직 안돼요!
+    wordcloud:
+      generating: 생성 중이니 잠시만 기다려주세요...
+      generated: 최근 채팅 기록 워드 클라우드
+    waifu:
+      disabled: 여기서는 와이프 기능을 사용할 수 없어요.
+      not_found: 지금은 와이프가 없네요. 기록에서 다른 그룹 멤버를 찾을 수 없었어요.
+      retry: 와이프를 뽑지 못했어요. 다시 시도해보세요~
+      got: "{user}님, 오늘은 이미 와이프를 뽑았어요! 오늘의 와이프는 {waifu}님이에요!"
+      normal: "{user}님, 오늘의 와이프는 {waifu}님이에요!"
+      got_nouser: "오늘은 이미 와이프를 뽑았어요! 오늘의 와이프는 {waifu}님이에요!"
+      normal_nouser: "오늘의 와이프는 {waifu}님이에요!"
+      married: "{user}님, {waifu}님과 이미 결혼한 사이예요~"
+      remove_not_found: 유저를 찾을 수 없거나, 이미 삭제되었을 수 있어요.
+      remove: 정말로 이 유저를 삭제하시겠어요?
+      removed: "이 유저를 삭제했어요. 한때 {user}님의 와이프였어요."
+      marry_not_real: ＞﹏＜ 실제 유저가 아니에요. (익명 관리자, 채널 등과는 결혼할 수 없어요.)
+      marry_self: (。・ω・。) 언젠가 당신만을 위한 사람이 멀리서 찾아올 거예요.
+      marry_not_user: (￣ε(#￣) 다른 사람 일에 참견하지 말자구요.
+      already_married: 이미 그 분과 결혼했어요!
+      already_married_other: （＞人＜；）그 분은 이미 짝이 있어요. 당신의 인연을 찾길 바라요.
+      user_already_married_other: ∑( 口 || 이미 와이프가 있잖아요, 다른 사람에게 한 눈 팔지 마세요!
+      marry_ask: "{waifu}님, {user}님과 결혼하시겠어요?"
+      marry_success: "{user}님과 {waifu}님의 결혼을 축하합니다~"
+      marry_refused: "(´。＿。｀) 상대방의 청혼을 거절했네요. 한 번 놓친 인연은 다시 오지 않을지도..."
+      marry_cancel: 결혼 요청을 취소했어요.
+      no_participate: 오늘 이 그룹에서 와이프를 뽑은 사람이 아무도 없어요.
+      graph_caption: 그룹 관계도, 총 {count}명 참여.
+      divorce_not_married: 하지만... 아직 결혼하지 않았는걸요 qwq
+      divorce_not_found: 당신의 와이프를 찾을 수 없어요!
+      divorce_success: <i>언젠가 소중한 사람과 다시 만나기를...</i>
+      divorce_notify: "{user}님이 당신과의 관계를 정리했어요 QAQ..."
+      divorce_confirm: 정말 {waifu}님과 이혼하시겠어요?
+      info: |
+        뽑혔을 때 멘션: {mention}
+        결혼 여부: {married}
+        결혼한 와이프 ID: {married_waifu_id}
+    quote:
+      probability_usage: 랜덤 인용 전송 확률은 1 미만의 소수여야 해요. 음수로 설정하면 /qrand 명령어가 비활성화돼요.
+      probability_invalid: 이상한 건 넣지 말아주세요 (//▲//)
+      reply_to_required: 메시지에 답장해주세요.
+      topic_not_supported: 메인 토픽 외에서는 이 기능을 사용할 수 없어요.
+      origin_not_found: 이 메시지를 누가 보냈는지 모르겠어요...
+      get_link_failed: 메시지 링크를 가져오지 못했어요. 슈퍼그룹이 아닐 수 있어요.
+      already_exists: 이 인용은 이미 존재해요!
+      text_not_available: 텍스트가 아니거나 너무 긴 메시지는 이미지로 만들 수 없어요.
+      chat_no_quote: 이 그룹에는 아직 인용이 없어요.
+      not_found: 이 메시지는 그룹 인용에 없어요.
+      only_delete_self: 자신의 인용만 삭제할 수 있어요.
+      only_delete_or_group: 자신의 인용 또는 이 그룹의 인용만 삭제할 수 있어요.
+      deleted: 인용이 삭제되었어요.
+      created:
+        - 누가 이상한 소리를 하는지 볼까!
+        - 좋아요!
+      user_all_deleted: 더 이상 인용이 없어요!
+      user_no_quote: 아직 인용이 없네요.
+      page_invalid: 다음 페이지가 없어요.
+      user_quote_list_head: |
+        당신의 인용: 총 {count}개, {page}/{max_page} 페이지
+        번호를 눌러 해당 인용을 삭제하세요.
+      no_text: (텍스트 없음)
+      invalid_link: 유효한 인용 메시지 링크를 1개 제공해주세요.
+      only_delete_self_or_admin_in_group: 자신의 인용 또는 당신이 관리하는 그룹의 인용만 삭제할 수 있어요.
+    loading:
+      - 소녀 기도 중...
+      - 열심히 로딩 중...
+      - 냥냥냥냥...
+      - 세상은 넓고 할 일은 많다...
+      - 숭한 짤 그리는 중...
+      - 잠시만요, 담당자가忙...
+      - 1초만 기다려주세요...
+      - 2초만 기다려주세요...
+      - 3초만 기다려주세요...
+      - 몇 세기만 기다려주세요...
+      - 컴퓨터 전원을 끄지 마시오.
+      - 휴대폰 전원을 끄지 마시오.
+      - 침대로 가는 중...
+      - 꼬옥 껴안는 중...
+      - 쿨쿨 자는 중...
+      - 숭한 짤 전송 중...
+      - 소녀 잠수 중...
+      - 소녀 렙업 중...
+      - 소녀 스팀 업데이트 중...
+      - 소녀 버그 만드는 중...
+      - 소녀 버그 잡는 중...
+      - 소녀 피자 먹는 중...
+      - 소녀 정모하는 중...
+      - 꼬옥...
+      - 부비부비...
+      - 쓰담쓰담...
+      - 소녀 물멍 때리는 중...
+      - 소녀 냥냥대는 중...
+      - 소녀 애니 보는 중...
+      - Loading...
+      - 소녀 가출 중...
+      - 꾸벅꾸벅 조는 중...
+      - 밤새는 중...
+      - 올 퍼펙트 달성 중...
+      - 풀 콤보 달성 중...
+      - 바람 쐬는 중...
+      - 손하트 만드는 중...
+      - 고양이 코스프레 중...
+      - 원신 플레이 중...
+      - 목숨 걸고 로딩 중...
+      - QAQ...
+      - qwq...
+      - ovo...
+      - 애국가 4절 부르는 중...
+      - 흑흑 우는 중...
+      - 후원 확인하는 중...
+      - 당신 주위를 맴도는 중...
+      - 화분에 물 주는 중...
+  inline:
+    switch_pm_text: 더 알아보기
+    chat_quotes_title: 이 그룹의 인용 검색하기
+    chat_quotes_description: 또는 q [키워드]를 입력하여 볼 수 있는 인용을 검색하세요.
+    chat_quotes_quering: 그룹 정보를 가져오는 중...
+    chat_quotes_button_noop: 소녀 기도 중...
+    chat_quotes_error: 그룹 정보를 가져오는 데 실패했어요...
+    chat_quotes_success: 아래 버튼을 눌러 이 그룹의 인용을 검색하세요.
+    chat_quotes_button: 🔍
+    quotes_title: 인용 검색
+    quotes_description: q [키워드]를 입력하여 볼 수 있는 인용을 검색하세요.
+    quotes_message: 아래 버튼을 눌러 인용을 검색하세요.
+    quotes_button: 🔍
+  cmd:
+    start: 원클릭 야옹|메뉴 호출
+    waifu: 오늘의 와이프!
+    waifu_graph: 와이프 관계도!
+    q: 인용하기
+    d: 인용 삭제
+    qrand: 랜덤 인용
+    qp: 인용 확률 설정
+    t: 칭호 얻기|칭호 주기
+    sett: 칭호 권한 변경
+    id: 채팅 ID 얻기
+    ip: IP 정보 얻기
+    setu: 숭한 짤
+    config: 그룹 설정 변경
+    greet: 환영 메시지 설정
+    help: 도움말|더보기
+  button:
+    back: 뒤로
+    repo: 소스 코드
+    docs: 전체 설명서
+    user_data: 내 정보
+    user_quote: 인용 관리
+    user_waifu: 와이프 관리
+    start_noop: 냥냥냥냥
+    pm_me: 개인 메시지
+    page_prev: 이전
+    page_next: 다음
+    chat_config:
+      waifu: 오늘의 와이프
+      delete_events: 이벤트 메시지 삭제
+      message_search: 메시지 검색
+      quote_pin_message: 인용 메시지 고정
+      ai_reply: AI 답장
+      setu_enabled: 랜덤 숭한 짤
+      unpin_channel_pin_enabled: 채널 공지 고정 해제
+      convert_b23_enabled: b23 링크 변환
+      parse_artwork_enabled: 작품 링크 분석
+      save: 저장
+    waifu:
+      remove: 삭제 (관리자)
+      marry: 결혼하기!
+      remove_confirm: 삭제
+      remove_cancel: 취소
+      agree_marry_waifu: 좋아요!
+      refuse_marry_waifu: 싫어요...
+      cancel_marry_waifu: 취소(?)
+      divorce: 이혼
+      divorce_confirm: 이혼
+      divorce_cancel: 취소
+      mention_enabled: 나를 @멘션 안하기
+      mention_disabled: 내가 뽑히면 @멘션하기
+    title_permissions:
+      can_change_info: 정보 변경
+      can_delete_messages: 메시지 삭제
+      can_edit_messages: 메시지 수정
+      can_restrict_members: 멤버 차단
+      can_invite_users: 유저 초대
+      can_promote_members: 관리자 임명
+      can_post_stories: 스토리 게시
+      can_edit_stories: 스토리 편집
+      can_delete_stories: 스토리 삭제
+      can_manage_video_chats: 영상 채팅 관리
+      can_manage_topics: 토픽 관리
+      can_pin_messages: 메시지 고정
+    manyacg:
+      detail: 상세정보
+      original: 원본

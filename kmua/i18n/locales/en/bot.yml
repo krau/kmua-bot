@@ -1,0 +1,318 @@
+bot:
+  msg:
+    lang_changed: Language changed to {lang}
+    no_permission_group: You don't have permission to manage the bot in this group!
+    group_config: Click the buttons to change group settings!
+    unknown_operation: Unknown operation. No funny business!
+    group_config_saved: Group settings saved~
+    refresh_failed: Refresh failed, please try again later.
+    refresh_success: Refresh successful!
+    refreshing_avatar: Refreshing your avatar...
+    cleanning: kmua is tidying up the room...
+    sync_members_cd: Don't use this too often! Please try again later.
+    sync_members_done: Sync complete! Cleaned up {count} members.
+    b23_converted: "{real_url}"
+    b23_converted_group: |
+      {real_url}
+      b23 short link from {from_user}, converted for you!
+    title:
+      set_self: Alright, you are now a {title}!
+      set_other: "{user} turned {target} into a {title}!"
+      set_permissions: Click the buttons to change the permissions granted by the /t command.
+      deleted: Your title has been removed.
+      errors:
+        generic: Oof, that didn't work.
+        admin_required: I don't have enough permissions, or I'm trying to change a title set by another admin.
+        creator: I can't use this on the group owner, meow.
+        rank_invalid: The title is too long! It won't fit!
+        user_id_invalid: I can't change my own title or that of a channel identity.
+        no_chat_or_user: Couldn't find the user or group...
+    ip:
+      no_ip_provided: "Please provide an IP/domain to look up."
+      querying: "Querying: {ip}"
+      query_failed: "Query failed: {error_type}: {error}"
+      query_failed_reason: "Query failed: {message}"
+      query_target: "Query target: <code>{url}</code>"
+      resolved_address: "Resolved address: <code>{query}</code>"
+      location: "Location: <code>{country} - {region} - {city}</code>"
+      coordinates: "Coordinates: <code>{lat},{lon}</code>"
+      isp: "ISP: <code>{isp}</code>"
+      organization: "Organization: <code>{org}</code>"
+      as_number: '<a href="https://bgp.he.net/{as_link}">{as_number}</a>'
+      mobile_ip: "This IP might be a <b>cellular/mobile data IP</b>"
+      proxy_ip: "This IP might be a <b>proxy IP</b>"
+      hosting_ip: "This IP might be a <b>data center/hosting IP</b>"
+    help: |
+      <blockquote expandable="true">
+      /start - Get started | Open menu
+      /help - Show this help message
+      /config - Configure bot settings for this group
+      /waifu - Today's group waifu!
+      /waifu_graph - Waifu relationship graph!
+      /q - Quote a message
+      /d - Delete a quote | Manage group quotes
+      /qrand - Get a random quote
+      /qp - Set the probability of sending random quotes
+      /t - Get a title | Bestow a title
+      /td - Remove your title
+      /sett - Change permissions for the /t command
+      /setu - Gimme some lewds (/ω＼*)
+      /greet - Set the group welcome message
+      /id - Get chat ID
+      /ip - Look up IP/domain info
+      /wordcloud - Generate a word cloud from chat history
+      /botpromote - Promote a user to bot admin (they will have owner-like permissions for the bot)
+      /botdemote - Demote a bot admin
+      /syncmembers - Sync group members
+      /f5avatar - Refresh your avatar
+      /forget - Make the bot forget your conversation history
+      </blockquote>
+      Use "/" or "\" on another user to cast a spell on them.
+    help_inline: |
+      Type @{me_username} in any chat to enter Inline mode.
+
+      In Inline mode, you can use these parameters:
+
+      q [keyword] - Search for quotes
+    reply:
+      default:
+        - Meow?
+    manyacg:
+      artwork_pictures_count: This artwork has {count} images.
+      seefull: ->Click to view
+      chat_setu_disabled: Lewd pics are not allowed here!
+      setu_cd: Too fast! Not yet!
+      setu_error: Failed, meow~ Please try again later.
+    greeting:
+      usage: |
+        Usage: /greet <action> [arguments]
+        Available actions: set, remove, show
+        - set <welcome_message>:
+          Sets the group welcome message. You can use these variables:
+          ${user} - New member's username
+          ${chat} - Group title
+          HTML is supported.
+        - remove:
+          Removes the group welcome message.
+        - show:
+          Shows the current group welcome message.
+      set_usage: |
+        Usage: /greet set <welcome_message>
+        Available variables:
+        ${user} - New member's username
+        ${chat} - Group title
+        HTML is supported.
+      too_long: It's too long! It won't fit!
+      set_success: Welcome message has been set!
+      remove_success: Welcome message has been removed.
+      not_set: This group doesn't have a welcome message set yet.
+      template_error: Error parsing the welcome message template. Please don't insert weird stuff.
+    botadmin:
+      invalid_user: |
+        Invalid user. Please provide a valid user ID or reply to a message.
+        (You can't set a channel, an anonymous admin, etc. as a bot admin. You also can't use this command on yourself!)
+      user_not_found: User not found.
+      user_is_bot: You can't use this command on a bot!
+      user_not_in_chat: This user doesn't seem to be in the group. Ask them to say something~
+      success: Set {user}'s bot admin status in this group to {status}.
+      target_is_upstream: You can't use this command on this user, as your permissions were granted by them.
+      already_set: User status hasn't changed.
+    agent:
+      waiting: Waiting for a response, please wait a moment...
+      forgot: What just happened? I seem to have forgotten...
+      summary_prompt: Summarize the conversation.
+      errors:
+        model_http_400: That's too lewd! I can't do that! (400)
+        model_http: Failed, meow~ Please try again later (HTTP {code})
+        too_fast: Too fast! Not yet!
+    wordcloud:
+      generating: Already generating, please wait a moment...
+      generated: Word cloud of recent chat history.
+    waifu:
+      disabled: The waifu feature is not allowed here.
+      not_found: You don't have a waifu right now because I can't find any other members in my records.
+      retry: You didn't get a waifu, try again~
+      got: "{user}, you've already claimed your waifu today! {waifu} is your waifu for the day!"
+      normal: "{user}, your waifu of the day is {waifu}!"
+      got_nouser: "You've already claimed your waifu today! {waifu} is your waifu for the day!"
+      normal_nouser: "Your waifu of the day is {waifu}!"
+      married: "{user}, you and {waifu} are already married~"
+      remove_not_found: User not found, they may have been removed.
+      remove: Are you sure you want to remove them?
+      removed: "This user has been removed. They were once {user}'s waifu."
+      marry_not_real: ＞﹏＜ They are not a real user. (Can't marry anonymous admins, channel identities, etc.)
+      marry_self: (。・ω・。) Someone will come for you from afar one day.
+      marry_not_user: (￣ε(#￣) Let's not meddle in other people's affairs.
+      already_married: You are already married to them!
+      already_married_other: （＞人＜；）They are already with someone else. May you find the right person.
+      user_already_married_other: ∑( 口 || You already have a waifu, don't go chasing after others!
+      marry_ask: "{waifu}, will you marry {user}?"
+      marry_success: "Congratulations on {user} and {waifu}'s marriage~"
+      marry_refused: "(´。＿。｀) You refused their proposal. Some people, once missed, are gone forever..."
+      marry_cancel: You canceled the marriage proposal.
+      no_participate: No one in this group has claimed a waifu today.
+      graph_caption: Group relationship graph, with {count} participants.
+      divorce_not_married: But... you're not married yet qwq
+      divorce_not_found: Your waifu can't be found!
+      divorce_success: <i>May you one day be reunited with your special someone.</i>
+      divorce_notify: "{user} has ended your relationship QAQ..."
+      divorce_confirm: Are you sure you want to divorce {waifu}?
+      info: |
+        Mention on claim: {mention}
+        Married: {married}
+        Married waifu ID: {married_waifu_id}
+    quote:
+      probability_usage: The probability for sending random quotes should be a decimal less than 1. Setting it to a negative number will disable the /qrand command.
+      probability_invalid: Please don't insert weird stuff (//▲//)
+      reply_to_required: Please reply to a message.
+      topic_not_supported: This feature is not supported outside of the main topic.
+      origin_not_found: I don't know who sent this message...
+      get_link_failed: Failed to get message link. This might not be a supergroup.
+      already_exists: This quote already exists!
+      text_not_available: Cannot generate an image for non-text messages or messages with very long text.
+      chat_no_quote: This group has no quotes yet.
+      not_found: This message is not in the group's quotes.
+      only_delete_self: You can only delete your own quotes.
+      only_delete_or_group: You can only delete your own quotes or quotes from this group.
+      deleted: The quote has been deleted.
+      created:
+        - Let's see who's saying weird things!
+        - Got it!
+      user_all_deleted: No more quotes!
+      user_no_quote: You don't have any quotes yet.
+      page_invalid: No more pages.
+      user_quote_list_head: |
+        Your quotes: {count} total, page {page}/{max_page}
+        Click a number to delete the corresponding quote.
+      no_text: (no text)
+      invalid_link: Please provide a valid message link for the quote.
+      only_delete_self_or_admin_in_group: You can only delete your own quotes or quotes from groups you manage.
+    loading:
+      - Maiden in prayer...
+      - Reticulating splines...
+      - Meowing...
+      - A bosom friend afar brings a distant land near.
+      - Drawing lewds...
+      - Please hold, the operator is busy.
+      - This might take a second...
+      - This might take two seconds...
+      - This might take three seconds...
+      - This might take a few centuries...
+      - Do not turn off your computer.
+      - Do not turn off your phone.
+      - Getting into bed...
+      - Cuddling...
+      - Zzzzz...
+      - Sending lewds...
+      - Maiden is AFK...
+      - Maiden is rolling the gacha...
+      - Maiden is updating Steam...
+      - Maiden is writing bugs...
+      - Maiden is fixing bugs...
+      - Maiden is eating pizza...
+      - Maiden is meeting a friend IRL...
+      - Hugging...
+      - Cuddling...
+      - Headpatting...
+      - Contemplating the orb...
+      - Meowing...
+      - Watching anime...
+      - Loading...
+      - Maiden has run away from home...
+      - Napping...
+      - Staying up late...
+      - Getting an ALL PERFECT...
+      - Getting a FULL COMBO...
+      - Enjoying the breeze...
+      - Making a heart sign...
+      - Cosplaying as a catgirl...
+      - Playing Genshin...
+      - Loading like my life depends on it...
+      - QAQing...
+      - qwq'ing...
+      - ovo'ing...
+      - Reciting the Bee Movie script...
+      - Sobbing...
+      - Checking her Patreon...
+      - Spinning around you...
+      - Watering the plants...
+  inline:
+    switch_pm_text: Learn more
+    chat_quotes_title: Search this group's quotes
+    chat_quotes_description: Or just type q [keyword] to search for quotes you can see.
+    chat_quotes_quering: Getting group info...
+    chat_quotes_button_noop: Maiden in prayer...
+    chat_quotes_error: Failed to parse group info...
+    chat_quotes_success: Click the button below to search this group's quotes.
+    chat_quotes_button: 🔍
+    quotes_title: Search quotes
+    quotes_description: Type q [keyword] to search for quotes you can see.
+    quotes_message: Click the button below to search for quotes.
+    quotes_button: 🔍
+  cmd:
+    start: One-click meow|Summon menu
+    waifu: Today's Waifu!
+    waifu_graph: Waifu Relationship Graph!
+    q: Quote a message
+    d: Delete a quote
+    qrand: Random quote
+    qp: Set quote probability
+    t: Get a title|Bestow a title
+    sett: Set title permissions
+    id: Get chat ID
+    ip: Get IP info
+    setu: Gimme lewds
+    config: Change group settings
+    greet: Set welcome message
+    help: Help|More features
+  button:
+    back: Back
+    repo: Source Code
+    docs: Documentation
+    user_data: My Data
+    user_quote: Manage Quotes
+    user_waifu: Manage Waifu
+    start_noop: Meow meow meow
+    pm_me: PM Me
+    page_prev: Previous
+    page_next: Next
+    chat_config:
+      waifu: Daily Waifu
+      delete_events: Delete Events
+      message_search: Message Search
+      quote_pin_message: Pin Quoted Message
+      ai_reply: AI Reply
+      setu_enabled: Random Lewds
+      unpin_channel_pin_enabled: Unpin Channel Pins
+      convert_b23_enabled: Convert b23 Links
+      parse_artwork_enabled: Parse Artwork Links
+      save: Save
+    waifu:
+      remove: Remove (Admin)
+      marry: Marry her!
+      remove_confirm: Remove
+      remove_cancel: Cancel
+      agree_marry_waifu: Yay!
+      refuse_marry_waifu: Nay...
+      cancel_marry_waifu: Cancel (?)
+      divorce: Divorce
+      divorce_confirm: Divorce
+      divorce_cancel: Cancel
+      mention_enabled: Don't @ me
+      mention_disabled: "@ me when I'm picked"
+    title_permissions:
+      can_change_info: Change Info
+      can_delete_messages: Delete Messages
+      can_edit_messages: Edit Messages
+      can_restrict_members: Restrict Members
+      can_invite_users: Invite Users
+      can_promote_members: Promote Members
+      can_post_stories: Post Stories
+      can_edit_stories: Edit Stories
+      can_delete_stories: Delete Stories
+      can_manage_video_chats: Manage Video Chats
+      can_manage_topics: Manage Topics
+      can_pin_messages: Pin Messages
+    manyacg:
+      detail: Details
+      original: Original

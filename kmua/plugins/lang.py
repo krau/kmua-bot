@@ -4,6 +4,7 @@ from kmua import common, database
 from kmua.i18n import i18n
 
 locales = i18n.get_available_locales()
+
 lang_markup = pyrogram.types.InlineKeyboardMarkup(
     [
         [
@@ -11,8 +12,9 @@ lang_markup = pyrogram.types.InlineKeyboardMarkup(
                 locale,
                 callback_data=f"lang/{locale}",
             )
-            for locale in locales
+            for locale in locales[i : i + 4]
         ]
+        for i in range(0, len(locales), 4)
     ]
 )
 
