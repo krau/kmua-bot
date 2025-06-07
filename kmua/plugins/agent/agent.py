@@ -34,7 +34,6 @@ if app_config.agent:
         tools=[
             tools.get_history_messages,
             tools.get_current_time,
-            tools.get_ip_info,
             tools.get_user_info,
             tools.get_chat_info,
             tools.send_anime_photo,
