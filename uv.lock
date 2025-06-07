@@ -223,19 +223,19 @@ wheels = [
 
 [[package]]
 name = "fonttools"
-version = "4.58.1"
+version = "4.58.2"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/3e/7a/30c581aeaa86d94e7a29344bccefd2408870bf5b0e7640b6f4ffede61bd0/fonttools-4.58.1.tar.gz", hash = "sha256:cbc8868e0a29c3e22628dfa1432adf7a104d86d1bc661cecc3e9173070b6ab2d", size = 3519505 }
+sdist = { url = "https://files.pythonhosted.org/packages/b6/a9/3319c6ae07fd9dde51064ddc6d82a2b707efad8ed407d700a01091121bbc/fonttools-4.58.2.tar.gz", hash = "sha256:4b491ddbfd50b856e84b0648b5f7941af918f6d32f938f18e62b58426a8d50e2", size = 3524285 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/83/7a/7ed2e4e381f9b1f5122d33b7e626a40f646cacc1ef72d8806aacece9e580/fonttools-4.58.1-cp313-cp313-macosx_10_13_universal2.whl", hash = "sha256:68379d1599fc59569956a97eb7b07e0413f76142ac8513fa24c9f2c03970543a", size = 2731231 },
-    { url = "https://files.pythonhosted.org/packages/e7/28/74864dc9248e917cbe07c903e0ce1517c89d42e2fab6b0ce218387ef0e24/fonttools-4.58.1-cp313-cp313-macosx_10_13_x86_64.whl", hash = "sha256:8631905657de4f9a7ae1e12186c1ed20ba4d6168c2d593b9e0bd2908061d341b", size = 2305224 },
-    { url = "https://files.pythonhosted.org/packages/e7/f1/ced758896188c1632c5b034a0741457f305e087eb4fa762d86aa3c1ae422/fonttools-4.58.1-cp313-cp313-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:e2ecea7289061c2c71468723409a8dd6e70d1ecfce6bc7686e5a74b9ce9154fe", size = 4793934 },
-    { url = "https://files.pythonhosted.org/packages/c1/46/8b46469c6edac393de1c380c7ec61922d5440f25605dfca7849e5ffff295/fonttools-4.58.1-cp313-cp313-manylinux_2_5_x86_64.manylinux1_x86_64.manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:9b8860f8cd48b345bd1df1d7be650f600f69ee971ffe338c5bd5bcb6bdb3b92c", size = 4863415 },
-    { url = "https://files.pythonhosted.org/packages/12/1b/82aa678bb96af6663fe163d51493ffb8622948f4908c886cba6b67fbf6c5/fonttools-4.58.1-cp313-cp313-musllinux_1_2_aarch64.whl", hash = "sha256:7c9a0acdefcb8d7ccd7c59202056166c400e797047009ecb299b75ab950c2a9c", size = 4865025 },
-    { url = "https://files.pythonhosted.org/packages/7d/26/b66ab2f2dc34b962caecd6fa72a036395b1bc9fb849f52856b1e1144cd63/fonttools-4.58.1-cp313-cp313-musllinux_1_2_x86_64.whl", hash = "sha256:1e1fac0be6be3e4309058e156948cb73196e5fd994268b89b5e3f5a26ee2b582", size = 5002698 },
-    { url = "https://files.pythonhosted.org/packages/7b/56/cdddc63333ed77e810df56e5e7fb93659022d535a670335d8792be6d59fd/fonttools-4.58.1-cp313-cp313-win32.whl", hash = "sha256:aed7f93a9a072f0ce6fb46aad9474824ac6dd9c7c38a72f8295dd14f2215950f", size = 2174515 },
-    { url = "https://files.pythonhosted.org/packages/ba/81/c7f395718e44cebe1010fcd7f1b91957d65d512d5f03114d2d6d00cae1c4/fonttools-4.58.1-cp313-cp313-win_amd64.whl", hash = "sha256:b27d69c97c20c9bca807f7ae7fc7df459eb62994859ff6a2a489e420634deac3", size = 2225290 },
-    { url = "https://files.pythonhosted.org/packages/21/ff/995277586691c0cc314c28b24b4ec30610440fd7bf580072aed1409f95b0/fonttools-4.58.1-py3-none-any.whl", hash = "sha256:db88365d0962cd6f5bce54b190a4669aeed9c9941aa7bd60a5af084d8d9173d6", size = 1113429 },
+    { url = "https://files.pythonhosted.org/packages/ac/01/29f81970a508408af20b434ff5136cd1c7ef92198957eb8ddadfbb9ef177/fonttools-4.58.2-cp313-cp313-macosx_10_13_universal2.whl", hash = "sha256:829048ef29dbefec35d95cc6811014720371c95bdc6ceb0afd2f8e407c41697c", size = 2732398 },
+    { url = "https://files.pythonhosted.org/packages/0c/f1/095f2338359333adb2f1c51b8b2ad94bf9a2fa17e5fcbdf8a7b8e3672d2d/fonttools-4.58.2-cp313-cp313-macosx_10_13_x86_64.whl", hash = "sha256:64998c5993431e45b474ed5f579f18555f45309dd1cf8008b594d2fe0a94be59", size = 2306390 },
+    { url = "https://files.pythonhosted.org/packages/bf/d4/9eba134c7666a26668c28945355cd86e5d57828b6b8d952a5489fe45d7e2/fonttools-4.58.2-cp313-cp313-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:b887a1cf9fbcb920980460ee4a489c8aba7e81341f6cdaeefa08c0ab6529591c", size = 4795100 },
+    { url = "https://files.pythonhosted.org/packages/2a/34/345f153a24c1340daa62340c3be2d1e5ee6c1ee57e13f6d15613209e688b/fonttools-4.58.2-cp313-cp313-manylinux_2_5_x86_64.manylinux1_x86_64.manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:27d74b9f6970cefbcda33609a3bee1618e5e57176c8b972134c4e22461b9c791", size = 4864585 },
+    { url = "https://files.pythonhosted.org/packages/01/5f/091979a25c9a6c4ba064716cfdfe9431f78ed6ffba4bd05ae01eee3532e9/fonttools-4.58.2-cp313-cp313-musllinux_1_2_aarch64.whl", hash = "sha256:ec26784610056a770e15a60f9920cee26ae10d44d1e43271ea652dadf4e7a236", size = 4866191 },
+    { url = "https://files.pythonhosted.org/packages/9d/09/3944d0ece4a39560918cba37c2e0453a5f826b665a6db0b43abbd9dbe7e1/fonttools-4.58.2-cp313-cp313-musllinux_1_2_x86_64.whl", hash = "sha256:ed0a71d57dd427c0fb89febd08cac9b925284d2a8888e982a6c04714b82698d7", size = 5003867 },
+    { url = "https://files.pythonhosted.org/packages/68/97/190b8f9ba22f8b7d07df2faa9fd7087b453776d0705d3cb5b0cbd89b8ef0/fonttools-4.58.2-cp313-cp313-win32.whl", hash = "sha256:994e362b01460aa863ef0cb41a29880bc1a498c546952df465deff7abf75587a", size = 2175688 },
+    { url = "https://files.pythonhosted.org/packages/94/ea/0e6d4a39528dbb6e0f908c2ad219975be0a506ed440fddf5453b90f76981/fonttools-4.58.2-cp313-cp313-win_amd64.whl", hash = "sha256:f95dec862d7c395f2d4efe0535d9bdaf1e3811e51b86432fa2a77e73f8195756", size = 2226464 },
+    { url = "https://files.pythonhosted.org/packages/e8/e5/c1cb8ebabb80be76d4d28995da9416816653f8f572920ab5e3d2e3ac8285/fonttools-4.58.2-py3-none-any.whl", hash = "sha256:84f4b0bcfa046254a65ee7117094b4907e22dc98097a220ef108030eb3c15596", size = 1114597 },
 ]
 
 [[package]]
@@ -779,8 +779,8 @@ wheels = [
 
 [[package]]
 name = "pydantic-ai-slim"
-version = "0.0.1.dev755+87401be"
-source = { git = "https://github.com/krau/pydantic-ai?subdirectory=pydantic_ai_slim#87401be861c86e5a02515d6445805f17a6392731" }
+version = "0.0.1.dev761+fe44a75"
+source = { git = "https://github.com/krau/pydantic-ai?subdirectory=pydantic_ai_slim#fe44a75cef656776aea31c11142be3ebc4248d60" }
 dependencies = [
     { name = "eval-type-backport" },
     { name = "griffe" },
@@ -829,8 +829,8 @@ wheels = [
 
 [[package]]
 name = "pydantic-graph"
-version = "0.0.1.dev755+87401be"
-source = { git = "https://github.com/krau/pydantic-ai?subdirectory=pydantic_graph#87401be861c86e5a02515d6445805f17a6392731" }
+version = "0.0.1.dev761+fe44a75"
+source = { git = "https://github.com/krau/pydantic-ai?subdirectory=pydantic_graph#fe44a75cef656776aea31c11142be3ebc4248d60" }
 dependencies = [
     { name = "httpx" },
     { name = "logfire-api" },
