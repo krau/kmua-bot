@@ -1,0 +1,550 @@
+bot:
+  msg:
+    lang_changed: 語🗣已🕒✍爲 {lang}
+    no_permission_group: 🤟沒🈶📓👨‍👩‍👧‍👦組🀄🧪💇 bot 🇩權🧵😦
+    group_config: 點擊🖐鈕🕒✍👨‍👩‍👧‍👦組設📍😦
+    unknown_operation: 🈚🤓🤸📝, 🙅‍♂️🉑以幹壞🍅😦
+    group_config_saved: 👨‍👩‍👧‍👦組設📍已🎳💾~
+    refresh_failed: 🪥🆕😥敗, 請⏱後👋試
+    refresh_success: 🪥🆕🍊🎖
+    refreshing_avatar: ➕📍🪥🆕🤟🇩頭🗿...
+    cleanning: kmua ➕📍👊掃🏠間...
+    sync_members_cd: 🙅‍♂️👉頻💐👼用😦, 請⏱後👋試
+    sync_members_done: 👬🚶🔚🍊! 🍶💇了 {count} 個🧑❔
+    b23_converted: "{real_url}"
+    b23_converted_group: |
+      {real_url}
+      來🚲 {from_user} 髮➡🇩 b23 👕鏈, 已經幫🤟轉換了😦
+    title:
+      set_self: 👍, 🤟現📍✔ {title} 😃
+
+      set_other: "{user} 💩 {target} 變🍊 {title} !"
+
+      set_permissions: 點擊🖐鈕🕒✍ /t 🛐📜賦予🍊員🇩權🧵
+
+      deleted: 已刪➗🤟🇩頭銜
+
+      errors:
+        generic: 😥敗了喵
+
+        admin_required: 🙋‍♂️沒🈶🦶夠🇩權🧵🉑➕📍嚐試🕒✍7️⃣👨🧪💇員設📍🇩頭銜
+
+        creator: 🙋‍♂️🙅‍♂️💪對👨‍👩‍👧‍👦✝👼用喵
+
+        rank_invalid: 頭銜☀️長了! 進🙅‍♂️🚶!
+
+        user_id_invalid: 🙋‍♂️🙅‍♂️💪🕒✍🚲🙋‍♂️🇩🉑頻☯🚶📊🇩頭銜
+
+        no_chat_or_user: 🔎🙅‍♂️➡對應🇩用戶🉑👨‍👩‍👧‍👦組...
+
+    ip:
+      no_ip_provided: "請👜🤲👉🛂詢🇩 IP/🗺📛"
+
+      querying: "➕📍🛂詢: {ip}"
+
+      query_failed: "🛂詢😥敗: {error_type}: {error}"
+
+      query_failed_reason: "🛂詢😥敗: {message}"
+
+      query_target: "🛂詢👀標: <code>{url}</code>"
+
+      resolved_address: "🔓🔬🌎✉: <code>{query}</code>"
+
+      location: "🌎區: <code>{country} - {region} - {city}</code>"
+
+      coordinates: "經緯🌡: <code>{lat},{lon}</code>"
+
+      isp: "ISP: <code>{isp}</code>"
+
+      organization: "組織: <code>{org}</code>"
+
+      as_number: '<a href="https://bgp.he.net/{as_link}">{as_number}</a>'
+
+      mobile_ip: "🈁 IP 🉑💪爲<b>🐝窩📱動數據 IP</b>"
+
+      proxy_ip: "🈁 IP 🉑💪爲<b>👨‍👦💇 IP</b>"
+
+      hosting_ip: "🈁 IP 🉑💪爲<b>數據🀄❤️ IP</b>"
+
+    help: |
+      <blockquote expandable="true">
+      /start - 開🔛👼用|👊開🥗單
+      /help - 顯👆🈁幫🆘✉️ℹ
+      /config - 🕒✍ bot 📍👨‍👩‍👧‍👦組🀄🇩設📍
+      /waifu - 🗓🌥🇩👨‍👩‍👧‍👦👬🧓👵!
+      /waifu_graph - 🧓👵關繫圖!
+      /q - 記錄語錄
+      /d - 刪➗語錄|🧪💇👨‍👩‍👧‍👦語錄
+      /qrand - 隨機語錄
+      /qp - 設📍隨機✝動髮➡語錄🇩概💹
+      /t - 獲🛄頭銜|👫贈頭銜
+      /td - 刪➗🤟🇩頭銜
+      /sett - 🕒✍ /t 🛐📜🚾賦予🇩權🧵
+      /setu - 來點😍圖 (/ω＼*)
+      /greet - 設📍👨‍👩‍👧‍👦組歡🤝語
+      /id - 獲🛄💬🌥ID
+      /ip - 🛂詢IP/🗺📛✉️ℹ
+      /wordcloud - 🎂🍊💬🌥記錄詞雲
+      /botpromote - 📍👨‍👩‍👧‍👦組🀄設📍bot🧪💇員 (對於bot該用戶將🧰🈶👬⏳於👨‍👩‍👧‍👦✝🇩權🧵)
+      /botdemote - 📍👨‍👩‍👧‍👦組🀄🛄👨‍🚒 bot 🧪💇員🚶📊
+      /syncmembers - 👬🚶👨‍👩‍👧‍👦組🍊員
+      /f5avatar - 🪥🆕🤟🇩頭🗿
+      /forget - 讓 bot 📝記與🤟🇩對話記錄
+      </blockquote>
+
+      對7️⃣👨🧑👼用 "/" 🉑 "\" 🔜🉑對7️⃣🏗⚖
+    help_inline: |
+      📍📜🇮🇹💬🌥🖼🀄輸🔽 @{me_username} 🔜🉑進🔽 Inline 模🖥
+
+      Inline 模🖥⬇🉑👼用以⬇參數:
+
+      q [關鍵詞] - 🛂詢語錄
+    reply:
+      default:
+        - 喵喵?
+
+    manyacg:
+      artwork_pictures_count: 該📝🍩👫🈶 {count} 張圖🎞
+
+      seefull: ->點擊🛂👁
+
+      chat_setu_disabled: 這裡🙅‍♂️🉑許澀圖😦
+
+      setu_cd: ☀️🔜了! 🙅‍♂️🚶!
+
+      setu_error: 😥敗了喵, 請⏱後👋試
+
+    greeting:
+      usage: |
+        👼用⬛⚖: /greet <動📝> [參數]
+        🉑用動📝: set, remove, show
+
+        - set <歡🤝語>:   
+         設📍👨‍👩‍👧‍👦組歡🤝語, 🉑以👼用以⬇變📏:
+         ${user} - 🆕👨‍👩‍👧‍👦u用戶📛
+         ${chat} - 👨‍👩‍👧‍👦組標題
+         🉑👼用 HTML
+
+        - remove:
+         📱➗👨‍👩‍👧‍👦組歡🤝語
+
+        - 預覽:
+         顯👆當⏩👨‍👩‍👧‍👦組歡🤝語
+      set_usage: |
+        👼用⬛⚖: /greet set <歡🤝語>
+        🉑用變📏:
+        ${user} - 🆕👨‍👩‍👧‍👦u用戶📛
+        ${chat} - 👨‍👩‍👧‍👦組標題
+        🉑👼用 HTML
+
+      too_long: ☀️長了! 🙅‍♂️🚶!
+
+      set_success: 👨‍👩‍👧‍👦組歡🤝語設📍👍😃
+
+      remove_success: 👨‍👩‍👧‍👦組歡🤝語已📱➗
+
+      not_set: 📓👨‍👩‍👧‍👦還沒🈶設📍歡🤝語😦
+
+      template_error: 🔓🔬歡🤝語模闆時髮🎂錯誤, 請🙅‍♂️👉🔌🔽7️⃣👾🇩東🀂
+
+    botadmin:
+      invalid_user: |
+        無🦜🇩用戶, 請👜🤲🈶🦜🇩用戶 ID, 🉑📎複1️⃣條👨‍🚒ℹ
+
+        (🙅‍♂️💪將頻☯🚶📊, 🙈📛🧪💇⏳設📍爲 bot 🧪💇員, 該🛐📜也🙅‍♂️💪對🚲🙋‍♂️👼用😦)
+
+      user_not_found: 🔎🙅‍♂️➡該用戶
+
+      user_is_bot: 🙅‍♂️💪對 Bot 👼用🈁🛐📜😦
+
+      user_not_in_chat: 該用戶☝❔🙅‍♂️📍👨‍👩‍👧‍👦組裡, 讓 ta 🌅來髮個🗣❔~
+
+      success: 已將 {user} 📍📓👨‍👩‍👧‍👦🇩 Bot 🧪💇權🧵設爲 {status}
+
+      target_is_upstream: 🤟🙅‍♂️💪對該用戶👼用🈁🛐📜, 因爲🤟🇩權🧵➡該用戶🎖予
+
+      already_set: 用戶狀態🈚🕒✍
+
+    agent:
+      waiting: ➕📍⏳⏳響應, 請⏱⏳1️⃣會兒...
+
+      forgot: 剛剛髮🎂了🔟麼, 👍🗿📝記了❔...
+
+      summary_prompt: 總結對話內💆
+
+      errors:
+        model_http_400: ☀️澀了, 🙅‍♂️🚶! (400)
+
+        model_http: 😥敗了喵, 請⏱後👋試 (HTTP {code})
+
+        too_fast: ☀️🔜了! 🙅‍♂️🚶!
+
+    wordcloud:
+      generating: 已經➕📍🎂🍊😃, 請⏱⏳1️⃣會兒...
+
+      generated: 🔝👓💬🌥記錄🇩詞雲🗺
+
+    waifu:
+      disabled: 這裡🙅‍♂️🉑許👼用 waifu 🎖💪😦
+
+      not_found: 🤟現📍沒🈶🧓👵, 因爲🙋‍♂️🇩記錄🀄🔎🙅‍♂️➡7️⃣👨👨‍👩‍👧‍👦👬
+
+      retry: 🤟沒💪🚬➡🧓👵, 👋試1️⃣2️⃣❔~
+
+      got: "{user}, 🤟🗓🌥已經🚬過🧓👵了! {waifu} ✔🤟🗓🌥🇩🧓👵!"
+
+      normal: "{user}, 🤟🗓🌥🇩👨‍👩‍👧‍👦🌱🧓👵✔ {waifu}!"
+
+      got_nouser: "🤟🗓🌥已經🚬過🧓👵了! {waifu} ✔🤟🗓🌥🇩🧓👵!"
+
+      normal_nouser: "🤟🗓🌥🇩👨‍👩‍👧‍👦🌱🧓👵✔ {waifu}!"
+
+      married: "{user}, 🤟🌊 {waifu} 已經結💒了😦~"
+
+      remove_not_found: 🛂無🈁🧑,🉑💪已經🛌📱➗了
+
+      remove: 確⏲👉📱➗ta嗎?
+
+      removed: "已📱➗該用戶, ta ⌛✔ {user} 🇩🧓👵"
+
+      marry_not_real: ＞﹏＜ Ta 🙅‍♂️✔✔實用戶😦.(🙅‍♂️✋🤏與🙈📛🧪💇, 頻☯🚶📊⏳結💒)
+
+      marry_self: (。・ω・。) 總會🈶🧑🙅‍♂️遠萬裡爲🤟2️⃣來
+
+      marry_not_user: (￣ε(#￣) 別🧑🇩🍅💑🙋‍♂️🙅‍♂️👉👊擾❔
+
+      already_married: 🤟已經🌊 ta 結💒了😦
+
+      already_married_other: （＞🧑＜；）Ta 已經🈶別🧑了❔, 願🤟🔎➡對🇩🧑
+
+      user_already_married_other: ∑( 👄 || 🤟已經🈶🧓👵了, 🙅‍♂️👉👋🚶👋💢別🧑了😦
+
+      marry_ask: "{waifu}, 🤟願🇮🇹🌊 {user} 結💒❔?"
+
+      marry_success: "🙇🏮 {user} 🌊 {waifu} 結💒😃~"
+
+      marry_refused: "(´。＿。｀) 🤟🙅絶了 ta 🇩⚽💒❔. 🈶🔢🧑1️⃣🌅錯過👌🙅‍♂️👋..."
+
+      marry_cancel: 🤟🛄👨‍🚒了這個⚽💒請⚽
+
+      no_participate: 📓👨‍👩‍👧‍👦🗓☀️沒🈶🧑🚬過🧓👵😦
+
+      graph_caption: 👨‍👩‍👧‍👦u關繫圖, 👫 {count} 🧑參與
+
+      divorce_not_married: 🉑✔...🤟還沒🈶結💒😮qwq
+
+      divorce_not_found: 🤟🇩🧓👵🔎🙅‍♂️➡😃!
+
+      divorce_success: <i>願🤟🈶1️⃣🌥🌊🏋👉🇿🧑🏋🤼‍♂️</i>
+
+      divorce_notify: "{user} 🌊🤟🔓➗了關繫 QAQ..."
+
+      divorce_confirm: 🤟確⏲👉🌊 {waifu} 離💒嗎?
+
+      info: |
+        ✔❌ @ 🤟: {mention}
+
+        已結💒: {married}
+
+        結💒🇩🧓👵id: {married_waifu_id}
+
+    quote:
+      probability_usage: ✝動髮➡語錄🇩概💹✔🐤於1🇩🐤數😦, 如🍏設📍爲負則會🈲用 /qrand 🛐📜
+
+      probability_invalid: 請🙅‍♂️👉🔌🔽7️⃣👾🇩東🀂 (//▲//)
+
+      reply_to_required: 請📎複1️⃣條👨‍🚒ℹ
+
+      topic_not_supported: 🙅‍♂️✋🤏📍✝話題👽👼用🈁🎖💪
+
+      origin_not_found: 🙅‍♂️🤓☯這條👨‍🚒ℹ✔誰髮➡🇩❔...
+
+      get_link_failed: 獲🛄👨‍🚒ℹ鏈🔗😥敗, 📓👨‍👩‍👧‍👦🉑💪🙅‍♂️✔🦸‍♂️級👨‍👩‍👧‍👦組
+
+      already_exists: 這條語錄已經💾📍了😦
+
+      text_not_available: ➖📄📓👨‍🚒ℹ🉑📄📓過長🙅‍♂️💪🎂🍊圖🎞😦
+
+      chat_no_quote: 📓👨‍👩‍👧‍👦還沒🈶語錄😦
+
+      not_found: 這條👨‍🚒ℹ🙅‍♂️📍👨‍👩‍👧‍👦語錄🀄😦
+
+      only_delete_self: 🤟隻💪刪➗🚲🙋‍♂️🇩語錄😦
+
+      only_delete_or_group: 🤟隻💪刪➗🚲🙋‍♂️🇩🉑📓👨‍👩‍👧‍👦🇩語錄😦
+
+      deleted: 已刪➗該語錄
+
+      created:
+        - 讓🙋‍♂️👁👁✔誰📍説👾話!
+
+        - 👍!
+
+      user_all_deleted: 已經沒🈶語錄😃
+
+      user_no_quote: 🤟還沒🈶語錄❔
+
+      page_invalid: 已經沒🈶😃
+
+      user_quote_list_head: |
+        🤟🇩語錄, 👫 {count} 條, 🔢 {page}/{max_page} 頁
+
+        點擊👨‍💻號刪➗對應🇩語錄
+
+      no_text: (無📄📓)
+
+      invalid_link: 請👜🤲1個🈶🦜🇩語錄👨‍🚒ℹ鏈🔗
+
+      only_delete_self_or_admin_in_group: 🤟隻💪刪➗🚲🙋‍♂️🇩🉑➡🤟🧪💇🇩👨‍👩‍👧‍👦組🇩語錄😦
+
+    loading:
+      - 1️⃣🚺🙏禱🀄
+
+      - 1️⃣🚺〰壽🀄
+
+      - 喵喵喵喵🀄
+
+      - 🌊內💾🤓🙋‍♂️, 🌥🏝❔🆚鄰
+
+      - 😍圖繪製🀄
+
+      - 請🧘🌊🔍寬
+
+      - 這🉑💪需👉1點時間
+
+      - 這🉑💪需👉2點時間
+
+      - 這🉑💪需👉3點時間
+
+      - 這🉑💪需👉幾個🗺紀
+
+      - 請⛔關閉電腦
+
+      - 請⛔關閉✋機
+
+      - 🔜➡🙋‍♂️🛏⬆🀄
+
+      - 🛏⬆貼貼🀄
+
+      - 🛏⬆💤覺🀄
+
+      - 😍圖髮➡🀄
+
+      - 1️⃣🚺偽🛣️🀄
+
+      - 1️⃣🚺煉銅🀄
+
+      - 1️⃣🚺🚬💳🀄
+
+      - 1️⃣🚺🕒🆕⚗🚘⚖颱🀄
+
+      - 1️⃣🚺冩bug🀄
+
+      - 1️⃣🚺✍bug🀄
+
+      - 1️⃣🚺😋麥當勞🀄
+
+      - 1️⃣🚺麵💃🀄
+
+      - 1️⃣🚺🤗🤗🀄
+
+      - 1️⃣🚺貼貼🀄
+
+      - 1️⃣🚺✋✋🀄
+
+      - 1️⃣🚺0721🀄
+
+      - 1️⃣🚺喵喵🀄
+
+      - 1️⃣🚺👁🍅🀄
+
+      - Loading...
+
+      - 1️⃣🚺離👨‍👩‍👧‍👦🌅🚶🀄
+
+      - 1️⃣🚺💤覺🀄
+
+      - 1️⃣🚺🔥🌃🀄
+
+      - 1️⃣🚺 ALL PERFECT 🀄
+
+      - 1️⃣🚺 FULL COMBO 🀄
+
+      - 1️⃣🚺🌬風☢🀄
+
+      - 1️⃣🚺🆚❤️❤️🀄
+
+      - ➕📍 cos 貓👰
+
+      - 1️⃣🚺⚛👼🀄
+
+      - 🤹‍♂️🛐➕載🀄
+
+      - QAQ🀄
+
+      - qwq🀄
+
+      - ovo🀄
+
+      - 1️⃣🚺報🥗📛🀄
+
+      - 1️⃣🚺嗚嗚🀄
+
+      - 1️⃣🚺愛髮電🀄
+
+      - 1️⃣🚺圍🇿🤟轉🀄
+
+      - 1️⃣🚺🌿🌿🀄
+
+  inline:
+    switch_pm_text: 了🔓詳💑
+
+    chat_quotes_title: 🛂詢該👨‍👩‍👧‍👦組語錄
+
+    chat_quotes_description: 🉑📏🔗輸🔽 q [關鍵詞] 🛂詢『🤟💪👁➡🇩』語錄
+
+    chat_quotes_quering: ➕📍獲🛄👨‍👩‍👧‍👦組✉️ℹ...
+
+    chat_quotes_button_noop: 1️⃣🚺🙏禱🀄
+
+    chat_quotes_error: 🔓🔬👨‍👩‍👧‍👦組✉️ℹ😥敗💢...
+
+    chat_quotes_success: 點擊⬇⬛🖐鈕🛂詢📓👨‍👩‍👧‍👦🇩語錄
+
+    chat_quotes_button: 🔍
+
+    quotes_title: 🛂詢語錄
+
+    quotes_description: 輸🔽 q [關鍵詞] 🛂詢『🤟💪👁➡🇩』語錄
+
+    quotes_message: 點擊⬇⬛🖐鈕🛂詢語錄
+
+    quotes_button: 🔍
+
+  cmd:
+    start: 1️⃣鍵貓🗣|📣🌅🥗單
+
+    waifu: 🗓☀️🧓👵!
+
+    waifu_graph: 🧓👵關繫圖!
+
+    q: 記錄語錄
+
+    d: 刪➗語錄
+
+    qrand: 隨機語錄
+
+    qp: 設📍隨機✝動髮➡語錄🇩概💹
+
+    t: 獲🛄頭銜|👫贈頭銜
+
+    sett: 🕒✍ /t 🛐📜🚾賦予🇩權🧵
+
+    id: 獲🛄💬🌥ID
+
+    ip: 獲🛄IP✉️ℹ
+
+    setu: 來點澀圖
+
+    config: 🕒✍👨‍👩‍👧‍👦組設📍
+
+    greet: 設📍👨‍👩‍👧‍👦組歡🤝語
+
+    help: 幫🆘|🕒👨‍👩‍👧‍👦🎖💪
+
+  button:
+    back: 🔙📎
+
+    repo: 開🔌倉庫
+
+    docs: 詳細幫🆘
+
+    user_data: 個🧑✉️ℹ
+
+    user_quote: 語錄🧪💇
+
+    user_waifu: 🧓👵🧪💇
+
+    start_noop: 喵喵喵喵
+
+    pm_me: 👊開🔏💬
+
+    page_prev: ⬆1️⃣頁
+
+    page_next: ⬇1️⃣頁
+
+    chat_config:
+      waifu: 每☀️🧓👵
+
+      delete_events: 刪➗🍅📁
+
+      message_search: 👨‍🚒ℹ蒐🚡
+
+      quote_pin_message: 語錄📍頂
+
+      ai_reply: AI📎複
+
+      setu_enabled: 隨機澀圖
+
+      unpin_channel_pin_enabled: 🔓➗頻☯📍頂
+
+      convert_b23_enabled: 轉換b23👕鏈
+
+      parse_artwork_enabled: 🔓🔬🔌畫鏈🔗
+
+      save: 🎳💾設📍
+
+    waifu:
+      remove: 📱➗(🧪💇員)
+
+      marry: 👰🧓👵!
+
+      remove_confirm: 📱➗
+
+      remove_cancel: 🧮了
+
+      agree_marry_waifu: 👍✌
+
+      refuse_marry_waifu: 壞✌
+
+      cancel_marry_waifu: 🛄👨‍🚒(?)
+
+      divorce: 離💒
+
+      divorce_confirm: 離💒
+
+      divorce_cancel: 🧮了
+
+      mention_enabled: 🙅‍♂️👉 @ 🙋‍♂️
+
+      mention_disabled: 🚬➡🙋‍♂️時 @ 🙋‍♂️
+
+    title_permissions:
+      can_change_info: 👨‍🔧✍✉️ℹ
+
+      can_delete_messages: 刪➗👨‍🚒ℹ
+
+      can_edit_messages: 編輯👨‍🚒ℹ
+
+      can_restrict_members: ✉🈲用戶
+
+      can_invite_users: 🤙請用戶
+
+      can_promote_members: 👜昇🍊員
+
+      can_post_stories: 髮佈動態
+
+      can_edit_stories: 編輯動態
+
+      can_delete_stories: 刪➗動態
+
+      can_manage_video_chats: 視頻💬🌥
+
+      can_manage_topics: 🧪💇話題
+
+      can_pin_messages: 📍頂👨‍🚒ℹ
+
+    manyacg:
+      detail: 詳💑
+
+      original: ⚛🗺
