@@ -1,0 +1,321 @@
+bot:
+  msg:
+    private_start: Nya~
+    group_start: 請私聊咱使用哦
+    lang_changed: 語言已更改爲 {lang}
+    no_permission_group: 你沒有本群組中管理 bot 的權限哦
+    group_config: 點擊按鈕更改群組設置哦
+    unknown_operation: 未知操作, 不可以幹壞事哦
+    group_config_saved: 群組設置已保存~
+    refresh_failed: 刷新失敗, 請稍後再試
+    refresh_success: 刷新成功
+    refreshing_avatar: 正在刷新你的頭像...
+    cleanning: kmua 正在打掃房間...
+    sync_members_cd: 不要頻繁使用哦, 請稍後再試
+    sync_members_done: 同步完成! 清理了 {count} 個人呢
+    b23_converted: "{real_url}"
+    b23_converted_group: |
+      {real_url}
+      來自 {from_user} 髮送的 b23 短鏈, 已經幫你轉換了哦
+    title:
+      set_self: 好, 你現在是 {title} 啦
+      set_other: "{user} 把 {target} 變成 {title} !"
+      set_permissions: 點擊按鈕更改 /t 命令賦予成員的權限
+      deleted: 已刪除你的頭銜
+      errors:
+        generic: 失敗了喵
+        admin_required: 咱沒有足夠的權限或正在嚐試更改其他管理員設置的頭銜
+        creator: 咱不能對群主使用喵
+        rank_invalid: 頭銜太長了! 進不去!
+        user_id_invalid: 咱不能更改自己的或頻道身份的頭銜
+        no_chat_or_user: 找不到對應的用戶或群組...
+    ip:
+      no_ip_provided: "請提供要查詢的 IP/域名"
+      querying: "正在查詢: {ip}"
+      query_failed: "查詢失敗: {error_type}: {error}"
+      query_failed_reason: "查詢失敗: {message}"
+      query_target: "查詢目標: <code>{url}</code>"
+      resolved_address: "解析地址: <code>{query}</code>"
+      location: "地區: <code>{country} - {region} - {city}</code>"
+      coordinates: "經緯度: <code>{lat},{lon}</code>"
+      isp: "ISP: <code>{isp}</code>"
+      organization: "組織: <code>{org}</code>"
+      as_number: '<a href="https://bgp.he.net/{as_link}">{as_number}</a>'
+      mobile_ip: "此 IP 可能爲<b>蜂窩移動數據 IP</b>"
+      proxy_ip: "此 IP 可能爲<b>代理 IP</b>"
+      hosting_ip: "此 IP 可能爲<b>數據中心 IP</b>"
+    help: |
+      <blockquote expandable="true">
+      /start - 開始使用|打開菜單
+      /help - 顯示此幫助信息
+      /config - 更改 bot 在群組中的設置
+      /waifu - 今天的群友老婆!
+      /waifu_graph - 老婆關繫圖!
+      /q - 記錄語錄
+      /d - 刪除語錄|管理群語錄
+      /qrand - 隨機語錄
+      /qp - 設置隨機主動髮送語錄的概率
+      /t - 獲取頭銜|互贈頭銜
+      /td - 刪除你的頭銜
+      /sett - 更改 /t 命令所賦予的權限
+      /setu - 來點色圖 (/ω＼*)
+      /greet - 設置群組歡迎語
+      /id - 獲取聊天ID
+      /ip - 查詢IP/域名信息
+      /wordcloud - 生成聊天記錄詞雲
+      /botpromote - 在群組中設置bot管理員 (對於bot該用戶將具有同等於群主的權限)
+      /botdemote - 在群組中取消 bot 管理員身份
+      /syncmembers - 同步群組成員
+      /f5avatar - 刷新你的頭像
+      /forget - 讓 bot 忘記與你的對話記錄
+      </blockquote>
+      對其他人使用 "/" 或 "\" 即可對其施法
+    help_inline: |
+      在任意聊天框中輸入 @{me_username} 即可進入 Inline 模式
+
+      Inline 模式下可使用以下參數:
+
+      q [關鍵詞] - 查詢語錄
+    reply:
+      default:
+        - 喵喵?
+    manyacg:
+      artwork_pictures_count: 該作品共有 {count} 張圖片
+      seefull: ->點擊查看
+      chat_setu_disabled: 這裡不允許澀圖哦
+      setu_cd: 太快了! 不行!
+      setu_error: 失敗了喵, 請稍後再試
+    greeting:
+      usage: |
+        使用方法: /greet <動作> [參數]
+        可用動作: set, remove, show
+        - set <歡迎語>:     
+          設置群組歡迎語, 可以使用以下變量:
+          ${user} - 新群u用戶名
+          ${chat} - 群組標題
+          可使用 HTML
+        - remove:
+          移除群組歡迎語
+        - 預覽:
+          顯示當前群組歡迎語
+      set_usage: |
+        使用方法: /greet set <歡迎語>
+        可用變量:
+        ${user} - 新群u用戶名
+        ${chat} - 群組標題
+        可使用 HTML
+      too_long: 太長了! 不行!
+      set_success: 群組歡迎語設置好啦
+      remove_success: 群組歡迎語已移除
+      not_set: 本群還沒有設置歡迎語哦
+      template_error: 解析歡迎語模闆時髮生錯誤, 請不要插入奇怪的東西
+    botadmin:
+      invalid_user: |
+        無效的用戶, 請提供有效的用戶 ID, 或回複一條消息
+        (不能將頻道身份, 匿名管理等設置爲 bot 管理員, 該命令也不能對自己使用哦)
+      user_not_found: 找不到該用戶
+      user_is_bot: 不能對 Bot 使用此命令哦
+      user_not_in_chat: 該用戶似乎不在群組裡, 讓 ta 出來髮個言吧~
+      success: 已將 {user} 在本群的 Bot 管理權限設爲 {status}
+      target_is_upstream: 你不能對該用戶使用此命令, 因爲你的權限由該用戶授予
+      already_set: 用戶狀態未更改
+    agent:
+      waiting: 正在等待響應, 請稍等一會兒...
+      forgot: 剛剛髮生了什麼, 好像忘記了呢...
+      summary_prompt: 總結對話內容
+      errors:
+        model_http_400: 太澀了, 不行! (400)
+        model_http: 失敗了喵, 請稍後再試 (HTTP {code})
+        too_fast: 太快了! 不行!
+    wordcloud:
+      generating: 已經正在生成啦, 請稍等一會兒...
+      generated: 最近聊天記錄的詞雲图
+    waifu:
+      disabled: 這裡不允許使用 waifu 功能哦
+      not_found: 你現在沒有老婆, 因爲咱的記錄中找不到其他群友
+      retry: 你沒能抽到老婆, 再試一次吧~
+      got: "{user}, 你今天已經抽過老婆了! {waifu} 是你今天的老婆!"
+      normal: "{user}, 你今天的群幼老婆是 {waifu}!"
+      got_nouser: "你今天已經抽過老婆了! {waifu} 是你今天的老婆!"
+      normal_nouser: "你今天的群幼老婆是 {waifu}!"
+      married: "{user}, 你和 {waifu} 已經結婚了哦~"
+      remove_not_found: 查無此人,可能已經被移除了
+      remove: 確定要移除ta嗎?
+      removed: "已移除該用戶, ta 曾是 {user} 的老婆"
+      marry_not_real: ＞﹏＜ Ta 不是真實用戶哦.(不支持與匿名管理, 頻道身份等結婚)
+      marry_self: (。・ω・。) 總會有人不遠萬裡爲你而來
+      marry_not_user: (￣ε(#￣) 別人的事情咱不要打擾呢
+      already_married: 你已經和 ta 結婚了哦
+      already_married_other: （＞人＜；）Ta 已經有別人了呢, 願你找到對的人
+      user_already_married_other: ∑( 口 || 你已經有老婆了, 不要再去招惹別人了哦
+      marry_ask: "{waifu}, 你願意和 {user} 結婚嘛?"
+      marry_success: "恭喜 {user} 和 {waifu} 結婚啦~"
+      marry_refused: "(´。＿。｀) 你拒絶了 ta 的求婚呢. 有些人一旦錯過就不再..."
+      marry_cancel: 你取消了這個求婚請求
+      no_participate: 本群今日沒有人抽過老婆哦
+      graph_caption: 群u關繫圖, 共 {count} 人參與
+      divorce_not_married: 可是...你還沒有結婚呀qwq
+      divorce_not_found: 你的老婆找不到啦!
+      divorce_success: <i>願你有一天和重要之人重逢</i>
+      divorce_notify: "{user} 和你解除了關繫 QAQ..."
+      divorce_confirm: 你確定要和 {waifu} 離婚嗎?
+      info: |
+        是否 @ 你: {mention}
+        已結婚: {married}
+        結婚的老婆id: {married_waifu_id}
+    quote:
+      probability_usage: 主動髮送語錄的概率是小於1的小數哦, 如果設置爲負則會禁用 /qrand 命令
+      probability_invalid: 請不要插入奇怪的東西 (//▲//)
+      reply_to_required: 請回複一條消息
+      topic_not_supported: 不支持在主話題外使用此功能
+      origin_not_found: 不知道這條消息是誰髮送的呢...
+      get_link_failed: 獲取消息鏈接失敗, 本群可能不是超級群組
+      already_exists: 這條語錄已經存在了哦
+      text_not_available: 非文本消息或文本過長不能生成圖片哦
+      chat_no_quote: 本群還沒有語錄哦
+      not_found: 這條消息不在群語錄中哦
+      only_delete_self: 你隻能刪除自己的語錄哦
+      only_delete_or_group: 你隻能刪除自己的或本群的語錄哦
+      deleted: 已刪除該語錄
+      created:
+        - 讓我看看是誰在説怪話!
+        - 好!
+      user_all_deleted: 已經沒有語錄啦
+      user_no_quote: 你還沒有語錄呢
+      page_invalid: 已經沒有啦
+      user_quote_list_head: |
+        你的語錄, 共 {count} 條, 第 {page}/{max_page} 頁
+        點擊序號刪除對應的語錄
+      no_text: (無文本)
+      invalid_link: 請提供1個有效的語錄消息鏈接
+      only_delete_self_or_admin_in_group: 你隻能刪除自己的或由你管理的群組的語錄哦
+    loading:
+      - 少女祈禱中
+      - 少女折壽中
+      - 喵喵喵喵中
+      - 海內存知己, 天涯若比鄰
+      - 色圖繪製中
+      - 請坐和放寬
+      - 這可能需要1點時間
+      - 這可能需要2點時間
+      - 這可能需要3點時間
+      - 這可能需要幾個世紀
+      - 請勿關閉電腦
+      - 請勿關閉手機
+      - 快到我床上中
+      - 床上貼貼中
+      - 床上睡覺中
+      - 色圖髮送中
+      - 少女偽街中
+      - 少女煉銅中
+      - 少女抽卡中
+      - 少女更新蒸汽平颱中
+      - 少女冩bug中
+      - 少女改bug中
+      - 少女吃麥當勞中
+      - 少女麵姬中
+      - 少女抱抱中
+      - 少女貼貼中
+      - 少女摸摸中
+      - 少女0721中
+      - 少女喵喵中
+      - 少女看番中
+      - Loading...
+      - 少女離家出走中
+      - 少女睡覺中
+      - 少女熬夜中
+      - 少女 ALL PERFECT 中
+      - 少女 FULL COMBO 中
+      - 少女吹風扇中
+      - 少女比心心中
+      - 正在 cos 貓娘
+      - 少女原神中
+      - 玩命加載中
+      - QAQ中
+      - qwq中
+      - ovo中
+      - 少女報菜名中
+      - 少女嗚嗚中
+      - 少女愛髮電中
+      - 少女圍着你轉中
+      - 少女艾草中
+  inline:
+    switch_pm_text: 了解詳情
+    chat_quotes_title: 查詢該群組語錄
+    chat_quotes_description: 或直接輸入 q [關鍵詞] 查詢『你能看到的』語錄
+    chat_quotes_quering: 正在獲取群組信息...
+    chat_quotes_button_noop: 少女祈禱中
+    chat_quotes_error: 解析群組信息失敗惹...
+    chat_quotes_success: 點擊下方按鈕查詢本群的語錄
+    chat_quotes_button: 🔍
+    quotes_title: 查詢語錄
+    quotes_description: 輸入 q [關鍵詞] 查詢『你能看到的』語錄
+    quotes_message: 點擊下方按鈕查詢語錄
+    quotes_button: 🔍
+  cmd:
+    start: 一鍵貓叫|召出菜單
+    waifu: 今日老婆!
+    waifu_graph: 老婆關繫圖!
+    q: 記錄語錄
+    d: 刪除語錄
+    qrand: 隨機語錄
+    qp: 設置隨機主動髮送語錄的概率
+    t: 獲取頭銜|互贈頭銜
+    sett: 更改 /t 命令所賦予的權限
+    id: 獲取聊天ID
+    ip: 獲取IP信息
+    setu: 來點澀圖
+    config: 更改群組設置
+    greet: 設置群組歡迎語
+    help: 幫助|更多功能
+  button:
+    back: 返回
+    repo: 開源倉庫
+    docs: 詳細幫助
+    user_data: 個人信息
+    user_quote: 語錄管理
+    user_waifu: 老婆管理
+    start_noop: 喵喵喵喵
+    pm_me: 打開私聊
+    page_prev: 上一頁
+    page_next: 下一頁
+    chat_config:
+      waifu: 每日老婆
+      delete_events: 刪除事件
+      message_search: 消息蒐索
+      quote_pin_message: 語錄置頂
+      ai_reply: AI回複
+      setu_enabled: 隨機澀圖
+      unpin_channel_pin_enabled: 解除頻道置頂
+      convert_b23_enabled: 轉換b23短鏈
+      parse_artwork_enabled: 解析插畫鏈接
+      save: 保存設置
+    waifu:
+      remove: 移除(管理員)
+      marry: 娶老婆!
+      remove_confirm: 移除
+      remove_cancel: 算了
+      agree_marry_waifu: 好耶
+      refuse_marry_waifu: 壞耶
+      cancel_marry_waifu: 取消(?)
+      divorce: 離婚
+      divorce_confirm: 離婚
+      divorce_cancel: 算了
+      mention_enabled: 不要 @ 我
+      mention_disabled: 抽到我時 @ 我
+    title_permissions:
+      can_change_info: 修改信息
+      can_delete_messages: 刪除消息
+      can_edit_messages: 編輯消息
+      can_restrict_members: 封禁用戶
+      can_invite_users: 邀請用戶
+      can_promote_members: 提昇成員
+      can_post_stories: 髮佈動態
+      can_edit_stories: 編輯動態
+      can_delete_stories: 刪除動態
+      can_manage_video_chats: 視頻聊天
+      can_manage_topics: 管理話題
+      can_pin_messages: 置頂消息
+    manyacg:
+      detail: 詳情
+      original: 原图
