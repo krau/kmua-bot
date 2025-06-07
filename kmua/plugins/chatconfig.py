@@ -84,14 +84,16 @@ class ChatConfigMarkup:
     pyrogram.filters.command("config") & pyrogram.filters.group, group=0
 )
 async def config_chat_cmd(client: pyrogram.Client, message: pyrogram.types.Message):
-    if not await common.can_user_manage_bot_in_chat(message.from_user, message.chat):
-        user_config = await database.get_user_config(message.from_user)
-        lang = user_config.lang
+    user = message.sender_chat or message.from_user
+    chat = message.chat
+    if not await common.can_user_manage_bot_in_chat(user, chat):
+        chat_config = await database.get_chat_config(chat)
+        lang = chat_config.lang
         await message.reply(
             text=i18n.t("bot.msg.no_permission_group", locale=lang),
         )
         return
-    chat_config = await database.get_chat_config(message.chat)
+    chat_config = await database.get_chat_config(chat)
     lang = chat_config.lang
     await message.reply(
         text=i18n.t("bot.msg.group_config", locale=lang),

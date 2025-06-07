@@ -31,7 +31,14 @@ async def change_user_lang(client: pyrogram.Client, message: pyrogram.types.Mess
     pyrogram.filters.command("lang") & pyrogram.filters.group, group=0
 )
 async def change_group_lang(client: pyrogram.Client, message: pyrogram.types.Message):
-    if not await common.can_user_manage_bot_in_chat(message.from_user, message.chat):
+    user = message.sender_chat or message.from_user
+    chat = message.chat
+    if not await common.can_user_manage_bot_in_chat(user, chat):
+        chat_config = await database.get_chat_config(chat)
+        lang = chat_config.lang
+        await message.reply(
+            text=i18n.t("bot.msg.no_permission_group", locale=lang),
+        )
         return
     await message.reply(
         text="Choose the language this chat want to use",
