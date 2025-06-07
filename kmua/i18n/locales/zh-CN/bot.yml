@@ -1,7 +1,11 @@
 bot:
   msg:
-    private_start: Nya~
-    group_start: 请私聊咱使用哦
+    private_start: |
+      Nya~
+      You can use /lang to change the language of the bot.
+    group_start: |
+      Hi~
+      You can use /lang to change the language of the bot in this group.
     lang_changed: 语言已更改为 {lang}
     no_permission_group: 你没有本群组中管理 bot 的权限哦
     group_config: 点击按钮更改群组设置哦
