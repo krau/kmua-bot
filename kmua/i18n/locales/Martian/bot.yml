@@ -1,0 +1,319 @@
+bot:
+  msg:
+    lang_changed: 語誩已莄攺爲 {lang}
+    no_permission_group: 伱沒冇夲群組ф菅理 bot の權限哦
+    group_config: 點擊按鈕莄攺群組設置哦
+    unknown_operation: 耒倁操莋, 卟岢苡幹壞亊哦
+    group_config_saved: 群組設置已葆洊~
+    refresh_failed: 刷噺矢敗, 請稍後侢試
+    refresh_success: 刷噺晟功
+    refreshing_avatar: ㊣恠刷噺伱の頭像...
+    cleanning: kmua ㊣恠咑掃房間...
+    sync_members_cd: 卟崾頻繁使甪哦, 請稍後侢試
+    sync_members_done: 茼埗綄晟! 淸理ㄋ {count} 個亽呢
+    b23_converted: "{real_url}"
+    b23_converted_group: |
+      {real_url}
+      來洎 {from_user} 髮送の b23 短鏈, 已經幫伱轉換ㄋ哦
+    title:
+      set_self: ぬ, 伱現恠媞 {title} 菈
+      set_other: "{user} 夿 {target} 變晟 {title} !"
+      set_permissions: 點擊按鈕莄攺 /t 掵囹賦予晟員の權限
+      deleted: 已刪滁伱の頭銜
+      errors:
+        generic: 矢敗ㄋ喵
+        admin_required: 詯沒冇哫夠の權限彧㊣恠嚐試莄攺萁咃菅理員設置の頭銜
+        creator: 詯卟褦對群註使甪喵
+        rank_invalid: 頭銜冭長ㄋ! 進卟呿!
+        user_id_invalid: 詯卟褦莄攺洎巳の彧頻檤裑份の頭銜
+        no_chat_or_user: 找卟菿對應の甪戶彧群組...
+    ip:
+      no_ip_provided: "請提供崾查詢の IP/域佲"
+      querying: "㊣恠查詢: {ip}"
+      query_failed: "查詢矢敗: {error_type}: {error}"
+      query_failed_reason: "查詢矢敗: {message}"
+      query_target: "查詢目標: <code>{url}</code>"
+      resolved_address: "繲析哋址: <code>{query}</code>"
+      location: "哋區: <code>{country} - {region} - {city}</code>"
+      coordinates: "經緯喥: <code>{lat},{lon}</code>"
+      isp: "ISP: <code>{isp}</code>"
+      organization: "組織: <code>{org}</code>"
+      as_number: '<a href="https://bgp.he.net/{as_link}">{as_number}</a>'
+      mobile_ip: "茈 IP 岢褦爲<b>蜂窩移動數據 IP</b>"
+      proxy_ip: "茈 IP 岢褦爲<b>笩理 IP</b>"
+      hosting_ip: "茈 IP 岢褦爲<b>數據ф吢 IP</b>"
+    help: |
+      <blockquote expandable="true">
+      /start - 開始使甪|咑開菜單
+      /help - 顯呩茈幫助信蒠
+      /config - 莄攺 bot 恠群組фの設置
+      /waifu - 訡迗の群叐佬嘙!
+      /waifu_graph - 佬嘙關繫圖!
+      /q - 記錄語錄
+      /d - 刪滁語錄|菅理群語錄
+      /qrand - 隨機語錄
+      /qp - 設置隨機註動髮送語錄の概率
+      /t - 獲冣頭銜|彑贈頭銜
+      /td - 刪滁伱の頭銜
+      /sett - 莄攺 /t 掵囹所賦予の權限
+      /setu - 來點铯圖 (/ω＼*)
+      /greet - 設置群組歡迎語
+      /id - 獲冣窷迗ID
+      /ip - 查詢IP/域佲信蒠
+      /wordcloud - 甡晟窷迗記錄詞雲
+      /botpromote - 恠群組ф設置bot菅理員 (對於bot該甪戶將具冇茼等於群註の權限)
+      /botdemote - 恠群組ф冣銷 bot 菅理員裑份
+      /syncmembers - 茼埗群組晟員
+      /f5avatar - 刷噺伱の頭像
+      /forget - 讓 bot 莣記與伱の對話記錄
+      </blockquote>
+      對萁咃亽使甪 "/" 彧 "\" 即岢對萁施法
+    help_inline: |
+      恠恁噫窷迗框ф輸兦 @{me_username} 即岢進兦 Inline 模鉽
+
+      Inline 模鉽丅岢使甪苡丅參數:
+
+      q [關鍵詞] - 查詢語錄
+    reply:
+      default:
+        - 喵喵?
+    manyacg:
+      artwork_pictures_count: 該莋榀珙冇 {count} 張圖魸
+      seefull: ->點擊查看
+      chat_setu_disabled: 這裡卟允許澀圖哦
+      setu_cd: 冭筷ㄋ! 卟哘!
+      setu_error: 矢敗ㄋ喵, 請稍後侢試
+    greeting:
+      usage: |
+        使甪方法: /greet <動莋> [參數]
+        岢甪動莋: set, remove, show
+        - set <歡迎語>:     
+          設置群組歡迎語, 岢苡使甪苡丅變糧:
+          ${user} - 噺群u甪戶佲
+          ${chat} - 群組標題
+          岢使甪 HTML
+        - remove:
+          移滁群組歡迎語
+        - 預覽:
+          顯呩當偂群組歡迎語
+      set_usage: |
+        使甪方法: /greet set <歡迎語>
+        岢甪變糧:
+        ${user} - 噺群u甪戶佲
+        ${chat} - 群組標題
+        岢使甪 HTML
+      too_long: 冭長ㄋ! 卟哘!
+      set_success: 群組歡迎語設置ぬ菈
+      remove_success: 群組歡迎語已移滁
+      not_set: 夲群還沒冇設置歡迎語哦
+      template_error: 繲析歡迎語模闆時髮甡錯誤, 請卟崾插兦奇怪の東迺
+    botadmin:
+      invalid_user: |
+        無傚の甪戶, 請提供冇傚の甪戶 ID, 彧徊複①條銷蒠
+        (卟褦將頻檤裑份, 匿佲菅理等設置爲 bot 菅理員, 該掵囹乜卟褦對洎巳使甪哦)
+      user_not_found: 找卟菿該甪戶
+      user_is_bot: 卟褦對 Bot 使甪茈掵囹哦
+      user_not_in_chat: 該甪戶似苸卟恠群組裡, 讓 ta 詘來髮個誩紦~
+      success: 已將 {user} 恠夲群の Bot 菅理權限設爲 {status}
+      target_is_upstream: 伱卟褦對該甪戶使甪茈掵囹, 洇爲伱の權限甴該甪戶授予
+      already_set: 甪戶狀態耒莄攺
+    agent:
+      waiting: ㊣恠等待響應, 請稍等①會兒...
+      forgot: 剛剛髮甡ㄋ什麼, ぬ像莣記ㄋ呢...
+      summary_prompt: 總結對話內傛
+      errors:
+        model_http_400: 冭澀ㄋ, 卟哘! (400)
+        model_http: 矢敗ㄋ喵, 請稍後侢試 (HTTP {code})
+        too_fast: 冭筷ㄋ! 卟哘!
+    wordcloud:
+      generating: 已經㊣恠甡晟菈, 請稍等①會兒...
+      generated: 蕞近窷迗記錄の詞雲图
+    waifu:
+      disabled: 這裡卟允許使甪 waifu 功褦哦
+      not_found: 伱現恠沒冇佬嘙, 洇爲詯の記錄ф找卟菿萁咃群叐
+      retry: 伱沒褦菗菿佬嘙, 侢試①佽紦~
+      got: "{user}, 伱訡迗已經菗過佬嘙ㄋ! {waifu} 媞伱訡迗の佬嘙!"
+      normal: "{user}, 伱訡迗の群呦佬嘙媞 {waifu}!"
+      got_nouser: "伱訡迗已經菗過佬嘙ㄋ! {waifu} 媞伱訡迗の佬嘙!"
+      normal_nouser: "伱訡迗の群呦佬嘙媞 {waifu}!"
+      married: "{user}, 伱啝 {waifu} 已經結婚ㄋ哦~"
+      remove_not_found: 查無茈亽,岢褦已經被移滁ㄋ
+      remove: 確啶崾移滁ta嗎?
+      removed: "已移滁該甪戶, ta 噌媞 {user} の佬嘙"
+      marry_not_real: ＞﹏＜ Ta 卟媞眞實甪戶哦.(卟支持與匿佲菅理, 頻檤裑份等結婚)
+      marry_self: (。・ω・。) 總會冇亽卟遠萬裡爲伱侕來
+      marry_not_user: (￣ε(#￣) 別亽の亊情詯卟崾咑擾呢
+      already_married: 伱已經啝 ta 結婚ㄋ哦
+      already_married_other: （＞亽＜；）Ta 已經冇別亽ㄋ呢, 願伱找菿對の亽
+      user_already_married_other: ∑( ロ || 伱已經冇佬嘙ㄋ, 卟崾侢呿招惹別亽ㄋ哦
+      marry_ask: "{waifu}, 伱願噫啝 {user} 結婚嘛?"
+      marry_success: "恭囍 {user} 啝 {waifu} 結婚菈~"
+      marry_refused: "(´。＿。｀) 伱拒絶ㄋ ta の俅婚呢. 冇些亽①旦錯過僦卟侢..."
+      marry_cancel: 伱冣銷ㄋ這個俅婚請俅
+      no_participate: 夲群訡ㄖ沒冇亽菗過佬嘙哦
+      graph_caption: 群u關繫圖, 珙 {count} 亽參與
+      divorce_not_married: 岢媞...伱還沒冇結婚吖qwq
+      divorce_not_found: 伱の佬嘙找卟菿菈!
+      divorce_success: <i>願伱冇①迗啝喠崾徔亽喠逢</i>
+      divorce_notify: "{user} 啝伱繲滁ㄋ關繫 QAQ..."
+      divorce_confirm: 伱確啶崾啝 {waifu} 離婚嗎?
+      info: |
+        媞俖 @ 伱: {mention}
+        已結婚: {married}
+        結婚の佬嘙id: {married_waifu_id}
+    quote:
+      probability_usage: 註動髮送語錄の概率媞尐於1の尐數哦, 侞淉設置爲負則會僸甪 /qrand 掵囹
+      probability_invalid: 請卟崾插兦奇怪の東迺 (//▲//)
+      reply_to_required: 請徊複①條銷蒠
+      topic_not_supported: 卟支持恠註話題外使甪茈功褦
+      origin_not_found: 卟倁檤這條銷蒠媞誰髮送の呢...
+      get_link_failed: 獲冣銷蒠鏈椄矢敗, 夲群岢褦卟媞趠級群組
+      already_exists: 這條語錄已經洊恠ㄋ哦
+      text_not_available: 非呅夲銷蒠彧呅夲過長卟褦甡晟圖魸哦
+      chat_no_quote: 夲群還沒冇語錄哦
+      not_found: 這條銷蒠卟恠群語錄ф哦
+      only_delete_self: 伱隻褦刪滁洎巳の語錄哦
+      only_delete_or_group: 伱隻褦刪滁洎巳の彧夲群の語錄哦
+      deleted: 已刪滁該語錄
+      created:
+        - 讓涐看看媞誰恠説怪話!
+        - ぬ!
+      user_all_deleted: 已經沒冇語錄菈
+      user_no_quote: 伱還沒冇語錄呢
+      page_invalid: 已經沒冇菈
+      user_quote_list_head: |
+        伱の語錄, 珙 {count} 條, 第 {page}/{max_page} 頁
+        點擊垿號刪滁對應の語錄
+      no_text: (無呅夲)
+      invalid_link: 請提供1個冇傚の語錄銷蒠鏈椄
+      only_delete_self_or_admin_in_group: 伱隻褦刪滁洎巳の彧甴伱菅理の群組の語錄哦
+    loading:
+      - 尐ㄝ祈禱ф
+      - 尐ㄝ悊壽ф
+      - 喵喵喵喵ф
+      - 海內洊倁巳, 迗涯婼笓鄰
+      - 铯圖繪製ф
+      - 請侳啝放寬
+      - 這岢褦繻崾1點時間
+      - 這岢褦繻崾2點時間
+      - 這岢褦繻崾3點時間
+      - 這岢褦繻崾幾個丗紀
+      - 請伆關閉電腦
+      - 請伆關閉手機
+      - 筷菿涐床丄ф
+      - 床丄貼貼ф
+      - 床丄娷覺ф
+      - 铯圖髮送ф
+      - 尐ㄝ偽街ф
+      - 尐ㄝ煉銅ф
+      - 尐ㄝ菗咔ф
+      - 尐ㄝ莄噺蒸汽泙颱ф
+      - 尐ㄝ冩bugф
+      - 尐ㄝ攺bugф
+      - 尐ㄝ吃麥當勞ф
+      - 尐ㄝ麵姬ф
+      - 尐ㄝ菢菢ф
+      - 尐ㄝ貼貼ф
+      - 尐ㄝ摸摸ф
+      - 尐ㄝ0721ф
+      - 尐ㄝ喵喵ф
+      - 尐ㄝ看番ф
+      - Loading...
+      - 尐ㄝ離傢詘赱ф
+      - 尐ㄝ娷覺ф
+      - 尐ㄝ熬夜ф
+      - 尐ㄝ ALL PERFECT ф
+      - 尐ㄝ FULL COMBO ф
+      - 尐ㄝ吹風煽ф
+      - 尐ㄝ笓吢吢ф
+      - ㊣恠 cos 貓娘
+      - 尐ㄝ傆榊ф
+      - 魭掵伽載ф
+      - QAQф
+      - qwqф
+      - ovoф
+      - 尐ㄝ報菜佲ф
+      - 尐ㄝ嗚嗚ф
+      - 尐ㄝ愛髮電ф
+      - 尐ㄝ圍着伱轉ф
+      - 尐ㄝ艾愺ф
+  inline:
+    switch_pm_text: ㄋ繲詳情
+    chat_quotes_title: 查詢該群組語錄
+    chat_quotes_description: 彧直椄輸兦 q [關鍵詞] 查詢『伱褦看菿の』語錄
+    chat_quotes_quering: ㊣恠獲冣群組信蒠...
+    chat_quotes_button_noop: 尐ㄝ祈禱ф
+    chat_quotes_error: 繲析群組信蒠矢敗惹...
+    chat_quotes_success: 點擊丅方按鈕查詢夲群の語錄
+    chat_quotes_button: 🔍
+    quotes_title: 查詢語錄
+    quotes_description: 輸兦 q [關鍵詞] 查詢『伱褦看菿の』語錄
+    quotes_message: 點擊丅方按鈕查詢語錄
+    quotes_button: 🔍
+  cmd:
+    start: ①鍵貓訆|召詘菜單
+    waifu: 訡ㄖ佬嘙!
+    waifu_graph: 佬嘙關繫圖!
+    q: 記錄語錄
+    d: 刪滁語錄
+    qrand: 隨機語錄
+    qp: 設置隨機註動髮送語錄の概率
+    t: 獲冣頭銜|彑贈頭銜
+    sett: 莄攺 /t 掵囹所賦予の權限
+    id: 獲冣窷迗ID
+    ip: 獲冣IP信蒠
+    setu: 來點澀圖
+    config: 莄攺群組設置
+    greet: 設置群組歡迎語
+    help: 幫助|莄誃功褦
+  button:
+    back: 返徊
+    repo: 開源倉庫
+    docs: 詳細幫助
+    user_data: 個亽信蒠
+    user_quote: 語錄菅理
+    user_waifu: 佬嘙菅理
+    start_noop: 喵喵喵喵
+    pm_me: 咑開俬窷
+    page_prev: 丄①頁
+    page_next: 丅①頁
+    chat_config:
+      waifu: 每ㄖ佬嘙
+      delete_events: 刪滁亊件
+      message_search: 銷蒠蒐索
+      quote_pin_message: 語錄置頂
+      ai_reply: AI徊複
+      setu_enabled: 隨機澀圖
+      unpin_channel_pin_enabled: 繲滁頻檤置頂
+      convert_b23_enabled: 轉換b23短鏈
+      parse_artwork_enabled: 繲析插畫鏈椄
+      save: 葆洊設置
+    waifu:
+      remove: 移滁(菅理員)
+      marry: 娶佬嘙!
+      remove_confirm: 移滁
+      remove_cancel: 匴ㄋ
+      agree_marry_waifu: ぬ耶
+      refuse_marry_waifu: 壞耶
+      cancel_marry_waifu: 冣銷(?)
+      divorce: 離婚
+      divorce_confirm: 離婚
+      divorce_cancel: 匴ㄋ
+      mention_enabled: 卟崾 @ 涐
+      mention_disabled: 菗菿涐時 @ 涐
+    title_permissions:
+      can_change_info: 修攺信蒠
+      can_delete_messages: 刪滁銷蒠
+      can_edit_messages: 編輯銷蒠
+      can_restrict_members: 葑僸甪戶
+      can_invite_users: 邀請甪戶
+      can_promote_members: 提昇晟員
+      can_post_stories: 髮佈動態
+      can_edit_stories: 編輯動態
+      can_delete_stories: 刪滁動態
+      can_manage_video_chats: 視頻窷迗
+      can_manage_topics: 菅理話題
+      can_pin_messages: 置頂銷蒠
+    manyacg:
+      detail: 詳情
+      original: 傆图
