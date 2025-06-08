@@ -4,7 +4,7 @@ from typing import Callable
 import pydantic_ai
 import pyrogram
 import pyrogram.errors
-from pydantic_ai import Agent, BinaryContent
+from pydantic_ai import Agent, BinaryContent, Tool
 from pydantic_ai.common_tools.duckduckgo import duckduckgo_search_tool
 from pydantic_ai.messages import UserContent
 from pydantic_ai.models.openai import OpenAIModel
@@ -32,12 +32,12 @@ if app_config.agent:
         model=model,
         system_prompt=app_config.agent_prompt,
         tools=[
-            tools.get_history_messages,
             tools.get_current_time,
             tools.get_user_info,
-            tools.get_chat_info,
             tools.send_anime_photo,
             tools.schedule_message,
+            Tool(tools.get_chat_info, prepare=tools.prepare_group_tools),
+            Tool(tools.get_history_messages, prepare=tools.prepare_group_tools),
             duckduckgo_search_tool(),
         ],
         deps_type=datatype.ContextDeps,  # type: ignore
