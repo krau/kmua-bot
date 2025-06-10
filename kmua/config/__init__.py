@@ -48,6 +48,7 @@ class _AppConfig(pydantic.BaseModel):
     agent_api_key: str = ""
     agent_messages_threshold: int = 20
     agent_multimodal: bool = True
+    agent_extra_tools: list[str] = []
     # experimental, maybe removed in the future
     agent_whitelist_mode: bool = False
     agent_whitelist: list[int] = []

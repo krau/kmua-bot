@@ -4,12 +4,14 @@ from typing import Callable
 import pydantic_ai
 import pyrogram
 import pyrogram.errors
+from duckduckgo_search import DDGS
 from pydantic_ai import Agent, BinaryContent, Tool
-from pydantic_ai.common_tools.duckduckgo import duckduckgo_search_tool
+from pydantic_ai.common_tools.duckduckgo import DuckDuckGoSearchTool
 from pydantic_ai.messages import UserContent
 from pydantic_ai.models.openai import OpenAIModel
 from pydantic_ai.providers.openai import OpenAIProvider
 from pyrogram import filters
+from pyrogram.client import Client as PyrogramClient
 
 from kmua import common, database, i18n
 from kmua.config import app_config
@@ -38,15 +40,20 @@ if app_config.agent:
             tools.schedule_message,
             Tool(tools.get_chat_info, prepare=tools.prepare_group_tools),
             Tool(tools.get_history_messages, prepare=tools.prepare_group_tools),
-            duckduckgo_search_tool(),
+            Tool(
+                DuckDuckGoSearchTool(DDGS()).__call__,
+                name="duckduckgo_search",
+                description="Searches DuckDuckGo for the given query and returns the results.",
+                prepare=tools.prepare_configurable_tools,
+            ),
         ],
         deps_type=datatype.ContextDeps,  # type: ignore
         retries=3,
     )  # type: ignore
     summary_agent = Agent(model=model, system_prompt=app_config.agent_summary_prompt)
 
-    @pyrogram.Client.on_message(pyrogram.filters.command("forget"), group=0)
-    async def forget_history(client: pyrogram.Client, message: pyrogram.types.Message):
+    @PyrogramClient.on_message(pyrogram.filters.command("forget"), group=0)
+    async def forget_history(client: PyrogramClient, message: pyrogram.types.Message):
         user = message.sender_chat or message.from_user
         if not user or user.id is None:
             return
@@ -80,8 +87,8 @@ _filter = (
 )
 
 
-@pyrogram.Client.on_message(_filter, group=0)
-async def wake_agent(client: pyrogram.Client, message: pyrogram.types.Message):
+@PyrogramClient.on_message(_filter, group=0)
+async def wake_agent(client: PyrogramClient, message: pyrogram.types.Message):
     # some check
     if not agent:
         return await word_reply(client, message)
