@@ -11,6 +11,7 @@ from kmua import common, database, i18n
 from kmua.config import app_config
 from kmua.logger import logger
 from kmua.plugins.manyacg import manyacg
+from kmua.services import btts
 
 from .. import datatype
 
@@ -225,6 +226,68 @@ async def get_history_messages(
     except Exception as e:
         logger.error(f"Error fetching history messages: {e.__class__.__name__}:{e}")
         return f"Error fetching history messages: {e.__class__.__name__}"
+
+
+async def search_messages(
+    ctx: RunContext[datatype.ContextDeps],
+    query: str,
+    count: int = 20,
+    user_id: int | None = None,
+) -> list[ChatMessage] | str:
+    """Search messages by query in the current chat.
+
+    Arguments:
+        query -- search query (required).
+        user_id -- if specified, only search messages from this user.
+        count -- maximum number of messages to return (default: 20).
+
+    Returns:
+        A list of ChatMessage objects if successful, or an error message string.
+    """
+
+    if not btts.btts_client:
+        return "Feature is not available."
+    if count <= 0 or count > 200:
+        raise ModelRetry("Count must be between 1 and 200, inclusive.")
+    chat_id = int(str(ctx.deps.chat_id).removeprefix("-100"))
+    logger.debug(
+        f"search_messages called with chat_id: {chat_id}, query: {query}, count: {count}, user_id: {user_id}"
+    )
+    resp, err = await btts.btts_client.search(
+        query=query,
+        chat_id=chat_id,
+        limit=count,
+        offset=0,
+        users=str(user_id or ""),
+    )
+    if err != "" or resp is None:
+        logger.error(f"Error searching messages: {err}")
+        return f"Error searching messages"
+    results = resp.results
+    if not results.hits:
+        return "No messages found matching the query."
+    messages = []
+    for hit in results.hits:
+        if hit.chat_id != chat_id:
+            continue
+        if user_id and hit.user_id != user_id:
+            continue
+        if not hit.message:
+            continue
+        user = await database.get_user_by_id(hit.user_id)
+        messages.append(
+            ChatMessage(
+                user_id=hit.user_id,
+                username=user.full_name if user else str(hit.user_id),
+                text=hit.message,
+                time=datetime.datetime.fromtimestamp(
+                    hit.timestamp, datetime.timezone.utc
+                ),
+            )
+        )
+    if not messages:
+        return "No messages found matching the query."
+    return messages
 
 
 async def schedule_message(

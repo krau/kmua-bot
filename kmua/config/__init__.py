@@ -25,6 +25,11 @@ class _AppConfig(pydantic.BaseModel):
     redis_db: int = 0
     redis_password: str = ""
 
+    btts: bool = False
+    btts_api_url: str | None = None
+    btts_api_key: str | None = None
+    btts_indexed_cachettl: int = 600
+
     # cache
     cachettl_agent_history: int = 86400 * 3
     cachettl_chatfull: int = 86400 * 3

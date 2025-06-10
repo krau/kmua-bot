@@ -46,6 +46,10 @@ if app_config.agent:
                 description="Searches DuckDuckGo for the given query and returns the results.",
                 prepare=tools.prepare_configurable_tools,
             ),
+            Tool(
+                tools.search_messages,
+                prepare=tools.prepare_message_search_tool,
+            ),
         ],
         deps_type=datatype.ContextDeps,  # type: ignore
         retries=3,
