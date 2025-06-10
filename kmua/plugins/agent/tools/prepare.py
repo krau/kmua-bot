@@ -30,6 +30,8 @@ async def prepare_message_search_tool(
 ) -> ToolDefinition | None:
     if not btts.btts_client:
         return None
+    if not ctx.deps.chat_id or not ctx.deps.chat_id < -100:
+        return None
     indexed = await common.memttlcache.get("agent:tools:search:btts_indexed", None)
     current_chat = str(ctx.deps.chat_id).removeprefix("-100")
     if indexed is not None and isinstance(indexed, list):
