@@ -17,6 +17,8 @@ bot:
     cleanning: kmua 正在打扫房间...
     sync_members_cd: 不要频繁使用哦, 请稍后再试
     sync_members_done: 同步完成! 清理了 {count} 个人呢
+    sync_members_error: 失败了喵, 请尝试赋予 bot 管理员权限后再试.
+    sync_members_start: 正在遍历群u名单...
     b23_converted: "{real_url}"
     b23_converted_group: |
       {real_url}

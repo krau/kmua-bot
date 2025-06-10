@@ -93,11 +93,17 @@ async def sync_chat_members(client: Client, message: Message):
     await common.memttlcache.set(
         f"sync_members:{chat.id}", True, app_config.cachettl_sync_members
     )
+    await message.reply_text(i18n.t("bot.msg.sync_members_start", locale=lang))
     # 在数据库中删除已经不在群组中的用户
-    current_members = client.get_chat_members(chat.id)
+    try:
+        current_members = client.get_chat_members(chat.id)
+        current_member_ids = {member.user.id async for member in current_members}
+    except Exception as e:
+        logger.error(f"Failed to get current members for chat {chat.id}: {e}")
+        await message.reply_text(i18n.t("bot.msg.sync_members_error", locale=lang))
+        return
     db_associations = await database.get_chat_associations(chat.id)
     db_member_ids = {assoc.user_id for assoc in db_associations}
-    current_member_ids = {member.user.id async for member in current_members}
     to_remove = db_member_ids - current_member_ids
     oks = 0
     for user_id in to_remove:
