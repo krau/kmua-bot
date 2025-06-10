@@ -83,7 +83,11 @@ async def sync_chat_members(client: Client, message: Message):
     chat = message.chat
     if not user or not chat or not chat.id:
         return
-    lang = (await database.get_chat_config(chat)).lang
+    db_chat = await database.upsert_chat(chat)
+    if not db_chat:
+        logger.error(f"Failed to upsert chat {chat.id}")
+        return
+    lang = db_chat.chat_config.lang
     if not await common.can_user_manage_bot_in_chat(user, chat):
         await message.reply_text(i18n.t("bot.msg.no_permission_group", locale=lang))
         return
@@ -114,6 +118,7 @@ async def sync_chat_members(client: Client, message: Message):
             )
             continue
         oks += 1
+        await database.unset_chat_waifus_by_waifu(db_chat, user_id)
     await message.reply_text(
         i18n.t("bot.msg.sync_members_done", locale=lang).format(count=oks)
     )

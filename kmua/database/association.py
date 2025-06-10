@@ -192,6 +192,22 @@ async def remove_user_waifu_in_chat(
     return True
 
 
+@with_tx
+async def unset_chat_waifus_by_waifu(
+    chat: ChatData, waifu_id: int, session: AsyncSession | None = None
+) -> int:
+    stmt = (
+        sqlalchemy.update(UserChatAssociation)
+        .where(
+            UserChatAssociation.chat_id == chat.id,
+            UserChatAssociation.waifu_id == waifu_id,
+        )
+        .values(waifu_id=None)
+    )
+    result = await session.execute(stmt)
+    return result.rowcount
+
+
 @with_session
 async def take_waifu_for_user_in_chat(
     user: UserData, chat: ChatData, session: AsyncSession | None = None
