@@ -5,6 +5,7 @@ import re
 
 import httpx
 import pyrogram
+from pyrogram.client import Client as PyrogramClient
 
 from kmua import common, database, i18n
 from kmua.config import app_config
@@ -36,10 +37,10 @@ httpx_client = httpx.AsyncClient(
 )
 
 
-@pyrogram.Client.on_message(
+@PyrogramClient.on_message(
     pyrogram.filters.regex("|".join([r.pattern for r in ARTWORK_ALL_REGEX])), group=0
 )
-async def parse_artwork(client: pyrogram.Client, message: pyrogram.types.Message):
+async def parse_artwork(client: PyrogramClient, message: pyrogram.types.Message):
     if not app_config.manyacg_api_key:
         return
     chat = message.chat
@@ -123,8 +124,8 @@ async def parse_artwork(client: pyrogram.Client, message: pyrogram.types.Message
         logger.error(f"parse_artwork error: {e.__class__.__name__}:{e}")
 
 
-@pyrogram.Client.on_message(pyrogram.filters.command("setu"), group=0)
-async def setu_command(client: pyrogram.Client, message: pyrogram.types.Message):
+@PyrogramClient.on_message(pyrogram.filters.command("setu"), group=0)
+async def setu_command(client: PyrogramClient, message: pyrogram.types.Message):
     chat = message.chat
     if chat.type in (pyrogram.enums.ChatType.SUPERGROUP, pyrogram.enums.ChatType.GROUP):
         chat_config = await database.get_chat_config(chat.id)
@@ -132,6 +133,7 @@ async def setu_command(client: pyrogram.Client, message: pyrogram.types.Message)
             await message.reply(
                 i18n.t("bot.msg.manyacg.chat_setu_disabled", locale=chat_config.lang)
             )
+            return
         lang = chat_config.lang
     else:
         user_config = await database.get_user_config(message.from_user.id)
