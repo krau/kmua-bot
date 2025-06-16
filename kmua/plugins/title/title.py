@@ -1,3 +1,4 @@
+import asyncio
 import html
 import json
 
@@ -54,6 +55,7 @@ async def set_member_title(client: pyrogram.Client, message: pyrogram.types.Mess
                 can_promote_members=permissions.get("can_promote_members", False),
             ),
         )
+        await asyncio.sleep(0.5) #  Error setting title: Custom titles can only be applied to owners or administrators of supergroups
         await client.set_administrator_title(chat.id, target.id, custom_title)
         text = (
             i18n.t("bot.msg.title.set_self", locale=chat_config.lang).format(
@@ -90,7 +92,7 @@ async def set_member_title(client: pyrogram.Client, message: pyrogram.types.Mess
     except Exception as e:
         logger.error(f"Error setting title: {e}")
         await message.reply_text(
-            i18n.t("bot.msg.title.errors.generic", locale=chat_config.lang),
+            f"{i18n.t("bot.msg.title.errors.generic", locale=chat_config.lang)}\n<code>{e}</code>",
             parse_mode=pyrogram.enums.ParseMode.HTML,
         )
 
