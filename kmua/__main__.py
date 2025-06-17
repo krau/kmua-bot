@@ -1,4 +1,5 @@
-from pyrogram import Client, idle
+from pyrogram.client import Client
+from pyrogram.sync import idle
 from pyrogram.types import BotCommand
 
 from kmua import common, database, i18n

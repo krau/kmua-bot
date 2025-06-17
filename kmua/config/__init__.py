@@ -25,6 +25,7 @@ class _AppConfig(pydantic.BaseModel):
     redis_db: int = 0
     redis_password: str = ""
 
+    # btts (better telegram search)
     btts: bool = False
     btts_api_url: str | None = None
     btts_api_key: str | None = None
@@ -44,7 +45,13 @@ class _AppConfig(pydantic.BaseModel):
     manyacg_channel: str = "MoreACG"
     manyacg_bot: str = "kirakabot"
     manyacg_setu_cd: int = 1
+    manyacg_randavatar_cd: int = 5
     manyacg_hybrid_search: bool = True
+
+    # aniobjcut
+    aniobjcut: bool = False
+    aniobjcut_api_url: str = "http://localhost:39728"
+    aniobjcut_api_key: str = ""
 
     # agent
     agent: bool = False

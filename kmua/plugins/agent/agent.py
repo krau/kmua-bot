@@ -16,7 +16,7 @@ from pyrogram.client import Client as PyrogramClient
 from kmua import common, database, i18n
 from kmua.config import app_config
 from kmua.logger import logger
-from kmua.plugins.manyacg import manyacg
+from kmua.services import manyacg
 
 from . import datatype, myfilter, tools, utils
 from .simple_reply import word_reply
