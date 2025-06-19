@@ -70,10 +70,8 @@ def _gen_quote_img(avatar: bytes, text: str, name: str) -> bytes:
             pilmoji.text(
                 (text_x, text_y + i * font_size),
                 text=v,
-                fill=(255, 255, 252),
                 font=font,
                 align="center",
-                emoji_position_offset=(0, 12),
             )
 
     left, top, right, bottom = name_font.getbbox(name)
@@ -87,7 +85,6 @@ def _gen_quote_img(avatar: bytes, text: str, name: str) -> bytes:
             (name_x, name_y),
             text=f"{name}",
             font=name_font,
-            fill=(255, 255, 252),
             align="center",
         )
 

@@ -14,7 +14,7 @@ dependencies = [
     "asyncpg>=0.30.0",
     "duckduckgo-search>=8.0.2",
     "dynaconf>=3.2.11",
-    "emoji==2.11",
+    "emoji>=2.11",
     "graphviz>=0.20.3",
     "httpx>=0.28.1",
     "kurigram>=2.2.3",
@@ -38,3 +38,4 @@ lint.select = ["I"]
 
 [tool.uv.sources]
 pydantic-ai-slim = { git = "https://github.com/krau/pydantic-ai", subdirectory = "pydantic_ai_slim" }
+pilmoji = { git = "https://github.com/jay3332/pilmoji.git" }

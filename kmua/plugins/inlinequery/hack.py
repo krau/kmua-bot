@@ -27,7 +27,7 @@ def resolve_inline_message_id(inline_message_id: str) -> InlineMessageIdInfo:
     padded = inline_message_id + "=" * ((4 - len(inline_message_id) % 4) % 4)
     try:
         raw = base64.urlsafe_b64decode(padded)
-    except base64.binascii.Error as e:
+    except ValueError as e:
         raise InvalidIDFormat(f"IDDecodeError: {e}")
 
     length = len(inline_message_id)
