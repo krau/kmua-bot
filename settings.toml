@@ -30,10 +30,3 @@ manyacg_channel = "MoreACG"
 manyacg_bot = "kirakabot"
 manyacg_setu_cd = 1
 manyacg_hybrid_search = true
-
-# workdir = Path(__file__).resolve().parent.parent.parent / "data"
-# debug = False
-# automigrate = True
-# cachedir = workdir / "cache"
-# avatar_cache_dir = cachedir / "avatar"
-# avatar_expire = 60 * 60 * 24  # 1 day
