@@ -25,7 +25,7 @@ class _AppConfig(pydantic.BaseModel):
     redis_db: int = 0
     redis_password: str = ""
 
-    # btts (better telegram search)
+    # btts https://github.com/krau/btts
     btts: bool = False
     btts_api_url: str | None = None
     btts_api_key: str | None = None
@@ -39,19 +39,19 @@ class _AppConfig(pydantic.BaseModel):
     cachettl_history_message: int = 86400 * 3
     cachettl_sync_members: int = 86400
 
-    # manyacg
+    # manyacg https://github.com/krau/manyacg
     manyacg_api_url: str = "https://api.manyacg.top/v1"
-    manyacg_api_key: str
+    manyacg_api_key: str | None = None
     manyacg_channel: str = "MoreACG"
     manyacg_bot: str = "kirakabot"
     manyacg_setu_cd: int = 1
     manyacg_randavatar_cd: int = 5
     manyacg_hybrid_search: bool = True
 
-    # aniobjcut
+    # aniobjcut https://github.com/ManyACG/anime-object-cut
     aniobjcut: bool = False
     aniobjcut_api_url: str = "http://localhost:39728"
-    aniobjcut_api_key: str = ""
+    aniobjcut_api_key: str | None = None
 
     # agent
     agent: bool = False
