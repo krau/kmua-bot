@@ -19,12 +19,15 @@ async def bililink_convert(client: Client, message: Message):
         return
     if not message.text:
         return
-    b23code = re.search(r"(?:b23\.tv|bili2233\.cn)/([a-zA-Z0-9]+)", message.text)
-    if not b23code:
+    b23link = re.search(r"(?:b23\.tv|bili2233\.cn)/([a-zA-Z0-9]+)", message.text)
+    if not b23link or b23link.group() is None:
+        return
+    b23code = b23link.group().split("/")[-1]
+    if not b23code or len(b23code) != 7:
         return
     async with httpx.AsyncClient() as http_client:
         resp = await http_client.get(
-            f"https://b23.tv/{b23code.group().split('/')[-1]}",
+            f"https://b23.tv/{b23link.group().split('/')[-1]}",
         )
         real_url = resp.headers.get("location")
         if not real_url:
