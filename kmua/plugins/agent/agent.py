@@ -4,7 +4,7 @@ from typing import Callable
 import pydantic_ai
 import pyrogram
 import pyrogram.errors
-from duckduckgo_search import DDGS
+from ddgs import DDGS
 from pydantic_ai import Agent, BinaryContent, Tool
 from pydantic_ai.common_tools.duckduckgo import DuckDuckGoSearchTool
 from pydantic_ai.messages import UserContent
