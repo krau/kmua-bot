@@ -2,23 +2,26 @@ import asyncio
 import html
 import json
 
-import pyrogram
 import pyrogram.errors
+from pyrogram.client import Client as PyrogramClient
 
 from kmua import common, database, i18n
+from kmua.common.tgmethod import mention_html
 from kmua.logger import logger
 
 from . import utils
 
 
-@pyrogram.Client.on_message(
+@PyrogramClient.on_message(
     pyrogram.filters.command("t") & pyrogram.filters.group, group=0
 )
-async def set_member_title(client: pyrogram.Client, message: pyrogram.types.Message):
+async def set_member_title(client: PyrogramClient, message: pyrogram.types.Message):
     chat = message.chat
     user = message.sender_chat or message.from_user
+    if not user or not chat or not chat.id:
+        return
     target = message.reply_to_message.from_user if message.reply_to_message else user
-    if not target:
+    if not target or not target.id or isinstance(target, pyrogram.types.Chat):
         await message.reply_text(
             i18n.t(
                 "bot.msg.title.errors.user_id_invalid",
@@ -26,6 +29,8 @@ async def set_member_title(client: pyrogram.Client, message: pyrogram.types.Mess
             ),
             parse_mode=pyrogram.enums.ParseMode.HTML,
         )
+        return
+    if not message.command:
         return
     custom_title = " ".join(message.command[1:]).strip()
     if not custom_title:
@@ -50,12 +55,13 @@ async def set_member_title(client: pyrogram.Client, message: pyrogram.types.Mess
                 can_edit_stories=permissions.get("can_edit_stories", False),
                 can_delete_stories=permissions.get("can_delete_stories", False),
                 can_manage_video_chats=permissions.get("can_manage_video_chats", False),
-                can_edit_messages=permissions.get("can_edit_messages", False),
-                can_manage_topics=permissions.get("can_manage_topics", False),
                 can_promote_members=permissions.get("can_promote_members", False),
+                can_manage_topics=permissions.get("can_manage_topics", False),
+                # can_edit_messages=permissions.get("can_edit_messages", False), # only for channels
             ),
         )
-        await asyncio.sleep(0.5) #  Error setting title: Custom titles can only be applied to owners or administrators of supergroups
+        #  Error setting title: Custom titles can only be applied to owners or administrators of supergroups
+        await asyncio.sleep(0.5)
         await client.set_administrator_title(chat.id, target.id, custom_title)
         text = (
             i18n.t("bot.msg.title.set_self", locale=chat_config.lang).format(
@@ -65,7 +71,7 @@ async def set_member_title(client: pyrogram.Client, message: pyrogram.types.Mess
             else i18n.t("bot.msg.title.set_other", locale=chat_config.lang).format(
                 title=html.escape(custom_title),
                 target=target.mention(style="html"),
-                user=user.mention(style="html"),
+                user=(await mention_html(user)),
             )
         )
         await message.reply_text(text, parse_mode=pyrogram.enums.ParseMode.HTML)
@@ -89,19 +95,24 @@ async def set_member_title(client: pyrogram.Client, message: pyrogram.types.Mess
             i18n.t("bot.msg.title.errors.user_id_invalid", locale=chat_config.lang),
             parse_mode=pyrogram.enums.ParseMode.HTML,
         )
+    except pyrogram.errors.RightForbidden:
+        await message.reply_text(
+            i18n.t("bot.msg.title.errors.right_forbidden", locale=chat_config.lang),
+            parse_mode=pyrogram.enums.ParseMode.HTML,
+        )
     except Exception as e:
         logger.error(f"Error setting title: {e}")
         await message.reply_text(
-            f"{i18n.t("bot.msg.title.errors.generic", locale=chat_config.lang)}\n<code>{e}</code>",
+            f"{i18n.t('bot.msg.title.errors.generic', locale=chat_config.lang)}\n<code>{e}</code>",
             parse_mode=pyrogram.enums.ParseMode.HTML,
         )
 
 
-@pyrogram.Client.on_message(
+@PyrogramClient.on_message(
     pyrogram.filters.command("sett") & pyrogram.filters.group, group=0
 )
 async def set_title_permissions(
-    client: pyrogram.Client, message: pyrogram.types.Message
+    client: PyrogramClient, message: pyrogram.types.Message
 ):
     chat = message.chat
     user = message.sender_chat or message.from_user
@@ -121,12 +132,12 @@ async def set_title_permissions(
     )
 
 
-@pyrogram.Client.on_callback_query(
+@PyrogramClient.on_callback_query(
     pyrogram.filters.regex(r"^set_title_permissions\s+\w+$"),
     group=0,
 )
 async def set_title_permissions_callback(
-    client: pyrogram.Client,
+    client: PyrogramClient,
     query: pyrogram.types.CallbackQuery,
 ):
     chat = query.message.chat
@@ -151,10 +162,10 @@ async def set_title_permissions_callback(
     )
 
 
-@pyrogram.Client.on_message(
+@PyrogramClient.on_message(
     pyrogram.filters.command("td") & pyrogram.filters.group, group=0
 )
-async def delete_member_title(client: pyrogram.Client, message: pyrogram.types.Message):
+async def delete_member_title(client: PyrogramClient, message: pyrogram.types.Message):
     chat = message.chat
     user = message.from_user
     lang = (await database.get_chat_config(chat)).lang

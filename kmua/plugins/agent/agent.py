@@ -244,6 +244,7 @@ In Private Chat
         except TypeError as e:
             # https://github.com/pydantic/pydantic-ai/issues/527
             # https://github.com/pydantic/pydantic-ai/issues/1813
+            # https://github.com/pydantic/pydantic-ai/issues/1746
             logger.exception(f"Agent run error: {e}")
             await message.reply_text(
                 f"{i18n.t('bot.msg.agent.errors.too_fast', locale=lang)}\n<code>{e}</code>",

@@ -27,6 +27,9 @@ bot:
         rank_invalid: The title is too long! It won't fit!
         user_id_invalid: I can't change my own title or that of a channel identity.
         no_chat_or_user: Couldn't find the user or group...
+        right_forbidden: |
+          The permissions applied are not available in this group, please use the /sett command to modify them
+          (For example, the permission to manage topics is only available in groups that have enabled topics)
     ip:
       no_ip_provided: "Please provide an IP/domain to look up."
       querying: "Querying: {ip}"

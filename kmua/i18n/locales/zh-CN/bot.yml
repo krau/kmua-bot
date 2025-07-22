@@ -35,6 +35,9 @@ bot:
         rank_invalid: 头衔太长了! 进不去!
         user_id_invalid: 咱不能更改自己的或频道身份的头衔
         no_chat_or_user: 找不到对应的用户或群组...
+        right_forbidden: | 
+          所应用的权限在此群组中不可用, 请使用 /sett 命令修改
+          (例如, 管理话题的权限仅在开启了话题的群组中可用哦)
     ip:
       no_ip_provided: "请提供要查询的 IP/域名"
       querying: "正在查询: {ip}"
