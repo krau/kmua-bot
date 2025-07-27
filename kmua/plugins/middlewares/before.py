@@ -1,4 +1,4 @@
-from pyrogram import Client
+from pyrogram.client import Client
 from pyrogram.enums import ChatType
 from pyrogram.types import CallbackQuery, InlineQuery, Message
 
@@ -25,7 +25,7 @@ async def on_m(client: Client, message: Message):
     user_db = await database.upsert_user(user)
     if chat.type == ChatType.GROUP:
         message.stop_propagation()
-    if chat.type == ChatType.SUPERGROUP:
+    if chat.type in (ChatType.SUPERGROUP, ChatType.FORUM):
         chat_db = await database.upsert_chat(chat)
         await database.add_association_in_chat(chat_db, user_db, None)
 
