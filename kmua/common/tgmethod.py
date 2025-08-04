@@ -118,6 +118,8 @@ async def can_user_manage_bot_in_chat(
         return False
     if association.is_bot_admin:
         return True
+    if await memttlcache.get(f"can_manage_bot:{user_id}:{chat_id}", None):
+        return True
     chat_member = await client.get_chat_member(chat_id, user_id)
     if chat_member.status == ChatMemberStatus.OWNER:
         association.is_bot_admin = True
@@ -128,6 +130,7 @@ async def can_user_manage_bot_in_chat(
             chat_member.privileges is not None
             and chat_member.privileges.can_promote_members
         ):
+            await memttlcache.set(f"can_manage_bot:{user_id}:{chat_id}", True, ttl=3600)
             return True
     return False
 
