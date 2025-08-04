@@ -123,6 +123,12 @@ async def can_user_manage_bot_in_chat(
         association.is_bot_admin = True
         await database.update_association(association)
         return True
+    if chat_member.status == ChatMemberStatus.ADMINISTRATOR:
+        if (
+            chat_member.privileges is not None
+            and chat_member.privileges.can_promote_members
+        ):
+            return True
     return False
 
 
