@@ -3,16 +3,17 @@ import math
 import re
 
 import pyrogram
+from pyrogram.client import Client as PyrogramClient
 
 from kmua import common, database, i18n
 
 from . import utils
 
 
-@pyrogram.Client.on_message(
+@PyrogramClient.on_message(
     pyrogram.filters.command("q") & pyrogram.filters.group, group=0
 )
-async def make_quote(client: pyrogram.Client, message: pyrogram.types.Message):
+async def make_quote(client: PyrogramClient, message: pyrogram.types.Message):
     user = message.sender_chat or message.from_user
     chat = message.chat
     if not chat or not user:
@@ -68,10 +69,10 @@ async def make_quote(client: pyrogram.Client, message: pyrogram.types.Message):
     )
 
 
-@pyrogram.Client.on_message(
+@PyrogramClient.on_message(
     pyrogram.filters.command("qrand") & pyrogram.filters.group, group=0
 )
-async def random_quote_cmd(client: pyrogram.Client, message: pyrogram.types.Message):
+async def random_quote_cmd(client: PyrogramClient, message: pyrogram.types.Message):
     chat = message.chat
     chat_config = await database.get_chat_config(chat.id)
     if chat_config.quote_probability <= 0:
@@ -100,11 +101,11 @@ async def random_quote_cmd(client: pyrogram.Client, message: pyrogram.types.Mess
     )
 
 
-@pyrogram.Client.on_message(
+@PyrogramClient.on_message(
     pyrogram.filters.command("qp") & pyrogram.filters.group, group=0
 )
 async def set_quote_probability(
-    client: pyrogram.Client, message: pyrogram.types.Message
+    client: PyrogramClient, message: pyrogram.types.Message
 ):
     chat = message.chat
     user = message.sender_chat or message.from_user
@@ -163,12 +164,10 @@ $
     )
 
 
-@pyrogram.Client.on_message(
+@PyrogramClient.on_message(
     pyrogram.filters.command("d") & pyrogram.filters.group, group=0
 )
-async def delete_quote_in_chat(
-    client: pyrogram.Client, message: pyrogram.types.Message
-):
+async def delete_quote_in_chat(client: PyrogramClient, message: pyrogram.types.Message):
     chat = message.chat
     chat_config = await database.get_chat_config(chat.id)
     user = message.sender_chat or message.from_user
@@ -232,11 +231,11 @@ async def delete_quote_in_chat(
     )
 
 
-@pyrogram.Client.on_message(
+@PyrogramClient.on_message(
     pyrogram.filters.command("d") & pyrogram.filters.private, group=0
 )
 async def delete_quote_in_private(
-    client: pyrogram.Client, message: pyrogram.types.Message
+    client: PyrogramClient, message: pyrogram.types.Message
 ):
     user = message.from_user
     user_config = await database.get_user_config(user.id)
@@ -278,10 +277,10 @@ async def delete_quote_in_private(
     await message.reply_text(i18n.t("bot.msg.quote.deleted", locale=user_config.lang))
 
 
-@pyrogram.Client.on_message(
+@PyrogramClient.on_message(
     ~pyrogram.filters.command("") & pyrogram.filters.group, group=1
 )
-async def random_quote(client: pyrogram.Client, message: pyrogram.types.Message):
+async def random_quote(client: PyrogramClient, message: pyrogram.types.Message):
     """尝试主动发送引用消息"""
     chat = message.chat
     chat_config = await database.get_chat_config(chat.id)
@@ -311,9 +310,9 @@ async def random_quote(client: pyrogram.Client, message: pyrogram.types.Message)
     )
 
 
-@pyrogram.Client.on_callback_query(pyrogram.filters.regex(r"^user_quote_manage"))
+@PyrogramClient.on_callback_query(pyrogram.filters.regex(r"^user_quote_manage"))
 async def user_quote_manage(
-    client: pyrogram.Client, query: pyrogram.types.CallbackQuery
+    client: PyrogramClient, query: pyrogram.types.CallbackQuery
 ):
     user = query.from_user
     data = str(query.data)
@@ -398,9 +397,9 @@ async def user_quote_manage(
     )
 
 
-@pyrogram.Client.on_callback_query(pyrogram.filters.regex(r"^delete_user_quote"))
+@PyrogramClient.on_callback_query(pyrogram.filters.regex(r"^delete_user_quote"))
 async def delete_user_quote(
-    client: pyrogram.Client, query: pyrogram.types.CallbackQuery
+    client: PyrogramClient, query: pyrogram.types.CallbackQuery
 ):
     user = query.from_user
     data = str(query.data)

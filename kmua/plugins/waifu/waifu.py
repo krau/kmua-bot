@@ -3,6 +3,7 @@ from io import BytesIO
 
 import pyrogram
 import pyrogram.errors
+from pyrogram.client import Client as PyrogramClient
 
 from kmua import common, database, enums, i18n
 from kmua.database.models import ChatData, UserData
@@ -11,12 +12,17 @@ from kmua.logger import logger
 from . import utils
 
 
-@pyrogram.Client.on_message(
+@PyrogramClient.on_message(
     pyrogram.filters.command("waifu") & pyrogram.filters.group, group=0
 )
-async def today_waifu(client: pyrogram.Client, message: pyrogram.types.Message):
+async def today_waifu(client: PyrogramClient, message: pyrogram.types.Message):
     raw_user = message.sender_chat or message.from_user
     raw_chat = message.chat
+    if not raw_user or not raw_chat:
+        return
+    if not raw_user.id or not raw_chat.id:
+        return
+
     chat_config = await database.get_chat_config(raw_chat)
     if not chat_config.waifu_enabled:
         await message.reply(
@@ -30,8 +36,8 @@ async def today_waifu(client: pyrogram.Client, message: pyrogram.types.Message):
     if await common.memstore.get(lock_key):
         return
     await common.memstore.set(lock_key, True)
+    waifu: UserData | None = None
     try:
-        waifu: UserData | None = None
         user = await database.upsert_user(raw_user)
         chat: ChatData = await database.upsert_chat(raw_chat)
         await message.reply_chat_action(pyrogram.enums.ChatAction.TYPING)
@@ -77,7 +83,7 @@ async def today_waifu(client: pyrogram.Client, message: pyrogram.types.Message):
                     else photo
                 ),
                 caption=text,
-                reply_markup=waifu_markup,
+                reply_markup=waifu_markup,  # type: ignore
                 parse_mode=pyrogram.enums.ParseMode.HTML,
             )
             if msg.photo is not None:
@@ -97,11 +103,13 @@ async def today_waifu(client: pyrogram.Client, message: pyrogram.types.Message):
             await common.ChatAvatar(waifu.id).save_if_not_exists(False)
 
 
-@pyrogram.Client.on_message(
+@PyrogramClient.on_message(
     pyrogram.filters.command("waifu_graph") & pyrogram.filters.group, group=0
 )
-async def waifu_graph(client: pyrogram.Client, message: pyrogram.types.Message):
+async def waifu_graph(client: PyrogramClient, message: pyrogram.types.Message):
     chat = message.chat
+    if not chat or not chat.id:
+        return
     chat_config = await database.get_chat_config(chat)
     if not chat_config.waifu_enabled:
         return
@@ -111,10 +119,14 @@ async def waifu_graph(client: pyrogram.Client, message: pyrogram.types.Message):
     await utils.send_waifu_graph(chat.id, message.id, client)
 
 
-@pyrogram.Client.on_callback_query(pyrogram.filters.regex(r"^remove_waifu"), group=0)
-async def remove_waifu(client: pyrogram.Client, query: pyrogram.types.CallbackQuery):
+@PyrogramClient.on_callback_query(pyrogram.filters.regex(r"^remove_waifu"), group=0)
+async def remove_waifu(client: PyrogramClient, query: pyrogram.types.CallbackQuery):
     chat = query.message.chat
     user = query.from_user
+    if not chat or not user:
+        return
+    if not chat.id or not user.id:
+        return
     if not await common.can_user_manage_bot_in_chat(user, chat):
         user_config = await database.get_user_config(user)
         await query.answer(
@@ -124,6 +136,8 @@ async def remove_waifu(client: pyrogram.Client, query: pyrogram.types.CallbackQu
         )
         return
     db_chat = await database.get_chat_by_id(chat.id)
+    if not db_chat:
+        return
     chat_config = await database.get_chat_config(chat)
     lang = chat_config.lang
     data = str(query.data).split(" ")
@@ -186,11 +200,13 @@ async def remove_waifu(client: pyrogram.Client, query: pyrogram.types.CallbackQu
         )
 
 
-@pyrogram.Client.on_callback_query(pyrogram.filters.regex(r"^marry_waifu"), group=0)
-async def marry_waifu(client: pyrogram.Client, query: pyrogram.types.CallbackQuery):
+@PyrogramClient.on_callback_query(pyrogram.filters.regex(r"^marry_waifu"), group=0)
+async def marry_waifu(client: PyrogramClient, query: pyrogram.types.CallbackQuery):
     chat = query.message.chat
+    if not chat or not chat.id:
+        return
     update_user = query.from_user
-    data = query.data.split(" ")
+    data = str(query.data).split(" ")
     waifu_id = int(data[1])
     user_id = int(data[2])
     db_waifu = await database.get_user_by_id(waifu_id)
@@ -255,12 +271,14 @@ async def marry_waifu(client: pyrogram.Client, query: pyrogram.types.CallbackQue
         if query.message.photo is not None:
             await query.message.edit_caption(
                 caption=text,
-                reply_markup=None,
+                reply_markup=None,  # type: ignore
                 parse_mode=pyrogram.enums.ParseMode.HTML,
             )
         else:
             await query.message.edit_text(
-                text=text, reply_markup=None, parse_mode=pyrogram.enums.ParseMode.HTML
+                text=text,
+                reply_markup=None,  # type: ignore
+                parse_mode=pyrogram.enums.ParseMode.HTML,
             )
         return
     if data[0].endswith("refuse"):
@@ -278,12 +296,14 @@ async def marry_waifu(client: pyrogram.Client, query: pyrogram.types.CallbackQue
         if query.message.photo is not None:
             await query.message.edit_caption(
                 caption=text,
-                reply_markup=None,
+                reply_markup=None,  # type: ignore
                 parse_mode=pyrogram.enums.ParseMode.HTML,
             )
         else:
             await query.message.edit_text(
-                text=text, reply_markup=None, parse_mode=pyrogram.enums.ParseMode.HTML
+                text=text,
+                reply_markup=None,  # type: ignore
+                parse_mode=pyrogram.enums.ParseMode.HTML,
             )
         return
     if data[0].endswith("cancel"):
@@ -299,9 +319,9 @@ async def marry_waifu(client: pyrogram.Client, query: pyrogram.types.CallbackQue
         )
         text = await utils.waifu_text(db_waifu, False, db_user, lang=lang)
         if query.message.photo is not None:
-            await query.message.edit_caption(caption=text, reply_markup=None)
+            await query.message.edit_caption(caption=text, reply_markup=None)  # type: ignore
         else:
-            await query.message.edit_text(text=text, reply_markup=None)
+            await query.message.edit_text(text=text, reply_markup=None)  # type: ignore
         return
 
     if update_user.id == db_waifu.id:
@@ -349,11 +369,11 @@ async def marry_waifu(client: pyrogram.Client, query: pyrogram.types.CallbackQue
         )
 
 
-@pyrogram.Client.on_callback_query(
+@PyrogramClient.on_callback_query(
     pyrogram.filters.regex(r"^user_waifu_manage"), group=0
 )
 async def user_waifu_manage(
-    client: pyrogram.Client, query: pyrogram.types.CallbackQuery
+    client: PyrogramClient, query: pyrogram.types.CallbackQuery
 ):
     db_user = await database.get_user_by_id(query.from_user.id)
     if not db_user:

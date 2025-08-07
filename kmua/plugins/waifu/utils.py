@@ -8,6 +8,7 @@ from typing import AsyncGenerator
 import aiofiles
 import graphviz
 import pyrogram
+from pyrogram.client import Client
 
 from kmua import common, database, i18n
 from kmua.database.models import ChatData, UserData
@@ -27,10 +28,11 @@ def waifu_markup(
                     text=i18n.t("bot.button.waifu.remove", locale=lang),
                     callback_data=f"remove_waifu {waifu_id} {user_id}",
                 ),
-                pyrogram.types.InlineKeyboardButton(
-                    text=i18n.t("bot.button.waifu.marry", locale=lang),
-                    callback_data=f"marry_waifu {waifu_id} {user_id}",
-                ),
+                # pyrogram.types.InlineKeyboardButton(
+                #     text=i18n.t("bot.button.waifu.marry", locale=lang),
+                #     callback_data=f"marry_waifu {waifu_id} {user_id}",
+                # ),
+                # bad design.
             ]
         ]
     )
@@ -126,6 +128,8 @@ async def get_graph_data(
     participate_users2: AsyncGenerator[UserData, None] | None = None,
 ):
     db_chat = await database.get_chat_by_id(chat_id)
+    if not db_chat:
+        raise ValueError(f"Chat with id {chat_id} not found in database.")
 
     async def _gen_relationship():
         async for user in participate_users1:
@@ -193,7 +197,7 @@ async def render_waifu_graph(
             has_avatar.add(user_id)
             avatar = user["avatar"]
             avatar_path = os.path.join(tempdir, f"{user_id}_avatar.jpg")
-            await _write_avatar(avatar_path, avatar)
+            await _write_avatar(avatar_path, avatar)  # type: ignore
 
             with dot.subgraph(name=f"cluster_{user_id}") as subgraph:  # type: ignore
                 subgraph.attr(label=username)
@@ -226,7 +230,7 @@ async def _write_avatar(avatar_path: str, avatar: bytes) -> None:
         await avatar_file.write(avatar)
 
 
-async def send_waifu_graph(chat_id: int, reply_to_msg_id: int, client: pyrogram.Client):
+async def send_waifu_graph(chat_id: int, reply_to_msg_id: int, client: Client):
     chat_config = await database.get_chat_config(chat_id)
     if not chat_config.waifu_enabled:
         return
