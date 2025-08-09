@@ -5,8 +5,6 @@ from kmua.config import app_config
 
 
 async def base_filter_func(_, __, message: pyrogram.types.Message) -> bool:
-    if not app_config.agent:
-        return False
     if not message:
         return False
     text = message.text or message.caption
