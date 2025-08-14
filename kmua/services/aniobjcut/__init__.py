@@ -21,7 +21,7 @@ class _AniObjCutClient:
     async def cut_avatar(
         self,
         file: bytes,
-        size: int = 512,
+        size: int = 640,
         padding: float = 0.3,
     ) -> bytes:
         try:
