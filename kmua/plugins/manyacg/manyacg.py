@@ -52,15 +52,19 @@ async def parse_artwork(client: PyrogramClient, message: pyrogram.types.Message)
     if not artwork_url:
         return
     await message.reply_chat_action(pyrogram.enums.ChatAction.UPLOAD_PHOTO)
+    if not artwork_url.startswith("http"):
+        artwork_url = "https://" + artwork_url
     try:
         resp = await manyacg_client.fetch_artwork(artwork_url)
     except Exception as e:
         logger.error(f"Error fetching artwork: {e}")
         return
     if resp.status_code != 200:
+        logger.error(f"fetch_artwork failed: {resp.status_code} {resp.text}")
         return
     artwork: dict = resp.json()
     if artwork["status"] != 200:
+        # should not happen
         return
     artwork_title = artwork["data"]["title"]
     artwork_description = artwork["data"]["description"]
