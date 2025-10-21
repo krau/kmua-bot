@@ -44,7 +44,7 @@ async def set_member_title(client: PyrogramClient, message: pyrogram.types.Messa
         await client.promote_chat_member(
             chat.id,
             target.id,
-            privileges=pyrogram.types.ChatPrivileges(
+            privileges=pyrogram.types.ChatAdministratorRights(
                 can_manage_chat=True,
                 can_change_info=permissions.get("can_change_info", False),
                 can_delete_messages=permissions.get("can_delete_messages", False),
@@ -116,6 +116,8 @@ async def set_title_permissions(
 ):
     chat = message.chat
     user = message.sender_chat or message.from_user
+    if chat is None or chat.id is None or user is None:
+        return
     chat_config = await database.get_chat_config(chat.id)
     if not await common.can_user_manage_bot_in_chat(user, chat):
         await message.reply_text(
@@ -142,6 +144,8 @@ async def set_title_permissions_callback(
 ):
     chat = query.message.chat
     user = query.from_user
+    if chat is None or chat.id is None or user is None:
+        return
     chat_config = await database.get_chat_config(chat.id)
     if not await common.can_user_manage_bot_in_chat(user, chat):
         await query.answer(
@@ -168,6 +172,8 @@ async def set_title_permissions_callback(
 async def delete_member_title(client: PyrogramClient, message: pyrogram.types.Message):
     chat = message.chat
     user = message.from_user
+    if chat is None or chat.id is None or user is None:
+        return
     lang = (await database.get_chat_config(chat)).lang
     if not user or not chat:
         await message.reply_text(
@@ -179,7 +185,7 @@ async def delete_member_title(client: PyrogramClient, message: pyrogram.types.Me
         await client.promote_chat_member(
             chat_id=chat.id,
             user_id=user.id,
-            privileges=pyrogram.types.ChatPrivileges(can_manage_chat=False),
+            privileges=pyrogram.types.ChatAdministratorRights(can_manage_chat=False),
         )
         await message.reply_text(
             i18n.t("bot.msg.title.deleted", locale=lang),
