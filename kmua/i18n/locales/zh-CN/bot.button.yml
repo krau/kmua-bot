@@ -22,7 +22,7 @@ bot:
       parse_artwork_enabled: 解析插画链接
       save: 保存设置
     waifu:
-      remove: 移除(管理员)
+      remove: 移除
       marry: 娶老婆!
       remove_confirm: 移除
       remove_cancel: 算了
@@ -34,6 +34,7 @@ bot:
       divorce_cancel: 算了
       mention_enabled: 不要 @ 我
       mention_disabled: 抽到我时 @ 我
+      change: 换一只
     title_permissions:
       can_change_info: 修改信息
       can_delete_messages: 删除消息

@@ -1,11 +1,13 @@
 import html
 import math
+import random
 import re
 
 import pyrogram
 from pyrogram.client import Client as PyrogramClient
 
 from kmua import common, database, i18n
+from kmua.config import app_config
 
 from . import utils
 
@@ -67,6 +69,10 @@ async def make_quote(client: PyrogramClient, message: pyrogram.types.Message):
         text=quote_message.text,
         img=quote_img,
     )
+    if utils.random_chance(app_config.coin_add_chance_for_user_make_quote):
+        await database.add_user_coins(db_user.id, 16 * random.randint(1, 9))
+    if utils.random_chance(app_config.coin_add_chance_for_quote_user):
+        await database.add_user_coins(db_quote_user.id, 16 * random.randint(1, 9))
 
 
 @PyrogramClient.on_message(
@@ -308,6 +314,10 @@ async def random_quote(client: PyrogramClient, message: pyrogram.types.Message):
             [[pyrogram.types.InlineKeyboardButton(user_button_text, url=quote.link)]]
         ),
     )
+    if pb <= app_config.coin_add_on_randquote_max_pb and utils.random_chance(
+        app_config.coin_add_chance_on_randquote
+    ):
+        await database.add_user_coins(quote.user_id, 16 * random.randint(1, 9))
 
 
 @PyrogramClient.on_callback_query(pyrogram.filters.regex(r"^user_quote_manage"))

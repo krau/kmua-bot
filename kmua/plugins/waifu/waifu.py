@@ -1,11 +1,14 @@
 import html
+import random
 from io import BytesIO
+from pydoc import text
 
 import pyrogram
 import pyrogram.errors
 from pyrogram.client import Client as PyrogramClient
 
 from kmua import common, database, enums, i18n
+from kmua.config import app_config
 from kmua.database.models import ChatData, UserData
 from kmua.logger import logger
 
@@ -154,7 +157,7 @@ async def remove_waifu(client: PyrogramClient, query: pyrogram.types.CallbackQue
         return
 
     if data[0].endswith("confirm"):
-        await database.remove_user_waifu_in_chat(db_user, db_chat)
+        await database.unset_user_waifu_in_chat(db_user, db_chat)
         await database.remove_association(waifu_id, chat.id)
         text = i18n.t("bot.msg.waifu.removed", locale=lang).format(
             user=html.escape(db_user.full_name),
@@ -366,6 +369,140 @@ async def marry_waifu(client: PyrogramClient, query: pyrogram.types.CallbackQuer
     else:
         await query.message.edit_text(
             text=text, reply_markup=markup, parse_mode=pyrogram.enums.ParseMode.HTML
+        )
+
+
+@PyrogramClient.on_callback_query(pyrogram.filters.regex(r"^change_waifu"), group=0)
+async def change_waifu(client: PyrogramClient, query: pyrogram.types.CallbackQuery):
+    chat = query.message.chat
+    user = query.from_user
+    if not chat or not user:
+        return
+    if not chat.id or not user.id:
+        return
+    db_chat = await database.get_chat_by_id(chat.id)
+    if not db_chat:
+        return
+    chat_config = await database.get_chat_config(chat)
+    lang = chat_config.lang
+    data = str(query.data)
+    user_id = int(data.split(" ")[2])
+    if user.id != user_id:
+        await query.answer(
+            text=i18n.t("bot.msg.waifu.marry_not_user", locale=lang),
+            show_alert=True,
+            cache_time=10,
+        )
+        return
+    old_waifu_id = int(data.split(" ")[1])
+    db_user = await database.get_user_by_id(user.id)
+    if not db_user:
+        return
+    if db_user.married_waifu_id is not None and db_user.is_married:
+        await query.answer(
+            text=i18n.t("bot.msg.waifu.change_married", locale=lang),
+            show_alert=True,
+            cache_time=10,
+        )
+        return
+    try:
+        count = (
+            await common.memttlcache.get(
+                f"user:{user.id}:chat:{chat.id}:change_waifu_count"
+            )
+            or 0
+        )
+        coins = db_user.user_config.coins
+        if coins < app_config.cost_user_change_waifu_base:
+            text = (
+                i18n.t("bot.msg.waifu.change_not_enough_coins", locale=lang)
+                if count == 0
+                else i18n.t(
+                    "bot.msg.waifu.change_not_enough_coins_scumbag", locale=lang
+                )
+            )
+            if count == 0:
+                await query.answer(
+                    text=text,
+                    show_alert=True,
+                    cache_time=10,
+                )
+                return
+            if query.message.photo is not None:
+                await query.message.edit_caption(
+                    caption=text,
+                    parse_mode=pyrogram.enums.ParseMode.HTML,
+                )
+            else:
+                await query.message.edit_text(
+                    text=text,
+                    parse_mode=pyrogram.enums.ParseMode.HTML,
+                )
+            return
+        cost = (
+            app_config.cost_user_change_waifu_base
+            * (count**app_config.cost_user_change_waifu_pow)
+            + count * random.choice([i * 16 for i in range(10)])
+            + app_config.cost_user_change_waifu_base
+        )
+        new_waifu = await database.change_user_waifu_in_chat(db_user.id, db_chat, cost)
+        if new_waifu is None:
+            await query.answer(
+                text=i18n.t("bot.msg.waifu.change_failed", locale=lang),
+                show_alert=True,
+                cache_time=10,
+            )
+            return
+        if new_waifu.id == old_waifu_id:
+            text = i18n.t("bot.msg.waifu.change_same", locale=lang)
+            await query.answer(
+                text=text,
+                show_alert=True,
+                cache_time=5,
+            )
+            return
+        await common.memttlcache.set(
+            f"user:{user.id}:chat:{chat.id}:change_waifu_count", count + 1, ttl=86400
+        )
+        text = await utils.waifu_text(new_waifu, False, db_user, lang=lang)
+        waifu_markup = utils.waifu_markup(new_waifu.id, db_user.id, lang=lang)
+        photo = await common.ChatAvatar(new_waifu.id).get_big_photo()
+        if not photo and query.message.photo is not None:
+            await query.message.edit_caption(
+                caption=text,
+                reply_markup=waifu_markup,
+                parse_mode=pyrogram.enums.ParseMode.HTML,
+            )
+            return
+        if not photo and query.message.photo is None:
+            await query.message.edit_text(
+                text=text,
+                reply_markup=waifu_markup,
+                parse_mode=pyrogram.enums.ParseMode.HTML,
+            )
+            return
+        if photo is None:
+            raise ValueError("photo is None")  # should not happen
+        await query.message.edit_media(
+            media=pyrogram.types.InputMediaPhoto(
+                media=(
+                    BytesIO(photo)
+                    if isinstance(photo, (bytes, bytearray, memoryview))
+                    else photo
+                ),
+                caption=text,
+                parse_mode=pyrogram.enums.ParseMode.HTML,
+            ),
+            reply_markup=waifu_markup,
+        )
+    except Exception as e:
+        logger.exception(
+            f"failed to change waifu for user {user.id} in chat {chat.id}: {e}"
+        )
+        await query.answer(
+            text=i18n.t("bot.msg.waifu.change_failed", locale=lang),
+            show_alert=True,
+            cache_time=10,
         )
 
 

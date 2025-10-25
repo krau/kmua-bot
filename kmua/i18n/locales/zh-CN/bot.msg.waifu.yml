@@ -33,3 +33,8 @@ bot:
         是否 @ 你: {mention}
         已结婚: {married}
         结婚的老婆id: {married_waifu_id}
+      change_married: 你已经和某人结婚了, 不能再更换老婆哦
+      change_not_enough_coins: 很遗憾, 失败啦
+      change_not_enough_coins_scumbag: 渣男, 你今天没别的老婆啦!
+      change_failed: 失败了喵, 请稍后再试
+      change_same: 你今天的老婆仍然是 ta 呢~

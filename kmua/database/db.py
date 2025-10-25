@@ -1,18 +1,17 @@
-import asyncio
 import inspect
 import pathlib
 from contextlib import asynccontextmanager
 from functools import wraps
 from typing import AsyncGenerator, Awaitable, Callable, ParamSpec, TypeVar
 
+import alembic.command
+import alembic.config
 from sqlalchemy.ext.asyncio import (
     AsyncSession,
     async_sessionmaker,
     create_async_engine,
 )
 
-import alembic.command
-import alembic.config
 from kmua import i18n
 from kmua.config import app_config
 from kmua.logger import logger

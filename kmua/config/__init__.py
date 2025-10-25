@@ -104,6 +104,19 @@ Eg:  bold,   a \ b = ab.
     avatar_cache_dir: Path = cachedir / "avatar"
     avatar_expire: int = 60 * 60 * 24  # 1 day
 
+    # coin cost
+    cost_user_change_waifu_base: int = 16
+    # cost = base * (count ** pow) + count * random.choice([0,16,32,...,144])
+    cost_user_change_waifu_pow: int = 2
+
+    coin_add_chance_on_message: float = 0.02
+    coin_add_chance_for_quote_user: float = 0.7
+    coin_add_chance_for_user_make_quote: float = 0.5
+    coin_add_on_randquote_max_pb: float = 0.4  # 防止某些群组设置过高的主动引用概率
+    coin_add_chance_on_randquote: float = 0.5
+    coin_add_chance_on_slash: float = 0.05
+    coin_add_chance_on_be_slash: float = 0.05
+
 
 class _InternalConfig(pydantic.BaseModel):
     db_is_sqlite: bool = False

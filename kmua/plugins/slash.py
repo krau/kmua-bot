@@ -1,11 +1,13 @@
 import html
+import random
 import re
 
 from pyrogram import Client, filters
 from pyrogram.enums import MessageEntityType, ParseMode
 from pyrogram.types import LinkPreviewOptions, Message
 
-from kmua import common
+from kmua import common, database
+from kmua.config import app_config
 
 
 def _replace_char(text: str):
@@ -98,3 +100,10 @@ async def slash(client: Client, message: Message):
         parse_mode=ParseMode.HTML,
         link_preview_options=LinkPreviewOptions(is_disabled=True),
     )
+    if random.uniform(0, 1) < app_config.coin_add_chance_on_slash:
+        coins = 16 * random.randint(1, 4)
+        await database.add_user_coins(this_user.id, coins)
+    if replied_user:
+        if random.uniform(0, 1) < app_config.coin_add_chance_on_be_slash:
+            coins = 16 * random.randint(1, 4)
+            await database.add_user_coins(replied_user.id, coins)

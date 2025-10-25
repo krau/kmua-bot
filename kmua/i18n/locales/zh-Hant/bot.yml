@@ -289,7 +289,7 @@ bot:
       parse_artwork_enabled: 解析插畫鏈接
       save: 保存設置
     waifu:
-      remove: 移除(管理員)
+      remove: 移除
       marry: 娶老婆!
       remove_confirm: 移除
       remove_cancel: 算了

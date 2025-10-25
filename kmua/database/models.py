@@ -26,12 +26,13 @@ class Base(DeclarativeBase):
 @dataclass
 class UserConfig:
     lang: str = "zh-CN"
+    coins: int = 144 * 16
 
     @classmethod
     def from_dict(cls, data: dict | None) -> "UserConfig":
         if data is None:
             return cls()
-        return cls(lang=data.get("lang", "zh-CN"))
+        return cls(lang=data.get("lang", "zh-CN"), coins=data.get("coins", 144 * 16))
 
     def to_dict(self) -> dict:
         return asdict(self)

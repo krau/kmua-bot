@@ -1,3 +1,4 @@
+import random
 from typing import AsyncGenerator
 
 import sqlalchemy
@@ -7,11 +8,12 @@ import sqlalchemy.dialects.postgresql
 import sqlalchemy.dialects.sqlite
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from kmua import enums
-from kmua.config import runtime_config
+from kmua import common, enums
+from kmua.config import app_config, runtime_config
+from kmua.database.user import get_user_config
 
 from .db import AsyncSessionFactory, with_session, with_tx
-from .models import ChatData, UserChatAssociation, UserData
+from .models import ChatData, UserChatAssociation, UserConfig, UserData
 
 
 @with_session
@@ -180,7 +182,7 @@ async def set_user_waifu_in_chat(
 
 
 @with_tx
-async def remove_user_waifu_in_chat(
+async def unset_user_waifu_in_chat(
     user: UserData, chat: ChatData, session: AsyncSession | None = None
 ) -> bool:
     association = await get_association(user.id, chat.id, session)
@@ -338,3 +340,29 @@ async def get_chat_associations(
     )
     result = await session.execute(stmt)
     return result.scalars().all()
+
+
+@with_tx
+async def change_user_waifu_in_chat(
+    user_id: int,
+    chat: ChatData,
+    cost: int = app_config.cost_user_change_waifu_base,
+    session: AsyncSession | None = None,
+) -> UserData | None:
+    user = await session.get(UserData, user_id)
+    if user is None:
+        raise ValueError("User not found")
+    association = await get_association(user.id, chat.id, session)
+    if association is None:
+        raise ValueError("Association not found")
+    association.waifu_id = None
+    config = user.user_config
+    if config.coins < 0:
+        raise ValueError("Not enough coins")
+    config.coins = max(-144 * 16, config.coins - cost)
+    user.user_config = config
+    new_waifu = await take_waifu_for_user_in_chat(user, chat, session)
+    if new_waifu is None:
+        return None
+    association.waifu_id = new_waifu.id
+    return new_waifu

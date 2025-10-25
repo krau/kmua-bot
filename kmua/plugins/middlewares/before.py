@@ -1,3 +1,5 @@
+import random
+
 from pyrogram.client import Client
 from pyrogram.enums import ChatType
 from pyrogram.types import CallbackQuery, InlineQuery, Message
@@ -28,6 +30,12 @@ async def on_m(client: Client, message: Message):
     if chat.type in (ChatType.SUPERGROUP, ChatType.FORUM):
         chat_db = await database.upsert_chat(chat)
         await database.add_association_in_chat(chat_db, user_db, None)
+        if random.uniform(0, 1) < app_config.coin_add_chance_on_message:
+            coins = 16 * random.randint(1, 9)
+            await database.add_user_coins(user_db.id, coins)
+            logger.debug(
+                f"Added {coins} coins to user {user_db.id} for sending message in chat {chat_db.id}"
+            )
 
 
 @Client.on_callback_query(group=-1)
