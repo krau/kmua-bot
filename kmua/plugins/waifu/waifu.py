@@ -1,7 +1,6 @@
 import html
 import random
 from io import BytesIO
-from pydoc import text
 
 import pyrogram
 import pyrogram.errors
@@ -384,6 +383,20 @@ async def change_waifu(client: PyrogramClient, query: pyrogram.types.CallbackQue
     if not db_chat:
         return
     chat_config = await database.get_chat_config(chat)
+    if not chat_config.waifu_enabled:
+        await query.answer(
+            i18n.t("bot.msg.waifu.disabled", locale=chat_config.lang),
+            show_alert=True,
+            cache_time=10,
+        )
+        return
+    if await common.memstore.get(enums.GLockKey.CLEANING, False):
+        await query.answer(
+            i18n.t("bot.msg.cleanning", locale=chat_config.lang),
+            show_alert=True,
+            cache_time=10,
+        )
+        return
     lang = chat_config.lang
     data = str(query.data)
     user_id = int(data.split(" ")[2])
@@ -405,6 +418,10 @@ async def change_waifu(client: PyrogramClient, query: pyrogram.types.CallbackQue
             cache_time=10,
         )
         return
+    lock_key = utils.waifu_waiting_key(user.id, chat.id)
+    if await common.memstore.get(lock_key):
+        return
+    await common.memstore.set(lock_key, True)
     try:
         count = (
             await common.memttlcache.get(
@@ -504,6 +521,8 @@ async def change_waifu(client: PyrogramClient, query: pyrogram.types.CallbackQue
             show_alert=True,
             cache_time=10,
         )
+    finally:
+        await common.memstore.delete(lock_key)
 
 
 @PyrogramClient.on_callback_query(
