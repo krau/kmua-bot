@@ -41,7 +41,7 @@ if app_config.agent:
             Tool(tools.get_chat_info, prepare=tools.prepare_group_tools),
             Tool(tools.get_history_messages, prepare=tools.prepare_group_tools),
             Tool(
-                DuckDuckGoSearchTool(DDGS()).__call__,
+                DuckDuckGoSearchTool(DDGS(), max_results=3).__call__,
                 name="duckduckgo_search",
                 description="Searches DuckDuckGo for the given query and returns the results.",
                 prepare=tools.prepare_configurable_tools,

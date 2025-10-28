@@ -1,8 +1,6 @@
 import pyrogram
 from pyrogram import filters
 
-from kmua.config import app_config
-
 
 async def base_filter_func(_, __, message: pyrogram.types.Message) -> bool:
     if not message:

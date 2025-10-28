@@ -4,7 +4,6 @@ from pyrogram.types import (
     InlineKeyboardButton,
     InlineKeyboardMarkup,
     Message,
-    WebAppInfo,
 )
 
 from kmua import consts, database, i18n

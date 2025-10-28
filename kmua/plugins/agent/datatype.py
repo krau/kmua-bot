@@ -1,11 +1,12 @@
 from dataclasses import dataclass
 
-import pyrogram
+from pyrogram.client import Client as PyrogramClient
+from pyrogram.types import Message
 
 
 @dataclass
 class ContextDeps:
-    client: pyrogram.Client
+    client: PyrogramClient
     user_id: int
     chat_id: int
-    message: pyrogram.types.Message
+    message: Message

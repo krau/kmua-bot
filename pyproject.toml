@@ -23,7 +23,7 @@ dependencies = [
     "pillow>=11.2.1",
     "pilmoji>=2.0.4",
     "pydantic>=2.11.4",
-    "pydantic-ai-slim[openai,duckduckgo]",
+    "pydantic-ai>=1.7.0",
     "pyyaml>=6.0.2",
     "redis>=6.2.0",
     "sqlalchemy[asyncio]>=2.0.41",
@@ -37,5 +37,5 @@ dependencies = [
 lint.select = ["I"]
 
 [tool.uv.sources]
-pydantic-ai-slim = { git = "https://github.com/krau/pydantic-ai", subdirectory = "pydantic_ai_slim" }
+# pydantic-ai-slim = { git = "https://github.com/krau/pydantic-ai", subdirectory = "pydantic_ai_slim" }
 pilmoji = { git = "https://github.com/jay3332/pilmoji.git" }
