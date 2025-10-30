@@ -1,14 +1,18 @@
 bot:
   inline:
     switch_pm_text: 了解详情
+    resolve_error: 解析群组信息失败惹...
+    resolve_button_noop: 少女祈祷中
     chat_quotes_title: 查询该群组语录
     chat_quotes_description: 或直接输入 q [关键词] 查询『你能看到的』语录
     chat_quotes_quering: 正在获取群组信息...
     chat_quotes_button_noop: 少女祈祷中
-    chat_quotes_error: 解析群组信息失败惹...
     chat_quotes_success: 点击下方按钮查询本群的语录
     chat_quotes_button: 🔍
     quotes_title: 查询语录
     quotes_description: 输入 q [关键词] 查询『你能看到的』语录
     quotes_message: 点击下方按钮查询语录
     quotes_button: 🔍
+    pick_bottle_title: 捡瓶子
+    pick_bottle_description: 从海洋中捡起一个漂流瓶
+    pick_bottle_quering: 正在前往海岸...

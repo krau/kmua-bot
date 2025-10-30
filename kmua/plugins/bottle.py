@@ -35,9 +35,6 @@ async def throw_bottle(client: Client, message: types.Message):
             case enums.MessageMediaType.VIDEO:
                 file_id = bottle_message.video.file_id if bottle_message.video else None
                 media_type = enums.MessageMediaType.VIDEO.name
-            case enums.MessageMediaType.VOICE:
-                file_id = bottle_message.voice.file_id if bottle_message.voice else None
-                media_type = enums.MessageMediaType.VOICE.name
             case enums.MessageMediaType.AUDIO:
                 file_id = bottle_message.audio.file_id if bottle_message.audio else None
                 media_type = enums.MessageMediaType.AUDIO.name
@@ -55,7 +52,7 @@ async def throw_bottle(client: Client, message: types.Message):
                 media_type = enums.MessageMediaType.ANIMATION.name
             case _:
                 await message.reply_text(
-                    i18n.t("bot.msg.bottle.unsupported_media", locale=lang)
+                    i18n.t("bot.msg.bottle.unsupported_media_throw", locale=lang)
                 )
                 return
     # 异或非
@@ -194,10 +191,6 @@ async def pick_bottle(client: Client, message: types.Message):
                 await message.reply_video(
                     bottle.file_id, reply_markup=reply_markup, **content_kwargs
                 )
-            case enums.MessageMediaType.VOICE.name:
-                await message.reply_voice(
-                    bottle.file_id, reply_markup=reply_markup, **content_kwargs
-                )
             case enums.MessageMediaType.AUDIO.name:
                 await message.reply_audio(
                     bottle.file_id, reply_markup=reply_markup, **content_kwargs
@@ -241,6 +234,14 @@ async def handle_throw_back_callback(
         )
         return
     if callback_query.message is None:
+        if callback_query.inline_message_id is not None:
+            await callback_query.edit_message_text(
+                i18n.t("bot.msg.bottle.throw_back_success", locale=lang)
+            )
+            return
+        await callback_query.answer(
+            i18n.t("bot.msg.bottle.throw_back_success", locale=lang)
+        )
         return
     if callback_query.message.media:
         await callback_query.answer(
@@ -315,6 +316,9 @@ async def handle_destroy_bottle_callback(
         logger.exception(f"Failed to delete bottle: {e}")
         return
     if callback_query.message is None:
+        await callback_query.edit_message_text(
+            i18n.t("bot.msg.bottle.destroy_success", locale=lang)
+        )
         return
     await callback_query.answer(i18n.t("bot.msg.bottle.destroy_success", locale=lang))
     await callback_query.message.delete()
