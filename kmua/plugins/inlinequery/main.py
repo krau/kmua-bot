@@ -15,7 +15,7 @@ async def inline_query_handler(client: Client, query: types.InlineQuery):
     datas = query.query.strip().split(" ")
     if not datas or datas[0] == "":
         results = []
-        if query.chat_type == pyrogram.enums.ChatType.SUPERGROUP:
+        if query.chat_type == enums.ChatType.SUPERGROUP:
             results.append(
                 types.InlineQueryResultArticle(
                     id="chat_quotes",
