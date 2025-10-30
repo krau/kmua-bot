@@ -42,10 +42,20 @@ async def init_bot(client: Client = client):
             BotCommand("qrand", i18n.t("bot.cmd.qrand", locale=app_config.lang)),
             BotCommand("qp", i18n.t("bot.cmd.qp", locale=app_config.lang)),
             BotCommand("t", i18n.t("bot.cmd.t", locale=app_config.lang)),
+            BotCommand("td", i18n.t("bot.cmd.td", locale=app_config.lang)),
             BotCommand("sett", i18n.t("bot.cmd.sett", locale=app_config.lang)),
             BotCommand("id", i18n.t("bot.cmd.id", locale=app_config.lang)),
             BotCommand("ip", i18n.t("bot.cmd.ip", locale=app_config.lang)),
             BotCommand("setu", i18n.t("bot.cmd.setu", locale=app_config.lang)),
+            BotCommand(
+                "throwbottle", i18n.t("bot.cmd.throwbottle", locale=app_config.lang)
+            ),
+            BotCommand(
+                "pickbottle", i18n.t("bot.cmd.pickbottle", locale=app_config.lang)
+            ),
+            BotCommand(
+                "wordcloud", i18n.t("bot.cmd.wordcloud", locale=app_config.lang)
+            ),
             BotCommand("config", i18n.t("bot.cmd.config", locale=app_config.lang)),
             BotCommand("greet", i18n.t("bot.cmd.greet", locale=app_config.lang)),
             BotCommand("help", i18n.t("bot.cmd.help", locale=app_config.lang)),

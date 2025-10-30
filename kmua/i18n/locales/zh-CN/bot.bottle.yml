@@ -1,0 +1,27 @@
+bot:
+  msg:
+    bottle:
+      no_content: 往瓶子里装点什么吧~
+      text_too_lang: 太长了, 进不去!
+      not_enough_coins: 你没有可以用的瓶子了呢
+      not_enough_coins_to_pick: 你在海岸边等了很久, 但大海没有给你任何瓶子~
+      throw_success: 这个瓶子被你成功地扔进了大海🌊🍾
+      throw_failed: 你尝试把瓶子扔进大海, 但大海抛给你了一个异常
+      no_bottles: 你在海岸边找了很久, 但什么也没捡到~
+      unsupported_media: 你捡到了一个瓶子, 但无论如何也理解不了里面的内容
+      unsupported_media_throw: 大海无法理解你的瓶子装了什么~
+      not_your_bottle: 这个瓶子不是你的哦
+      throw_back_success: 你把瓶子又扔回了大海🌊🍾
+      report_failed: 名为异常的海浪冲走了你的举报请求
+      report_success: 大海感谢你的守护~
+      destroy_failed: 销毁失败了
+      destroy_success: 这个瓶子被你销毁了呢
+      not_found: 没有找到这个瓶子呢
+      seek_result: 这个瓶子是由 {sender} 在 {created_at} 扔进大海的哦
+      pick_disabled_in_chat: 这里不允许捡漂流瓶哦
+  button:
+    bottle:
+      throw_back: 扔回大海
+      destroy: 销毁瓶子
+      report: 举报瓶子
+      seek: 追寻踪迹

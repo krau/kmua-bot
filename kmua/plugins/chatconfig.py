@@ -69,6 +69,10 @@ class ChatConfigMarkup:
                         f"{i18n.t('bot.button.chat_config.parse_artwork_enabled', locale=self.lang)} {self.get_status_emoji(self.chat_config.parse_artwork_enabled)}",
                         callback_data=self.get_callback_data("parse_artwork_enabled"),
                     ),
+                    InlineKeyboardButton(
+                        f"{i18n.t('bot.button.chat_config.pick_bottle_enabled', locale=self.lang)} {self.get_status_emoji(self.chat_config.pick_bottle_enabled)}",
+                        callback_data=self.get_callback_data("pick_bottle_enabled"),
+                    ),
                 ],
                 [
                     InlineKeyboardButton(
@@ -146,6 +150,8 @@ async def config_chat(
                 chat_config.parse_artwork_enabled = (
                     not chat_config.parse_artwork_enabled
                 )
+            case "pick_bottle_enabled":
+                chat_config.pick_bottle_enabled = not chat_config.pick_bottle_enabled
             case _:
                 await callback_query.answer(
                     text=i18n.t("bot.msg.unknown_operation", locale=lang),

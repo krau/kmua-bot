@@ -77,6 +77,8 @@ bot:
       /syncmembers - 同步群组成员
       /f5avatar - 刷新你的头像
       /forget - 让 bot 忘记与你的对话记录
+      /throwbottle - 扔一个漂流瓶
+      /pickbottle - 捡一个漂流瓶
       </blockquote>
       对其他人使用 "/" 或 "\" 即可对其施法
     help_inline: |

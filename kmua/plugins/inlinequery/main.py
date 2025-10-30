@@ -87,8 +87,9 @@ async def inline_query_handler(
                 chat_id = int(q_data[1])
             except ValueError:
                 chat_id = None
-            return await query_quote(client, query, chat_id, text)
-        return await query_quote(client, query, text=text)
+            await query_quote(client, query, chat_id, text)
+            return
+        await query_quote(client, query, text=text)
 
 
 @pyrogram.Client.on_chosen_inline_result()

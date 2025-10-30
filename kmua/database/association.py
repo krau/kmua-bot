@@ -10,7 +10,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from kmua import common, enums
 from kmua.config import app_config, runtime_config
-from kmua.database.user import get_user_config
 
 from .db import AsyncSessionFactory, with_session, with_tx
 from .models import ChatData, UserChatAssociation, UserConfig, UserData

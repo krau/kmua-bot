@@ -8,10 +8,14 @@ bot:
     qrand: 随机语录
     qp: 设置随机主动发送语录的概率
     t: 获取头衔|互赠头衔
+    td: 删除你的头衔
     sett: 更改 /t 命令所赋予的权限
     id: 获取聊天ID
     ip: 获取IP信息
     setu: 来点涩图
+    throwbottle: 扔一个漂流瓶
+    pickbottle: 捡一个漂流瓶
+    wordcloud: 生成聊天记录词云
     config: 更改群组设置
     greet: 设置群组欢迎语
     help: 帮助|更多功能

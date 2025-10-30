@@ -109,6 +109,11 @@ Eg:  bold,   a \ b = ab.
     # cost = base * (count ** pow) + count * random.choice([0,16,32,...,144])
     cost_user_change_waifu_pow: int = 2
 
+    cost_throw_bottle_base: int = 9
+    cost_throw_bottle_pow: int = 1
+    cost_pick_bottle_base: int = 3
+    cost_pick_bottle_pow: int = 1
+
     coin_add_chance_on_message: float = 0.02
     coin_add_chance_for_quote_user: float = 0.7
     coin_add_chance_for_user_make_quote: float = 0.5

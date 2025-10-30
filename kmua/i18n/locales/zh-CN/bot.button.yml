@@ -20,6 +20,7 @@ bot:
       unpin_channel_pin_enabled: 解除频道置顶
       convert_b23_enabled: 转换b23短链
       parse_artwork_enabled: 解析插画链接
+      pick_bottle_enabled: 捡瓶子
       save: 保存设置
     waifu:
       remove: 移除

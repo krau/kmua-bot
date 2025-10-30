@@ -175,6 +175,19 @@ async def add_user_coins(
 
 
 @with_tx
+async def cost_user_coins(
+    user_id: int, coins: int, session: AsyncSession | None = None
+) -> UserConfig:
+    user_data = await session.get(UserData, user_id)
+    if user_data is None:
+        raise ValueError(f"User with id {user_id} not found")
+    config = user_data.user_config
+    config.coins = max(-144 * 16, config.coins - coins)
+    user_data.user_config = config
+    return user_data.user_config
+
+
+@with_tx
 async def update_user_config(
     user_id: int, config: UserConfig, session: AsyncSession | None = None
 ) -> UserConfig:

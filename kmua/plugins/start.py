@@ -1,4 +1,8 @@
-from pyrogram import Client, filters
+import html
+
+from pyrogram import filters
+from pyrogram.client import Client
+from pyrogram.enums import ParseMode
 from pyrogram.types import (
     CallbackQuery,
     InlineKeyboardButton,
@@ -6,7 +10,7 @@ from pyrogram.types import (
     Message,
 )
 
-from kmua import consts, database, i18n
+from kmua import common, consts, database, i18n
 from kmua.logger import logger
 
 
@@ -45,24 +49,58 @@ class PrivateStartBotMarkup:
 async def start(client: Client, message: Message):
     user_config = await database.get_user_config(message.from_user)
     lang = user_config.lang
+    if message.command is None:
+        message.command = []
     if len(message.command) <= 1:
         await message.reply(
             text=i18n.t("bot.msg.private_start", locale=lang),
             reply_markup=PrivateStartBotMarkup(lang).build(),
         )
         return
-    match message.command[1]:
-        case "inline_query":
-            await message.reply(
-                text=i18n.t("bot.msg.help_inline", locale=lang).format(
-                    me_username=client.me.username
-                )
+    cmd = message.command[1]
+    if cmd.startswith("inline_query"):
+        await message.reply(
+            text=i18n.t("bot.msg.help_inline", locale=lang).format(
+                me_username=client.me.username
             )
-        case _:
+        )
+    elif cmd.startswith("seek_bottle"):
+        if len(cmd.split("_")) != 3:
             await message.reply(
                 text=i18n.t("bot.msg.private_start", locale=lang),
                 reply_markup=PrivateStartBotMarkup(lang).build(),
             )
+            return
+        bottle_id = int(cmd.split("_")[2])
+        bottle = await database.get_bottle_by_id(bottle_id)
+        if bottle is None:
+            await message.reply(
+                text=i18n.t("bot.msg.bottle.not_found", locale=lang),
+                reply_markup=PrivateStartBotMarkup(lang).build(),
+            )
+            return
+        sender_user = await database.get_user_by_id(bottle.sender_id)
+        sender_mention = await common.mention_html(sender_user)
+        try:
+            await message.reply(
+                text=i18n.t(
+                    "bot.msg.bottle.seek_result",
+                    locale=lang,
+                ).format(
+                    sender=sender_mention,
+                    created_at=html.escape(
+                        bottle.created_at.strftime("%Y-%m-%d %H:%M:%S")
+                    ),
+                ),
+                parse_mode=ParseMode.HTML,
+            )
+        except Exception as e:
+            logger.exception(e)
+    else:
+        await message.reply(
+            text=i18n.t("bot.msg.private_start", locale=lang),
+            reply_markup=PrivateStartBotMarkup(lang).build(),
+        )
 
 
 @Client.on_message(filters.command("start") & filters.group, group=0)

@@ -8,6 +8,7 @@ from sqlalchemy import (
     Boolean,
     DateTime,
     ForeignKey,
+    Integer,
     String,
     func,
 )
@@ -52,6 +53,7 @@ class ChatConfig:
     setu_enabled: bool = True
     convert_b23_enabled: bool = True
     parse_artwork_enabled: bool = True
+    pick_bottle_enabled: bool = True
     lang: str = "zh-CN"
 
     @classmethod
@@ -71,6 +73,7 @@ class ChatConfig:
             setu_enabled=data.get("setu_enabled", True),
             convert_b23_enabled=data.get("convert_b23_enabled", False),
             parse_artwork_enabled=data.get("parse_artwork_enabled", True),
+            pick_bottle_enabled=data.get("pick_bottle_enabled", True),
             lang=data.get("lang", "zh-CN"),
         )
 
@@ -302,3 +305,47 @@ class Quote(Base):
 
     def __repr__(self) -> str:
         return f"<Quote(link='{self.link}', chat_id={self.chat_id}, user_id={self.user_id})>"
+
+
+class Bottle(Base):
+    __tablename__ = "bottles"
+
+    id: Mapped[int] = mapped_column(
+        Integer,
+        primary_key=True,
+        autoincrement=True,
+        index=True,
+    )
+
+    sender_id: Mapped[int] = mapped_column(
+        BigInteger,
+        ForeignKey("user_data.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    text: Mapped[str] = mapped_column(String(4096), nullable=True)
+    picks: Mapped[int] = mapped_column(BigInteger, default=0)
+    reports: Mapped[int] = mapped_column(BigInteger, default=0)
+    file_id: Mapped[str | None] = mapped_column(String(256), nullable=True)
+    media_type: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    """
+    meida_type can be one of the following:
+    - image
+    - video
+    - audio
+    - document
+    - voice
+    - None (for text-only bottles)
+    """
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+    )
+    last_picked_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+        default=None,
+    )
+
+    def __repr__(self) -> str:
+        return f"<Bottle(id={self.id}, sender_id={self.sender_id})>"
