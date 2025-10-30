@@ -121,6 +121,10 @@ Eg:  bold,   a \ b = ab.
     coin_add_chance_on_randquote: float = 0.5
     coin_add_chance_on_slash: float = 0.05
     coin_add_chance_on_be_slash: float = 0.05
+    # 日常奖励间隔
+    coin_daily_add_interval: int = 86400
+    # 每次奖励的数量
+    coin_daily_add_count: int = 144 * 16
 
 
 class _InternalConfig(pydantic.BaseModel):

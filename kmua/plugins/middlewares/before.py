@@ -4,7 +4,7 @@ from pyrogram.client import Client
 from pyrogram.enums import ChatType
 from pyrogram.types import CallbackQuery, InlineQuery, Message
 
-from kmua import database
+from kmua import common, database
 from kmua.config import app_config
 from kmua.logger import logger
 
@@ -35,6 +35,13 @@ async def on_m(client: Client, message: Message):
             await database.add_user_coins(user_db.id, coins)
             logger.debug(
                 f"Added {coins} coins to user {user_db.id} for sending message in chat {chat_db.id}"
+            )
+        if not await common.memttlcache.get(f"user:{user_db.id}:daily_coins_reset"):
+            await database.add_user_coins(user_db.id, app_config.coin_daily_add_count)
+            await common.memttlcache.set(
+                f"user:{user_db.id}:daily_coins_reset",
+                True,
+                app_config.coin_daily_add_interval,
             )
 
 
