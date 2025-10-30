@@ -33,9 +33,6 @@ async def on_m(client: Client, message: Message):
         if random.uniform(0, 1) < app_config.coin_add_chance_on_message:
             coins = 16 * random.randint(1, 9)
             await database.add_user_coins(user_db.id, coins)
-            logger.debug(
-                f"Added {coins} coins to user {user_db.id} for sending message in chat {chat_db.id}"
-            )
         if not await common.memttlcache.get(f"user:{user_db.id}:daily_coins_reset"):
             await database.add_user_coins(user_db.id, app_config.coin_daily_add_count)
             await common.memttlcache.set(
