@@ -182,10 +182,10 @@ async def chosen_inline_result(client: Client, result: types.ChosenInlineResult)
                         i18n.t("bot.button.bottle.throw_back", locale=lang),
                         callback_data=f"throw_back {user.id}",
                     ),
-                    types.InlineKeyboardButton(
-                        i18n.t("bot.button.bottle.destroy", locale=lang),
-                        callback_data=f"destroy_bottle {bottle.id} {user.id}",
-                    ),
+                    # types.InlineKeyboardButton(
+                    #     i18n.t("bot.button.bottle.destroy", locale=lang),
+                    #     callback_data=f"destroy_bottle {bottle.id} {user.id}",
+                    # ),
                 ],
                 [
                     types.InlineKeyboardButton(
