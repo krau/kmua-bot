@@ -176,17 +176,21 @@ async def chosen_inline_result(client: Client, result: types.ChosenInlineResult)
                 )
                 return
             bot_username = client.me.username if client.me else None
-            buttons = [
-                [
+
+            row1 = [
+                types.InlineKeyboardButton(
+                    i18n.t("bot.button.bottle.throw_back", locale=lang),
+                    callback_data=f"throw_back {user.id}",
+                )
+            ]
+            if bottle.sender_id == user.id:
+                row1.append(
                     types.InlineKeyboardButton(
-                        i18n.t("bot.button.bottle.throw_back", locale=lang),
-                        callback_data=f"throw_back {user.id}",
+                        i18n.t("bot.button.bottle.destroy", locale=lang),
+                        callback_data=f"destroy_bottle {bottle.id} {user.id}",
                     ),
-                    # types.InlineKeyboardButton(
-                    #     i18n.t("bot.button.bottle.destroy", locale=lang),
-                    #     callback_data=f"destroy_bottle {bottle.id} {user.id}",
-                    # ),
-                ],
+                )
+            buttons = [
                 [
                     types.InlineKeyboardButton(
                         i18n.t("bot.button.bottle.report", locale=lang),

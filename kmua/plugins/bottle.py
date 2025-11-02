@@ -103,7 +103,7 @@ async def throw_bottle(client: Client, message: types.Message):
         return
     await message.reply_text(i18n.t("bot.msg.bottle.throw_success", locale=lang))
     await common.memttlcache.set(
-        f"user:{sender.id}:throw_bottle_count", count + 1, ttl=3600
+        f"user:{sender.id}:throw_bottle_count", count + 1, ttl=600
     )
 
 
@@ -154,17 +154,22 @@ async def pick_bottle(client: Client, message: types.Message):
         logger.exception(f"Failed to pick bottle: {e}")
         return
 
-    buttons = [
-        [
+    row1 = [
+        types.InlineKeyboardButton(
+            i18n.t("bot.button.bottle.throw_back", locale=lang),
+            callback_data=f"throw_back {user.id}",
+        ),
+    ]
+    if db_user.id == bottle.sender_id:
+        # 如果捡到的是自己扔的瓶子, 则允许销毁
+        row1.append(
             types.InlineKeyboardButton(
-                i18n.t("bot.button.bottle.throw_back", locale=lang),
-                callback_data=f"throw_back {user.id}",
-            ),
-            # types.InlineKeyboardButton(
-            #     i18n.t("bot.button.bottle.destroy", locale=lang),
-            #     callback_data=f"destroy_bottle {bottle.id} {user.id}",
-            # ),
-        ],
+                i18n.t("bot.button.bottle.destroy", locale=lang),
+                callback_data=f"destroy_bottle {bottle.id} {user.id}",
+            )
+        )
+    buttons = [
+        row1,
         [
             types.InlineKeyboardButton(
                 i18n.t("bot.button.bottle.report", locale=lang),
@@ -179,6 +184,7 @@ async def pick_bottle(client: Client, message: types.Message):
     reply_markup = types.InlineKeyboardMarkup(buttons)
 
     content_kwargs = {}
+    content_kwargs["has_spoiler"] = True
     if bottle.text:
         content_kwargs["caption"] = bottle.text
     if bottle.media_type and bottle.file_id:
