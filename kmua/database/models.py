@@ -182,6 +182,13 @@ class UserData(Base):
         lazy="noload",
     )
 
+    bottles: Mapped[List["Bottle"]] = relationship(
+        "Bottle",
+        back_populates="sender",
+        cascade="all, delete-orphan",
+        lazy="noload",
+    )
+
     married_waifu: Mapped["UserData | None"] = relationship(
         "UserData",
         remote_side=[id],
