@@ -8,7 +8,7 @@ from ddgs import DDGS
 from pydantic_ai import Agent, BinaryContent, Tool
 from pydantic_ai.common_tools.duckduckgo import DuckDuckGoSearchTool
 from pydantic_ai.messages import UserContent
-from pydantic_ai.models.openai import OpenAIChatModel
+from pydantic_ai.models.openai import OpenAIResponsesModel
 from pydantic_ai.providers.openai import OpenAIProvider
 from pyrogram import filters
 from pyrogram.client import Client as PyrogramClient
@@ -23,7 +23,7 @@ from .simple_reply import word_reply
 
 agent = None
 if app_config.agent:
-    model = OpenAIChatModel(
+    model = OpenAIResponsesModel(
         model_name=app_config.agent_model,
         provider=OpenAIProvider(
             base_url=app_config.agent_provider_url,
