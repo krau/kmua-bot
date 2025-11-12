@@ -5,7 +5,7 @@ import pydantic_ai
 import pyrogram
 import pyrogram.errors
 from ddgs import DDGS
-from pydantic_ai import Agent, BinaryContent, Tool
+from pydantic_ai import Agent, BinaryContent, ImageMediaType, Tool, VideoUrl
 from pydantic_ai.common_tools.duckduckgo import DuckDuckGoSearchTool
 from pydantic_ai.messages import UserContent
 from pydantic_ai.models.openai import OpenAIChatModel
@@ -172,15 +172,74 @@ In Private Chat
         if media and media_message and app_config.agent_multimodal:
             match media:
                 case pyrogram.enums.MessageMediaType.PHOTO:
-                    if media_message.photo and media_message.photo.file_id:
+                    photo = media_message.photo
+                    if (
+                        "photo" in app_config.agent_multimodal_inputs
+                        and photo
+                        and photo.file_id
+                    ):
                         photo_file = await client.download_media(
-                            media_message.photo.file_id, in_memory=True
+                            photo.file_id, in_memory=True
                         )
                         if isinstance(photo_file, BytesIO):
                             photo_bytes = photo_file.getvalue()
                             user_prompt.append(
                                 BinaryContent(data=photo_bytes, media_type="image/jpeg")
                             )
+                case pyrogram.enums.MessageMediaType.VIDEO:
+                    video = media_message.video
+                    if (
+                        video
+                        and video.file_id
+                        and video.mime_type
+                        and video.file_size
+                        and video.file_size <= 20 * 1024 * 1024
+                    ):
+                        if "video" in app_config.agent_multimodal_inputs:
+                            video_file = await client.download_media(
+                                video.file_id, in_memory=True
+                            )
+                            if isinstance(video_file, BytesIO):
+                                video_bytes = video_file.getvalue()
+                                user_prompt.append(
+                                    BinaryContent(
+                                        data=video_bytes, media_type=video.mime_type
+                                    )
+                                )
+                case pyrogram.enums.MessageMediaType.DOCUMENT:
+                    document = media_message.document
+                    if (
+                        document
+                        and document.file_id
+                        and document.mime_type
+                        and document.file_size <= 10 * 1024 * 1024
+                    ):
+                        if document.mime_type in app_config.agent_multimodal_inputs:
+                            doc_file = await client.download_media(
+                                document.file_id, in_memory=True
+                            )
+                            if isinstance(doc_file, BytesIO):
+                                doc_bytes = doc_file.getvalue()
+                                user_prompt.append(
+                                    BinaryContent(
+                                        data=doc_bytes, media_type=document.mime_type
+                                    )
+                                )
+                        elif (
+                            document.mime_type.startswith("image/")
+                            and "photo" in app_config.agent_multimodal_inputs
+                        ):
+                            doc_file = await client.download_media(
+                                document.file_id, in_memory=True
+                            )
+                            if isinstance(doc_file, BytesIO):
+                                doc_bytes = doc_file.getvalue()
+                                user_prompt.append(
+                                    BinaryContent(
+                                        data=doc_bytes,
+                                        media_type=document.mime_type,
+                                    )
+                                )
 
         logger.debug(f"User {user.id} prompt: {user_prompt_text}")
         repiled: pyrogram.types.Message | None = None
