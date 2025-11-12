@@ -51,7 +51,7 @@ if app_config.agent:
                 prepare=tools.prepare_message_search_tool,
             ),
         ],
-        deps_type=datatype.ContextDeps,  # type: ignore
+        deps_type=datatype.ContextDeps,
         retries=3,
     )  # type: ignore
     summary_agent = Agent(model=model, system_prompt=app_config.agent_summary_prompt)

@@ -1,12 +1,13 @@
 import pyrogram
 from pyrogram import filters
+from pyrogram.client import Client
 
 
 async def base_filter_func(_, __, message: pyrogram.types.Message) -> bool:
     if not message:
         return False
     text = message.text or message.caption
-    if not text or len(text.strip()) == 0 or len(text) <= 1 or len(text) >= 2048:
+    if not text or len(text.strip()) == 0:
         return False
     if (
         message.entities is not None
@@ -19,7 +20,7 @@ async def base_filter_func(_, __, message: pyrogram.types.Message) -> bool:
 
 
 async def reply_me_filter_func(
-    _, client: pyrogram.Client, message: pyrogram.types.Message
+    _, client: Client, message: pyrogram.types.Message
 ) -> bool:
     if not message.reply_to_message:
         return False
@@ -33,11 +34,18 @@ async def reply_me_filter_func(
 
 
 async def mention_me_filter_func(
-    _, client: pyrogram.Client, message: pyrogram.types.Message
+    _, client: Client, message: pyrogram.types.Message
 ) -> bool:
     if not message.text:
         return False
-    if client.me.username in message.text:
+    if not client.me:
+        return False
+    username = client.me.username
+    if not username:
+        return False
+    if username in message.text:
+        return True
+    if message.caption and username in message.caption:
         return True
     return False
 
