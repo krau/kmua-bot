@@ -5,11 +5,11 @@ from kmua.config import app_config
 
 
 class FormattedSearchHit(BaseModel):
-    id: int
-    type: int
-    user_id: int
-    chat_id: int
-    timestamp: int
+    id: str
+    type: str
+    user_id: str
+    chat_id: str
+    timestamp: str
     message: str  # formatted message text, only includes highlighted parts
 
 
@@ -67,7 +67,7 @@ class _BTTSClient:
             headers={
                 "Authorization": f"Bearer {self.api_key}",
                 "Content-Type": "application/json",
-                "User-Agent": "BTTSClient/Python",
+                "User-Agent": "BTTSClient/kmua",
             },
             base_url=self.base_url,
         )
