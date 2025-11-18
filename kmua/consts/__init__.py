@@ -5,20 +5,14 @@ DOCS_URL = "https://kmua.unv.app"
 
 RESOURCES_DIRNAME = "resources"
 
-DEFAULT_SMALL_AVATAR_PATH = (
-    Path(__file__).parent.parent.resolve() / RESOURCES_DIRNAME / "Akkarin_small.png"
-)
-DEFAULT_BIG_AVATAR_PATH = (
-    Path(__file__).parent.parent.resolve() / RESOURCES_DIRNAME / "Akkarin.jpg"
-)
+_file_path = Path(__file__).parent.parent.resolve()
+_resources_path = _file_path / RESOURCES_DIRNAME
 
-QUOTE_FONT_PATH = (
-    Path(__file__).parent.parent.resolve() / RESOURCES_DIRNAME / "TsukuA.ttc"
-)
+DEFAULT_SMALL_AVATAR_PATH = _resources_path / "Akkarin_small.png"
+DEFAULT_BIG_AVATAR_PATH = _resources_path / "Akkarin.jpg"
 
-QUOTE_BASE_IMG_PATH = (
-    Path(__file__).parent.parent.resolve() / RESOURCES_DIRNAME / "quote_base.png"
-)
-WORD_DICT_INTERNAL_PATH = (
-    Path(__file__).parent.parent.resolve() / RESOURCES_DIRNAME / "word_dicts"
-)
+QUOTE_FONT_PATH = _resources_path / "TsukuA.ttc"
+
+QUOTE_BASE_IMG_PATH = _resources_path / "quote_base.png"
+WORD_DICT_INTERNAL_PATH = _resources_path / "word_dicts"
+MANOMEME_PATH = _resources_path / "manomeme"

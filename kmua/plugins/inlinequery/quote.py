@@ -10,7 +10,7 @@ async def query_quote(
     text: str = "",
 ):
     user = query.from_user
-    results = []
+    results: list[pyrogram.types.InlineQueryResult] = []
     if chat_id is not None:
         if not await database.get_association(user.id, chat_id):
             return
@@ -56,7 +56,7 @@ async def query_quote(
             pyrogram.types.InlineQueryResultArticle(
                 title=quote.text or "",
                 input_message_content=pyrogram.types.InputTextMessageContent(
-                    message_text=quote.text,
+                    message_text=quote.text or "",
                 ),
                 description=quote.user.full_name,
                 reply_markup=markup,

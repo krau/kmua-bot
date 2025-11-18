@@ -65,7 +65,7 @@ class I18n:
         try:
             for k in keys:
                 current = current[k]
-            return current if current is not None else None
+            return current if current is not None else None # type:ignore
         except (KeyError, TypeError):
             return None
 
@@ -97,7 +97,7 @@ class I18n:
                     self.translations[self.default_locale], key
                 )
 
-        return translation if translation is not None else key
+        return translation if translation is not None else key # type:ignore
 
     def trl(self, key: str, locale: str = "") -> str:
         """

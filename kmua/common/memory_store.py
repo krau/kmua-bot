@@ -2,6 +2,7 @@ import asyncio
 from contextlib import asynccontextmanager
 from typing import Any
 
+import aiocache
 from aiocache import SimpleMemoryCache
 
 from kmua.config import app_config
@@ -59,7 +60,7 @@ class _MemTTLCache:
                 password=app_config.redis_password,
             )
         else:
-            self.cache = SimpleMemoryCache()
+            self.cache = SimpleMemoryCache() # type: ignore
 
     async def set(self, key: str, value: Any, ttl: int = 60) -> None:
         await self.cache.set(key, value, ttl=ttl)

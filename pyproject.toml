@@ -26,6 +26,7 @@ dependencies = [
     "pydantic-ai>=1.7.0",
     "pyyaml>=6.0.2",
     "redis>=6.2.0",
+    "sketchbook-py>=0.2.1",
     "sqlalchemy[asyncio]>=2.0.41",
     "tgcrypto>=1.2.5",
     "uvloop>=0.21.0",
