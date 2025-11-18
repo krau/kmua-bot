@@ -106,6 +106,7 @@ result_trial_ema_tips: types.InlineQueryResultAnimation = (
         title="辩论-艾玛",
         description="开始穷举",
         animation_url="https://kmua.unv.app/assets/manosaba/trial_ema.mp4",
+        thumb_url="https://kmua.unv.app/assets/manosaba/trial_ema_static.jpg",
         caption="选择「在意的地方」",
         reply_markup=markup_trial_ema_tips,
     )
@@ -116,6 +117,7 @@ result_trial_hiro_tips: types.InlineQueryResultAnimation = (
         title="辩论-希罗",
         description="神秘伪证女",
         animation_url="https://kmua.unv.app/assets/manosaba/trial_hiro.mp4",
+        thumb_url="https://kmua.unv.app/assets/manosaba/trial_hiro_static.jpg",
         caption="开始你的伪证",
         reply_markup=markup_trial_hiro_tips,
     )

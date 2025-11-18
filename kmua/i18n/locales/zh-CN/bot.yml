@@ -87,6 +87,7 @@ bot:
       Inline 模式下可使用以下参数:
 
       q [关键词] - 查询语录
+      ms - 某游戏相关meme生成
     reply:
       default:
         - 喵喵?
