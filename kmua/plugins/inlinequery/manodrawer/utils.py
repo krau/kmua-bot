@@ -19,6 +19,24 @@ def get_statement(statement: str) -> Statement:
     return mapping[statement]
 
 
+def to_display_statement(statement: Statement) -> str:
+    """Convert a Statement enum to its display string
+
+    Args:
+        statement (Statement): The Statement enum
+
+    Returns:
+        str: The display string of the statement
+    """
+    mapping = {
+        Statement.AGREEMENT: "赞同",
+        Statement.DOUBT: "疑问",
+        Statement.PURJURY: "伪证",
+        Statement.REFUTATION: "反驳",
+    }
+    return mapping[statement]
+
+
 def get_character(character: str) -> Character:
     """Convert a string character name to a Character enum
 

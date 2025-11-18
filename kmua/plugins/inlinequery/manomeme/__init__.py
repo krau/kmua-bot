@@ -98,7 +98,7 @@ async def handle_manomeme(
             await query.answer(
                 results=[
                     types.InlineQueryResultArticle(
-                        title=f"[{title_char}] 辩论",
+                        title=f"[{title_char}] {'|'.join([manodrawer.to_display_statement(opt.statement) for opt in options])}",
                         description="将在发送后生成",
                         id=f"ms_{dataid}",
                         input_message_content=types.InputTextMessageContent(
