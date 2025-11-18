@@ -1,4 +1,4 @@
-FROM ghcr.io/astral-sh/uv:python3.13-bookworm-slim
+FROM ghcr.io/astral-sh/uv:debian-slim
 WORKDIR /kmua
 COPY pyproject.toml uv.lock ./
 RUN apt-get update && \
