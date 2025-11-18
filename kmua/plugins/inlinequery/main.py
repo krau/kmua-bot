@@ -116,8 +116,8 @@ async def inline_query_handler(client: Client, query: types.InlineQuery):
 
 1. 安安说: ms anan [表情] [文本]
 示例: ms anan 无语 吾辈现在不想说话
-2. 辩论: ms trial [角色] [[类型]文本...]
-示例: ms trial 希罗 [伪证]我当时睡得可香了
+2. 辩论: ms trial [角色] ([类型] 文本...)
+示例: ms trial 希罗 [伪证] 我当时睡得可香了
 """
                 ),
                 reply_markup=types.InlineKeyboardMarkup(
@@ -322,4 +322,29 @@ async def chosen_inline_result(client: Client, result: types.ChosenInlineResult)
                     )
                 return
             case "trial":
-                character = data.get("character", "希罗")
+                character = data.get("character", manodrawer.Character.EMA)
+                options = data.get("options", [])
+                if not options:
+                    await client.edit_inline_text(
+                        inline_message_id=result.inline_message_id,
+                        text="没有有效的选项呢, 请重新生成",
+                    )
+                    return
+                try:
+                    image_bytes = await asyncio.to_thread(
+                        manodrawer.draw_trial, character, options
+                    )
+                    media = BytesIO(image_bytes)
+                    media.name = f"trial.png"
+                    is_hiro = character == manodrawer.Character.HIRO
+                    await client.edit_inline_media(
+                        inline_message_id=result.inline_message_id,
+                        media=types.InputMediaPhoto(media=media),
+                    )
+                except Exception as e:
+                    logger.exception(f"Failed to edit inline media: {e}")
+                    await client.edit_inline_text(
+                        inline_message_id=result.inline_message_id,
+                        text="生成图片失败了呢, 请稍后再试",
+                    )
+                return

@@ -1,4 +1,5 @@
 import asyncio
+import re
 import uuid
 
 from pyrogram import types
@@ -56,10 +57,62 @@ async def handle_manomeme(
                         input_message_content=types.InputTextMessageContent(
                             message_text="安安正在写字...",
                         ),
+                        thumb_url="https://kmua.unv.app/assets/manosaba/anan_example.webp",
                         reply_markup=utils.markup_anan_tips,
                     )
                 ]
             )
             return
         case "trial":
-            pass
+            # trial 角色 (statement text)...
+            # 可以用中文或英文中括号
+            if len(datas) < 4:
+                await query.answer(
+                    results=[
+                        utils.result_trial_ema_tips,
+                        utils.result_trial_hiro_tips,
+                    ],
+                )
+                return
+            character = manodrawer.get_character(datas[1])
+            options = utils.parse_options(" ".join(datas[2:]))
+            if not options:
+                await query.answer(
+                    results=[
+                        utils.result_trial_ema_tips,
+                        utils.result_trial_hiro_tips,
+                    ],
+                )
+                return
+            if len(options) > 4:
+                options = options[:4]
+            data = {
+                "type": "trial",
+                "character": character,
+                "options": options,
+            }
+            dataid = uuid.uuid4().hex
+            await memttlcache.set(f"manomeme_inline:{dataid}", data, 300)
+            is_hiro = character == manodrawer.Character.HIRO
+            title_char = "艾玛" if not is_hiro else "希罗"
+            await query.answer(
+                results=[
+                    types.InlineQueryResultArticle(
+                        title=f"[{title_char}] 辩论",
+                        description="将在发送后生成",
+                        id=f"ms_{dataid}",
+                        input_message_content=types.InputTextMessageContent(
+                            message_text=f"{title_char} 正在穷举..."
+                            if not is_hiro
+                            else f"{title_char} 正在思考...",
+                        ),
+                        reply_markup=(
+                            utils.markup_trial_ema_tips
+                            if not is_hiro
+                            else utils.markup_trial_hiro_tips
+                        ),
+                        thumb_url=f"https://kmua.unv.app/assets/manosaba/{'emadog' if not is_hiro else 'hirocat'}.webp",
+                    )
+                ]
+            )
+            return

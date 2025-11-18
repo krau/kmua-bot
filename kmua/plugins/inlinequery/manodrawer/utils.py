@@ -1,4 +1,4 @@
-from .models import Character, Statement
+from .models import Character, Option, Statement
 
 
 def get_statement(statement: str) -> Statement:
@@ -26,10 +26,10 @@ def get_character(character: str) -> Character:
         character (str): The string representation of the character name
 
     Returns:
-        Character: The corresponding Character enum
+        Character: The corresponding Character enum, defaults to EMA if not found.
     """
     mapping = {
         "艾玛": Character.EMA,
         "希罗": Character.HIRO,
     }
-    return mapping[character]
+    return mapping.get(character, Character.EMA)
