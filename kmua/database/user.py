@@ -17,13 +17,18 @@ from .models import UserChatAssociation, UserConfig, UserData
 
 @with_session
 async def count_users(session: AsyncSession | None = None) -> int:
+    assert session is not None
+
     stmt = sqlalchemy.select(sqlalchemy.func.count()).select_from(UserData)
     result = await session.execute(stmt)
     return result.scalar() or 0
 
 
 @with_session
-async def get_user_by_id(id: int, session: AsyncSession | None = None) -> UserData:
+async def get_user_by_id(
+    id: int, session: AsyncSession | None = None
+) -> UserData | None:
+    assert session is not None
     if id is None:
         raise ValueError("id must not be None")
     return await session.get(UserData, id)
@@ -37,6 +42,8 @@ async def upsert_user(
     'Upsert' user data into the database.
     Only fields [id, username, full_name, is_bot, is_real_user] are upsert.
     """
+    assert session is not None
+
     if user.id is None:
         raise ValueError("user.id must not be None")
 
@@ -133,17 +140,19 @@ async def upsert_user(
             )
             session.add(user_data)
         else:
-            user_data.username = username  # type: ignore
-            user_data.full_name = full_name  # type: ignore
-            user_data.is_bot = is_bot  # type: ignore
-            user_data.is_real_user = is_real_user  # type: ignore
+            user_data.username = username
+            user_data.full_name = full_name
+            user_data.is_bot = is_bot or False
+            user_data.is_real_user = is_real_user
         return user_data
 
     result = await session.execute(stmt)
     user_data = result.scalars().first()
     if user_data is not None:
         return user_data
-    return await session.get(UserData, user.id)
+    data = await session.get(UserData, user.id)
+    assert data is not None
+    return data
 
 
 async def get_user_config(user: int | UserData | User) -> UserConfig:
@@ -165,6 +174,8 @@ async def get_user_config(user: int | UserData | User) -> UserConfig:
 async def add_user_coins(
     user_id: int, coins: int, session: AsyncSession | None = None
 ) -> UserConfig:
+    assert session is not None
+
     user_data = await session.get(UserData, user_id)
     if user_data is None:
         raise ValueError(f"User with id {user_id} not found")
@@ -178,6 +189,8 @@ async def add_user_coins(
 async def cost_user_coins(
     user_id: int, coins: int, session: AsyncSession | None = None
 ) -> UserConfig:
+    assert session is not None
+
     user_data = await session.get(UserData, user_id)
     if user_data is None:
         raise ValueError(f"User with id {user_id} not found")
@@ -191,6 +204,8 @@ async def cost_user_coins(
 async def update_user_config(
     user_id: int, config: UserConfig, session: AsyncSession | None = None
 ) -> UserConfig:
+    assert session is not None
+
     user_data = await session.get(UserData, user_id)
     if user_data is None:
         raise ValueError(f"User with id {user_id} not found")
@@ -205,6 +220,8 @@ async def update_user_avatar(
     refreshed: bool = False,
     session: AsyncSession | None = None,
 ) -> UserData:
+    assert session is not None
+
     user_data = await session.get(UserData, user_id)
     if user_data is None:
         raise ValueError(f"User with id {user_id} not found")
@@ -221,6 +238,8 @@ async def update_user(
     is_bot_global_admin: bool = False,
     session: AsyncSession | None = None,
 ):
+    assert session is not None
+
     user_data = await session.get(UserData, user_id)
     if user_data is None:
         raise ValueError(f"User with id {user_id} not found")
@@ -235,6 +254,8 @@ async def make_wedding(
     chat_id: int,
     session: AsyncSession | None = None,
 ):
+    assert session is not None
+
     user_data = await session.get(UserData, user_id)
     waifu_data = await session.get(UserData, waifu_id)
     if user_data is None or waifu_data is None:
@@ -284,12 +305,16 @@ async def make_wedding(
 
 @with_tx
 async def cleanup_user_avatar(session: AsyncSession | None = None):
+    assert session is not None
+
     stmt = sqlalchemy.update(UserData).values(avatar_big_id=None)
     await session.execute(stmt)
 
 
 @with_tx
 async def divorce(user_id: int, session: AsyncSession | None = None):
+    assert session is not None
+
     user_data = await session.get(UserData, user_id)
     if user_data is None:
         raise ValueError(f"User with id {user_id} not found")

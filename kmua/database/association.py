@@ -1,5 +1,5 @@
 import random
-from typing import AsyncGenerator
+from typing import AsyncGenerator, Sequence
 
 import sqlalchemy
 import sqlalchemy.dialects
@@ -17,6 +17,7 @@ from .models import ChatData, UserChatAssociation, UserConfig, UserData
 
 @with_session
 async def count_associations(session: AsyncSession | None = None):
+    assert session is not None
     stmt = sqlalchemy.select(sqlalchemy.func.count()).select_from(UserChatAssociation)
     result = await session.execute(stmt)
     return result.scalar() or 0
@@ -28,7 +29,8 @@ async def add_association_in_chat(
     user: UserData,
     waifu: UserData | None = None,
     session: AsyncSession | None = None,
-) -> UserChatAssociation:
+) -> UserChatAssociation | None:
+    assert session is not None
     if runtime_config.db_is_postgres:
         stmt = (
             sqlalchemy.dialects.postgresql.insert(UserChatAssociation)
@@ -84,6 +86,7 @@ async def add_association_in_chat(
 async def get_association(
     user_id: int, chat_id: int, session: AsyncSession | None = None
 ) -> UserChatAssociation | None:
+    assert session is not None
     return await session.get(UserChatAssociation, (user_id, chat_id))
 
 
@@ -91,7 +94,9 @@ async def get_association(
 async def update_association(
     association: UserChatAssociation,
     session: AsyncSession | None = None,
-) -> bool:
+):
+    assert session is not None
+
     stmt = (
         sqlalchemy.update(UserChatAssociation)
         .where(
@@ -99,27 +104,30 @@ async def update_association(
             UserChatAssociation.chat_id == association.chat_id,
         )
         .values(
-            {
-                "waifu_id": association.waifu_id,
-                "is_bot_admin": association.is_bot_admin,
-                "promoted_by": association.promoted_by,
-            }
+            waifu_id=association.waifu_id,
+            is_bot_admin=association.is_bot_admin,
+            promoted_by=association.promoted_by,
         )
     )
-    result = await session.execute(stmt)
-    return result.rowcount > 0
+    await session.execute(stmt)
 
 
 @with_tx
 async def remove_association(
     user_id: int, chat_id: int, session: AsyncSession | None = None
 ) -> bool:
-    stmt = sqlalchemy.delete(UserChatAssociation).where(
-        UserChatAssociation.user_id == user_id,
-        UserChatAssociation.chat_id == chat_id,
+    assert session is not None
+    stmt = (
+        sqlalchemy.delete(UserChatAssociation)
+        .where(
+            UserChatAssociation.user_id == user_id,
+            UserChatAssociation.chat_id == chat_id,
+        )
+        .returning(UserChatAssociation.user_id)
     )
     result = await session.execute(stmt)
-    return result.rowcount > 0
+    deleted = result.scalars().first()
+    return deleted is not None
 
 
 @with_session
@@ -133,6 +141,8 @@ async def get_user_waifu_in_chat(
         - UserData | None: waifu
         - bool: return is married waifu
     """
+    assert session is not None
+
     if user.married_waifu_id is not None:
         waifu = await session.get(UserData, user.married_waifu_id)
         if waifu is not None:
@@ -149,6 +159,8 @@ async def get_setted_waifu_in_chat(
     user: UserData, chat: ChatData, session: AsyncSession | None = None
 ) -> UserData | None:
     """get user setted waifu in chat"""
+    assert session is not None
+
     association = await get_association(user.id, chat.id, session)
     if association is None or association.waifu_id is None:
         return None
@@ -196,7 +208,9 @@ async def unset_user_waifu_in_chat(
 @with_tx
 async def unset_chat_waifus_by_waifu(
     chat: ChatData, waifu_id: int, session: AsyncSession | None = None
-) -> int:
+):
+    assert session is not None
+
     stmt = (
         sqlalchemy.update(UserChatAssociation)
         .where(
@@ -205,14 +219,15 @@ async def unset_chat_waifus_by_waifu(
         )
         .values(waifu_id=None)
     )
-    result = await session.execute(stmt)
-    return result.rowcount
+    await session.execute(stmt)
 
 
 @with_session
 async def take_waifu_for_user_in_chat(
     user: UserData, chat: ChatData, session: AsyncSession | None = None
 ) -> UserData | None:
+    assert session is not None
+
     excluded_user_ids = [
         user.id,
         enums.ChatID.ANONYMOUS_ADMIN,
@@ -298,6 +313,8 @@ def get_chat_user_participated_waifu(
 async def count_chat_waifu_participants(
     chat_id: int, session: AsyncSession | None = None
 ) -> int:
+    assert session is not None
+
     users_with_waifu_stmt = (
         sqlalchemy.select(UserData.id)
         .join(
@@ -322,6 +339,8 @@ async def count_chat_waifu_participants(
 
 @with_tx
 async def cleanup_waifu_data(session: AsyncSession | None = None):
+    assert session is not None
+
     stmt = (
         sqlalchemy.update(UserChatAssociation)
         .where(UserChatAssociation.waifu_id.isnot(None))
@@ -333,7 +352,9 @@ async def cleanup_waifu_data(session: AsyncSession | None = None):
 @with_session
 async def get_chat_associations(
     chat_id: int, session: AsyncSession | None = None
-) -> list[UserChatAssociation]:
+) -> Sequence[UserChatAssociation]:
+    assert session is not None
+
     stmt = sqlalchemy.select(UserChatAssociation).where(
         UserChatAssociation.chat_id == chat_id
     )
@@ -348,6 +369,8 @@ async def change_user_waifu_in_chat(
     cost: int = app_config.cost_user_change_waifu_base,
     session: AsyncSession | None = None,
 ) -> UserData | None:
+    assert session is not None
+
     user = await session.get(UserData, user_id)
     if user is None:
         raise ValueError("User not found")

@@ -14,6 +14,8 @@ from .models import ChatConfig, ChatData
 
 @with_session
 async def count_chats(session: AsyncSession | None = None) -> int:
+    assert session is not None
+
     stmt = sqlalchemy.select(sqlalchemy.func.count()).select_from(ChatData)
     result = await session.execute(stmt)
     return result.scalar() or 0
@@ -21,6 +23,8 @@ async def count_chats(session: AsyncSession | None = None) -> int:
 
 @with_tx
 async def upsert_chat(chat: Chat, session: AsyncSession | None = None) -> ChatData:
+    assert session is not None
+
     if runtime_config.db_is_postgres:
         stmt = (
             sqlalchemy.dialects.postgresql.insert(ChatData)
@@ -79,21 +83,26 @@ async def upsert_chat(chat: Chat, session: AsyncSession | None = None) -> ChatDa
             )
             session.add(chat_data)
         else:
-            chat_data.title = chat.title  # type: ignore
-            chat_data.username = chat.username  # type: ignore
+            chat_data.title = chat.title or ""
+            chat_data.username = chat.username
         return chat_data
 
     result = await session.execute(stmt)
     chat_data = result.scalars().first()
     if chat_data is not None:
         return chat_data
-    return await session.get(ChatData, chat.id)
+
+    data = await session.get(ChatData, chat.id)
+    assert data is not None
+    return data
 
 
 @with_session
 async def get_chat_by_id(
     chat_id: int, session: AsyncSession | None = None
 ) -> ChatData | None:
+    assert session is not None
+
     chat_data = await session.get(ChatData, chat_id)
     if chat_data is None:
         return None
@@ -119,6 +128,8 @@ async def get_chat_config(chat: int | ChatData | Chat) -> ChatConfig:
 async def update_chat_config(
     chat: int | ChatData | Chat, config: ChatConfig, session: AsyncSession | None = None
 ) -> ChatConfig:
+    assert session is not None
+
     chat_id = 0
     if isinstance(chat, ChatData):
         chat_id = chat.id

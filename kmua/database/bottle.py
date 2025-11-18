@@ -98,5 +98,7 @@ async def count_bottles(session: AsyncSession) -> int:
 async def get_bottle_by_id(
     bottle_id: int, session: AsyncSession | None = None
 ) -> Bottle | None:
+    assert session is not None
+
     bottle = await session.get(Bottle, bottle_id)
     return bottle

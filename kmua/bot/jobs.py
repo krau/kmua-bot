@@ -1,4 +1,4 @@
-from kmua import common, database, enums, logger
+from kmua import common, database, enums
 from kmua.logger import logger
 
 from .client import client

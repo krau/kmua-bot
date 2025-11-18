@@ -1,4 +1,5 @@
 import random
+from typing import Sequence
 
 import sqlalchemy
 import sqlalchemy.orm
@@ -12,6 +13,8 @@ from kmua.database.models import ChatData, Quote, UserChatAssociation, UserData
 async def count_quotes(
     session: AsyncSession | None = None,
 ) -> int:
+    assert session is not None
+
     stmt = sqlalchemy.select(sqlalchemy.func.count()).select_from(Quote)
     result = await session.execute(stmt)
     return result.scalar_one() or 0
@@ -21,6 +24,8 @@ async def count_quotes(
 async def get_quote_by_link(
     link: str, session: AsyncSession | None = None
 ) -> Quote | None:
+    assert session is not None
+
     return await session.get(Quote, link)
 
 
@@ -35,6 +40,8 @@ async def add_quote(
     img: str | None = None,
     session: AsyncSession | None = None,
 ):
+    assert session is not None
+
     if await session.get(Quote, link):
         return
     quote = Quote(
@@ -53,6 +60,8 @@ async def add_quote(
 async def get_chat_random_quote(
     chat_id: int, with_text: bool = False, session: AsyncSession | None = None
 ) -> Quote | None:
+    assert session is not None
+
     if with_text:
         count_stmt = sqlalchemy.select(sqlalchemy.func.count()).where(
             sqlalchemy.and_(
@@ -84,6 +93,8 @@ async def get_chat_random_quote(
 
 @with_tx
 async def delete_quote(link: str, session: AsyncSession | None = None) -> None:
+    assert session is not None
+
     quote = await session.get(Quote, link)
     await session.delete(quote)
 
@@ -94,7 +105,9 @@ async def take_quotes_user_can_see(
     query: str = "",
     limit: int = 50,
     session: AsyncSession | None = None,
-) -> list[Quote]:
+) -> Sequence[Quote]:
+    assert session is not None
+
     stmt = (
         sqlalchemy.select(Quote)
         .options(sqlalchemy.orm.selectinload(Quote.user))
@@ -123,6 +136,8 @@ async def take_quotes_user_can_see(
 async def get_user_quote_count(
     user_id: int, session: AsyncSession | None = None
 ) -> int:
+    assert session is not None
+
     stmt = sqlalchemy.select(sqlalchemy.func.count()).where(Quote.user_id == user_id)
     result = await session.execute(stmt)
     return result.scalar_one()
@@ -131,7 +146,9 @@ async def get_user_quote_count(
 @with_session
 async def get_user_quotes_page(
     user_id: int, page: int, page_size: int, session: AsyncSession | None = None
-) -> list[Quote]:
+) -> Sequence[Quote]:
+    assert session is not None
+
     stmt = (
         sqlalchemy.select(Quote)
         .where(Quote.user_id == user_id)
@@ -148,7 +165,9 @@ async def take_chat_quotes(
     query: str = "",
     limit: int = 50,
     session: AsyncSession | None = None,
-) -> list[Quote]:
+) -> Sequence[Quote]:
+    assert session is not None
+
     stmt = (
         sqlalchemy.select(Quote)
         .options(sqlalchemy.orm.selectinload(Quote.user))

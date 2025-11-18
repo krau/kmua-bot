@@ -292,8 +292,7 @@ class Quote(Base):
     )
 
     user: Mapped["UserData"] = relationship(
-        lambda: UserData,
-        foreign_keys=lambda: [Quote.user_id],
+        foreign_keys=[user_id],
         back_populates="quotes",
         lazy="noload",
     )
