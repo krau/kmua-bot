@@ -48,21 +48,21 @@ markup_trial_ema_tips = types.InlineKeyboardMarkup(
         [
             types.InlineKeyboardButton(
                 text="赞同",
-                switch_inline_query_current_chat="ms trial 艾玛 [赞同]",
+                switch_inline_query_current_chat="ms trial 艾玛 赞同 ",
             ),
             types.InlineKeyboardButton(
                 text="疑问",
-                switch_inline_query_current_chat="ms trial 艾玛 [疑问]",
+                switch_inline_query_current_chat="ms trial 艾玛 疑问 ",
             ),
         ],
         [
             types.InlineKeyboardButton(
                 text="反驳",
-                switch_inline_query_current_chat="ms trial 艾玛 [反驳]",
+                switch_inline_query_current_chat="ms trial 艾玛 反驳 ",
             ),
             types.InlineKeyboardButton(
                 text="伪证",
-                switch_inline_query_current_chat="ms trial 艾玛 [伪证]",
+                switch_inline_query_current_chat="ms trial 艾玛 伪证 ",
             ),
         ],
     ]
@@ -73,21 +73,21 @@ markup_trial_hiro_tips = types.InlineKeyboardMarkup(
         [
             types.InlineKeyboardButton(
                 text="伪证",
-                switch_inline_query_current_chat="ms trial 希罗 [伪证] ",
+                switch_inline_query_current_chat="ms trial 希罗 伪证 ",
             ),
             types.InlineKeyboardButton(
                 text="反驳",
-                switch_inline_query_current_chat="ms trial 希罗 [反驳]",
+                switch_inline_query_current_chat="ms trial 希罗 反驳 ",
             ),
         ],
         [
             types.InlineKeyboardButton(
                 text="赞同",
-                switch_inline_query_current_chat="ms trial 希罗 [赞同]",
+                switch_inline_query_current_chat="ms trial 希罗 赞同 ",
             ),
             types.InlineKeyboardButton(
                 text="疑问",
-                switch_inline_query_current_chat="ms trial 希罗 [疑问]",
+                switch_inline_query_current_chat="ms trial 希罗 疑问 ",
             ),
         ],
     ]
