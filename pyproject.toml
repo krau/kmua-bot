@@ -8,6 +8,7 @@ requires-python = "==3.13.*"
 dependencies = [
     "aiocache[redis]>=0.12.3",
     "aiofiles>=24.1.0",
+    "aiomcache>=0.8.2",
     "aiosqlite>=0.21.0",
     "alembic>=1.16.1",
     "apscheduler>=3.11.0",
@@ -29,6 +30,7 @@ dependencies = [
     "sketchbook-py>=0.2.1",
     "sqlalchemy[asyncio]>=2.0.41",
     "tgcrypto>=1.2.5",
+    "ujson>=5.11.0",
     "uvloop>=0.21.0",
     "wordcloud>=1.9.4",
     "zhconv>=1.4.3",
