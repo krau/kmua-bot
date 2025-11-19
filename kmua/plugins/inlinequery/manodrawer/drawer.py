@@ -67,6 +67,7 @@ def get_statement_image(statement: Statement) -> str:
         Statement.DOUBT: "doubt.png",
         Statement.PURJURY: "perjury.png",
         Statement.REFUTATION: "refutation.png",
+        Statement.MAGIC: "magic.png",
     }
     return str(MANOMEME_PATH / f"trial/{mapping[statement]}")
 

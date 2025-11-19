@@ -7,6 +7,15 @@ class Character(StrEnum):
     EMA = "Ema"
     HIRO = "Hiro"
 
+    @property
+    def display(self) -> str:
+        """Get the display string for the character"""
+        mapping = {
+            Character.EMA: "艾玛",
+            Character.HIRO: "希罗",
+        }
+        return mapping[self]
+
 
 class Statement(StrEnum):
     """Types of statements for the trail drawing"""
@@ -15,6 +24,19 @@ class Statement(StrEnum):
     DOUBT = "Doubt"
     PURJURY = "Perjury"
     REFUTATION = "Refutation"
+    MAGIC = "Magic"
+
+    @property
+    def display(self) -> str:
+        """Get the display string for the statement"""
+        mapping = {
+            Statement.AGREEMENT: "赞同",
+            Statement.DOUBT: "疑问",
+            Statement.PURJURY: "伪证",
+            Statement.REFUTATION: "反驳",
+            Statement.MAGIC: "魔法",
+        }
+        return mapping[self]
 
 
 class Option:

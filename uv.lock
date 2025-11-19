@@ -1160,7 +1160,7 @@ requires-dist = [
     { name = "pydantic-ai", specifier = ">=1.7.0" },
     { name = "pyyaml", specifier = ">=6.0.2" },
     { name = "redis", specifier = ">=6.2.0" },
-    { name = "sketchbook-py", specifier = ">=0.2.1" },
+    { name = "sketchbook-py", specifier = "==0.2.1" },
     { name = "sqlalchemy", extras = ["asyncio"], specifier = ">=2.0.41" },
     { name = "tgcrypto", specifier = ">=1.2.5" },
     { name = "ujson", specifier = ">=5.11.0" },

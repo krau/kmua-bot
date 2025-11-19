@@ -64,6 +64,10 @@ markup_trial_ema_tips = types.InlineKeyboardMarkup(
                 text="伪证",
                 switch_inline_query_current_chat="ms trial 艾玛 伪证 ",
             ),
+            types.InlineKeyboardButton(
+                text="魔法",
+                switch_inline_query_current_chat="ms trial 艾玛 魔法 ",
+            ),
         ],
     ]
 )
@@ -88,6 +92,10 @@ markup_trial_hiro_tips = types.InlineKeyboardMarkup(
             types.InlineKeyboardButton(
                 text="疑问",
                 switch_inline_query_current_chat="ms trial 希罗 疑问 ",
+            ),
+            types.InlineKeyboardButton(
+                text="魔法",
+                switch_inline_query_current_chat="ms trial 希罗 魔法 ",
             ),
         ],
     ]
@@ -134,7 +142,7 @@ def parse_options(text: str) -> list[manodrawer.Option]:
       - text may be plain or in double quotes; quoted text is treated as a single unit
     """
     # 1. 全部合法的 statement 文本
-    stmt_words = ["赞同", "疑问", "反驳", "伪证"]
+    stmt_words = ["赞同", "疑问", "反驳", "伪证", "魔法"]
 
     # 2. 构造匹配 statement 的正则：支持三种格式
     #    - 赞同
