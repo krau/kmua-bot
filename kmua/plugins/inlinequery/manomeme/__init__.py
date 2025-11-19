@@ -51,7 +51,7 @@ async def handle_manomeme(
             await query.answer(
                 results=[
                     types.InlineQueryResultArticle(
-                        title=f"[{face}] 安安说",
+                        title=f"安安说 [{face}]",
                         description="将在发送后生成",
                         id=f"ms_{dataid}",
                         input_message_content=types.InputTextMessageContent(
@@ -66,7 +66,7 @@ async def handle_manomeme(
         case "trial":
             # trial 角色 (statement text)...
             # 可以用中文或英文中括号
-            if len(datas) < 4:
+            if len(datas) < 2:
                 await query.answer(
                     results=[
                         utils.result_trial_ema_tips,
@@ -75,6 +75,15 @@ async def handle_manomeme(
                 )
                 return
             character = manodrawer.get_character(datas[1])
+            if len(datas) < 4:
+                await query.answer(
+                    results=[
+                        utils.result_trial_ema_tips
+                        if character == manodrawer.Character.EMA
+                        else utils.result_trial_hiro_tips,
+                    ],
+                )
+                return
             options = utils.parse_options(" ".join(datas[2:]))
             if not options:
                 await query.answer(
@@ -98,7 +107,7 @@ async def handle_manomeme(
             await query.answer(
                 results=[
                     types.InlineQueryResultArticle(
-                        title=f"[{title_char}] {'|'.join([manodrawer.to_display_statement(opt.statement) for opt in options])}",
+                        title=f"{title_char} [{'|'.join([manodrawer.to_display_statement(opt.statement) for opt in options])}]",
                         description="将在发送后生成",
                         id=f"ms_{dataid}",
                         input_message_content=types.InputTextMessageContent(
