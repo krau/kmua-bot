@@ -8,26 +8,6 @@ from kmua.logger import logger
 from .. import datatype
 
 
-class UserInfo(BaseModel):
-    user_id: int
-    full_name: str
-    config: dict | None
-    username: str | None = None
-
-
-async def get_user_info(ctx: RunContext[datatype.ContextDeps]) -> UserInfo | None:
-    logger.debug(f"Fetching user info for user_id: {ctx.deps.user_id}")
-    user_db = await database.get_user_by_id(ctx.deps.user_id)
-    if user_db is None:
-        return None
-    return UserInfo(
-        user_id=user_db.id,
-        full_name=user_db.full_name,
-        username=user_db.username,
-        config=user_db.config,
-    )
-
-
 class ChatInfo(BaseModel):
     chat_id: int
     title: str

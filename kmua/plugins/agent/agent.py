@@ -1,3 +1,4 @@
+from datetime import datetime
 from io import BytesIO
 from typing import Callable
 
@@ -12,6 +13,7 @@ from pydantic_ai.models.openai import OpenAIChatModel
 from pydantic_ai.providers.openai import OpenAIProvider
 from pyrogram import filters
 from pyrogram.client import Client as PyrogramClient
+from pyrogram.enums.parse_mode import ParseMode
 
 from kmua import common, database, i18n
 from kmua.config import app_config
@@ -34,7 +36,6 @@ if app_config.agent:
         model=model,
         system_prompt=app_config.agent_prompt,
         tools=[
-            tools.get_current_time,
             tools.get_user_info,
             tools.send_anime_photo,
             tools.schedule_message,
@@ -112,9 +113,11 @@ async def wake_agent(client: PyrogramClient, message: pyrogram.types.Message):
         chat_config = await database.get_chat_config(chat)
         if not chat_config.ai_reply:
             return await word_reply(client, message)
+    user_data = await database.get_user_by_id(user.id)
+    if not user_data:
+        return
     if await common.memstore.get(_waiting_key(user.id)):
         return await word_reply(client, message)
-
     # set language
     if chat.type == pyrogram.enums.ChatType.PRIVATE:
         lang = (await database.get_user_config(user.id)).lang
@@ -128,9 +131,15 @@ async def wake_agent(client: PyrogramClient, message: pyrogram.types.Message):
         chat_id = chat.id
         history = await common.memttlcache.get(_history_key(chat_id, user.id), [])
         ctx_info = datatype.ContextInfo(
-            user_id=user.id,
-            chat_type=chat.type,
+            user_data=datatype.UserData(
+                user_id=user.id,
+                full_name=user_data.full_name,
+                username=user_data.username,
+                config=user_data.config,
+            ),
+            chat_type=chat.type.name if chat.type else None,
             msg_id=message.id,
+            current_time=datetime.now(),
         )
         if reply_to := message.reply_to_message:
             ctx_info.reply_to_msg_id = reply_to.id
@@ -230,16 +239,22 @@ async def wake_agent(client: PyrogramClient, message: pyrogram.types.Message):
             try:
                 if repiled:
                     if final:
-                        await repiled.edit_text(text)
+                        await repiled.edit_text(text, parse_mode=ParseMode.DISABLED)
                         return
                     if repiled.text and text.startswith(repiled.text):
-                        await repiled.edit_text(text)
+                        await repiled.edit_text(text, parse_mode=ParseMode.DISABLED)
                     elif repiled.text and (len(repiled.text) + len(text)) < 1000:
-                        await repiled.edit_text(repiled.text + "\n" + text)
+                        await repiled.edit_text(
+                            repiled.text + "\n" + text, parse_mode=ParseMode.DISABLED
+                        )
                     else:
-                        repiled = await repiled.edit_text(text)
+                        repiled = await repiled.edit_text(
+                            text, parse_mode=ParseMode.DISABLED
+                        )
                 else:
-                    repiled = await message.reply_text(text)
+                    repiled = await message.reply_text(
+                        text, parse_mode=ParseMode.DISABLED
+                    )
             except pyrogram.errors.MessageNotModified:
                 pass
             except Exception as e:

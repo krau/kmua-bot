@@ -5,11 +5,6 @@ import httpx
 from kmua.logger import logger
 
 
-def get_current_time() -> datetime.datetime:
-    logger.debug("get current time")
-    return datetime.datetime.now()
-
-
 async def get_ip_info(url: str) -> dict | str:
     """Get IP/URL information from ip-api.com.
 
