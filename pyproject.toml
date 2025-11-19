@@ -40,3 +40,4 @@ lint.select = ["I"]
 [tool.uv.sources]
 # pydantic-ai-slim = { git = "https://github.com/krau/pydantic-ai", subdirectory = "pydantic_ai_slim" }
 pilmoji = { git = "https://github.com/jay3332/pilmoji.git" }
+kurigram = { git = "https://github.com/KurimuzonAkuma/kurigram.git" }

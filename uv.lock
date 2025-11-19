@@ -1139,7 +1139,7 @@ requires-dist = [
     { name = "emoji", specifier = ">=2.11" },
     { name = "graphviz", specifier = ">=0.20.3" },
     { name = "httpx", specifier = ">=0.28.1" },
-    { name = "kurigram", specifier = ">=2.2.3" },
+    { name = "kurigram", git = "https://github.com/KurimuzonAkuma/kurigram.git" },
     { name = "loguru", specifier = ">=0.7.3" },
     { name = "orjson", specifier = ">=3.10.18" },
     { name = "pillow", specifier = ">=11.2.1" },
@@ -1159,14 +1159,10 @@ requires-dist = [
 [[package]]
 name = "kurigram"
 version = "2.2.15"
-source = { registry = "https://pypi.org/simple" }
+source = { git = "https://github.com/KurimuzonAkuma/kurigram.git#2706098074df90de6fb41d3f49f5ef22cc85d593" }
 dependencies = [
     { name = "pyaes" },
     { name = "pysocks" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/46/8e/2de56937e0562bbfca6de03ecfe13f926b1f25f7afb71da268cc964fe7a9/kurigram-2.2.15.tar.gz", hash = "sha256:4e777ef2809d0883a318299374438a408d71ecb4ddef597b7292b7ffc332955a", size = 531449, upload-time = "2025-11-11T11:39:27.974Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/c7/95/4461a9f3e7ab0c03dcacce67e12bb759b04963b32fb1ae1518ac71df0590/kurigram-2.2.15-py3-none-any.whl", hash = "sha256:9622af086988d0df783257b34e0ab423f7d33f1412b563e0d4f3df58d57d8f65", size = 5298431, upload-time = "2025-11-11T11:39:26.207Z" },
 ]
 
 [[package]]
