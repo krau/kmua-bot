@@ -42,7 +42,7 @@ def draw_anan(text: str, face: Optional[str] = None) -> bytes:
     """
     drawer = TextFitDrawer(
         base_image=get_anan_base_image(face),
-        font=str(MANOMEME_PATH / "fonts/SourceHanSansSC-Bold.otf"),
+        font=str(MANOMEME_PATH / "fonts/AaMingTianHuiYouHaoShiFaSheng-2.ttf"),
         overlay_image=str(MANOMEME_PATH / "anan/base_overlay.png"),
         region=DrawerRegion(100, 432, 100 + 319, 432 + 204),
     )
