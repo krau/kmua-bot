@@ -36,7 +36,6 @@ if app_config.agent:
         model=model,
         system_prompt=app_config.agent_prompt,
         tools=[
-            tools.get_user_info,
             tools.send_anime_photo,
             tools.schedule_message,
             Tool(tools.get_chat_info, prepare=tools.prepare_group_tools),
