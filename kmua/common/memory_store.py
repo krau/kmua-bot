@@ -60,7 +60,7 @@ class _MemTTLCache:
                 password=app_config.redis_password,
             )
         else:
-            self.cache = SimpleMemoryCache() # type: ignore
+            self.cache = SimpleMemoryCache()  # type: ignore
 
     async def set(self, key: str, value: Any, ttl: int = 60) -> None:
         await self.cache.set(key, value, ttl=ttl)

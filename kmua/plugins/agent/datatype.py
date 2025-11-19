@@ -1,5 +1,4 @@
 from dataclasses import dataclass
-from enum import StrEnum
 
 from pyrogram.client import Client as PyrogramClient
 from pyrogram.enums.chat_type import ChatType

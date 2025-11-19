@@ -24,6 +24,7 @@ AsyncSessionFactory = async_sessionmaker(
     bind=engine, autoflush=True, expire_on_commit=False
 )
 
+
 @asynccontextmanager
 async def get_session() -> AsyncGenerator[AsyncSession, None]:
     async with AsyncSessionFactory() as ss:
@@ -55,7 +56,7 @@ def with_session(func: Callable[P, Awaitable[T]]) -> Callable[P, Awaitable[T]]:
             return await func(*args, **kwargs)
         else:
             async with AsyncSessionFactory() as session:
-                return await func(*args, **kwargs, session=session) # type: ignore
+                return await func(*args, **kwargs, session=session)  # type: ignore
 
     return wrapper
 
