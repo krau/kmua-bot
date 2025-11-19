@@ -127,7 +127,6 @@ async def wake_agent(client: PyrogramClient, message: pyrogram.types.Message):
     try:
         chat_id = chat.id
         history = await common.memttlcache.get(_history_key(chat_id, user.id), [])
-        user_prompt_text = message.text or message.caption or ""
         ctx_info = datatype.ContextInfo(
             user_id=user.id,
             chat_type=chat.type,
@@ -136,9 +135,8 @@ async def wake_agent(client: PyrogramClient, message: pyrogram.types.Message):
         if reply_to := message.reply_to_message:
             ctx_info.reply_to_msg_id = reply_to.id
             ctx_info.reply_to_msg_text = reply_to.text or reply_to.caption
-        user_prompt: list[UserContent] = [
-            f"{ctx_info}\n{user_prompt_text}",
-        ]
+        user_prompt_text = f"{ctx_info}\n{message.text or message.caption or ''}"
+        user_prompt: list[UserContent] = [user_prompt_text]
         get_media_and_message: Callable[
             [pyrogram.types.Message],
             tuple[
