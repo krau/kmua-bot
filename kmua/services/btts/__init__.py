@@ -15,7 +15,7 @@ class FormattedSearchHit(BaseModel):
 
 class SearchHit(BaseModel):
     id: int  # message id
-    type: int  # message type id (see below)
+    type: str  # message type id (see below)
     user_id: int  # user id
     chat_id: int  # chat id
     timestamp: int  # message timestamp
