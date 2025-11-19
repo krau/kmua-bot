@@ -138,7 +138,7 @@ async def wake_agent(client: PyrogramClient, message: pyrogram.types.Message):
             ),
             chat_type=chat.type.name if chat.type else None,
             msg_id=message.id,
-            current_time=datetime.now(),
+            current_time=datetime.now().isoformat(),
         )
         if reply_to := message.reply_to_message:
             ctx_info.reply_to_msg_id = reply_to.id
