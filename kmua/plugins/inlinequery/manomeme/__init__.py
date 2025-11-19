@@ -41,6 +41,8 @@ async def handle_manomeme(
                 )
                 return
             text = " ".join(datas[2:])
+            if len(text) > 233:
+                text = text[:233]
             data = {
                 "type": "anan",
                 "face": face,
@@ -95,6 +97,9 @@ async def handle_manomeme(
                 return
             if len(options) > 4:
                 options = options[:4]
+            for opt in options:
+                if len(opt.text) > 100:
+                    opt.text = opt.text[:100]
             data = {
                 "type": "trial",
                 "character": character,
