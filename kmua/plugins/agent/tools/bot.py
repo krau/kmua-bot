@@ -38,7 +38,7 @@ async def send_anime_photo(
     ctx: RunContext[datatype.ContextDeps],
     keyword: str = "",
 ) -> AnimePhotoInfo | str:
-    """Get and send a anime photo (some users call it setu/涩图).
+    """Get and send an anime photo (some users call it setu/涩图).
 
     Args:
         keyword: Optional keyword to search for specific anime photos, max length is 100 characters.

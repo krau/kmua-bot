@@ -299,7 +299,7 @@ async def chosen_inline_result(client: Client, result: types.ChosenInlineResult)
                         manodrawer.draw_anan, text, face
                     )
                     media = BytesIO(image_bytes)
-                    media.name = f"anan.png"
+                    media.name = "anan.png"
                     await client.edit_inline_media(
                         inline_message_id=result.inline_message_id,
                         media=types.InputMediaPhoto(media=media),
@@ -335,7 +335,7 @@ async def chosen_inline_result(client: Client, result: types.ChosenInlineResult)
                         manodrawer.draw_trial, character, options
                     )
                     media = BytesIO(image_bytes)
-                    media.name = f"trial.png"
+                    media.name = "trial.png"
                     is_hiro = character == manodrawer.Character.HIRO
                     await client.edit_inline_media(
                         inline_message_id=result.inline_message_id,

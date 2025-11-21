@@ -67,7 +67,7 @@ class _AppConfig(pydantic.BaseModel):
         "text/plain",
         "text/markdown",
     ]
-    agent_extra_tools: list[str] = []
+    agent_extra_tools: list[str] = ["duckduckgo_search"]
     # experimental, maybe removed in the future
     agent_whitelist_mode: bool = False
     agent_whitelist: list[int] = []
