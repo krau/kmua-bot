@@ -6,6 +6,9 @@
 干啥啥不行，喵喵第一名
 </div>
 
+分支名中的 v2 仅代表设计理念上的第二代, 不作 major version 语义.
+
+本项目随时可能会出现 breaking change, 更新前请查阅 commit history 并做好备份.
 
 ## [文档](https://kmua.unv.app)
 
