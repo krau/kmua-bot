@@ -65,9 +65,8 @@ async def send_anime_photo(
                 "r18": 2,
                 "page_size": 50,
                 "hybrid": app_config.manyacg_hybrid_search,
+                "keyword": keyword,
             }
-            if keyword:
-                params["keyword"] = keyword
             resp = await manyacg.httpx_client.get(
                 url="/artwork/list",
                 params=params,

@@ -1,7 +1,6 @@
 import asyncio
 from io import BytesIO
 
-from PIL import Image
 from pyrogram import enums, types
 from pyrogram.client import Client
 
@@ -10,7 +9,7 @@ from kmua.common.memory_store import memttlcache
 from kmua.logger import logger
 from kmua.plugins.inlinequery.manomeme import handle_manomeme
 
-from . import hack, manodrawer
+from . import hack, manomeme
 from .quote import query_quote
 
 
@@ -296,7 +295,7 @@ async def chosen_inline_result(client: Client, result: types.ChosenInlineResult)
                 text = data.get("text", "吾辈现在不想说话")
                 try:
                     image_bytes = await asyncio.to_thread(
-                        manodrawer.draw_anan, text, face
+                        manomeme.draw_anan, text, face
                     )
                     media = BytesIO(image_bytes)
                     media.name = "anan.png"
@@ -322,7 +321,7 @@ async def chosen_inline_result(client: Client, result: types.ChosenInlineResult)
                     )
                 return
             case "trial":
-                character = data.get("character", manodrawer.Character.EMA)
+                character = data.get("character", manomeme.Character.EMA)
                 options = data.get("options", [])
                 if not options:
                     await client.edit_inline_text(
@@ -332,11 +331,10 @@ async def chosen_inline_result(client: Client, result: types.ChosenInlineResult)
                     return
                 try:
                     image_bytes = await asyncio.to_thread(
-                        manodrawer.draw_trial, character, options
+                        manomeme.draw_trial, character, options
                     )
                     media = BytesIO(image_bytes)
                     media.name = "trial.png"
-                    is_hiro = character == manodrawer.Character.HIRO
                     await client.edit_inline_media(
                         inline_message_id=result.inline_message_id,
                         media=types.InputMediaPhoto(media=media),

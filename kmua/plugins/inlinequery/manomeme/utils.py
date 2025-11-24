@@ -1,9 +1,8 @@
 import re
 
 from pyrogram import types
-from pyrogram.client import Client
 
-from kmua.plugins.inlinequery import manodrawer
+from . import drawer as manodrawer
 
 anan_faces = [
     "病娇",

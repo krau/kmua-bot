@@ -28,7 +28,7 @@ async def set_user_bot_admin_in_chat(
             (
                 message.reply_to_message.sender_chat
                 or message.reply_to_message.from_user
-            ).id
+            ).id  # type: ignore
             if message.reply_to_message
             else int(message.command[1])
             if (len(message.command) > 1 and message.command[1].isdigit())

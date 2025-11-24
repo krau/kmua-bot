@@ -1,5 +1,33 @@
+"""
+This module was copied from https://github.com/zhaomaoniu/nonebot-plugin-manosaba-memes and modified.
+
+Original License:
+
+MIT License
+
+Copyright (c) 2025 Gitai
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+"""
+
 import math
-from pathlib import Path
+from enum import StrEnum
 from typing import List, Optional, Tuple
 
 from sketchbook import (
@@ -12,10 +40,95 @@ from sketchbook import (
 
 from kmua.consts import MANOMEME_PATH
 
-from .models import Character, Option, Statement
+
+class Character(StrEnum):
+    """Characters available for trail drawing"""
+
+    EMA = "Ema"
+    HIRO = "Hiro"
+
+    @property
+    def display(self) -> str:
+        """Get the display string for the character"""
+        mapping = {
+            Character.EMA: "艾玛",
+            Character.HIRO: "希罗",
+        }
+        return mapping[self]
 
 
-def get_anan_base_image(face: Optional[str] = None) -> str:
+class Statement(StrEnum):
+    """Types of statements for the trail drawing"""
+
+    AGREEMENT = "Agreement"
+    DOUBT = "Doubt"
+    PURJURY = "Perjury"
+    REFUTATION = "Refutation"
+    MAGIC = "Magic"
+
+    @property
+    def display(self) -> str:
+        """Get the display string for the statement"""
+        mapping = {
+            Statement.AGREEMENT: "赞同",
+            Statement.DOUBT: "疑问",
+            Statement.PURJURY: "伪证",
+            Statement.REFUTATION: "反驳",
+            Statement.MAGIC: "魔法",
+        }
+        return mapping[self]
+
+
+class Option:
+    """A trial option for a character to say"""
+
+    def __init__(self, statement: Statement, text: str) -> None:
+        """Initialize a trail option
+
+        Args:
+            statement (Statement): The type of statement this option represents
+            text (str): The text content of the option
+        """
+        self.statement = statement
+        self.text = text
+
+
+def get_statement(statement: str) -> Statement:
+    """Convert a string statement type to a Statement enum
+
+    Args:
+        statement (str): The string representation of the statement type
+
+    Returns:
+        Statement: The corresponding Statement enum
+    """
+    mapping = {
+        "赞同": Statement.AGREEMENT,
+        "疑问": Statement.DOUBT,
+        "伪证": Statement.PURJURY,
+        "反驳": Statement.REFUTATION,
+        "魔法": Statement.MAGIC,
+    }
+    return mapping[statement]
+
+
+def get_character(character: str) -> Character:
+    """Convert a string character name to a Character enum
+
+    Args:
+        character (str): The string representation of the character name
+
+    Returns:
+        Character: The corresponding Character enum, defaults to EMA if not found.
+    """
+    mapping = {
+        "艾玛": Character.EMA,
+        "希罗": Character.HIRO,
+    }
+    return mapping.get(character, Character.EMA)
+
+
+def anan_base_image(face: Optional[str] = None) -> str:
     """Get the base image path for Anan's face
 
     Args:
@@ -41,7 +154,7 @@ def draw_anan(text: str, face: Optional[str] = None) -> bytes:
         bytes: The image bytes of the drawn image
     """
     drawer = TextFitDrawer(
-        base_image=get_anan_base_image(face),
+        base_image=anan_base_image(face),
         font=str(MANOMEME_PATH / "fonts/AaMingTianHuiYouHaoShiFaSheng-2.ttf"),
         overlay_image=str(MANOMEME_PATH / "anan/base_overlay.png"),
         region=DrawerRegion(100, 432, 100 + 319, 432 + 204),
