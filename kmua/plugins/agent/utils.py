@@ -51,13 +51,8 @@ def get_history_text(message_history: list[ModelMessage]) -> str:
 async def summarize_history(
     summary_agent: Agent,
     message_history: list[ModelMessage],
-    preserve_last_n: int = 4,
     messages_threshold: int = app_config.agent_messages_threshold,
 ) -> list[ModelMessage]:
-    if preserve_last_n >= messages_threshold:
-        raise ValueError(
-            f"'preserve_last_n' ({preserve_last_n}) must be less than 'messages_threshold' ({messages_threshold})"
-        )
     has_multimodal_content = False
     for msg in message_history:
         for part in msg.parts:
@@ -70,13 +65,11 @@ async def summarize_history(
             break
 
     if not has_multimodal_content and len(message_history) <= messages_threshold:
+        # 有多模态内容时, 强制总结历史消息
         return message_history
 
-    messages_to_preserve = filter_tool_return_if_needed(
-        message_history[-preserve_last_n:]
-    )
     logger.debug(
-        f"Summarizing history: total messages={len(message_history)}, preserve_last_n={preserve_last_n}, messages_threshold={messages_threshold}"
+        f"Summarizing history: total messages={len(message_history)}, messages_threshold={messages_threshold}"
     )
     try:
         message_text = get_history_text(message_history)
@@ -89,26 +82,7 @@ async def summarize_history(
             content=f"[CONVERSATION HISTORY]: {summary_result.output}"
         )
 
-        filtered_preserve_messages = []
-        for msg in messages_to_preserve:
-            if msg.kind != "request":
-                filtered_preserve_messages.append(msg)
-                continue
-
-            filtered_parts = []
-            for part in msg.parts:
-                if part.part_kind == "user-prompt" and not isinstance(
-                    part.content, str
-                ):
-                    continue
-                filtered_parts.append(part)
-
-            if filtered_parts:
-                new_msg = ModelRequest(parts=filtered_parts)
-                filtered_preserve_messages.append(new_msg)
-
         return [
-            *filtered_preserve_messages,
             ModelRequest(parts=[summary_part]),
         ]
     except Exception as e:
