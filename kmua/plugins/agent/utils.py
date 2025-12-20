@@ -1,11 +1,51 @@
 from collections import defaultdict
+from dataclasses import dataclass
 
+from pydantic import BaseModel
 from pydantic_ai import Agent
 from pydantic_ai.messages import ModelMessage, ModelRequest, SystemPromptPart
 
+from kmua.common.memory_store import memttlcache
 from kmua.config import app_config
 from kmua.i18n import i18n
 from kmua.logger import logger
+from kmua.plugins.agent import datatype
+
+
+def get_history_text(message_history: list[ModelMessage]) -> str:
+    text_lines = []
+    added_system_prompt = False
+    for msg in message_history:
+        for part in msg.parts:
+            match part.part_kind:
+                case "system-prompt":
+                    if not added_system_prompt:
+                        added_system_prompt = True
+                        text_lines.append(f"[SYSTEM PROMPT]: {part.content}")
+                case "user-prompt":
+                    if isinstance(part.content, str):
+                        text_lines.append(f"[USER]: {part.content}")
+                    else:
+                        content_text_lines = []
+                        for content in part.content:
+                            if isinstance(content, str):
+                                content_text_lines.append(content)
+                        text_lines.append(f"[USER]: {' '.join(content_text_lines)}")
+                case "text":
+                    if msg.kind == "response":
+                        text_lines.append(f"[ASSISTANT]: {part.content}")
+                case "tool-call":
+                    text_lines.append(
+                        f"[TOOL {part.tool_name} CALLED WITH ARGS]: {part.args}"
+                    )
+                case "tool-return":
+                    text_lines.append(
+                        f"[TOOL {part.tool_name} RETURNED]: {part.content}"
+                    )
+                case "retry-prompt":
+                    pass
+    message_text = "\n".join(text_lines)
+    return message_text
 
 
 async def summarize_history(
@@ -18,7 +58,6 @@ async def summarize_history(
         raise ValueError(
             f"'preserve_last_n' ({preserve_last_n}) must be less than 'messages_threshold' ({messages_threshold})"
         )
-
     has_multimodal_content = False
     for msg in message_history:
         for part in msg.parts:
@@ -36,42 +75,14 @@ async def summarize_history(
     messages_to_preserve = filter_tool_return_if_needed(
         message_history[-preserve_last_n:]
     )
+    logger.debug(
+        f"Summarizing history: total messages={len(message_history)}, preserve_last_n={preserve_last_n}, messages_threshold={messages_threshold}"
+    )
     try:
-        text_lines = []
-        added_system_prompt = False
-        for msg in message_history:
-            for part in msg.parts:
-                match part.part_kind:
-                    case "system-prompt":
-                        if not added_system_prompt:
-                            added_system_prompt = True
-                            text_lines.append(f"[SYSTEM PROMPT]: {part.content}")
-                    case "user-prompt":
-                        if isinstance(part.content, str):
-                            text_lines.append(f"[USER]: {part.content}")
-                        else:
-                            content_text_lines = []
-                            for content in part.content:
-                                if isinstance(content, str):
-                                    content_text_lines.append(content)
-                            text_lines.append(f"[USER]: {' '.join(content_text_lines)}")
-                    case "text":
-                        if msg.kind == "response":
-                            text_lines.append(f"[ASSISTANT]: {part.content}")
-                    case "tool-call":
-                        text_lines.append(
-                            f"[TOOL {part.tool_name} CALLED WITH ARGS]: {part.args}"
-                        )
-                    case "tool-return":
-                        text_lines.append(
-                            f"[TOOL {part.tool_name} RETURNED]: {part.content}"
-                        )
-                    case "retry-prompt":
-                        pass
-        message_text = "\n".join(text_lines)
+        message_text = get_history_text(message_history)
 
         summary_result = await summary_agent.run(
-            f"{i18n.t('bot.msg.agent.summary_prompt', locale=app_config.lang)}: {message_text}"
+            user_prompt=f"{i18n.t('bot.msg.agent.summary_prompt', locale=app_config.lang)}: {message_text}"
         )
         logger.debug(f"Agent summarize: {summary_result.output}")
         summary_part = SystemPromptPart(
@@ -163,3 +174,24 @@ def filter_tool_return_if_needed(messages: list[ModelMessage]) -> list[ModelMess
             filtered_messages.append(message)
 
     return filtered_messages
+
+
+async def update_memory(
+    agent: Agent[None, datatype.MemoryAboutUser],
+    message_text: str,
+    user_id: int,
+):
+    logger.debug(f"Updating memory for user {user_id}")
+    old = await memttlcache.get(f"user_memory_{user_id}")
+    if old:
+        message_text = f"根据已有的记忆和新的对话内容, 更新对用户的记忆. 旧的记忆: {old}\n新的对话内容: {message_text}"
+    memory_result = await agent.run(
+        output_type=datatype.MemoryAboutUser,
+        user_prompt=f"根据以下对话内容, 总结出关于用户的重要信息, 并更新对用户的记忆.\n对话内容: {message_text}",
+    )
+    logger.debug(f"Agent memory history: {memory_result.output}")
+    await memttlcache.set(
+        f"user_memory_{user_id}",
+        memory_result.output,
+        ttl=86400 * 30,  # 30 days
+    )

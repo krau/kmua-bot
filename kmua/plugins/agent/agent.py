@@ -55,6 +55,11 @@ if app_config.agent:
         retries=3,
     )  # type: ignore
     summary_agent = Agent(model=model, system_prompt=app_config.agent_summary_prompt)
+    memory_agent = Agent(
+        model=model,
+        output_type=datatype.MemoryAboutUser,
+        system_prompt=app_config.agent_memory_prompt,
+    )
 
     @PyrogramClient.on_message(pyrogram.filters.command("forget"), group=0)
     async def forget_history(client: PyrogramClient, message: pyrogram.types.Message):
@@ -143,6 +148,9 @@ async def wake_agent(client: PyrogramClient, message: pyrogram.types.Message):
         if reply_to := message.reply_to_message:
             ctx_info.reply_to_msg_id = reply_to.id
             ctx_info.reply_to_msg_text = reply_to.text or reply_to.caption
+        memory = await common.memttlcache.get(f"user_memory_{user.id}")
+        if memory:
+            ctx_info.memory_about_user = memory
         user_prompt_text = f"{ctx_info}\n{message.text or message.caption or ''}"
         user_prompt: list[UserContent] = [user_prompt_text]
         get_media_and_message: Callable[
@@ -291,6 +299,22 @@ async def wake_agent(client: PyrogramClient, message: pyrogram.types.Message):
                                 summary,
                                 ttl=app_config.cachettl_agent_history,
                             )
+                            if (
+                                len(agent_run.result.all_messages())
+                                >= app_config.agent_messages_threshold
+                            ):
+                                # update memory
+                                try:
+                                    history_text = utils.get_history_text(
+                                        agent_run.result.all_messages()
+                                    )
+                                    await utils.update_memory(
+                                        memory_agent, history_text, user.id
+                                    )
+                                except Exception as e:
+                                    logger.exception(
+                                        f"Error updating memory for user {user.id}: {e.__class__.__name__} - {e}"
+                                    )
                         else:
                             logger.error(
                                 f"Agent run ended with no result for user {user.id} in chat {chat_id}"

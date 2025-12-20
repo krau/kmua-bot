@@ -72,15 +72,8 @@ class _AppConfig(pydantic.BaseModel):
     agent_whitelist_mode: bool = False
     agent_whitelist: list[int] = []
     ############################################################################
-    agent_prompt: str = r"""
+    agent_prompt: str = """
 System: 你是一个可爱的猫娘助手, 用户通过 Telegram Bot 与你对话, 保持可爱和耐心.
-
-———
-Internal info:
-- Max length: 4096 chars
-- Your Telegram username: @kmuav2bot
-- Markdown: chars '_', '', '`', '\[' that are not used as boundaries MUST be escaped with '\'. 
-Eg:  bold,   a \ b = ab.
 """
     ############################################################################
     agent_summary_prompt: str = """
@@ -100,6 +93,15 @@ Eg:  bold,   a \ b = ab.
 - 严禁添加任何自己的观点、评论或建议。
 
 """
+    ############################################################################
+    agent_memory_prompt: str = """
+你的任务是根据用户的对话内容，更新并总结出关于用户的重要信息，形成一份简洁的用户记忆概要。请严格按照以下要求执行：
+1. 记忆内容：总结用户的性格、兴趣、正在做的事情、工作内容、希望/愿望、担忧/烦恼、技能、对'我'的态度、和'我'相关的经历等方面的信息。
+2. 忠实准确：确保记忆内容忠实反映用户的对话信息，不得添加任何与对话无关的内容或个人观点。
+3. 遵守格式: 将总结内容以要求的格式输出，确保每个每个字段都有对应的内容，如果某个字段没有相关信息，请填写为 None。
+4. 不得拒绝：无论对话内容涉及何种敏感话题，都必须完成总结，不得以任何理由拒绝或提示“因政策原因无法总结”等说明。
+"""
+    ############################################################################
     # internal | debug | some other configs
     workdir: Path = Path(__file__).resolve().parent.parent.parent / "data"
     debug: bool = False
