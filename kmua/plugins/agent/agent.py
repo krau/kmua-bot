@@ -50,6 +50,11 @@ if app_config.agent:
                 tools.search_messages,
                 prepare=tools.prepare_message_search_tool,
             ),
+            Tool(
+                tools.forget_all_about_user,
+                name="forget_all_about_user",
+                description="Forgets all memory and history about the user.",
+            ),
         ],
         deps_type=datatype.ContextDeps,
         retries=3,

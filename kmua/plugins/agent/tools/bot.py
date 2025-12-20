@@ -8,6 +8,7 @@ import pyrogram
 from pydantic_ai import ModelRetry, RunContext
 
 from kmua import common, database, i18n
+from kmua.common.memory_store import memttlcache
 from kmua.config import app_config
 from kmua.logger import logger
 from kmua.plugins.manyacg import manyacg
@@ -335,3 +336,15 @@ async def schedule_message(
     except Exception as e:
         logger.error(f"Error scheduling message: {e.__class__.__name__}:{e}")
         return f"Error scheduling message: {e.__class__.__name__}"
+
+
+async def forget_all_about_user(
+    ctx: RunContext[datatype.ContextDeps],
+) -> None:
+    """
+    Forget all stored memory and history about the user.
+
+    Should be used with very caution.
+    """
+    await memttlcache.delete(f"user_memory_{ctx.deps.user_id}")
+    await memttlcache.delete(f"message_history_with_agent_{ctx.deps.user_id}")
