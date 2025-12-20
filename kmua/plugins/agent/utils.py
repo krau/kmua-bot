@@ -14,14 +14,9 @@ from kmua.plugins.agent import datatype
 
 def get_history_text(message_history: list[ModelMessage]) -> str:
     text_lines = []
-    added_system_prompt = False
     for msg in message_history:
         for part in msg.parts:
             match part.part_kind:
-                case "system-prompt":
-                    if not added_system_prompt:
-                        added_system_prompt = True
-                        text_lines.append(f"[SYSTEM PROMPT]: {part.content}")
                 case "user-prompt":
                     if isinstance(part.content, str):
                         text_lines.append(f"[USER]: {part.content}")
