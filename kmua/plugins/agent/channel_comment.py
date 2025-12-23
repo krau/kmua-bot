@@ -4,11 +4,35 @@ import pyrogram
 from pyrogram.client import Client
 
 from kmua import database
+from kmua.common.memory_store import memttlcache
 from kmua.config import app_config
 from kmua.logger import logger
 from kmua.plugins.agent import datatype
 
 from .agent import agent, get_input_prompt
+
+
+async def _is_first_media_in_group(message: pyrogram.types.Message) -> bool:
+    """Return True only for the first message of a media group.
+
+    For non-album messages (no media_group_id), always returns True.
+    """
+
+    media_group_id = message.media_group_id
+    if not media_group_id:
+        return True
+
+    chat = message.chat
+    if chat is None or chat.id is None:
+        return True
+
+    key = f"channel_comment_media_group:{chat.id}:{media_group_id}"
+
+    if await memttlcache.get(key, False):
+        return False
+
+    await memttlcache.set(key, True, ttl=60)
+    return True
 
 
 async def channel_comment_filter_func(_, __, message: pyrogram.types.Message):
@@ -42,6 +66,10 @@ async def comment_channel_message(client: Client, message: pyrogram.types.Messag
         return
     channel = message.sender_chat
     if channel is None or channel.id is None:
+        return
+
+    # 对相册消息（media group）只在第一条媒体上触发评论
+    if not await _is_first_media_in_group(message):
         return
     ctx = {
         "task_type": "channel_comment",
