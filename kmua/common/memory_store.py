@@ -2,7 +2,6 @@ import asyncio
 from contextlib import asynccontextmanager
 from typing import Any
 
-import aiocache
 from aiocache import SimpleMemoryCache
 
 from kmua.config import app_config

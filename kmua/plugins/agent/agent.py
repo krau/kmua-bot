@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from datetime import datetime
 from io import BytesIO
 from typing import Any, Callable
@@ -6,7 +7,7 @@ import pydantic_ai
 import pyrogram
 import pyrogram.errors
 from ddgs import DDGS
-from pydantic_ai import Agent, BinaryContent, ImageMediaType, Tool, VideoUrl
+from pydantic_ai import Agent, BinaryContent, Tool
 from pydantic_ai.common_tools.duckduckgo import DuckDuckGoSearchTool
 from pydantic_ai.messages import UserContent
 from pydantic_ai.models.openai import OpenAIChatModel
@@ -16,6 +17,7 @@ from pyrogram.client import Client as PyrogramClient
 from pyrogram.enums.parse_mode import ParseMode
 
 from kmua import common, database, i18n
+from kmua.common.memory_store import memttlcache
 from kmua.config import app_config
 from kmua.logger import logger
 from kmua.services import manyacg
@@ -364,3 +366,40 @@ async def get_input_prompt(
                                 )
                             )
     return user_prompt
+
+
+@dataclass
+class UserMessageGlobal:
+    chat_id: int
+    message_id: int
+    text: str
+
+
+@PyrogramClient.on_message(group=100)
+async def after_all(client: PyrogramClient, message: pyrogram.types.Message):
+    if not agent or not app_config.agent:
+        return
+    user = message.from_user
+    chat = message.chat
+    if not user or not user.id or not chat or not chat.id:
+        return
+    text = message.caption or message.text
+    if not text or len(text) < 12:
+        return
+    user_messages: list[UserMessageGlobal] = await memttlcache.get(
+        f"user_messages_global:{user.id}", []
+    )
+    user_messages.append(
+        UserMessageGlobal(
+            chat_id=chat.id,
+            message_id=message.id,
+            text=text,
+        )
+    )
+    if len(user_messages) > 50:
+        user_messages = user_messages[-50:]
+        texts = "\n".join([um.text for um in user_messages])
+        await utils.update_memory(memory_agent, texts, user.id)
+    await memttlcache.set(
+        f"user_messages_global:{user.id}", user_messages, ttl=86400 * 7
+    )

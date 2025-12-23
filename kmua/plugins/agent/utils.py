@@ -1,7 +1,7 @@
+import asyncio
 from collections import defaultdict
-from dataclasses import dataclass
+from weakref import WeakValueDictionary
 
-from pydantic import BaseModel
 from pydantic_ai import Agent
 from pydantic_ai.messages import ModelMessage, ModelRequest, SystemPromptPart
 
@@ -145,22 +145,37 @@ def filter_tool_return_if_needed(messages: list[ModelMessage]) -> list[ModelMess
     return filtered_messages
 
 
+_user_memory_locks: WeakValueDictionary[int, asyncio.Lock] = WeakValueDictionary()
+_user_memory_locks_lock = asyncio.Lock()
+
+
+async def _get_user_memory_lock(user_id: int) -> asyncio.Lock:
+    async with _user_memory_locks_lock:
+        lock = _user_memory_locks.get(user_id)
+        if lock is None:
+            lock = asyncio.Lock()
+            _user_memory_locks[user_id] = lock
+        return lock
+
+
 async def update_memory(
     agent: Agent[None, datatype.MemoryAboutUser],
     message_text: str,
     user_id: int,
 ):
-    logger.debug(f"Updating memory for user {user_id}")
-    old = await memttlcache.get(f"user_memory_{user_id}")
-    if old:
-        message_text = f"根据已有的记忆和新的对话内容, 更新对用户的记忆. 旧的记忆: {old}\n新的对话内容: {message_text}"
-    memory_result = await agent.run(
-        output_type=datatype.MemoryAboutUser,
-        user_prompt=f"根据以下对话内容, 总结出关于用户的重要信息, 并更新对用户的记忆.\n对话内容: {message_text}",
-    )
-    logger.debug(f"Agent memory history: {memory_result.output}")
-    await memttlcache.set(
-        f"user_memory_{user_id}",
-        memory_result.output,
-        ttl=86400 * 30,  # 30 days
-    )
+    lock = await _get_user_memory_lock(user_id)
+    async with lock:
+        logger.debug(f"Updating memory for user {user_id}")
+        old = await memttlcache.get(f"user_memory_{user_id}")
+        if old:
+            message_text = f"根据已有的记忆和新的聊天消息, 更新对用户的记忆. 旧的记忆: {old}\n新的聊天消息: {message_text}"
+        memory_result = await agent.run(
+            output_type=datatype.MemoryAboutUser,
+            user_prompt=f"根据以下聊天消息, 总结出关于用户的重要信息, 并更新对用户的记忆:\n {message_text}",
+        )
+        logger.debug(f"Agent memory history: {memory_result.output}")
+        await memttlcache.set(
+            f"user_memory_{user_id}",
+            memory_result.output,
+            ttl=86400 * 30,  # 30 days
+        )
