@@ -51,9 +51,9 @@ async def comment_channel_message(client: Client, message: pyrogram.types.Messag
         "current_time": datetime.datetime.now().strftime("%Y年%m月%d日 %H:%M:%S"),
     }
     prompts = await get_input_prompt(client, message, ctx)
-    logger.debug(f"Channel comment prompts: {prompts}")
     if not prompts:
         return
+    logger.debug(f"Channel comment post: {message.caption or message.text}")
     resp = await agent.run(
         user_prompt=prompts,
         deps=datatype.ContextDeps(
