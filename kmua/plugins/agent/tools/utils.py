@@ -1,5 +1,3 @@
-import datetime
-
 import httpx
 
 from kmua.logger import logger

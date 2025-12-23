@@ -14,7 +14,7 @@ async def query_quote(
     if chat_id is not None:
         if not await database.get_association(user.id, chat_id):
             return
-        quotes = await database.take_chat_quotes(
+        quotes = await database.get_chat_quotes(
             chat_id=chat_id,
             query=text,
             limit=50,

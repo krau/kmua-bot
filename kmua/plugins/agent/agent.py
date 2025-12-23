@@ -55,6 +55,10 @@ if app_config.agent:
                 name="forget_all_about_user",
                 description="Forgets all memory and history about the user.",
             ),
+            Tool(
+                tools.search_chat_in_jokes,
+                prepare=tools.prepare_group_tools,
+            ),
         ],
         deps_type=datatype.ContextDeps,
         retries=3,

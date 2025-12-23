@@ -160,7 +160,7 @@ async def get_user_quotes_page(
 
 
 @with_session
-async def take_chat_quotes(
+async def get_chat_quotes(
     chat_id: int,
     query: str = "",
     limit: int = 50,
