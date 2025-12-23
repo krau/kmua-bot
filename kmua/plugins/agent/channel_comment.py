@@ -47,7 +47,7 @@ async def comment_channel_message(client: Client, message: pyrogram.types.Messag
         "task_type": "channel_comment",
         "task_desc": "评论这条频道的帖子",
         "channel_name": channel.title,
-        "channel_bio": channel.bio or "",
+        "channel_bio": channel.bio or channel.description,
         "current_time": datetime.datetime.now().strftime("%Y年%m月%d日 %H:%M:%S"),
     }
     prompts = await get_input_prompt(client, message, ctx)
