@@ -31,18 +31,16 @@ class ChatConfigMarkup:
                         f"{i18n.t('bot.button.chat_config.delete_events', locale=self.lang)} {self.get_status_emoji(self.chat_config.delete_events_enabled)}",
                         callback_data=self.get_callback_data("delete_events_enabled"),
                     ),
-                ],
-                [
                     InlineKeyboardButton(
                         f"{i18n.t('bot.button.chat_config.message_search', locale=self.lang)} {self.get_status_emoji(self.chat_config.message_search_enabled)}",
                         callback_data=self.get_callback_data("message_search_enabled"),
                     ),
+                ],
+                [
                     InlineKeyboardButton(
                         f"{i18n.t('bot.button.chat_config.quote_pin_message', locale=self.lang)} {self.get_status_emoji(self.chat_config.quote_pin_message)}",
                         callback_data=self.get_callback_data("quote_pin_message"),
                     ),
-                ],
-                [
                     InlineKeyboardButton(
                         f"{i18n.t('bot.button.chat_config.ai_reply', locale=self.lang)} {self.get_status_emoji(self.chat_config.ai_reply)}",
                         callback_data=self.get_callback_data("ai_reply"),
@@ -63,15 +61,19 @@ class ChatConfigMarkup:
                         f"{i18n.t('bot.button.chat_config.convert_b23_enabled', locale=self.lang)} {self.get_status_emoji(self.chat_config.convert_b23_enabled)}",
                         callback_data=self.get_callback_data("convert_b23_enabled"),
                     ),
-                ],
-                [
                     InlineKeyboardButton(
                         f"{i18n.t('bot.button.chat_config.parse_artwork_enabled', locale=self.lang)} {self.get_status_emoji(self.chat_config.parse_artwork_enabled)}",
                         callback_data=self.get_callback_data("parse_artwork_enabled"),
                     ),
+                ],
+                [
                     InlineKeyboardButton(
                         f"{i18n.t('bot.button.chat_config.pick_bottle_enabled', locale=self.lang)} {self.get_status_emoji(self.chat_config.pick_bottle_enabled)}",
                         callback_data=self.get_callback_data("pick_bottle_enabled"),
+                    ),
+                    InlineKeyboardButton(
+                        f"{i18n.t('bot.button.chat_config.ai_comment', locale=self.lang)} {self.get_status_emoji(self.chat_config.ai_comment)}",
+                        callback_data=self.get_callback_data("ai_comment"),
                     ),
                 ],
                 [
@@ -152,6 +154,8 @@ async def config_chat(
                 )
             case "pick_bottle_enabled":
                 chat_config.pick_bottle_enabled = not chat_config.pick_bottle_enabled
+            case "ai_comment":
+                chat_config.ai_comment = not chat_config.ai_comment
             case _:
                 await callback_query.answer(
                     text=i18n.t("bot.msg.unknown_operation", locale=lang),

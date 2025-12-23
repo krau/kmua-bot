@@ -50,6 +50,7 @@ class ChatConfig:
     title_permissions: dict | None = None
     greeting: str | None = None
     ai_reply: bool = True
+    ai_comment: bool = False
     setu_enabled: bool = True
     convert_b23_enabled: bool = True
     parse_artwork_enabled: bool = True
@@ -74,6 +75,7 @@ class ChatConfig:
             convert_b23_enabled=data.get("convert_b23_enabled", False),
             parse_artwork_enabled=data.get("parse_artwork_enabled", True),
             pick_bottle_enabled=data.get("pick_bottle_enabled", True),
+            ai_comment=data.get("ai_comment", False),
             lang=data.get("lang", "zh-CN"),
         )
 

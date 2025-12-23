@@ -1,6 +1,6 @@
 from datetime import datetime
 from io import BytesIO
-from typing import Callable
+from typing import Any, Callable
 
 import pydantic_ai
 import pyrogram
@@ -156,93 +156,10 @@ async def wake_agent(client: PyrogramClient, message: pyrogram.types.Message):
         memory = await common.memttlcache.get(f"user_memory_{user.id}")
         if memory:
             ctx_info.memory_about_user = memory
-        user_prompt_text = f"{ctx_info}\n{message.text or message.caption or ''}"
-        user_prompt: list[UserContent] = [user_prompt_text]
-        get_media_and_message: Callable[
-            [pyrogram.types.Message],
-            tuple[
-                pyrogram.enums.MessageMediaType | None, pyrogram.types.Message | None
-            ],
-        ] = lambda m: (
-            (m.media, m)
-            if m.media
-            else (m.reply_to_message.media, m.reply_to_message)
-            if m.reply_to_message and m.reply_to_message.media
-            else (None, None)
+        user_prompt = await get_input_prompt(client, message, ctx_info)
+        user_prompt_text = (
+            f"{ctx_info}\n{message.text or message.caption or ''}".strip()
         )
-        media, media_message = get_media_and_message(message)
-        if media and media_message and app_config.agent_multimodal:
-            match media:
-                case pyrogram.enums.MessageMediaType.PHOTO:
-                    photo = media_message.photo
-                    if (
-                        "photo" in app_config.agent_multimodal_inputs
-                        and photo
-                        and photo.file_id
-                    ):
-                        photo_file = await client.download_media(
-                            photo.file_id, in_memory=True
-                        )
-                        if isinstance(photo_file, BytesIO):
-                            photo_bytes = photo_file.getvalue()
-                            user_prompt.append(
-                                BinaryContent(data=photo_bytes, media_type="image/jpeg")
-                            )
-                case pyrogram.enums.MessageMediaType.VIDEO:
-                    video = media_message.video
-                    if (
-                        video
-                        and video.file_id
-                        and video.mime_type
-                        and video.file_size
-                        and video.file_size <= 20 * 1024 * 1024
-                    ):
-                        if "video" in app_config.agent_multimodal_inputs:
-                            video_file = await client.download_media(
-                                video.file_id, in_memory=True
-                            )
-                            if isinstance(video_file, BytesIO):
-                                video_bytes = video_file.getvalue()
-                                user_prompt.append(
-                                    BinaryContent(
-                                        data=video_bytes, media_type=video.mime_type
-                                    )
-                                )
-                case pyrogram.enums.MessageMediaType.DOCUMENT:
-                    document = media_message.document
-                    if (
-                        document
-                        and document.file_id
-                        and document.mime_type
-                        and document.file_size <= 10 * 1024 * 1024
-                    ):
-                        if document.mime_type in app_config.agent_multimodal_inputs:
-                            doc_file = await client.download_media(
-                                document.file_id, in_memory=True
-                            )
-                            if isinstance(doc_file, BytesIO):
-                                doc_bytes = doc_file.getvalue()
-                                user_prompt.append(
-                                    BinaryContent(
-                                        data=doc_bytes, media_type=document.mime_type
-                                    )
-                                )
-                        elif (
-                            document.mime_type.startswith("image/")
-                            and "photo" in app_config.agent_multimodal_inputs
-                        ):
-                            doc_file = await client.download_media(
-                                document.file_id, in_memory=True
-                            )
-                            if isinstance(doc_file, BytesIO):
-                                doc_bytes = doc_file.getvalue()
-                                user_prompt.append(
-                                    BinaryContent(
-                                        data=doc_bytes,
-                                        media_type=document.mime_type,
-                                    )
-                                )
-
         logger.debug(f"User {user.id} prompt: {user_prompt_text}")
         repiled: pyrogram.types.Message | None = None
 
@@ -276,7 +193,7 @@ async def wake_agent(client: PyrogramClient, message: pyrogram.types.Message):
 
         try:
             async with agent.iter(
-                user_prompt,
+                user_prompt=user_prompt,
                 message_history=history,
                 deps=datatype.ContextDeps(
                     user_id=user.id,
@@ -351,3 +268,95 @@ async def wake_agent(client: PyrogramClient, message: pyrogram.types.Message):
 
     finally:
         await common.memstore.delete(_waiting_key(user.id))
+
+
+async def get_input_prompt(
+    client: PyrogramClient,
+    message: pyrogram.types.Message,
+    ctx: datatype.ContextInfo | Any | None = None,
+) -> list[UserContent]:
+    user_prompt_text = f"{ctx if ctx is not None else ''}\n{message.text or message.caption or ''}".strip()
+    user_prompt: list[UserContent] = [user_prompt_text] if user_prompt_text else []
+    get_media_and_message: Callable[
+        [pyrogram.types.Message],
+        tuple[pyrogram.enums.MessageMediaType | None, pyrogram.types.Message | None],
+    ] = lambda m: (
+        (m.media, m)
+        if m.media
+        else (m.reply_to_message.media, m.reply_to_message)
+        if m.reply_to_message and m.reply_to_message.media
+        else (None, None)
+    )
+    media, media_message = get_media_and_message(message)
+    if media and media_message and app_config.agent_multimodal:
+        match media:
+            case pyrogram.enums.MessageMediaType.PHOTO:
+                photo = media_message.photo
+                if (
+                    "photo" in app_config.agent_multimodal_inputs
+                    and photo
+                    and photo.file_id
+                ):
+                    photo_file = await client.download_media(
+                        message=photo.file_id, in_memory=True
+                    )
+                    if isinstance(photo_file, BytesIO):
+                        photo_bytes = photo_file.getvalue()
+                        user_prompt.append(
+                            BinaryContent(data=photo_bytes, media_type="image/jpeg")
+                        )
+            case pyrogram.enums.MessageMediaType.VIDEO:
+                video = media_message.video
+                if (
+                    video
+                    and video.file_id
+                    and video.mime_type
+                    and video.file_size
+                    and video.file_size <= 20 * 1024 * 1024
+                ):
+                    if "video" in app_config.agent_multimodal_inputs:
+                        video_file = await client.download_media(
+                            message=video.file_id, in_memory=True
+                        )
+                        if isinstance(video_file, BytesIO):
+                            video_bytes = video_file.getvalue()
+                            user_prompt.append(
+                                BinaryContent(
+                                    data=video_bytes, media_type=video.mime_type
+                                )
+                            )
+            case pyrogram.enums.MessageMediaType.DOCUMENT:
+                document = media_message.document
+                if (
+                    document
+                    and document.file_id
+                    and document.mime_type
+                    and document.file_size <= 10 * 1024 * 1024
+                ):
+                    if document.mime_type in app_config.agent_multimodal_inputs:
+                        doc_file = await client.download_media(
+                            message=document.file_id, in_memory=True
+                        )
+                        if isinstance(doc_file, BytesIO):
+                            doc_bytes = doc_file.getvalue()
+                            user_prompt.append(
+                                BinaryContent(
+                                    data=doc_bytes, media_type=document.mime_type
+                                )
+                            )
+                    elif (
+                        document.mime_type.startswith("image/")
+                        and "photo" in app_config.agent_multimodal_inputs
+                    ):
+                        doc_file = await client.download_media(
+                            message=document.file_id, in_memory=True
+                        )
+                        if isinstance(doc_file, BytesIO):
+                            doc_bytes = doc_file.getvalue()
+                            user_prompt.append(
+                                BinaryContent(
+                                    data=doc_bytes,
+                                    media_type=document.mime_type,
+                                )
+                            )
+    return user_prompt

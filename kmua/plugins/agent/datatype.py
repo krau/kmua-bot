@@ -36,9 +36,9 @@ class UserData:
 
 @dataclass
 class ContextInfo:
-    user_data: UserData
-    msg_id: int
-    current_time: str
+    user_data: UserData | None = None
+    msg_id: int | None = None
+    current_time: str | None = None
     chat_type: str | None = None
     reply_to_msg_text: str | None = None
     reply_to_msg_id: int | None = None
