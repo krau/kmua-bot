@@ -9,7 +9,7 @@ import pydantic_ai
 import pyrogram
 import pyrogram.errors
 from ddgs import DDGS
-from pydantic_ai import Agent, BinaryContent, Tool
+from pydantic_ai import Agent, BinaryContent, MultiModalContent, Tool
 from pydantic_ai.common_tools.duckduckgo import DuckDuckGoSearchTool
 from pydantic_ai.messages import UserContent
 from pydantic_ai.models.openai import OpenAIChatModel
@@ -36,11 +36,21 @@ if app_config.agent:
             api_key=app_config.agent_api_key,
         ),
     )
+    multimodal_model = (
+        model
+        if not app_config.agent_model_multimodal
+        else OpenAIChatModel(
+            model_name=app_config.agent_model_multimodal,
+            provider=OpenAIProvider(
+                base_url=app_config.agent_provider_url,
+                api_key=app_config.agent_api_key,
+            ),
+        )
+    )
     agent = Agent(
         model=model,
         system_prompt=app_config.agent_prompt,
         tools=[
-            tools.send_anime_photo,
             tools.schedule_message,
             Tool(tools.get_chat_info, prepare=tools.prepare_group_tools),
             Tool(tools.get_history_messages, prepare=tools.prepare_group_tools),
@@ -63,6 +73,7 @@ if app_config.agent:
                 tools.search_chat_in_jokes,
                 prepare=tools.prepare_group_tools,
             ),
+            tools.send_anime_photo,
         ],
         deps_type=datatype.ContextDeps,
         retries=3,
@@ -211,7 +222,11 @@ async def wake_agent(client: PyrogramClient, message: pyrogram.types.Message):
                 )
 
         try:
+            use_model = (
+                model if not has_multimodal_input(user_prompt) else multimodal_model
+            )
             async with agent.iter(
+                model=use_model,
                 user_prompt=user_prompt,
                 message_history=history,
                 deps=datatype.ContextDeps(
@@ -381,6 +396,13 @@ async def get_input_prompt(
                                 )
                             )
     return user_prompt
+
+
+def has_multimodal_input(user_prompt: list[UserContent]) -> bool:
+    for content in user_prompt:
+        if isinstance(content, MultiModalContent):
+            return True
+    return False
 
 
 @dataclass
