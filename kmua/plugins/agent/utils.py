@@ -165,6 +165,16 @@ async def update_memory(
 ):
     lock = await _get_user_memory_lock(user_id)
     async with lock:
+        # 每个用户 30 秒内至多更新一次记忆
+        # 能超过这个限制的一般是了 spammer...
+        throttle_key = f"user_memory_update_throttle:{user_id}"
+        if await memttlcache.get(throttle_key):
+            logger.debug(
+                f"Skip updating memory for user {user_id} due to 30s rate limit"
+            )
+            return
+        await memttlcache.set(throttle_key, True, ttl=30)
+
         logger.debug(f"Updating memory for user {user_id}")
         old = await memttlcache.get(f"user_memory_{user_id}")
         if old:
