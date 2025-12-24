@@ -169,8 +169,10 @@ async def wake_agent(client: PyrogramClient, message: pyrogram.types.Message):
             f"{ctx_info}\n{message.text or message.caption or ''}".strip()
         )
         logger.debug(f"User {user.id} prompt: {user_prompt_text}")
+        sent_any_reply = False
 
         async def _reply_output(text: str):
+            nonlocal sent_any_reply
             # 将原始文本按两个换行分割为多个句子
             lines = [line for line in text.split("\n\n") if line.strip()]
             if not lines:
@@ -198,6 +200,7 @@ async def wake_agent(client: PyrogramClient, message: pyrogram.types.Message):
                     await message.reply_chat_action(pyrogram.enums.ChatAction.TYPING)
                     await message.reply_text(chunk, parse_mode=ParseMode.DISABLED)
                     await asyncio.sleep(random.uniform(0.721, 3.9))
+                sent_any_reply = True
             except pyrogram.errors.MessageNotModified:
                 pass
             except Exception as e:
@@ -226,7 +229,9 @@ async def wake_agent(client: PyrogramClient, message: pyrogram.types.Message):
                             logger.debug(
                                 f"Agent run end with result: {agent_run.result.output}"
                             )
-                            await _reply_output(agent_run.result.output)
+                            # 如果流式阶段已经发送过内容，避免在结束节点再重复发送相同输出
+                            if not sent_any_reply:
+                                await _reply_output(agent_run.result.output)
                             summary = await utils.summarize_history(
                                 summary_agent, agent_run.result.all_messages()
                             )
