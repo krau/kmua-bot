@@ -344,7 +344,7 @@ async def forget_all_about_user(
     """
     Forget all stored memory and history about the user.
 
-    Should be used with very caution.
+    Should be used with caution.
     """
     await memttlcache.delete(f"user_memory_{ctx.deps.user_id}")
     await memttlcache.delete(f"message_history_with_agent_{ctx.deps.user_id}")
