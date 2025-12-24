@@ -152,7 +152,9 @@ async def wake_agent(client: PyrogramClient, message: pyrogram.types.Message):
                 user_id=user.id,
                 full_name=user_data.full_name,
                 username=user_data.username,
-                config=user_data.config,
+                config={"lang": user_data.user_config.lang}
+                if user_data.user_config
+                else None,
             ),
             chat_type=chat.type.name if chat.type else None,
             msg_id=message.id,
