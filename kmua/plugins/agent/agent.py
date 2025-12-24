@@ -1,3 +1,5 @@
+import asyncio
+import random
 from dataclasses import dataclass
 from datetime import datetime
 from io import BytesIO
@@ -167,29 +169,35 @@ async def wake_agent(client: PyrogramClient, message: pyrogram.types.Message):
             f"{ctx_info}\n{message.text or message.caption or ''}".strip()
         )
         logger.debug(f"User {user.id} prompt: {user_prompt_text}")
-        repiled: pyrogram.types.Message | None = None
 
-        async def _reply_or_edit(text: str, final: bool = False):
-            nonlocal repiled
+        async def _reply_output(text: str):
+            # 将原始文本按两个换行分割为多个句子
+            lines = [line for line in text.split("\n\n") if line.strip()]
+            if not lines:
+                return
+
+            # 一次调用最多发送 3 条消息，尽量平均每条消息包含的句子数
+            max_messages = 3
+            total_sentences = len(lines)
+            num_messages = min(max_messages, total_sentences)
+
+            base = total_sentences // num_messages
+            remainder = total_sentences % num_messages
+
+            chunks: list[str] = []
+            index = 0
+            for i in range(num_messages):
+                size = base + (1 if i < remainder else 0)
+                part = lines[index : index + size]
+                index += size
+                # 每条消息内部的句子之间只用一个换行连接
+                chunks.append("\n".join(part))
+
             try:
-                if repiled:
-                    if final:
-                        await repiled.edit_text(text, parse_mode=ParseMode.DISABLED)
-                        return
-                    if repiled.text and text.startswith(repiled.text):
-                        await repiled.edit_text(text, parse_mode=ParseMode.DISABLED)
-                    elif repiled.text and (len(repiled.text) + len(text)) < 1000:
-                        await repiled.edit_text(
-                            repiled.text + "\n" + text, parse_mode=ParseMode.DISABLED
-                        )
-                    else:
-                        repiled = await repiled.edit_text(
-                            text, parse_mode=ParseMode.DISABLED
-                        )
-                else:
-                    repiled = await message.reply_text(
-                        text, parse_mode=ParseMode.DISABLED
-                    )
+                for chunk in chunks:
+                    await message.reply_chat_action(pyrogram.enums.ChatAction.TYPING)
+                    await message.reply_text(chunk, parse_mode=ParseMode.DISABLED)
+                    await asyncio.sleep(random.uniform(0.721, 3.9))
             except pyrogram.errors.MessageNotModified:
                 pass
             except Exception as e:
@@ -212,13 +220,13 @@ async def wake_agent(client: PyrogramClient, message: pyrogram.types.Message):
                     if Agent.is_call_tools_node(node):
                         for part in node.model_response.parts:
                             if part.part_kind == "text" and part.content:
-                                await _reply_or_edit(part.content)
+                                await _reply_output(part.content)
                     elif Agent.is_end_node(node):
                         if agent_run.result:
                             logger.debug(
                                 f"Agent run end with result: {agent_run.result.output}"
                             )
-                            await _reply_or_edit(agent_run.result.output, final=True)
+                            await _reply_output(agent_run.result.output)
                             summary = await utils.summarize_history(
                                 summary_agent, agent_run.result.all_messages()
                             )
@@ -386,6 +394,10 @@ async def after_all(client: PyrogramClient, message: pyrogram.types.Message):
     text = message.caption or message.text
     if not text or len(text) < 12:
         return
+    if chat.type in (pyrogram.enums.ChatType.SUPERGROUP, pyrogram.enums.ChatType.GROUP):
+        config = await database.get_chat_config(chat.id)
+        if not config.ai_reply:
+            return
     user_messages: list[UserMessageGlobal] = await memttlcache.get(
         f"user_messages_global:{user.id}", []
     )
