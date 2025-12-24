@@ -17,7 +17,6 @@ async def _is_first_media_in_group(message: pyrogram.types.Message) -> bool:
 
     For non-album messages (no media_group_id), always returns True.
     """
-
     media_group_id = message.media_group_id
     if not media_group_id:
         return True
@@ -26,8 +25,11 @@ async def _is_first_media_in_group(message: pyrogram.types.Message) -> bool:
     if chat is None or chat.id is None:
         return True
 
-    key = f"channel_comment_media_group:{chat.id}:{media_group_id}"
+    if not (message.caption or message.text):
+        return False
 
+    # 同一个 media_group 只处理一次
+    key = f"channel_comment_media_group:{chat.id}:{media_group_id}"
     if await memttlcache.get(key, False):
         return False
 
