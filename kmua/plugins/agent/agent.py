@@ -413,10 +413,17 @@ async def after_all(client: PyrogramClient, message: pyrogram.types.Message):
             text=text,
         )
     )
-    if len(user_messages) > 50:
-        user_messages = user_messages[-50:]
-        texts = "\n".join([um.text for um in user_messages])
-        await utils.update_memory(memory_agent, texts, user.id)
+    if len(user_messages) > 100:
+        # 只保留最近 100 条
+        user_messages = user_messages[-100:]
+
+        # 每个用户每小时最多通过此函数更新一次记忆
+        last_update_key = f"user_memory_last_update_from_after_all:{user.id}"
+        last_updated = await memttlcache.get(last_update_key)
+        if not last_updated:
+            texts = "\n".join([um.text for um in user_messages])
+            await utils.update_memory(memory_agent, texts, user.id)
+            await memttlcache.set(last_update_key, True, ttl=3600)
     await memttlcache.set(
         f"user_messages_global:{user.id}", user_messages, ttl=86400 * 7
     )
