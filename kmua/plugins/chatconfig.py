@@ -61,22 +61,22 @@ class ChatConfigMarkup:
                         f"{i18n.t('bot.button.chat_config.convert_b23_enabled', locale=self.lang)} {self.get_status_emoji(self.chat_config.convert_b23_enabled)}",
                         callback_data=self.get_callback_data("convert_b23_enabled"),
                     ),
+                ],
+                [
                     InlineKeyboardButton(
                         f"{i18n.t('bot.button.chat_config.parse_artwork_enabled', locale=self.lang)} {self.get_status_emoji(self.chat_config.parse_artwork_enabled)}",
                         callback_data=self.get_callback_data("parse_artwork_enabled"),
                     ),
-                ],
-                [
                     InlineKeyboardButton(
                         f"{i18n.t('bot.button.chat_config.pick_bottle_enabled', locale=self.lang)} {self.get_status_emoji(self.chat_config.pick_bottle_enabled)}",
                         callback_data=self.get_callback_data("pick_bottle_enabled"),
                     ),
+                ],
+                [
                     InlineKeyboardButton(
                         f"{i18n.t('bot.button.chat_config.ai_comment', locale=self.lang)} {self.get_status_emoji(self.chat_config.ai_comment)}",
                         callback_data=self.get_callback_data("ai_comment"),
                     ),
-                ],
-                [
                     InlineKeyboardButton(
                         i18n.t("bot.button.chat_config.save", locale=self.lang),
                         callback_data="config_chat save",
