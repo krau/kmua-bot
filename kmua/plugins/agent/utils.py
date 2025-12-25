@@ -5,6 +5,7 @@ from weakref import WeakValueDictionary
 from pydantic_ai import Agent
 from pydantic_ai.messages import ModelMessage, ModelRequest, SystemPromptPart
 
+from kmua import database
 from kmua.common.memory_store import memttlcache
 from kmua.config import app_config
 from kmua.i18n import i18n
@@ -159,14 +160,14 @@ async def _get_user_memory_lock(user_id: int) -> asyncio.Lock:
 
 
 async def update_memory(
-    agent: Agent[None, datatype.MemoryAboutUser],
+    agent: Agent[None, datatype.MemoryResult],
     message_text: str,
     user_id: int,
 ):
     lock = await _get_user_memory_lock(user_id)
     async with lock:
         # 每个用户 30 秒内至多更新一次记忆
-        # 能超过这个限制的一般是了 spammer...
+        # 能超过这个限制的一般是 spammer 了...
         throttle_key = f"user_memory_update_throttle:{user_id}"
         if await memttlcache.get(throttle_key):
             logger.debug(
@@ -176,16 +177,80 @@ async def update_memory(
         await memttlcache.set(throttle_key, True, ttl=30)
 
         logger.debug(f"Updating memory for user {user_id}")
-        old = await memttlcache.get(f"user_memory_{user_id}")
-        if old:
-            message_text = f"根据已有的记忆和新的聊天消息, 更新对用户的记忆. 旧的记忆: {old}\n新的聊天消息: {message_text}"
+        old_memory = await memttlcache.get(f"user_memory_{user_id}")
+        if old_memory and isinstance(old_memory, datatype.MemoryAboutUser):
+            message_text = f"根据已有的记忆和新的聊天消息, 更新对用户的记忆, 并决定对用户的好感.\n旧的记忆: {old_memory}\n新的聊天消息: {message_text}"
         memory_result = await agent.run(
-            output_type=datatype.MemoryAboutUser,
-            user_prompt=f"根据以下聊天消息, 总结出关于用户的重要信息, 并更新对用户的记忆:\n {message_text}",
+            output_type=datatype.MemoryResult,
+            user_prompt=f"根据以下聊天消息, 总结出关于用户的重要信息, 并决定对用户的好感:\n {message_text}",
         )
         logger.debug(f"Agent memory history: {memory_result.output}")
+        result = memory_result.output
+        affection_change = 0
+        match result.affection_option:
+            case datatype.AffectionOption.INCREASE:
+                if (
+                    result.affection_change_amplitude
+                    == datatype.AffectionChangeAmplitude.SMALL
+                ):
+                    affection_change = 1
+                elif (
+                    result.affection_change_amplitude
+                    == datatype.AffectionChangeAmplitude.MEDIUM
+                ):
+                    affection_change = 3
+                elif (
+                    result.affection_change_amplitude
+                    == datatype.AffectionChangeAmplitude.LARGE
+                ):
+                    affection_change = 5
+            case datatype.AffectionOption.DECREASE:
+                if (
+                    result.affection_change_amplitude
+                    == datatype.AffectionChangeAmplitude.SMALL
+                ):
+                    affection_change = -1
+                elif (
+                    result.affection_change_amplitude
+                    == datatype.AffectionChangeAmplitude.MEDIUM
+                ):
+                    affection_change = -3
+                elif (
+                    result.affection_change_amplitude
+                    == datatype.AffectionChangeAmplitude.LARGE
+                ):
+                    affection_change = -5
+            case datatype.AffectionOption.NO_CHANGE:
+                affection_change = 0
+        if affection_change != 0:
+            # [TODO] 在输入时统计当前用户在数据库中的好感度所在区间, 传递给模型
+            user_config = await database.get_user_config(user_id)
+            old_memory = user_config.affection
+            new_affection = _affection_update(old_memory, affection_change)
+            user_config.affection = new_affection
+            await database.update_user_config(user_id, user_config)
         await memttlcache.set(
             f"user_memory_{user_id}",
             memory_result.output,
             ttl=86400 * 30,  # 30 days
         )
+
+
+def _affection_update(current: int, change: int, passivation: float = 0.05) -> int:
+    """
+    对于好感度变化度计算函数 f(x, y) = z, 其中 x 是当前好感度, y 是变化值, z 是新的好感度
+    对 y 的绝对值的偏导随 x 的绝对值的增大而减小, 即好感度的绝对值越高, 同样的变化值带来的影响越小
+    不限制好感度上下限
+
+    Arguments:
+        current -- 当前好感度
+        change -- 变化值
+
+    Keyword Arguments:
+        passivation -- 钝化因子, 越大越难改变 (default: {0.05})
+
+    Returns:
+        int -- 新的好感度, 取整
+    """
+    new = current + change / (1.0 + passivation * abs(current))
+    return int(new)

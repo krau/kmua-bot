@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from enum import IntEnum, StrEnum
 
 from pydantic import BaseModel
 from pyrogram.client import Client as PyrogramClient
@@ -6,16 +7,34 @@ from pyrogram.types import Message
 
 
 class MemoryAboutUser(BaseModel):
-    Disposition: str | None  # 性格
-    Interests: str | None  # 兴趣
-    Doings: str | None  # 正在做的事情
-    Works: str | None  # 工作内容
-    Wishes: str | None  # 希望/愿望
-    Worries: str | None  # 担忧/烦恼
-    Skills: str | None  # 技能
-    AttitudesToMe: str | None  # 对'我'的态度
-    ExperiencesWithMe: str | None  # 和'我'相关的经历
-    ExtraInfo: str | None  # 其他补充信息
+    disposition: str | None  # 性格
+    interests: str | None  # 兴趣
+    doings: str | None  # 正在做的事情
+    works: str | None  # 工作内容
+    wishes: str | None  # 希望/愿望
+    worries: str | None  # 担忧/烦恼
+    skills: str | None  # 技能
+    attitudes_to_me: str | None  # 对'我'的态度
+    experiences_with_me: str | None  # 和'我'相关的经历
+    extra_info: str | None  # 其他补充信息
+
+
+class AffectionOption(StrEnum):
+    INCREASE = "increase"
+    DECREASE = "decrease"
+    NO_CHANGE = "no_change"
+
+
+class AffectionChangeAmplitude(IntEnum):
+    SMALL = 1
+    MEDIUM = 2
+    LARGE = 3
+
+
+class MemoryResult(BaseModel):
+    result: MemoryAboutUser
+    affection_option: AffectionOption
+    affection_change_amplitude: AffectionChangeAmplitude | None = None
 
 
 @dataclass

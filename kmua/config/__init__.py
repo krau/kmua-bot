@@ -63,8 +63,8 @@ class _AppConfig(pydantic.BaseModel):
     agent_multimodal: bool = True
     agent_multimodal_inputs: list[str] = [
         "photo",
-        "video",
-        "application/pdf",
+        # "video",
+        # "application/pdf",
         "text/plain",
         "text/markdown",
     ]
