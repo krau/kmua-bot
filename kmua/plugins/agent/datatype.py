@@ -18,6 +18,30 @@ class MemoryAboutUser(BaseModel):
     experiences_with_you: str | None = Field(description="与你的经历")
     extra_info: str | None = Field(description="其他补充信息, 若无可不填")
 
+    def to_text(self) -> str:
+        parts = []
+        if self.disposition:
+            parts.append(f"性格: {self.disposition}")
+        if self.interests:
+            parts.append(f"兴趣爱好: {self.interests}")
+        if self.doings:
+            parts.append(f"正在做的事情: {self.doings}")
+        if self.works:
+            parts.append(f"工作/职业: {self.works}")
+        if self.wishes:
+            parts.append(f"愿望/目标: {self.wishes}")
+        if self.worries:
+            parts.append(f"担忧/烦恼: {self.worries}")
+        if self.skills:
+            parts.append(f"技能/专长: {self.skills}")
+        if self.attitudes_to_you:
+            parts.append(f"对你的态度: {self.attitudes_to_you}")
+        if self.experiences_with_you:
+            parts.append(f"与你的经历: {self.experiences_with_you}")
+        if self.extra_info:
+            parts.append(f"其他补充信息: {self.extra_info}")
+        return "\n".join(parts)
+
 
 class AffectionOption(StrEnum):
     INCREASE = "increase"
@@ -144,9 +168,7 @@ class ContextInfo:
         if self.reply_to_msg_id:
             parts.append(f"回复的消息ID: {self.reply_to_msg_id}")
         if self.memory_about_user:
-            parts.append(
-                f"关于用户的记忆: {self.memory_about_user.model_dump_json(ensure_ascii=False)}"
-            )
+            parts.append(f"关于用户的记忆: ({self.memory_about_user.to_text()})")
         if self.append_prompt:
             parts.append(f"附加提示: {self.append_prompt}")
         text = "\n".join(parts)

@@ -127,7 +127,7 @@ def get_agent_affection_prompt(rank: float) -> str | None:
     prompts = app_config.agent_affection_prompts
     sorted_ranks = sorted(prompts.keys(), reverse=True)
     for r in sorted_ranks:
-        if rank >= r:
+        if rank >= float(r):
             return prompts[r]
     return None
 
