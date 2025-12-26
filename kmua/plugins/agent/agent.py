@@ -3,7 +3,7 @@ import random
 from dataclasses import dataclass
 from datetime import datetime
 from io import BytesIO
-from typing import Any, Callable
+from typing import Any
 
 import pydantic_ai
 import pyrogram
@@ -18,7 +18,7 @@ from pyrogram import filters
 from pyrogram.client import Client as PyrogramClient
 from pyrogram.enums.parse_mode import ParseMode
 
-from kmua import common, database, i18n
+from kmua import common, config, database, i18n
 from kmua.common.memory_store import memttlcache
 from kmua.config import app_config
 from kmua.logger import logger
@@ -77,9 +77,12 @@ if app_config.agent:
         ],
         deps_type=datatype.ContextDeps,
         retries=3,
-    )  # type: ignore
-    summary_agent = Agent(model=model, system_prompt=app_config.agent_summary_prompt)
+    )
+    summary_agent = Agent(
+        model=model, system_prompt=app_config.agent_summary_prompt, retries=3
+    )
     memory_agent = Agent(
+        retries=3,
         model=model,
         output_type=datatype.MemoryResult,
         system_prompt=app_config.agent_memory_prompt,
@@ -118,6 +121,15 @@ _filter = (
     & (myfilter.reply_me_filter | filters.private | myfilter.mention_me_filter)
     & ~pyrogram.filters.regex("|".join([r.pattern for r in manyacg.ARTWORK_ALL_REGEX]))
 )
+
+
+def get_agent_affection_prompt(rank: float) -> str | None:
+    prompts = app_config.agent_affection_prompts
+    sorted_ranks = sorted(prompts.keys(), reverse=True)
+    for r in sorted_ranks:
+        if rank >= r:
+            return prompts[r]
+    return None
 
 
 @PyrogramClient.on_message(_filter, group=0)
@@ -177,9 +189,15 @@ async def wake_agent(client: PyrogramClient, message: pyrogram.types.Message):
         memory = await common.memttlcache.get(f"user_memory_{user.id}")
         if memory:
             ctx_info.memory_about_user = memory
-        user_prompt = await get_input_prompt(client, message, ctx=ctx_info)
+        affection_rank = await database.get_affection_percentile(
+            user_data.user_config.affection
+        )
+        append_prompt = get_agent_affection_prompt(affection_rank)
+        if append_prompt:
+            ctx_info.append_prompt = append_prompt
+        user_prompt = await get_input_prompt(client, message, ctx=ctx_info.to_text())
         user_prompt_text = (
-            f"{ctx_info}\n{message.text or message.caption or ''}".strip()
+            f"{ctx_info.to_text()}\n{message.text or message.caption or ''}".strip()
         )
         logger.debug(f"User {user.id} prompt: {user_prompt_text}")
         sent_any_reply = False

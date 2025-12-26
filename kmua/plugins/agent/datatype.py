@@ -1,22 +1,22 @@
 from dataclasses import dataclass
 from enum import IntEnum, StrEnum
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from pyrogram.client import Client as PyrogramClient
 from pyrogram.types import Message
 
 
 class MemoryAboutUser(BaseModel):
-    disposition: str | None  # 性格
-    interests: str | None  # 兴趣
-    doings: str | None  # 正在做的事情
-    works: str | None  # 工作内容
-    wishes: str | None  # 希望/愿望
-    worries: str | None  # 担忧/烦恼
-    skills: str | None  # 技能
-    attitudes_to_me: str | None  # 对'我'的态度
-    experiences_with_me: str | None  # 和'我'相关的经历
-    extra_info: str | None  # 其他补充信息
+    disposition: str | None = Field(description="性格")
+    interests: str | None = Field(description="兴趣爱好")
+    doings: str | None = Field(description="正在做的事情")
+    works: str | None = Field(description="工作/职业")
+    wishes: str | None = Field(description="愿望/目标")
+    worries: str | None = Field(description="担忧/烦恼")
+    skills: str | None = Field(description="技能/专长")
+    attitudes_to_you: str | None = Field(description="对你的态度")
+    experiences_with_you: str | None = Field(description="与你的经历")
+    extra_info: str | None = Field(description="其他补充信息, 若无可不填")
 
 
 class AffectionOption(StrEnum):
@@ -25,16 +25,79 @@ class AffectionOption(StrEnum):
     NO_CHANGE = "no_change"
 
 
-class AffectionChangeAmplitude(IntEnum):
-    SMALL = 1
-    MEDIUM = 2
-    LARGE = 3
+class AffectionChangeAmplitude(StrEnum):
+    SMALL = "small"
+    MEDIUM = "medium"
+    LARGE = "large"
+
+
+# fuck pydantic-ai: https://github.com/pydantic/pydantic-ai/issues/607
 
 
 class MemoryResult(BaseModel):
-    result: MemoryAboutUser
-    affection_option: AffectionOption
-    affection_change_amplitude: AffectionChangeAmplitude | None = None
+    disposition: str | None = Field(description="性格")
+    interests: str | None = Field(description="兴趣爱好")
+    doings: str | None = Field(description="正在做的事情")
+    works: str | None = Field(description="工作/职业")
+    wishes: str | None = Field(description="愿望/目标")
+    worries: str | None = Field(description="担忧/烦恼")
+    skills: str | None = Field(description="技能/专长")
+    attitudes_to_model: str | None = Field(
+        description="对聊天中的AI助手的态度, 若消息记录中没有AI助手的则保持不变"
+    )
+    experiences_with_model: str | None = Field(
+        description="与聊天中的AI助手的经历, 若消息记录中没有AI助手的则保持不变"
+    )
+    extra_info: str | None = Field(description="其他补充信息, 若无可不填")
+    affection_option: str = Field(
+        description="好感度变化选项, 枚举值 increase,decrease,no_change"
+    )
+    affection_change_amplitude: str | None = Field(
+        description="好感度变化幅度, 枚举值 small,medium,large"
+    )
+
+    def get_memory(self) -> MemoryAboutUser:
+        return MemoryAboutUser(
+            disposition=self.disposition,
+            interests=self.interests,
+            doings=self.doings,
+            works=self.works,
+            wishes=self.wishes,
+            worries=self.worries,
+            skills=self.skills,
+            attitudes_to_you=self.attitudes_to_model,
+            experiences_with_you=self.experiences_with_model,
+            extra_info=self.extra_info,
+        )
+
+    def get_affection_change(self) -> int:
+        affection_change: int = 0
+        affection_option = AffectionOption(self.affection_option)
+        affection_amplitude = None
+        if self.affection_change_amplitude is not None:
+            affection_amplitude = AffectionChangeAmplitude(
+                self.affection_change_amplitude
+            )
+        match affection_option:
+            case AffectionOption.INCREASE:
+                if affection_amplitude is not None:
+                    match affection_amplitude:
+                        case AffectionChangeAmplitude.SMALL:
+                            affection_change = 10
+                        case AffectionChangeAmplitude.MEDIUM:
+                            affection_change = 18
+                        case AffectionChangeAmplitude.LARGE:
+                            affection_change = 30
+            case AffectionOption.DECREASE:
+                if affection_amplitude is not None:
+                    match affection_amplitude:
+                        case AffectionChangeAmplitude.SMALL:
+                            affection_change = -10
+                        case AffectionChangeAmplitude.MEDIUM:
+                            affection_change = -18
+                        case AffectionChangeAmplitude.LARGE:
+                            affection_change = -30
+        return affection_change
 
 
 @dataclass
@@ -62,3 +125,29 @@ class ContextInfo:
     reply_to_msg_text: str | None = None
     reply_to_msg_id: int | None = None
     memory_about_user: MemoryAboutUser | None = None
+    append_prompt: str | None = None
+
+    def to_text(self) -> str:
+        parts = []
+        if self.user_data:
+            parts.append(
+                f"用户信息: 姓名: {self.user_data.full_name}, 用户名: {self.user_data.username or '无'}"
+            )
+        if self.msg_id:
+            parts.append(f"消息ID: {self.msg_id}")
+        if self.current_time:
+            parts.append(f"当前时间: {self.current_time}")
+        if self.chat_type:
+            parts.append(f"聊天类型: {self.chat_type}")
+        if self.reply_to_msg_text:
+            parts.append(f"回复的消息内容: {self.reply_to_msg_text}")
+        if self.reply_to_msg_id:
+            parts.append(f"回复的消息ID: {self.reply_to_msg_id}")
+        if self.memory_about_user:
+            parts.append(
+                f"关于用户的记忆: {self.memory_about_user.model_dump_json(ensure_ascii=False)}"
+            )
+        if self.append_prompt:
+            parts.append(f"附加提示: {self.append_prompt}")
+        text = "\n".join(parts)
+        return f"ContextInfo[{text}]" if text else ""

@@ -102,6 +102,10 @@ async def init_db() -> None:
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 
+    from .affection import init_affection_histogram
+
+    await init_affection_histogram()
+
 
 async def close_db() -> None:
     logger.info(i18n.t("log.db_closing", locale=app_config.lang))

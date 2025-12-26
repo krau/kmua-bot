@@ -1,8 +1,10 @@
 import asyncio
+import math
+import random
 from collections import defaultdict
 from weakref import WeakValueDictionary
 
-from pydantic_ai import Agent
+from pydantic_ai import Agent, ModelRetry
 from pydantic_ai.messages import ModelMessage, ModelRequest, SystemPromptPart
 
 from kmua import database
@@ -179,56 +181,42 @@ async def update_memory(
         logger.debug(f"Updating memory for user {user_id}")
         old_memory = await memttlcache.get(f"user_memory_{user_id}")
         if old_memory and isinstance(old_memory, datatype.MemoryAboutUser):
-            message_text = f"根据已有的记忆和新的聊天消息, 更新对用户的记忆, 并决定对用户的好感.\n旧的记忆: {old_memory}\n新的聊天消息: {message_text}"
+            message_text = f"根据已有的记忆和新的聊天消息, 更新对用户的记忆, 并决定对用户的好感变化.\n旧的记忆: {old_memory}\n新的聊天消息: {message_text}"
         memory_result = await agent.run(
             output_type=datatype.MemoryResult,
-            user_prompt=f"根据以下聊天消息, 总结出关于用户的重要信息, 并决定对用户的好感:\n {message_text}",
+            user_prompt=f"根据以下聊天消息, 总结出关于用户的重要信息, 并决定对用户的好感变化:\n {message_text}",
         )
         logger.debug(f"Agent memory history: {memory_result.output}")
         result = memory_result.output
-        affection_change = 0
-        match result.affection_option:
-            case datatype.AffectionOption.INCREASE:
-                if (
-                    result.affection_change_amplitude
-                    == datatype.AffectionChangeAmplitude.SMALL
-                ):
-                    affection_change = 1
-                elif (
-                    result.affection_change_amplitude
-                    == datatype.AffectionChangeAmplitude.MEDIUM
-                ):
-                    affection_change = 3
-                elif (
-                    result.affection_change_amplitude
-                    == datatype.AffectionChangeAmplitude.LARGE
-                ):
-                    affection_change = 5
-            case datatype.AffectionOption.DECREASE:
-                if (
-                    result.affection_change_amplitude
-                    == datatype.AffectionChangeAmplitude.SMALL
-                ):
-                    affection_change = -1
-                elif (
-                    result.affection_change_amplitude
-                    == datatype.AffectionChangeAmplitude.MEDIUM
-                ):
-                    affection_change = -3
-                elif (
-                    result.affection_change_amplitude
-                    == datatype.AffectionChangeAmplitude.LARGE
-                ):
-                    affection_change = -5
-            case datatype.AffectionOption.NO_CHANGE:
-                affection_change = 0
+        logger.debug(f"result: {result}")
+        try:
+            affection_change = result.get_affection_change()
+            affection_change += random.randint(-4, 4)
+        except ValueError:
+            raise ModelRetry(
+                "Invalid affection change value from agent, please provide 'affection_option' and 'affection_change_amplitude' fields correctly."
+                "The 'affection_option' should be one of 'increase', 'decrease', or 'no_change'."
+                "The 'affection_change_amplitude' should be one of 'small', 'medium', or 'large'."
+            )
         if affection_change != 0:
-            # [TODO] 在输入时统计当前用户在数据库中的好感度所在区间, 传递给模型
-            user_config = await database.get_user_config(user_id)
-            old_memory = user_config.affection
-            new_affection = _affection_update(old_memory, affection_change)
-            user_config.affection = new_affection
-            await database.update_user_config(user_id, user_config)
+            logger.debug(
+                f"User {user_id} affection change: {affection_change} (before update)"
+            )
+
+            current_affection = (await database.get_user_config(user_id)).affection
+            current_rank = await database.get_affection_percentile(current_affection)
+            passivation = min(0.05, 0.002 + 0.048 * current_rank)
+            logger.debug(
+                f"User {user_id} current affection: {current_affection}, rank: {current_rank}, passivation: {passivation}"
+            )
+
+            new_affection = affection_update(
+                current_affection, affection_change, passivation
+            )
+            await database.update_user_affection(user_id, new_affection)
+            logger.debug(
+                f"User {user_id} affection updated: {current_affection} -> {new_affection}"
+            )
         await memttlcache.set(
             f"user_memory_{user_id}",
             memory_result.output,
@@ -236,21 +224,26 @@ async def update_memory(
         )
 
 
-def _affection_update(current: int, change: int, passivation: float = 0.05) -> int:
-    """
-    对于好感度变化度计算函数 f(x, y) = z, 其中 x 是当前好感度, y 是变化值, z 是新的好感度
-    对 y 的绝对值的偏导随 x 的绝对值的增大而减小, 即好感度的绝对值越高, 同样的变化值带来的影响越小
-    不限制好感度上下限
-
-    Arguments:
-        current -- 当前好感度
-        change -- 变化值
-
-    Keyword Arguments:
-        passivation -- 钝化因子, 越大越难改变 (default: {0.05})
-
-    Returns:
-        int -- 新的好感度, 取整
-    """
-    new = current + change / (1.0 + passivation * abs(current))
-    return int(new)
+def affection_update(x, y, rank, a=0.05, b=2000, p=2, q=2, min_damping=0.2):
+    if y == 0:
+        return x
+    return round(
+        max(
+            -b,
+            min(
+                b,
+                (
+                    x
+                    + (
+                        y
+                        * (math.tanh(a * y) / (a * y))
+                        * max(
+                            (1.0 / (1.0 + a * abs(2 * rank - 1) ** q))
+                            * (max(0.0, 1.0 - (abs(x) / b) ** p)),
+                            min_damping,
+                        )
+                    )
+                ),
+            ),
+        )
+    )
