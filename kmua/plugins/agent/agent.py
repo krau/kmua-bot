@@ -9,7 +9,7 @@ import pydantic_ai
 import pyrogram
 import pyrogram.errors
 from ddgs import DDGS
-from pydantic_ai import Agent, BinaryContent, MultiModalContent, Tool
+from pydantic_ai import Agent, BinaryContent, ModelMessage, MultiModalContent, Tool
 from pydantic_ai.common_tools.duckduckgo import DuckDuckGoSearchTool
 from pydantic_ai.messages import UserContent
 from pydantic_ai.models.openai import OpenAIChatModel
@@ -170,39 +170,45 @@ async def wake_agent(client: PyrogramClient, message: pyrogram.types.Message):
         # agent run
         try:
             chat_id = chat.id
-            history = await common.memttlcache.get(_history_key(chat_id, user.id), [])
-            ctx_info = datatype.ContextInfo(
-                user_data=datatype.UserData(
-                    user_id=user.id,
-                    full_name=user_data.full_name,
-                    username=user_data.username,
-                    config={"lang": user_data.user_config.lang}
-                    if user_data.user_config
-                    else None,
-                ),
-                chat_type=chat.type.name if chat.type else None,
-                msg_id=message.id,
-                current_time=datetime.now().isoformat(),
+            history: list[ModelMessage] = await common.memttlcache.get(
+                _history_key(chat_id, user.id), []
             )
-            if reply_to := message.reply_to_message:
-                ctx_info.reply_to_msg_id = reply_to.id
-                ctx_info.reply_to_msg_text = reply_to.text or reply_to.caption
-            memory = await common.memttlcache.get(utils.memory_key(user.id))
-            if memory and isinstance(memory, datatype.MemoryAboutUser):
-                ctx_info.memory_about_user = memory
-            affection_rank = await database.get_affection_percentile(
-                user_data.user_config.affection
-            )
-            append_prompt = get_agent_affection_prompt(affection_rank)
-            if append_prompt:
-                ctx_info.append_prompt = append_prompt
-            user_prompt = await get_input_prompt(
-                client, message, ctx=ctx_info.to_text()
-            )
-            user_prompt_text = (
-                f"{ctx_info.to_text()}\n{message.text or message.caption or ''}".strip()
-            )
-            logger.debug(f"User {user.id} prompt: {user_prompt_text}")
+            if len(history) <= 6:
+                ctx_info = datatype.ContextInfo(
+                    user_data=datatype.UserData(
+                        user_id=user.id,
+                        full_name=user_data.full_name,
+                        username=user_data.username,
+                        config={"lang": user_data.user_config.lang}
+                        if user_data.user_config
+                        else None,
+                    ),
+                    chat_type=chat.type.name if chat.type else None,
+                    msg_id=message.id,
+                    current_time=datetime.now().isoformat(),
+                )
+                if reply_to := message.reply_to_message:
+                    ctx_info.reply_to_msg_id = reply_to.id
+                    ctx_info.reply_to_msg_text = reply_to.text or reply_to.caption
+                memory = await common.memttlcache.get(utils.memory_key(user.id))
+                if memory and isinstance(memory, datatype.MemoryAboutUser):
+                    ctx_info.memory_about_user = memory
+                affection_rank = await database.get_affection_percentile(
+                    user_data.user_config.affection
+                )
+                append_prompt = get_agent_affection_prompt(affection_rank)
+                if append_prompt:
+                    ctx_info.append_prompt = append_prompt
+                user_prompt = await get_input_prompt(
+                    client, message, ctx=ctx_info.to_text()
+                )
+                user_prompt_text = f"{ctx_info.to_text()}\n{message.text or message.caption or ''}".strip()
+                logger.debug(f"User {user.id} prompt: {user_prompt_text}")
+            else:
+                user_prompt = await get_input_prompt(client, message)
+                logger.debug(
+                    f"User {user.id} prompt without context due to long history: {message.text or message.caption or ''}"
+                )
             sent_any_reply = False
 
             async def _reply_output(text: str):
