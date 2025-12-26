@@ -223,7 +223,7 @@ async def update_memory(
             )
         await memttlcache.set(
             memory_key(user_id),
-            memory_result.output,
+            memory_result.output.get_memory(),
             ttl=86400 * 30,  # 30 days
         )
 
