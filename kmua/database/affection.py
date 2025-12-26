@@ -220,12 +220,16 @@ async def install_postgres_trigger() -> None:
         )
 
         await conn.execute(
+            text("DROP TRIGGER IF EXISTS trg_update_affection_histogram ON user_data")
+        )
+
+        await conn.execute(
             text("""
-        DROP TRIGGER IF EXISTS trg_update_affection_histogram ON user_data;
-        CREATE TRIGGER trg_update_affection_histogram
-        AFTER INSERT OR UPDATE OF config OR DELETE ON user_data
-        FOR EACH ROW EXECUTE FUNCTION update_affection_histogram();
-        """)
+                CREATE TRIGGER trg_update_affection_histogram
+                AFTER INSERT OR UPDATE OF config OR DELETE ON user_data
+                FOR EACH ROW
+                EXECUTE FUNCTION update_affection_histogram()
+            """)
         )
 
         logger.info("PostgreSQL affection histogram trigger installed")
