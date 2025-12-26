@@ -18,7 +18,7 @@ from pyrogram import filters
 from pyrogram.client import Client as PyrogramClient
 from pyrogram.enums.parse_mode import ParseMode
 
-from kmua import common, config, database, i18n
+from kmua import common, config, consts, database, enums, i18n
 from kmua.common.memory_store import memttlcache
 from kmua.config import app_config
 from kmua.logger import logger
@@ -489,6 +489,19 @@ async def after_all(client: PyrogramClient, message: pyrogram.types.Message):
     user = message.from_user
     chat = message.chat
     if not user or not user.id or not chat or not chat.id:
+        return
+    if (
+        user.is_bot
+        or message.outgoing
+        or message.service
+        or message.automatic_forward
+        or user.id
+        in (
+            enums.ChatID.ANONYMOUS_ADMIN,
+            enums.ChatID.SERVICE_CHAT,
+            enums.ChatID.FAKE_CHANNEL,
+        )
+    ):
         return
     text = message.caption or message.text
     if not text or len(text) < 12:
