@@ -251,8 +251,9 @@ async def update_user_affection(
     old_bucket = affection_bucket(old_affection)
     new_bucket = affection_bucket(new_affection)
 
-    user_data.user_config.affection = new_affection
-    flag_modified(user_data, "config")
+    config = user_data.config.copy()
+    config["affection"] = new_affection
+    user_data.config = config
 
     if not runtime_config.db_is_postgres and old_bucket != new_bucket:
         await session.execute(
