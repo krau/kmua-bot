@@ -218,7 +218,7 @@ async def update_memory(
                 f"User {user_id} affection updated: {current_affection} -> {new_affection}"
             )
         await memttlcache.set(
-            f"user_memory_{user_id}",
+            f"agent_user_memory:{user_id}",
             memory_result.output,
             ttl=86400 * 30,  # 30 days
         )
