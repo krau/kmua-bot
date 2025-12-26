@@ -11,6 +11,7 @@ from kmua import common, database, i18n
 from kmua.common.memory_store import memttlcache
 from kmua.config import app_config
 from kmua.logger import logger
+from kmua.plugins.agent.utils import memory_key
 from kmua.plugins.manyacg import manyacg
 from kmua.services import btts
 
@@ -346,5 +347,5 @@ async def forget_all_about_user(
 
     Should be used with caution.
     """
-    await memttlcache.delete(f"user_memory_{ctx.deps.user_id}")
+    await memttlcache.delete(memory_key(ctx.deps.user_id))
     await memttlcache.delete(f"message_history_with_agent_{ctx.deps.user_id}")

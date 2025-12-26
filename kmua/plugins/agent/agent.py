@@ -187,7 +187,7 @@ async def wake_agent(client: PyrogramClient, message: pyrogram.types.Message):
             if reply_to := message.reply_to_message:
                 ctx_info.reply_to_msg_id = reply_to.id
                 ctx_info.reply_to_msg_text = reply_to.text or reply_to.caption
-            memory = await common.memttlcache.get(f"user_memory_{user.id}")
+            memory = await common.memttlcache.get(utils.memory_key(user.id))
             if memory:
                 ctx_info.memory_about_user = memory
             affection_rank = await database.get_affection_percentile(
