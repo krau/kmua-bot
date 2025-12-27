@@ -7,7 +7,7 @@ from weakref import WeakValueDictionary
 from pydantic_ai import Agent, ModelRetry
 from pydantic_ai.messages import ModelMessage, ModelRequest, SystemPromptPart
 
-from kmua import database
+from kmua import affection, database
 from kmua.common.memory_store import memttlcache
 from kmua.config import app_config
 from kmua.i18n import i18n
@@ -206,8 +206,11 @@ async def update_memory(
             current_affection = (await database.get_user_config(user_id)).affection
             current_rank = await database.get_affection_percentile(current_affection)
             passivation = min(0.05, 0.002 + 0.048 * current_rank)
-            new_affection = affection_update(
-                current_affection, affection_change, passivation
+            new_affection = affection.calculate_affection_update(
+                current=current_affection,
+                change=affection_change,
+                rank=current_affection,
+                passivation=passivation,
             )
             await database.update_user_affection(user_id, new_affection)
             logger.debug(
@@ -218,28 +221,3 @@ async def update_memory(
             memory_result.output.get_memory(),
             ttl=86400 * 30,  # 30 days
         )
-
-
-def affection_update(x, y, rank, a=0.05, b=2000, p=2, q=2, min_damping=0.2):
-    if y == 0:
-        return x
-    return round(
-        max(
-            -b,
-            min(
-                b,
-                (
-                    x
-                    + (
-                        y
-                        * (math.tanh(a * y) / (a * y))
-                        * max(
-                            (1.0 / (1.0 + a * abs(2 * rank - 1) ** q))
-                            * (max(0.0, 1.0 - (abs(x) / b) ** p)),
-                            min_damping,
-                        )
-                    )
-                ),
-            ),
-        )
-    )

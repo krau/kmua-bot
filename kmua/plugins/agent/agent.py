@@ -65,11 +65,6 @@ if app_config.agent:
                 prepare=tools.prepare_message_search_tool,
             ),
             Tool(
-                tools.forget_all_about_user,
-                name="forget_all_about_user",
-                description="Forgets all memory and history about the user.",
-            ),
-            Tool(
                 tools.search_chat_in_jokes,
                 prepare=tools.prepare_group_tools,
             ),

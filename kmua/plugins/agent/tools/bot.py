@@ -356,15 +356,3 @@ async def schedule_message(
     except Exception as e:
         logger.error(f"Error scheduling message: {e.__class__.__name__}:{e}")
         return f"Error scheduling message: {e.__class__.__name__}"
-
-
-async def forget_all_about_user(
-    ctx: RunContext[datatype.ContextDeps],
-) -> None:
-    """
-    Forget all stored memory and history about the user.
-
-    Should be used with caution.
-    """
-    await memttlcache.delete(memory_key(ctx.deps.user_id))
-    await memttlcache.delete(f"message_history_with_agent_{ctx.deps.user_id}")
