@@ -1,5 +1,3 @@
-import random
-
 import sqlalchemy
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -20,6 +18,7 @@ async def add_gift_to_user(
         owner_id=owner_id,
         gift_id=gift_id,
         sent_to_bot=False,
+        rarity=rarity,
     )
     session.add(gift_entry)
 
