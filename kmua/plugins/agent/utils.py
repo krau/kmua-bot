@@ -204,17 +204,17 @@ async def update_memory(
             )
         if affection_change != 0:
             current_affection = (await database.get_user_config(user_id)).affection
-            current_rank = await database.get_affection_percentile(current_affection)
-            passivation = min(0.05, 0.002 + 0.048 * current_rank)
+            rank = await database.get_affection_percentile(current_affection)
+            passivation = min(0.05, 0.002 + 0.048 * rank)
             new_affection = affection.calculate_affection_update(
                 current=current_affection,
                 change=affection_change,
-                rank=current_affection,
+                rank=rank,
                 passivation=passivation,
             )
             await database.update_user_affection(user_id, new_affection)
             logger.debug(
-                f"User {user_id} affection updated: {current_affection} -> {new_affection}, change: {affection_change}, passivation: {passivation}, rank: {current_rank}"
+                f"User {user_id} affection updated: {current_affection} -> {new_affection}, change: {affection_change}, passivation: {passivation}, rank: {rank}"
             )
         await memttlcache.set(
             memory_key(user_id),
