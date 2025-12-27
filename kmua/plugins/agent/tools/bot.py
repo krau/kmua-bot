@@ -36,36 +36,46 @@ class AnimePhotoInfo:
     tags: list[str] | None = None
 
 
+@dataclass
+class AnimePhotoResult:
+    success: bool = True
+    message: str | None = None
+    data: AnimePhotoInfo | None = None
+
+
 async def send_anime_photo(
-    ctx: RunContext[datatype.ContextDeps],
-    keyword: str = "",
-) -> AnimePhotoInfo | str:
-    """Get and send an anime photo (some users call it setu/涩图).
+    ctx: RunContext[datatype.ContextDeps], keyword: str = ""
+) -> AnimePhotoResult:
+    """Get and send anime photos (some users call it setu/涩图).
+    [NOTE] DO NOT repeatly call this function in a short time.
 
     Args:
         keyword: Optional keyword to search for specific anime photos, max length is 100 characters.
 
     Returns:
-        An AnimePhotoInfo object if successful, or an error message string.
+        An AnimePhotoResult dataclass containing the result of the operation.
     """
     logger.debug(
-        f"get_and_send_a_anime_photo called with chat_id: {ctx.deps.chat_id}, user_id: {ctx.deps.user_id}, keyword: {keyword}"
+        f"send_anime_photo called with chat_id: {ctx.deps.chat_id}, user_id: {ctx.deps.user_id}, keyword: {keyword}"
     )
     if ctx.deps.message is None or ctx.deps.message.id is None:
-        return "Message ID is required to reply with the photo."
+        return AnimePhotoResult(
+            success=False, message="Current message context is unavailable."
+        )
     if (
         ctx.deps.chat_id is not None
         and ctx.deps.chat_id != ctx.deps.user_id
         and not (await database.get_chat_config(ctx.deps.chat_id)).setu_enabled
     ):
-        return "Feature is disabled by group administrator."
+        return AnimePhotoResult(
+            success=False, message="Anime photo feature is disabled in this chat."
+        )
     try:
         user_config = await database.get_user_config(ctx.deps.user_id)
         lang = user_config.lang
         if keyword:
             params = {
                 "r18": 2,
-                "page_size": 50,
                 "hybrid": app_config.manyacg_hybrid_search,
                 "keyword": keyword,
             }
@@ -79,7 +89,10 @@ async def send_anime_photo(
                 params={"r18": 2},
             )
         if resp.status_code != 200:
-            return f"Api request failed with code: {resp.status_code}"
+            return AnimePhotoResult(
+                success=False,
+                message=f"API request failed with code: {resp.status_code}",
+            )
         artwork: dict = random.choice(resp.json()["data"])
         picture: dict = artwork["pictures"][
             random.randint(0, len(artwork["pictures"]) - 1)
@@ -113,22 +126,28 @@ async def send_anime_photo(
                 message_id=ctx.deps.message.id,
             ),
         )
-        return AnimePhotoInfo(
-            title=artwork["title"],
-            source_url=artwork["source_url"],
-            r18=artwork["r18"],
-            description=artwork.get("description", "")[:512],
-            artist=Artist(
-                name=artwork.get("artist", {}).get("name", ""),
-                type=artwork["artist"].get("type", ""),
-                username=artwork["artist"].get("username", ""),
-                uid=artwork["artist"].get("uid", ""),
+        return AnimePhotoResult(
+            success=True,
+            data=AnimePhotoInfo(
+                title=artwork["title"],
+                source_url=artwork["source_url"],
+                r18=artwork["r18"],
+                description=artwork.get("description", "")[:512],
+                artist=Artist(
+                    name=artwork.get("artist", {}).get("name", ""),
+                    type=artwork["artist"].get("type", ""),
+                    username=artwork["artist"].get("username", ""),
+                    uid=artwork["artist"].get("uid", ""),
+                ),
+                tags=artwork.get("tags", [])[:10],
             ),
-            tags=artwork.get("tags", [])[:10],
         )
     except Exception as e:
         logger.error(f"get_and_send_a_anime_photo error: {e.__class__.__name__}:{e}")
-        return e.__class__.__name__
+        return AnimePhotoResult(
+            success=False,
+            message=f"Error occurred: {e.__class__.__name__}",
+        )
 
 
 @dataclass
@@ -216,7 +235,7 @@ async def get_history_messages(
         return [
             ChatMessage(
                 user_id=msg.user_id,
-                username=(await database.get_user_by_id(msg.user_id)).full_name
+                username=(await database.get_user_by_id(msg.user_id)).full_name  # type: ignore
                 if msg.user_id
                 else None,
                 text=msg.text,
