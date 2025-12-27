@@ -1,3 +1,5 @@
+import random
+
 import sqlalchemy
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -10,6 +12,7 @@ from kmua.database.models import Gift, UserData
 async def add_gift_to_user(
     owner_id: int,
     gift_id: gift.GiftID,
+    rarity: int = 1,
     session: AsyncSession | None = None,
 ):
     assert session is not None, "Session must be provided"
@@ -56,6 +59,7 @@ async def mark_gift_as_sent(
 async def buy_gift_for_user(
     owner_id: int,
     gift_id: gift.GiftID,
+    rarity: int = 1,
     session: AsyncSession | None = None,
 ):
     assert session is not None, "Session must be provided"
@@ -68,7 +72,7 @@ async def buy_gift_for_user(
         raise ValueError("Not enough coins to buy gift")
     config.coins = max(-144 * 16, config.coins - cost)
     user_data.user_config = config
-    await add_gift_to_user(owner_id, gift_id, session=session)
+    await add_gift_to_user(owner_id, gift_id, rarity, session=session)
 
 
 @with_session

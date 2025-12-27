@@ -1,3 +1,5 @@
+import random
+
 from pyrogram import enums, filters, types
 from pyrogram.client import Client
 
@@ -71,9 +73,11 @@ async def handle_buy_gift_callback(client: Client, callback_query: types.Callbac
                     "你的余额似乎不足以购买此礼物呢", show_alert=True
                 )
                 return
-            await database.buy_gift_for_user(user_id, gift_id)
+            rarity = random.randint(1, 5)
+            await database.buy_gift_for_user(user_id, gift_id, rarity=rarity)
             await callback_query.answer(
-                f"成功购买了 {gift.get_display_name(gift_item.id)} *1", show_alert=True
+                f"成功购买了 {gift.get_rarity_display_name(rarity)}的{gift.get_display_name(gift_item.id)} *1",
+                show_alert=True,
             )
             user_coins_after = (await database.get_user_config(user_id)).coins
             percent_now = gift_item.price * 100 // user_coins_after
@@ -171,7 +175,7 @@ async def send_gift(client: Client, message: types.Message):
     user_gifts_total = await database.count_user_gifts(user.id, False)
     text = "要送什么给咱呢? 点击序号按钮即可赠送"
     for i, g in enumerate(user_gifts, start=1):
-        text += f"\n{i}. {gift.get_display_name(gift.GiftID(g.gift_id))}"
+        text += f"\n{i}. {gift.get_rarity_display_name(g.rarity)}的{gift.get_display_name(gift.GiftID(g.gift_id))}"
     # 每行5个按钮, 第2行分页
     buttons = [
         [
@@ -231,7 +235,7 @@ async def handle_send_gift_page_callback(
     user_gifts_total = await database.count_user_gifts(user_id, False)
     text = "要送什么给咱呢? 点击序号按钮即可赠送"
     for i, g in enumerate(user_gifts, start=1 + offset):
-        text += f"\n{i}. {gift.get_display_name(gift.GiftID(g.gift_id))}"
+        text += f"\n{i}. {gift.get_rarity_display_name(g.rarity)}的{gift.get_display_name(gift.GiftID(g.gift_id))}"
     # 每行5个按钮, 第2行分页
     buttons = [
         [

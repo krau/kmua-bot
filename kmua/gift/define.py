@@ -1,6 +1,31 @@
 from dataclasses import dataclass
-from enum import StrEnum
+from enum import IntEnum, StrEnum
 from typing import Any
+
+
+class GiftRarity(IntEnum):
+    COMMON = 1
+    ENCHANTED = 2
+    RARE = 3
+    EPIC = 4
+    LEGENDARY = 5
+
+
+RARETY_DISPLAY_NAMES: dict[GiftRarity, str] = {
+    GiftRarity.COMMON: "凡芽",
+    GiftRarity.ENCHANTED: "灵植",
+    GiftRarity.RARE: "仪花",
+    GiftRarity.EPIC: "秘种",
+    GiftRarity.LEGENDARY: "禁华",
+}
+
+
+def get_rarity_display_name(rarity: int) -> str:
+    try:
+        rarity_enum = GiftRarity(rarity)
+    except ValueError:
+        return "未知"
+    return RARETY_DISPLAY_NAMES.get(rarity_enum, "未知")
 
 
 class GiftID(StrEnum):
@@ -45,15 +70,15 @@ ALL_GIFTS: dict[GiftID, Gift] = {
         id=GiftID.VOW_LOTUS_SEAL,
         description="以莲为誓，心如止水；愿君安然，无惧风浪",
         price=2473,
-        effects={},
+        effects={"duration": 43200, "passivation": 0.15},
         consumable=True,
-        comment="在一段时间内避免好感度降低",
+        comment="在一段时间内显著避免好感度降低",
     ),
     GiftID.AMARANTH_HEART_LAMP: Gift(
         id=GiftID.AMARANTH_HEART_LAMP,
         description="灯火未央，心之所向；愿君前路，光明常在",
         price=983,
-        effects={},
+        effects={"add_affection": 263, "duration": 1800},
         consumable=True,
         comment="短暂地大幅提升好感度数值",
     ),
