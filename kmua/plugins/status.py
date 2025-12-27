@@ -16,9 +16,13 @@ async def status_command(client: pyrogram.Client, message: pyrogram.types.Messag
     count_chats = await database.count_chats()
     count_quotes = await database.count_quotes()
     count_associations = await database.count_associations()
+    count_bottles = await database.count_bottles()
+    affection_stats = await database.get_affection_stats()
     await message.reply_text(
         f"users: {count_users}\n"
         f"chats: {count_chats}\n"
         f"quotes: {count_quotes}\n"
         f"associations: {count_associations}\n"
+        f"bottles: {count_bottles}\n"
+        f"affection stats: {affection_stats}",
     )

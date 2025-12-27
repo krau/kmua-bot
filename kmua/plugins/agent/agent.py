@@ -18,7 +18,7 @@ from pyrogram import filters
 from pyrogram.client import Client as PyrogramClient
 from pyrogram.enums.parse_mode import ParseMode
 
-from kmua import common, config, consts, database, enums, i18n
+from kmua import common, database, enums, i18n
 from kmua.common.memory_store import memttlcache
 from kmua.config import app_config
 from kmua.logger import logger

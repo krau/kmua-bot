@@ -88,7 +88,8 @@ async def delete_bottle(bottle_id: int, session: AsyncSession | None = None):
 
 
 @with_session
-async def count_bottles(session: AsyncSession) -> int:
+async def count_bottles(session: AsyncSession | None = None) -> int:
+    assert session is not None, "Session must be provided"
     stmt = sqlalchemy.select(sqlalchemy.func.count()).select_from(Bottle)
     result = await session.execute(stmt)
     return result.scalar() or 0

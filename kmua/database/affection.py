@@ -299,7 +299,7 @@ async def init_affection_histogram() -> None:
 
 
 @with_session
-async def get_histogram_stats(
+async def get_affection_stats(
     session: AsyncSession | None = None,
 ) -> dict:
     assert session is not None
@@ -366,7 +366,7 @@ __all__ = [
     "affection_bucket",
     "get_affection_percentile",
     "rebuild_histogram",
-    "get_histogram_stats",
+    "get_affection_stats",
     "init_affection_histogram",
     "install_postgres_trigger",
     "uninstall_postgres_trigger",
