@@ -43,7 +43,7 @@ async def make_quote(client: PyrogramClient, message: pyrogram.types.Message):
         await message.reply_text(i18n.t("bot.msg.quote.origin_not_found", locale=lang))
         return
     db_quote_user = await database.upsert_user(quote_user)
-    quote_msg_link = utils.get_msg_link(quote_message)
+    quote_msg_link = common.get_msg_link(quote_message)
     if not quote_msg_link:
         await message.reply_text(i18n.t("bot.msg.quote.get_link_failed", locale=lang))
         return
@@ -69,9 +69,9 @@ async def make_quote(client: PyrogramClient, message: pyrogram.types.Message):
         text=quote_message.text,
         img=quote_img,
     )
-    if utils.random_chance(app_config.coin_add_chance_for_user_make_quote):
+    if common.random_chance(app_config.coin_add_chance_for_user_make_quote):
         await database.add_user_coins(db_user.id, 16 * random.randint(1, 9))
-    if utils.random_chance(app_config.coin_add_chance_for_quote_user):
+    if common.random_chance(app_config.coin_add_chance_for_quote_user):
         await database.add_user_coins(db_quote_user.id, 16 * random.randint(1, 9))
 
 
@@ -184,7 +184,7 @@ async def delete_quote_in_chat(client: PyrogramClient, message: pyrogram.types.M
 
     if message.reply_to_message:
         quote_message = message.reply_to_message
-        quote_link = utils.get_msg_link(quote_message)
+        quote_link = common.get_msg_link(quote_message)
         reply_target = quote_message
     elif len(message.command) > 1:
         quote_link = message.command[1]
@@ -218,7 +218,7 @@ async def delete_quote_in_chat(client: PyrogramClient, message: pyrogram.types.M
                 i18n.t("bot.msg.quote.only_delete_self", locale=chat_config.lang)
             )
             return
-        result = utils.parse_msg_link(quote.link)
+        result = common.parse_msg_link(quote.link)
         if not result:
             await message.reply_text(
                 i18n.t("bot.msg.quote.invalid_link", locale=chat_config.lang)
@@ -262,7 +262,7 @@ async def delete_quote_in_private(
             i18n.t("bot.msg.quote.not_found", locale=user_config.lang)
         )
         return
-    result = utils.parse_msg_link(quote.link)
+    result = common.parse_msg_link(quote.link)
     if not result:
         await message.reply_text(
             i18n.t("bot.msg.quote.invalid_link", locale=user_config.lang)
@@ -293,7 +293,7 @@ async def random_quote(client: PyrogramClient, message: pyrogram.types.Message):
     pb = chat_config.quote_probability
     if pb <= 0:
         return
-    if not utils.random_chance(pb):
+    if not common.random_chance(pb):
         return
     quote = await database.get_chat_random_quote(chat.id)
     if not quote:
@@ -314,7 +314,7 @@ async def random_quote(client: PyrogramClient, message: pyrogram.types.Message):
             [[pyrogram.types.InlineKeyboardButton(user_button_text, url=quote.link)]]
         ),
     )
-    if pb <= app_config.coin_add_on_randquote_max_pb and utils.random_chance(
+    if pb <= app_config.coin_add_on_randquote_max_pb and common.random_chance(
         app_config.coin_add_chance_on_randquote
     ):
         await database.add_user_coins(quote.user_id, 16 * random.randint(1, 9))
