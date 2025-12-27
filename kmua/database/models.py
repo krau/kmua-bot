@@ -355,3 +355,31 @@ class Bottle(Base):
 
     def __repr__(self) -> str:
         return f"<Bottle(id={self.id}, sender_id={self.sender_id})>"
+
+
+class Gift(Base):
+    __tablename__ = "gifts"
+
+    id: Mapped[int] = mapped_column(
+        Integer,
+        primary_key=True,
+        autoincrement=True,
+        index=True,
+    )
+    owner_id: Mapped[int] = mapped_column(
+        BigInteger,
+        ForeignKey("user_data.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    sent_to_bot: Mapped[bool] = mapped_column(Boolean, default=False)
+    gift_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+    )
+
+    def __repr__(self) -> str:
+        return (
+            f"<Gift(id={self.id}, owner_id={self.owner_id}, gift_id='{self.gift_id}')>"
+        )

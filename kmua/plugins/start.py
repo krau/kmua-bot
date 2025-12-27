@@ -133,3 +133,11 @@ async def back_home(client: Client, callback_query: CallbackQuery):
         )
     except Exception as e:
         logger.error(e)
+
+
+@Client.on_callback_query(filters.regex(r"^delete_callback_query_message$"))
+async def delete_callback_query_message(client: Client, callback_query: CallbackQuery):
+    try:
+        await callback_query.message.delete()
+    except Exception as e:
+        logger.error(f"Failed to delete message: {e.__class__.__name__} - {e}")

@@ -203,19 +203,7 @@ async def update_memory(
                 "The 'affection_change_amplitude' should be one of 'small', 'medium', or 'large'."
             )
         if affection_change != 0:
-            current_affection = (await database.get_user_config(user_id)).affection
-            rank = await database.get_affection_percentile(current_affection)
-            passivation = min(0.05, 0.002 + 0.048 * rank)
-            new_affection = affection.calculate_affection_update(
-                current=current_affection,
-                change=affection_change,
-                rank=rank,
-                passivation=passivation,
-            )
-            await database.update_user_affection(user_id, new_affection)
-            logger.debug(
-                f"User {user_id} affection updated: {current_affection} -> {new_affection}, change: {affection_change}, passivation: {passivation}, rank: {rank}"
-            )
+            await affection.update_user_affection(user_id, affection_change)
         await memttlcache.set(
             memory_key(user_id),
             memory_result.output.get_memory(),

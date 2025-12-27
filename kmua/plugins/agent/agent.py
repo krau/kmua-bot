@@ -18,7 +18,7 @@ from pyrogram import filters
 from pyrogram.client import Client as PyrogramClient
 from pyrogram.enums.parse_mode import ParseMode
 
-from kmua import common, database, enums, i18n
+from kmua import affection, common, database, enums, i18n
 from kmua.common.memory_store import memttlcache
 from kmua.config import app_config
 from kmua.logger import logger
@@ -188,9 +188,7 @@ async def wake_agent(client: PyrogramClient, message: pyrogram.types.Message):
                 memory = await common.memttlcache.get(utils.memory_key(user.id))
                 if memory and isinstance(memory, datatype.MemoryAboutUser):
                     ctx_info.memory_about_user = memory
-                affection_rank = await database.get_affection_percentile(
-                    user_data.user_config.affection
-                )
+                affection_rank = await affection.get_affection_rank(user_data.id)
                 append_prompt = get_agent_affection_prompt(affection_rank)
                 if append_prompt:
                     ctx_info.append_prompt = append_prompt
