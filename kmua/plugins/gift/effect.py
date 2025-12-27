@@ -78,7 +78,10 @@ async def handle_send_gift_callback(
             change=affection_change,
         )
     await database.mark_gift_as_sent(gift_db_id)
-    await callback_query.answer(f"成功送出 {display_name} *1", show_alert=True)
+    await callback_query.answer(
+        f"成功送出 {gift.get_rarity_display_name(gift_item.rarity)}的{display_name} *1",
+        show_alert=True,
+    )
     user_gifts = await database.get_user_gifts(user_id, False, offset, 5)
     user_gifts_total = await database.count_user_gifts(user_id, False)
     if not user_gifts:
