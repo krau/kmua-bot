@@ -71,16 +71,16 @@ async def init_bot(client: Client = client):
         BotCommand("greet", i18n.t("bot.cmd.greet", locale=app_config.lang)),
     ]
     await client.set_bot_commands(
-        common_commands + private_commands,
-        scope=pyrogram.types.BotCommandScopeAllPrivateChats(),
-    )
-    await client.set_bot_commands(
         common_commands + group_common_commands,
         scope=pyrogram.types.BotCommandScopeAllGroupChats(),
     )
     await client.set_bot_commands(
         common_commands + group_common_commands + group_admin_commands,
         scope=pyrogram.types.BotCommandScopeAllChatAdministrators(),
+    )
+    await client.set_bot_commands(
+        common_commands + private_commands,
+        scope=pyrogram.types.BotCommandScopeAllPrivateChats(),
     )
     common.jobqueue.add_daily_job("cleanup", jobs.cleanup, hour=4)
     common.jobqueue.start()
