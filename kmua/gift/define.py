@@ -70,7 +70,7 @@ ALL_GIFTS: dict[GiftID, Gift] = {
         id=GiftID.VOW_LOTUS_SEAL,
         description="以莲为誓，心如止水；愿君安然，无惧风浪",
         price=2473,
-        effects={"duration": 7200, "passivation": 0.05},
+        effects={"duration": 7200, "passivation": 3.7},
         consumable=True,
         comment="在一段时间内显著避免好感度变动",
     ),

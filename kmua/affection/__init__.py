@@ -18,7 +18,10 @@ def calculate_affection_update(
                     current
                     + (
                         change
-                        * (math.tanh(passivation * change) / (passivation * change))
+                        * (
+                            math.tanh(passivation * change / limit)
+                            / (passivation * change / limit)
+                        )
                         * max(
                             (1.0 / (1.0 + passivation * abs(2 * rank - 1) ** q))
                             * (max(0.0, 1.0 - (abs(current) / limit) ** p)),
@@ -54,7 +57,7 @@ async def update_user_affection(user_id: int, change: int):
     rank = await database.get_affection_percentile(current_affection)
     passivation = await common.memttlcache.get(f"affection_passivation:{user_id}", None)
     if passivation is None:
-        passivation = min(0.05, 0.002 + 0.048 * rank)
+        passivation = min(5.0, 0.005 + 5 * rank)
     new_affection = calculate_affection_update(
         current=current_affection,
         change=change,
