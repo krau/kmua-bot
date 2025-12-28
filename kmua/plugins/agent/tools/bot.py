@@ -71,6 +71,14 @@ async def send_anime_photo(
             success=False, message="Anime photo feature is disabled in this chat."
         )
     try:
+        ratekey = f"anime_photo_rate_limit:{ctx.deps.chat_id}:{ctx.deps.user_id}"
+        if await common.memttlcache.get(ratekey, 0) > 3:
+            return AnimePhotoResult(
+                success=False,
+                message="You are sending requests too frequently. Please try again later.",
+            )
+        current_count = await common.memttlcache.get(ratekey, 0)
+        await common.memttlcache.set(ratekey, current_count + 1, ttl=10)
         user_config = await database.get_user_config(ctx.deps.user_id)
         lang = user_config.lang
         if keyword:
