@@ -65,6 +65,14 @@ async def handle_send_gift_callback(
                 affection=current + add_affection,
                 ttl=duration,
             )
+        case gift.GiftID.FROST_FLOWER_WHISPER:
+            # show memory and affection
+            memory = await common.memttlcache.get(f"agent_user_memory:{user_id}", None)
+            affection_rank = await affection.get_affection_rank(user_id)
+            memory_text = memory if memory is not None else "无"
+            await callback_query.message.reply_text(
+                f"当前对你的记忆:\n{memory_text}\n\n好感度排名: {affection_rank:.2%}"
+            )
         case _:
             await callback_query.answer("收到了一件奇怪的礼物呢", show_alert=True)
             return

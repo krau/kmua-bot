@@ -1,3 +1,4 @@
+import pyrogram
 from pyrogram.client import Client
 from pyrogram.sync import idle
 from pyrogram.types import BotCommand
@@ -27,39 +28,59 @@ async def init_bot(client: Client = client):
     )
     logger.debug(i18n.t("log.setting_commands", locale=app_config.lang))
     await client.delete_bot_commands()
+    common_commands = [
+        BotCommand(
+            "start",
+            i18n.t("bot.cmd.start", locale=app_config.lang),
+        ),
+        BotCommand("help", i18n.t("bot.cmd.help", locale=app_config.lang)),
+        BotCommand("setu", i18n.t("bot.cmd.setu", locale=app_config.lang)),
+        BotCommand(
+            "throwbottle", i18n.t("bot.cmd.throwbottle", locale=app_config.lang)
+        ),
+        BotCommand("pickbottle", i18n.t("bot.cmd.pickbottle", locale=app_config.lang)),
+        BotCommand("forget", i18n.t("bot.cmd.forget", locale=app_config.lang)),
+        BotCommand("id", i18n.t("bot.cmd.id", locale=app_config.lang)),
+        BotCommand("f5avatar", i18n.t("bot.cmd.f5avatar", locale=app_config.lang)),
+    ]
+    group_common_commands = [
+        BotCommand("waifu", i18n.t("bot.cmd.waifu", locale=app_config.lang)),
+        BotCommand(
+            "waifu_graph", i18n.t("bot.cmd.waifu_graph", locale=app_config.lang)
+        ),
+        BotCommand("q", i18n.t("bot.cmd.q", locale=app_config.lang)),
+        BotCommand("d", i18n.t("bot.cmd.d", locale=app_config.lang)),
+        BotCommand("qrand", i18n.t("bot.cmd.qrand", locale=app_config.lang)),
+        BotCommand("qp", i18n.t("bot.cmd.qp", locale=app_config.lang)),
+        BotCommand("t", i18n.t("bot.cmd.t", locale=app_config.lang)),
+        BotCommand("td", i18n.t("bot.cmd.td", locale=app_config.lang)),
+        BotCommand("wordcloud", i18n.t("bot.cmd.wordcloud", locale=app_config.lang)),
+    ]
+    group_admin_commands = [
+        BotCommand("sett", i18n.t("bot.cmd.sett", locale=app_config.lang)),
+    ]
+    private_commands = [
+        BotCommand("buygift", i18n.t("bot.cmd.buygift", locale=app_config.lang)),
+        BotCommand("gift", i18n.t("bot.cmd.gift", locale=app_config.lang)),
+        BotCommand(
+            "syncmembers", i18n.t("bot.cmd.syncmembers", locale=app_config.lang)
+        ),
+        BotCommand("botpromote", i18n.t("bot.cmd.botpromote", locale=app_config.lang)),
+        BotCommand("botdemote", i18n.t("bot.cmd.botdemote", locale=app_config.lang)),
+        BotCommand("config", i18n.t("bot.cmd.config", locale=app_config.lang)),
+        BotCommand("greet", i18n.t("bot.cmd.greet", locale=app_config.lang)),
+    ]
     await client.set_bot_commands(
-        [
-            BotCommand(
-                "start",
-                i18n.t("bot.cmd.start", locale=app_config.lang),
-            ),
-            BotCommand("waifu", i18n.t("bot.cmd.waifu", locale=app_config.lang)),
-            BotCommand(
-                "waifu_graph", i18n.t("bot.cmd.waifu_graph", locale=app_config.lang)
-            ),
-            BotCommand("q", i18n.t("bot.cmd.q", locale=app_config.lang)),
-            BotCommand("d", i18n.t("bot.cmd.d", locale=app_config.lang)),
-            BotCommand("qrand", i18n.t("bot.cmd.qrand", locale=app_config.lang)),
-            BotCommand("qp", i18n.t("bot.cmd.qp", locale=app_config.lang)),
-            BotCommand("t", i18n.t("bot.cmd.t", locale=app_config.lang)),
-            BotCommand("td", i18n.t("bot.cmd.td", locale=app_config.lang)),
-            BotCommand("sett", i18n.t("bot.cmd.sett", locale=app_config.lang)),
-            BotCommand("id", i18n.t("bot.cmd.id", locale=app_config.lang)),
-            BotCommand("ip", i18n.t("bot.cmd.ip", locale=app_config.lang)),
-            BotCommand("setu", i18n.t("bot.cmd.setu", locale=app_config.lang)),
-            BotCommand(
-                "throwbottle", i18n.t("bot.cmd.throwbottle", locale=app_config.lang)
-            ),
-            BotCommand(
-                "pickbottle", i18n.t("bot.cmd.pickbottle", locale=app_config.lang)
-            ),
-            BotCommand(
-                "wordcloud", i18n.t("bot.cmd.wordcloud", locale=app_config.lang)
-            ),
-            BotCommand("config", i18n.t("bot.cmd.config", locale=app_config.lang)),
-            BotCommand("greet", i18n.t("bot.cmd.greet", locale=app_config.lang)),
-            BotCommand("help", i18n.t("bot.cmd.help", locale=app_config.lang)),
-        ]
+        common_commands + private_commands,
+        scope=pyrogram.types.BotCommandScopeAllPrivateChats(),
+    )
+    await client.set_bot_commands(
+        common_commands + group_common_commands,
+        scope=pyrogram.types.BotCommandScopeAllGroupChats(),
+    )
+    await client.set_bot_commands(
+        common_commands + group_common_commands + group_admin_commands,
+        scope=pyrogram.types.BotCommandScopeAllChatAdministrators(),
     )
     common.jobqueue.add_daily_job("cleanup", jobs.cleanup, hour=4)
     common.jobqueue.start()

@@ -32,6 +32,7 @@ class GiftID(StrEnum):
     SEVERED_GRASS_SILENCE = "severed_grass_silence"
     VOW_LOTUS_SEAL = "vow_lotus_seal"
     AMARANTH_HEART_LAMP = "amaranth_heart_lamp"
+    FROST_FLOWER_WHISPER = "frost_flower_whisper"
     OTHERWORLDLY_FLOWER = "otherworldly_flower"
 
 
@@ -39,6 +40,7 @@ GIFT_DISPLAY_NAMES: dict[GiftID, str] = {
     GiftID.SEVERED_GRASS_SILENCE: "默断之草",
     GiftID.VOW_LOTUS_SEAL: "誓印之莲",
     GiftID.AMARANTH_HEART_LAMP: "苋色心灯",
+    GiftID.FROST_FLOWER_WHISPER: "低语霜花",
     GiftID.OTHERWORLDLY_FLOWER: "异界之花",
 }
 
@@ -76,11 +78,19 @@ ALL_GIFTS: dict[GiftID, Gift] = {
     ),
     GiftID.AMARANTH_HEART_LAMP: Gift(
         id=GiftID.AMARANTH_HEART_LAMP,
-        description="灯火未央，心之所向；愿君前路，光明常在",
+        description="灯火未央，心之所向；苋色如霞，暖意绵长",
         price=983,
         effects={"add_affection": 263, "duration": 1800},
         consumable=True,
         comment="短暂地大幅提升好感度数值",
+    ),
+    GiftID.FROST_FLOWER_WHISPER: Gift(
+        id=GiftID.FROST_FLOWER_WHISPER,
+        description="花开静谧, 心亦无声; 洞悉万籁, 以观人心",
+        price=3701,
+        effects={},
+        consumable=True,
+        comment="查看当前对你的记忆",
     ),
 }
 

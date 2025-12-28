@@ -79,6 +79,8 @@ bot:
       /forget - 让 bot 忘记与你的对话记录
       /throwbottle - 扔一个漂流瓶
       /pickbottle - 捡一个漂流瓶
+      /buygift - 购买礼物
+      /gift - 送礼物给 Bot
       </blockquote>
       对其他人使用 "/" 或 "\" 即可对其施法
     help_inline: |
