@@ -154,6 +154,7 @@ async def wake_agent(client: PyrogramClient, message: pyrogram.types.Message):
             return
         if await common.memstore.get(_waiting_key(user.id)):
             return await word_reply(client, message)
+        await common.memstore.set(_waiting_key(user.id), True)
         # set language
         if chat.type == pyrogram.enums.ChatType.PRIVATE:
             lang = (await database.get_user_config(user.id)).lang
@@ -161,7 +162,6 @@ async def wake_agent(client: PyrogramClient, message: pyrogram.types.Message):
             lang = (await database.get_chat_config(chat.id)).lang
 
         await message.reply_chat_action(pyrogram.enums.ChatAction.TYPING)
-        await common.memstore.set(_waiting_key(user.id), True)
         # agent run
         try:
             chat_id = chat.id

@@ -28,18 +28,6 @@ class _MemStore:
             except KeyError:
                 return False
 
-    @asynccontextmanager
-    async def acquire_lock(self, key: str):
-        acquired = False
-        try:
-            if not await self.get(key):
-                await self.set(key, True)
-                acquired = True
-            yield acquired
-        finally:
-            if acquired:
-                await self.delete(key)
-
 
 memstore = _MemStore()
 
