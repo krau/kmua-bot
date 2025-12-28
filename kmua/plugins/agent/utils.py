@@ -192,7 +192,6 @@ async def update_memory(
         )
         logger.debug(f"Agent memory history: {memory_result.output}")
         result = memory_result.output
-        logger.debug(f"result: {result}")
         try:
             affection_change = result.get_affection_change()
             affection_change += random.randint(-4, 4)
