@@ -50,18 +50,16 @@ async def handle_send_gift_callback(
             # clear bot agent memory
             await common.memttlcache.delete(f"agent_user_memory:{user_id}")
         case gift.GiftID.VOW_LOTUS_SEAL:
-            # prevent affection decrease for a period
-            duration = gift_def.effects.get("duration", 14400) * gift_item.rarity
-            passivation = gift_def.effects.get("passivation", 0.2) * gift_item.rarity
+            # prevent affection
+            duration = gift_def.effects.get("duration", 0) * gift_item.rarity
+            passivation = gift_def.effects.get("passivation", 0) * gift_item.rarity
             await common.memttlcache.set(
                 f"affection_passivation:{user_id}", passivation, duration
             )
         case gift.GiftID.AMARANTH_HEART_LAMP:
             current = await affection.get_user_affection(user_id)
-            add_affection = (
-                gift_def.effects.get("add_affection", 200) * gift_item.rarity
-            )
-            duration = gift_def.effects.get("duration", 1800) * gift_item.rarity
+            add_affection = gift_def.effects.get("add_affection", 0) * gift_item.rarity
+            duration = gift_def.effects.get("duration", 0) * gift_item.rarity
             await affection.set_user_temporary_affection(
                 user_id=user_id,
                 affection=current + add_affection,
