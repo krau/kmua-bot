@@ -494,11 +494,13 @@ async def after_all(client: PyrogramClient, message: pyrogram.types.Message):
         or message.outgoing
         or message.service
         or message.automatic_forward
-        or user.id
-        in (
-            enums.ChatID.ANONYMOUS_ADMIN,
-            enums.ChatID.SERVICE_CHAT,
-            enums.ChatID.FAKE_CHANNEL,
+        or (
+            user.id
+            in (
+                enums.ChatID.ANONYMOUS_ADMIN,
+                enums.ChatID.SERVICE_CHAT,
+                enums.ChatID.FAKE_CHANNEL,
+            )
         )
     ):
         return

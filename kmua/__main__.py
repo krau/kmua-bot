@@ -58,10 +58,6 @@ async def init_bot(client: Client = client):
     ]
     group_admin_commands = [
         BotCommand("sett", i18n.t("bot.cmd.sett", locale=app_config.lang)),
-    ]
-    private_commands = [
-        BotCommand("buygift", i18n.t("bot.cmd.buygift", locale=app_config.lang)),
-        BotCommand("gift", i18n.t("bot.cmd.gift", locale=app_config.lang)),
         BotCommand(
             "syncmembers", i18n.t("bot.cmd.syncmembers", locale=app_config.lang)
         ),
@@ -69,6 +65,10 @@ async def init_bot(client: Client = client):
         BotCommand("botdemote", i18n.t("bot.cmd.botdemote", locale=app_config.lang)),
         BotCommand("config", i18n.t("bot.cmd.config", locale=app_config.lang)),
         BotCommand("greet", i18n.t("bot.cmd.greet", locale=app_config.lang)),
+    ]
+    private_commands = [
+        BotCommand("buygift", i18n.t("bot.cmd.buygift", locale=app_config.lang)),
+        BotCommand("gift", i18n.t("bot.cmd.gift", locale=app_config.lang)),
     ]
     await client.set_bot_commands(
         common_commands + group_common_commands,
