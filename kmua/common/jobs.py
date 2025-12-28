@@ -1,6 +1,7 @@
 import datetime
 from typing import Any, Callable, Dict, Optional, Union
 
+from apscheduler.job import Job
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 from apscheduler.triggers.date import DateTrigger
@@ -10,9 +11,9 @@ from kmua.logger import logger
 
 
 class _TaskScheduler:
+    # [TODO] persistent job store
     def __init__(self):
         self._scheduler = AsyncIOScheduler()
-        self._jobs: Dict[str, Any] = {}
 
     def start(self) -> None:
         if not self._scheduler.running:
@@ -28,7 +29,7 @@ class _TaskScheduler:
         run_date: datetime.datetime,
         args: list | None = None,
         kwargs: Optional[dict] = None,
-    ) -> None:
+    ) -> Job:
         trigger = DateTrigger(run_date=run_date)
         logger.debug(f"add one-time job: {job_id} at {run_date}")
         job = self._scheduler.add_job(
@@ -39,7 +40,7 @@ class _TaskScheduler:
             kwargs=kwargs or {},
             replace_existing=True,
         )
-        self._jobs[job_id] = job
+        return job
 
     def add_interval_job(
         self,
@@ -53,7 +54,7 @@ class _TaskScheduler:
         end_date: Optional[str] = None,
         args: Optional[list] = None,
         kwargs: Optional[dict] = None,
-    ) -> None:
+    ) -> Job:
         trigger = IntervalTrigger(
             seconds=seconds,
             minutes=minutes,
@@ -73,7 +74,7 @@ class _TaskScheduler:
             kwargs=kwargs or {},
             replace_existing=True,
         )
-        self._jobs[job_id] = job
+        return job
 
     def add_daily_job(
         self,
@@ -87,7 +88,7 @@ class _TaskScheduler:
         end_date: Optional[str] = None,
         args: Optional[list] = None,
         kwargs: Optional[dict] = None,
-    ) -> None:
+    ) -> Job:
         trigger = CronTrigger(
             hour=hour,
             minute=minute,
@@ -105,13 +106,11 @@ class _TaskScheduler:
             kwargs=kwargs or {},
             replace_existing=True,
         )
-        self._jobs[job_id] = job
+        return job
 
     def remove_job(self, job_id: str) -> None:
-        if job_id in self._jobs:
-            self._scheduler.remove_job(job_id)
-            del self._jobs[job_id]
-            logger.debug(f"Removed job: {job_id}")
+        self._scheduler.remove_job(job_id)
+        logger.debug(f"Removed job: {job_id}")
 
 
 jobqueue = _TaskScheduler()
