@@ -57,21 +57,27 @@ async def _get_affection_percentile_fast(
 
     bucket = affection_bucket(affection)
 
-    stmt_before = sqlalchemy.select(
-        sqlalchemy.func.coalesce(sqlalchemy.func.sum(AffectionHistogram.cnt), 0)
-    ).where(AffectionHistogram.bucket < bucket)
+    sum_before = (
+        await session.execute(
+            sqlalchemy.select(
+                sqlalchemy.func.coalesce(sqlalchemy.func.sum(AffectionHistogram.cnt), 0)
+            ).where(AffectionHistogram.bucket < bucket)
+        )
+    ).scalar() or 0
 
-    stmt_bucket = sqlalchemy.select(
-        sqlalchemy.func.coalesce(AffectionHistogram.cnt, 0)
-    ).where(AffectionHistogram.bucket == bucket)
+    bucket_cnt = (
+        await session.execute(
+            sqlalchemy.select(
+                sqlalchemy.func.coalesce(AffectionHistogram.cnt, 0)
+            ).where(AffectionHistogram.bucket == bucket)
+        )
+    ).scalar() or 0
 
-    stmt_total = sqlalchemy.select(
-        sqlalchemy.func.coalesce(sqlalchemy.func.sum(AffectionHistogram.cnt), 0)
-    )
-
-    sum_before = int((await session.execute(stmt_before)).scalar() or 0)
-    bucket_cnt = int((await session.execute(stmt_bucket)).scalar() or 0)
-    total = int((await session.execute(stmt_total)).scalar() or 0)
+    total = (
+        await session.execute(
+            sqlalchemy.select(sqlalchemy.func.count()).select_from(UserData)
+        )
+    ).scalar() or 0
 
     if total <= 0:
         return 0.0
@@ -137,12 +143,13 @@ async def rebuild_histogram(session: AsyncSession | None = None) -> int:
     await session.execute(sqlalchemy.delete(AffectionHistogram))
 
     result = await session.execute(sqlalchemy.select(UserData.config))
+
     bucket_counts: dict[int, int] = {}
 
     for (config,) in result:
-        user_config = UserConfig.from_dict(config)
-        bucket = affection_bucket(user_config.affection)
-        bucket_counts[bucket] = bucket_counts.get(bucket, 0) + 1
+        cfg = UserConfig.from_dict(config)
+        b = affection_bucket(cfg.affection)
+        bucket_counts[b] = bucket_counts.get(b, 0) + 1
 
     for bucket, cnt in bucket_counts.items():
         session.add(AffectionHistogram(bucket=bucket, cnt=cnt))
@@ -152,7 +159,7 @@ async def rebuild_histogram(session: AsyncSession | None = None) -> int:
             text("ALTER TABLE user_data ENABLE TRIGGER trg_update_affection_histogram")
         )
 
-    logger.info(f"Affection histogram rebuilt: {len(bucket_counts)} buckets")
+    logger.info("Histogram rebuilt")
     return len(bucket_counts)
 
 
@@ -180,55 +187,75 @@ async def install_postgres_trigger() -> None:
 
         await conn.execute(
             text("""
-        CREATE OR REPLACE FUNCTION update_affection_histogram()
-        RETURNS trigger AS $$
-        DECLARE
-            old_bucket INT;
-            new_bucket INT;
-        BEGIN
-            IF TG_OP = 'INSERT' THEN
-                new_bucket := affection_bucket(COALESCE((NEW.config->>'affection')::int, 41));
-                INSERT INTO affection_histogram (bucket, cnt)
-                VALUES (new_bucket, 1)
-                ON CONFLICT (bucket)
-                DO UPDATE SET cnt = affection_histogram.cnt + 1;
+CREATE OR REPLACE FUNCTION update_affection_histogram()
+RETURNS trigger AS $$
+DECLARE
+    old_aff INT;
+    new_aff INT;
+    old_bucket INT;
+    new_bucket INT;
+BEGIN
+    IF TG_OP = 'INSERT' THEN
+        new_aff := COALESCE((NEW.config->>'affection')::int, 0);
+        new_bucket := affection_bucket(new_aff);
 
-            ELSIF TG_OP = 'UPDATE' THEN
-                old_bucket := affection_bucket(COALESCE((OLD.config->>'affection')::int, 41));
-                new_bucket := affection_bucket(COALESCE((NEW.config->>'affection')::int, 41));
+        INSERT INTO affection_histogram(bucket, cnt)
+        VALUES (new_bucket, 1)
+        ON CONFLICT (bucket)
+        DO UPDATE SET cnt = affection_histogram.cnt + 1;
 
-                IF old_bucket != new_bucket THEN
-                    UPDATE affection_histogram
-                    SET cnt = GREATEST(cnt - 1, 0)
-                    WHERE bucket = old_bucket;
+        RETURN NEW;
+    END IF;
 
-                    INSERT INTO affection_histogram (bucket, cnt)
-                    VALUES (new_bucket, 1)
-                    ON CONFLICT (bucket)
-                    DO UPDATE SET cnt = affection_histogram.cnt + 1;
-                END IF;
-            ELSIF TG_OP = 'DELETE' THEN
-                old_bucket := affection_bucket(COALESCE((OLD.config->>'affection')::int, 41));
-                UPDATE affection_histogram
-                SET cnt = GREATEST(cnt - 1, 0)
-                WHERE bucket = old_bucket;
-            END IF;
-            RETURN NEW;
-        END;
-        $$ LANGUAGE plpgsql;
+    IF TG_OP = 'DELETE' THEN
+        old_aff := COALESCE((OLD.config->>'affection')::int, 0);
+        old_bucket := affection_bucket(old_aff);
+
+        UPDATE affection_histogram
+        SET cnt = GREATEST(cnt - 1, 0)
+        WHERE bucket = old_bucket;
+
+        RETURN OLD;
+    END IF;
+
+    -- UPDATE
+    old_aff := (OLD.config->>'affection')::int;
+    new_aff := (NEW.config->>'affection')::int;
+
+    -- affection 没变，直接跳过（关键）
+    IF old_aff IS NOT DISTINCT FROM new_aff THEN
+        RETURN NEW;
+    END IF;
+
+    old_bucket := affection_bucket(COALESCE(old_aff, 0));
+    new_bucket := affection_bucket(COALESCE(new_aff, 0));
+
+    UPDATE affection_histogram
+    SET cnt = GREATEST(cnt - 1, 0)
+    WHERE bucket = old_bucket;
+
+    INSERT INTO affection_histogram(bucket, cnt)
+    VALUES (new_bucket, 1)
+    ON CONFLICT (bucket)
+    DO UPDATE SET cnt = affection_histogram.cnt + 1;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
         """)
         )
 
         await conn.execute(
-            text("DROP TRIGGER IF EXISTS trg_update_affection_histogram ON user_data")
+            text("DROP TRIGGER IF EXISTS trg_update_affection_histogram ON user_data;")
         )
 
         await conn.execute(
             text("""
-                CREATE TRIGGER trg_update_affection_histogram
-                AFTER INSERT OR UPDATE OF config OR DELETE ON user_data
-                FOR EACH ROW
-                EXECUTE FUNCTION update_affection_histogram()
+CREATE TRIGGER trg_update_affection_histogram
+AFTER INSERT OR DELETE OR UPDATE
+ON user_data
+FOR EACH ROW
+EXECUTE FUNCTION update_affection_histogram();
             """)
         )
 
@@ -243,19 +270,27 @@ async def update_user_affection(
 ):
     assert session is not None
 
-    user_data = await session.get(UserData, user_id)
-    if not user_data:
+    user = await session.get(UserData, user_id)
+    if user is None:
         raise ValueError("User not found")
 
-    old_affection = user_data.user_config.affection
+    old_affection = user.user_config.affection
+    if old_affection == new_affection:
+        return
+
     old_bucket = affection_bucket(old_affection)
     new_bucket = affection_bucket(new_affection)
 
-    config = user_data.config.copy()
-    config["affection"] = new_affection
-    user_data.config = config
+    cfg = user.config.copy()
+    cfg["affection"] = new_affection
+    user.config = cfg
+    flag_modified(user, "config")
 
-    if not runtime_config.db_is_postgres and old_bucket != new_bucket:
+    if runtime_config.db_is_postgres:
+        return
+
+    # 非 PG：手动维护
+    if old_bucket != new_bucket:
         await session.execute(
             sqlalchemy.update(AffectionHistogram)
             .where(AffectionHistogram.bucket == old_bucket)
@@ -264,17 +299,18 @@ async def update_user_affection(
 
         if runtime_config.db_is_mysql:
             stmt = text("""
-                INSERT INTO affection_histogram (bucket, cnt)
+                INSERT INTO affection_histogram(bucket, cnt)
                 VALUES (:bucket, 1)
                 ON DUPLICATE KEY UPDATE cnt = cnt + 1
             """)
         else:
             stmt = text("""
-                INSERT INTO affection_histogram (bucket, cnt)
+                INSERT INTO affection_histogram(bucket, cnt)
                 VALUES (:bucket, 1)
                 ON CONFLICT (bucket)
                 DO UPDATE SET cnt = cnt + 1
             """)
+
         await session.execute(stmt, {"bucket": new_bucket})
 
 
@@ -299,27 +335,30 @@ async def init_affection_histogram() -> None:
 
 
 @with_session
-async def get_affection_stats(
-    session: AsyncSession | None = None,
-) -> dict:
+async def get_affection_stats(session: AsyncSession | None = None) -> dict:
     assert session is not None
 
-    stmt = sqlalchemy.select(
-        sqlalchemy.func.coalesce(sqlalchemy.func.sum(AffectionHistogram.cnt), 0).label(
-            "total_users"
-        ),
-        sqlalchemy.func.count(AffectionHistogram.bucket).label("bucket_count"),
-        sqlalchemy.func.min(AffectionHistogram.bucket).label("min_bucket"),
-        sqlalchemy.func.max(AffectionHistogram.bucket).label("max_bucket"),
-    )
-    result = await session.execute(stmt)
-    row = result.one()
+    total_users = (
+        await session.execute(
+            sqlalchemy.select(sqlalchemy.func.count()).select_from(UserData)
+        )
+    ).scalar() or 0
+
+    row = (
+        await session.execute(
+            sqlalchemy.select(
+                sqlalchemy.func.count(AffectionHistogram.bucket),
+                sqlalchemy.func.min(AffectionHistogram.bucket),
+                sqlalchemy.func.max(AffectionHistogram.bucket),
+            )
+        )
+    ).one()
 
     return {
-        "total_users": row.total_users,
-        "bucket_count": row.bucket_count,
-        "min_bucket": row.min_bucket,
-        "max_bucket": row.max_bucket,
+        "total_users": total_users,
+        "bucket_count": row[0],
+        "min_bucket": row[1],
+        "max_bucket": row[2],
     }
 
 
