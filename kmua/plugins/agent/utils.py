@@ -201,8 +201,11 @@ async def update_memory(
                 "The 'affection_option' should be one of 'increase', 'decrease', or 'no_change'."
                 "The 'affection_change_amplitude' should be one of 'small', 'medium', or 'large'."
             )
-        if affection_change != 0:
-            await affection.update_user_affection(user_id, affection_change)
+        try:
+            if affection_change != 0:
+                await affection.update_user_affection(user_id, affection_change)
+        except Exception as e:
+            logger.exception(f"Error updating user affection: {e}")
         await memttlcache.set(
             memory_key(user_id),
             memory_result.output.get_memory(),
