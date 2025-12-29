@@ -32,18 +32,18 @@ class ChatConfigMarkup:
                         callback_data=self.get_callback_data("delete_events_enabled"),
                     ),
                     InlineKeyboardButton(
-                        f"{i18n.t('bot.button.chat_config.message_search', locale=self.lang)} {self.get_status_emoji(self.chat_config.message_search_enabled)}",
-                        callback_data=self.get_callback_data("message_search_enabled"),
+                        f"{i18n.t('bot.button.chat_config.quote_pin_message', locale=self.lang)} {self.get_status_emoji(self.chat_config.quote_pin_message)}",
+                        callback_data=self.get_callback_data("quote_pin_message"),
                     ),
                 ],
                 [
                     InlineKeyboardButton(
-                        f"{i18n.t('bot.button.chat_config.quote_pin_message', locale=self.lang)} {self.get_status_emoji(self.chat_config.quote_pin_message)}",
-                        callback_data=self.get_callback_data("quote_pin_message"),
-                    ),
-                    InlineKeyboardButton(
                         f"{i18n.t('bot.button.chat_config.ai_reply', locale=self.lang)} {self.get_status_emoji(self.chat_config.ai_reply)}",
                         callback_data=self.get_callback_data("ai_reply"),
+                    ),
+                    InlineKeyboardButton(
+                        f"{i18n.t('bot.button.chat_config.ai_comment', locale=self.lang)} {self.get_status_emoji(self.chat_config.ai_comment)}",
+                        callback_data=self.get_callback_data("ai_comment"),
                     ),
                     InlineKeyboardButton(
                         f"{i18n.t('bot.button.chat_config.setu_enabled', locale=self.lang)} {self.get_status_emoji(self.chat_config.setu_enabled)}",
@@ -73,10 +73,6 @@ class ChatConfigMarkup:
                     ),
                 ],
                 [
-                    InlineKeyboardButton(
-                        f"{i18n.t('bot.button.chat_config.ai_comment', locale=self.lang)} {self.get_status_emoji(self.chat_config.ai_comment)}",
-                        callback_data=self.get_callback_data("ai_comment"),
-                    ),
                     InlineKeyboardButton(
                         i18n.t("bot.button.chat_config.save", locale=self.lang),
                         callback_data="config_chat save",
