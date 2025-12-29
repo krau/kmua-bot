@@ -535,3 +535,29 @@ async def after_all(client: PyrogramClient, message: pyrogram.types.Message):
     await memttlcache.set(
         f"user_messages_global:{user.id}", user_messages, ttl=86400 * 7
     )
+
+
+if app_config.debug:
+
+    @PyrogramClient.on_message(filters.command("affection"), group=1)
+    async def debug_affection(client: PyrogramClient, message: pyrogram.types.Message):
+        try:
+            user = message.from_user
+            if not user or not user.id:
+                return
+            affection_value = await affection.get_user_affection(user.id)
+            rank = await affection.get_affection_rank(user.id)
+            logger.info(
+                f"User {user.id} affection debug: {affection_value}, rank: {rank:.4f}"
+            )
+            # add affection
+            affection_change = 10
+            await affection.update_user_affection(user.id, affection_change)
+            now_affection = await affection.get_user_affection(user.id)
+            logger.info(
+                f"User {user.id} affection debug changed by {affection_change}, now {now_affection}"
+            )
+        except Exception as e:
+            logger.exception(
+                f"Unexpected error in debug_affection: {e.__class__.__name__} - {e}"
+            )

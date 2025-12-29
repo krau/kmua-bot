@@ -82,7 +82,7 @@ async def _get_affection_percentile_fast(
     if total <= 0:
         return 0.0
 
-    return min(1.0, max(0.0, (sum_before + bucket_cnt * 0.5) / total))
+    return min(1.0, max(0.0, (float(sum_before) + bucket_cnt * 0.5) / total))
 
 
 @with_session
