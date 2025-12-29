@@ -7,9 +7,9 @@ from kmua import database
 from kmua.common.memory_store import memttlcache
 from kmua.config import app_config
 from kmua.logger import logger
-from kmua.plugins.agent import datatype
+from kmua.plugins.agent import datatype, utils
 
-from .agent import agent, get_input_prompt
+from .agent import agent, model, multimodal_model
 
 
 async def _is_first_media_in_group(message: pyrogram.types.Message) -> bool:
@@ -80,11 +80,13 @@ async def comment_channel_message(client: Client, message: pyrogram.types.Messag
         "channel_bio": channel.bio or channel.description,
         "current_time": datetime.datetime.now().strftime("%Y年%m月%d日 %H:%M:%S"),
     }
-    prompts = await get_input_prompt(client, message, ctx=ctx)
+    prompts = await utils.get_input_prompt(client, message, ctx=ctx)
     if not prompts:
         return
     logger.debug(f"Channel comment post: {message.caption or message.text}")
+    use_model = model if not utils.has_multimodal_input(prompts) else multimodal_model
     resp = await agent.run(
+        model=use_model,
         toolsets=None,
         user_prompt=prompts,
         deps=datatype.ContextDeps(

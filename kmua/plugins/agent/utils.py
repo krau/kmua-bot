@@ -2,10 +2,14 @@ import asyncio
 import math
 import random
 from collections import defaultdict
+from io import BytesIO
+from typing import Any
 from weakref import WeakValueDictionary
 
-from pydantic_ai import Agent, ModelRetry
+import pyrogram
+from pydantic_ai import Agent, BinaryContent, ModelRetry, MultiModalContent, UserContent
 from pydantic_ai.messages import ModelMessage, ModelRequest, SystemPromptPart
+from pyrogram.client import Client as PyrogramClient
 
 from kmua import affection, database
 from kmua.common.memory_store import memttlcache
@@ -211,3 +215,145 @@ async def update_memory(
             memory_result.output.get_memory(),
             ttl=86400 * 30,  # 30 days
         )
+
+
+async def get_input_prompt(
+    client: PyrogramClient,
+    message: pyrogram.types.Message,
+    include_nearby: int = 0,
+    ctx: datatype.ContextInfo | Any | None = None,
+) -> list[UserContent]:
+    # 公共的单条消息提取逻辑：与原函数一致
+    def get_media_and_message(
+        m: pyrogram.types.Message,
+    ) -> tuple[pyrogram.enums.MessageMediaType | None, pyrogram.types.Message | None]:
+        if m.media:
+            return m.media, m
+        if m.reply_to_message and m.reply_to_message.media:
+            return m.reply_to_message.media, m.reply_to_message
+        return None, None
+
+    async def build_contents_from_message(
+        msg: pyrogram.types.Message, ctx_text: str | None = None
+    ) -> list[UserContent]:
+        contents: list[UserContent] = []
+        text_part = f"{ctx_text or ''}\n{msg.text or msg.caption or ''}".strip()
+        if text_part:
+            contents.append(text_part)
+
+        media, media_message = get_media_and_message(msg)
+        if media and media_message and app_config.agent_multimodal:
+            match media:
+                case pyrogram.enums.MessageMediaType.PHOTO:
+                    photo = media_message.photo
+                    if (
+                        "photo" in app_config.agent_multimodal_inputs
+                        and photo
+                        and photo.file_id
+                    ):
+                        photo_file = await client.download_media(
+                            message=photo.file_id, in_memory=True
+                        )
+                        if isinstance(photo_file, BytesIO):
+                            contents.append(
+                                BinaryContent(
+                                    data=photo_file.getvalue(),
+                                    media_type="image/jpeg",
+                                )
+                            )
+                case pyrogram.enums.MessageMediaType.VIDEO:
+                    video = media_message.video
+                    if (
+                        video
+                        and video.file_id
+                        and video.mime_type
+                        and video.file_size
+                        and video.file_size <= 20 * 1024 * 1024
+                    ):
+                        if "video" in app_config.agent_multimodal_inputs:
+                            video_file = await client.download_media(
+                                message=video.file_id, in_memory=True
+                            )
+                            if isinstance(video_file, BytesIO):
+                                contents.append(
+                                    BinaryContent(
+                                        data=video_file.getvalue(),
+                                        media_type=video.mime_type,
+                                    )
+                                )
+                case pyrogram.enums.MessageMediaType.DOCUMENT:
+                    document = media_message.document
+                    if (
+                        document
+                        and document.file_id
+                        and document.mime_type
+                        and document.file_size <= 10 * 1024 * 1024
+                    ):
+                        if document.mime_type in app_config.agent_multimodal_inputs:
+                            doc_file = await client.download_media(
+                                message=document.file_id, in_memory=True
+                            )
+                            if isinstance(doc_file, BytesIO):
+                                contents.append(
+                                    BinaryContent(
+                                        data=doc_file.getvalue(),
+                                        media_type=document.mime_type,
+                                    )
+                                )
+                        elif (
+                            document.mime_type.startswith("image/")
+                            and "photo" in app_config.agent_multimodal_inputs
+                        ):
+                            doc_file = await client.download_media(
+                                message=document.file_id, in_memory=True
+                            )
+                            if isinstance(doc_file, BytesIO):
+                                contents.append(
+                                    BinaryContent(
+                                        data=doc_file.getvalue(),
+                                        media_type=document.mime_type,
+                                    )
+                                )
+        return contents
+
+    user_prompt: list[UserContent] = []
+
+    # include_nearby > 0 时，先追加前面 N 条消息（从旧到新）
+    if include_nearby and include_nearby > 0 and message.chat and message.chat.id:
+        prev_msgs: list[pyrogram.types.Message] = []
+        base_id = message.id
+        for i in range(include_nearby):
+            mid = base_id - (i + 1)
+            if mid <= 0:
+                break
+            try:
+                prev_result = await client.get_messages(message.chat.id, mid)
+            except Exception:
+                prev_result = None
+
+            # get_messages 可能返回单条 Message 或 List[Message]，这里统一转成单条
+            if isinstance(prev_result, list):
+                if prev_result:
+                    prev_msgs.append(prev_result[0])
+            elif prev_result is not None:
+                prev_msgs.append(prev_result)
+        prev_msgs.reverse()
+
+        for prev_msg in prev_msgs:
+            user_prompt.extend(
+                await build_contents_from_message(prev_msg, "[Context Message]")
+            )
+
+    # 最后追加当前消息（带 ctx）
+    user_prompt.extend(
+        await build_contents_from_message(message, ctx_text=str(ctx) if ctx else None)
+    )
+
+    return user_prompt
+
+
+def has_multimodal_input(user_prompt: list[UserContent]) -> bool:
+    for content in user_prompt:
+        if isinstance(content, MultiModalContent):
+            return True
+    return False
