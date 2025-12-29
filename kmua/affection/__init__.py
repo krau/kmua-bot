@@ -57,7 +57,7 @@ async def update_user_affection(user_id: int, change: int):
     rank = await database.get_affection_percentile(current_affection)
     passivation = await common.memttlcache.get(f"affection_passivation:{user_id}", None)
     if passivation is None:
-        passivation = min(5.0, 0.005 + 5 * rank)
+        passivation = min(5.0, 0.005 + 10 * abs(0.5 - rank))
     new_affection = calculate_affection_update(
         current=current_affection,
         change=change,
