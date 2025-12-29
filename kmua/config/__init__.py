@@ -55,6 +55,7 @@ class _AppConfig(pydantic.BaseModel):
 
     # agent
     agent: bool = False
+    agent_cross_group_memory: bool = True
     agent_model: str = "gpt-5.1"
     agent_model_multimodal: str | None = None
     agent_provider_url: str = "https://api.openai.com/v1"

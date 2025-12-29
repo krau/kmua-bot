@@ -343,7 +343,7 @@ class UserMessageGlobal:
 
 @PyrogramClient.on_message(group=100)
 async def after_all(client: PyrogramClient, message: pyrogram.types.Message):
-    if not agent or not app_config.agent:
+    if not agent or not app_config.agent or not app_config.agent_cross_group_memory:
         return
     user = message.from_user
     chat = message.chat
