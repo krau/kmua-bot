@@ -3,6 +3,7 @@ import io
 import random
 import re
 
+import aiofiles
 import httpx
 import pyrogram
 from pyrogram.client import Client as PyrogramClient
@@ -12,7 +13,12 @@ from kmua.config import app_config
 from kmua.logger import logger
 from kmua.services import aniobjcut
 from kmua.services import manyacg as manyacg_service
-from kmua.services.manyacg import manyacg_client
+from kmua.services.manyacg import (
+    FetchedPicture,
+    FetchedUgoira,
+    FetchedVideo,
+    manyacg_client,
+)
 
 from . import utils
 
@@ -59,54 +65,77 @@ async def parse_artwork(client: PyrogramClient, message: pyrogram.types.Message)
     except Exception as e:
         logger.error(f"Error fetching artwork: {e}")
         return
-    if resp.status_code != 200:
-        logger.error(f"fetch_artwork failed: {resp.status_code} {resp.text}")
+    if resp.status != 200:
+        logger.error(f"fetch_artwork failed: {resp.status} {resp.message}")
         return
-    artwork: dict = resp.json()
-    if artwork["status"] != 200:
-        # should not happen
-        return
-    artwork_title = artwork["data"]["title"]
-    artwork_description = artwork["data"]["description"]
-    artwork_source_url = artwork["data"]["source_url"]
-    artwork_r18 = artwork["data"]["r18"]
-    artwork_pictures = artwork["data"]["pictures"][:10]
-    artwork_pictures_count = len(artwork["data"]["pictures"])
-    cache_id = artwork["data"]["cache_id"]
+    artwork = resp.data
+    assert artwork is not None, "Artwork data is None but status is 200"
     try:
-        media = []
-        caption = f"<a href='{artwork_source_url}'>{html.escape(artwork_title)}</a>\n<blockquote expandable=true>{html.escape(artwork_description)}</blockquote>"
-        if artwork_pictures_count > 10:
+        medias: list[FetchedVideo | FetchedPicture] = []
+        if artwork.pictures:
+            pictures = [picture for picture in artwork.pictures]
+            pictures.sort(key=lambda x: x.index)
+            medias += [picture for picture in pictures]
+        # [TODO] impl ugoira support
+        # if artwork.ugoira_metas and len(medias) < 10:
+        #     ugorias = [ugoira for ugoira in artwork.ugoira_metas]
+        #     ugorias.sort(key=lambda x: x.index)
+        #     medias += [ugoira for ugoira in ugorias]
+        if artwork.videos and len(medias) < 10:
+            videos = [video for video in artwork.videos]
+            videos.sort(key=lambda x: x.index)
+            medias += [video for video in videos]
+        assert len(medias) > 0, "No media found in artwork"
+        caption = f"<a href='{artwork.source_url}'>{html.escape(artwork.title)}</a>\n<blockquote expandable=true>{html.escape(artwork.description)}</blockquote>"
+        if (count := len(medias)) > 10:
             caption += i18n.t(
                 "bot.msg.manyacg.artwork_pictures_count",
                 locale=lang,
-            ).format(count=artwork_pictures_count)
-            if cache_id:
-                caption += f" <a href='https://t.me/{app_config.manyacg_bot}/?start=info_{cache_id}'>{i18n.t('bot.msg.manyacg.seefull', locale=lang)}</a>"
-        async with httpx.AsyncClient() as http_client:
-            for picture in artwork_pictures:
-                photo = await utils.prepare_media(http_client, picture)
-                media.append(
-                    pyrogram.types.InputMediaPhoto(
-                        media=(
-                            io.BytesIO(photo)
-                            if isinstance(photo, (bytes, bytearray, memoryview))
-                            else photo
-                        ),
-                        has_spoiler=artwork_r18,
-                        caption=caption if picture["index"] == 0 else "",
-                        parse_mode=pyrogram.enums.ParseMode.HTML,
+            ).format(count=count)
+            if artwork.cache_id:
+                caption += f" <a href='https://t.me/{app_config.manyacg_bot}/?start=info_{artwork.cache_id}'>{i18n.t('bot.msg.manyacg.seefull', locale=lang)}</a>"
+        async with aiofiles.tempfile.TemporaryDirectory() as tmpdir:
+            async with httpx.AsyncClient() as http_client:
+                inputs = []
+                for idx, media in enumerate(medias[:10]):
+                    im = await utils.prepare_media(
+                        http_client, media, tmpdir + f"/media_{idx}"
                     )
+                    if isinstance(media, (FetchedVideo, FetchedUgoira)):
+                        input_media = pyrogram.types.InputMediaVideo(
+                            media=im,
+                            caption=caption if idx == 0 else "",
+                            parse_mode=pyrogram.enums.ParseMode.HTML,
+                            supports_streaming=True,
+                        )
+                    else:
+                        input_media = pyrogram.types.InputMediaPhoto(
+                            media=im,
+                            caption=caption if idx == 0 else "",
+                            parse_mode=pyrogram.enums.ParseMode.HTML,
+                        )
+                    inputs.append(input_media)
+                msgs = await message.reply_media_group(
+                    inputs,
                 )
-        msgs = await message.reply_media_group(media=media)
         for idx, msg in enumerate(msgs):
-            image_url = artwork_pictures[idx]["original"]
-            if msg.photo is None:
+            media_url = ""
+            file_id = ""
+            m = medias[idx]
+            if isinstance(m, FetchedPicture):
+                media_url = m.original
+                file_id = msg.photo.file_id if msg.photo else ""
+            elif isinstance(m, FetchedUgoira):
+                media_url = m.data.original_zip
+                file_id = msg.video.file_id if msg.video else ""
+            elif isinstance(m, FetchedVideo):
+                media_url = m.url
+                file_id = msg.video.file_id if msg.video else ""
+            if not media_url or not file_id:
                 continue
-            photo_file_id = msg.photo.file_id
             await common.memttlcache.set(
-                f"artwork:pic_file_id:{image_url}",
-                photo_file_id,
+                f"artwork:media_file_id:{media_url}",
+                file_id,
                 ttl=app_config.cachettl_artwork_pic_file_id,
             )
     except Exception as e:
@@ -149,23 +178,18 @@ async def setu_command(client: PyrogramClient, message: pyrogram.types.Message):
     )
     try:
         resp = await manyacg_client.random_artwork(limit=1, r18=2)
-        if resp.status_code != 200:
+        if resp.status != 200:
             await message.reply(
                 i18n.t("bot.msg.manyacg.setu_error", locale=lang),
             )
             return
-        artwork: dict = resp.json()["data"][0]
-        picture: dict = artwork["pictures"][
-            random.randint(0, len(artwork["pictures"]) - 1)
-        ]
-        detail_link = (
-            f"https://t.me/{app_config.manyacg_channel}/{picture['message_id']}"
-            if picture.get("message_id")
-            else artwork["source_url"]
-        )
+        assert resp.data is not None, "Random artwork data is None but status is 200"
+        artwork = resp.data[0]
+        picture = artwork.pictures[random.randint(0, len(artwork.pictures) - 1)]
+        detail_link = artwork.source_url
         await message.reply_photo(
-            photo=picture["regular"],
-            caption=f"<a href='{artwork['source_url']}'>{html.escape(artwork['title'])}</a>",
+            photo=picture.regular,
+            caption=f"<a href='{artwork.source_url}'>{html.escape(artwork.title)}</a>",
             parse_mode=pyrogram.enums.ParseMode.HTML,
             reply_markup=pyrogram.types.InlineKeyboardMarkup(
                 [
@@ -176,12 +200,12 @@ async def setu_command(client: PyrogramClient, message: pyrogram.types.Message):
                         ),
                         pyrogram.types.InlineKeyboardButton(
                             text=i18n.t("bot.button.manyacg.original", locale=lang),
-                            url=f"https://t.me/{app_config.manyacg_bot}/?start=file_{picture['id']}",
+                            url=f"https://t.me/{app_config.manyacg_bot}/?start=file_{picture.id}",
                         ),
                     ]
                 ]
             ),
-            has_spoiler=artwork["r18"],
+            has_spoiler=artwork.r18,
         )
     except Exception as e:
         logger.error(f"setu_command error: {e.__class__.__name__}:{e}")
@@ -227,29 +251,24 @@ async def randavatar_command(client: PyrogramClient, message: pyrogram.types.Mes
     )
     try:
         resp = await manyacg_client.random_artwork(limit=1, r18=2)
-        if resp.status_code != 200:
+        if resp.status != 200:
             await message.reply(
                 i18n.t("bot.msg.manyacg.setu_error", locale=lang),
             )
             return
-        artwork: dict = resp.json()["data"][0]
-        picture: dict = artwork["pictures"][
-            random.randint(0, len(artwork["pictures"]) - 1)
-        ]
-        detail_link = (
-            f"https://t.me/{app_config.manyacg_channel}/{picture['message_id']}"
-            if picture.get("message_id")
-            else artwork["source_url"]
-        )
+        assert resp.data is not None, "Random artwork data is None but status is 200"
+        artwork = resp.data[0]
+        picture = artwork.pictures[random.randint(0, len(artwork.pictures) - 1)]
+        detail_link = artwork.source_url
         async with httpx.AsyncClient(timeout=30) as http_client:
             fileresp = await http_client.get(
-                f"{app_config.manyacg_api_url}/picture/file/{picture['id']}"
+                f"{app_config.manyacg_api_url}/picture/file/{picture.id}",
             )
             fileresp.raise_for_status()
         avatar = await aniobjcut.aniobjcut_client.cut_avatar(fileresp.content)
         await message.reply_photo(
             photo=io.BytesIO(avatar),
-            caption=f"<a href='{artwork['source_url']}'>{html.escape(artwork['title'])}</a>",
+            caption=f"<a href='{artwork.source_url}'>{html.escape(artwork.title)}</a>",
             parse_mode=pyrogram.enums.ParseMode.HTML,
             reply_markup=pyrogram.types.InlineKeyboardMarkup(
                 [
@@ -260,12 +279,12 @@ async def randavatar_command(client: PyrogramClient, message: pyrogram.types.Mes
                         ),
                         pyrogram.types.InlineKeyboardButton(
                             text=i18n.t("bot.button.manyacg.original", locale=lang),
-                            url=f"https://t.me/{app_config.manyacg_bot}/?start=file_{picture['id']}",
+                            url=f"https://t.me/{app_config.manyacg_bot}/?start=file_{picture.id}",
                         ),
                     ]
                 ]
             ),
-            has_spoiler=artwork["r18"],
+            has_spoiler=artwork.r18,
         )
     except Exception as e:
         logger.error(f"error: {e.__class__.__name__}:{e}")
