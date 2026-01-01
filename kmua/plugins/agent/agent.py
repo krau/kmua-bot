@@ -28,6 +28,11 @@ from . import datatype, myfilter, tools, utils
 from .simple_reply import word_reply
 
 agent = None
+model = None
+multimodal_model = None
+summary_agent = None
+memory_agent = None
+
 if app_config.agent:
     model = OpenAIChatModel(
         model_name=app_config.agent_model,
