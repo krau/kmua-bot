@@ -219,20 +219,35 @@ async def update_memory(
         if old_memory:
             # 合并记忆列表, 每个字段去重(?), 且限制长度为 3
             for field in datatype.MemoryAboutUser.model_fields:
-                old_value = getattr(old_memory, field)
-                new_value = getattr(new_memory, field)
+                old_value = getattr(old_memory, field, [])
+                new_value = getattr(new_memory, field, [])
                 if old_value and new_value:
                     if isinstance(old_value, list) and isinstance(new_value, list):
                         combined = list(dict.fromkeys(old_value + new_value))
                         setattr(new_memory, field, combined[:3])
                     elif isinstance(old_value, str) and isinstance(new_value, str):
                         if new_value not in old_value:
-                            combined = old_value + "; " + new_value
+                            combined = [old_value, new_value]
+                        else:
+                            combined = [old_value]
+                        setattr(new_memory, field, combined)
+                    elif isinstance(old_value, list) and isinstance(new_value, str):
+                        if new_value not in old_value:
+                            combined = old_value + [new_value]
                         else:
                             combined = old_value
-                        setattr(new_memory, field, combined)
+                        setattr(new_memory, field, combined[:3])
+                    elif isinstance(old_value, str) and isinstance(new_value, list):
+                        if old_value not in new_value:
+                            combined = [old_value] + new_value
+                        else:
+                            combined = new_value
+                        setattr(new_memory, field, combined[:3])
                 elif old_value and not new_value:
-                    setattr(new_memory, field, old_value)
+                    if isinstance(old_value, list):
+                        setattr(new_memory, field, old_value[:3])
+                    else:
+                        setattr(new_memory, field, [old_value])
         await memttlcache.set(
             memory_key(user_id),
             new_memory,
