@@ -75,13 +75,17 @@ async def summarize_history(
         f"Summarizing history: total messages={len(messages)}, messages_threshold={messages_threshold}"
     )
     try:
-        message_text = get_history_text(messages)
+        messages_to_summarize = messages[:-1]
+        current_user_message = messages[-1:]
+
+        message_text = get_history_text(messages_to_summarize)
 
         summary_result = await summary_agent.run(
-            user_prompt=f"{i18n.t('bot.msg.agent.summary_prompt', locale=app_config.lang)}: {message_text}"
+            user_prompt=f"{i18n.t('bot.msg.agent.summary_prompt', locale=app_config.lang)}: {message_text}",
+            message_history=[],
         )
         logger.debug(f"Agent summarize: {summary_result.output}")
-        summary_part = summary_result.new_messages() + messages[-1:]
+        summary_part = summary_result.new_messages() + current_user_message
 
         return summary_part
     except Exception as e:
