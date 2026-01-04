@@ -382,16 +382,23 @@ async def get_input_prompt(
             prev_msgs = await common.tgmethod.get_cached_messages_objects(
                 message.chat.id, message_ids
             )
-
+            media_count = 0
             for prev_msg in prev_msgs:
                 sender_name = "未知用户"
                 if prev_msg.from_user:
                     sender_name = prev_msg.from_user.first_name or "未知用户"
                 elif prev_msg.sender_chat:
                     sender_name = prev_msg.sender_chat.title or "未知频道"
+                include_media = True
+                if media_count >= 2:
+                    include_media = False
+                if prev_msg.media:
+                    media_count += 1
                 user_prompt.extend(
                     await build_contents_from_message(
-                        prev_msg, f"[群聊上下文 - {sender_name}]", include_media=False
+                        prev_msg,
+                        f"[群聊上下文 - {sender_name}]",
+                        include_media=include_media,
                     )
                 )
 
