@@ -2,16 +2,13 @@ import asyncio
 import random
 from dataclasses import dataclass
 from datetime import datetime
-from io import BytesIO
-from typing import Any
 
 import pydantic_ai
 import pyrogram
 import pyrogram.errors
 from ddgs import DDGS
-from pydantic_ai import Agent, BinaryContent, ModelMessage, MultiModalContent, Tool
+from pydantic_ai import Agent, ModelMessage, Tool
 from pydantic_ai.common_tools.duckduckgo import DuckDuckGoSearchTool
-from pydantic_ai.messages import UserContent
 from pydantic_ai.models.openai import OpenAIChatModel
 from pydantic_ai.providers.openai import OpenAIProvider
 from pyrogram import filters
@@ -272,7 +269,7 @@ async def wake_agent(client: PyrogramClient, message: pyrogram.types.Message):
                                 logger.debug(
                                     f"Agent run end with result: {agent_run.result.output}"
                                 )
-                                # 如果流式阶段已经发送过内容，避免在结束节点再重复发送相同输出
+                                # tool call 阶段的 text part 就是这里最终的 output，不需要重复发送
                                 if not sent_any_reply:
                                     await _reply_output(agent_run.result.output)
                                 summary = await utils.summarize_history(
