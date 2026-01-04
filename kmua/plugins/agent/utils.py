@@ -12,6 +12,7 @@ from pydantic_ai import (
     ModelRetry,
     MultiModalContent,
     UserContent,
+    UserPromptPart,
 )
 from pydantic_ai.messages import ModelMessage, ModelRequest
 from pyrogram.client import Client as PyrogramClient
@@ -85,9 +86,14 @@ async def summarize_history(
             message_history=[],
         )
         logger.debug(f"Agent summarize: {summary_result.output}")
-        summary_part = summary_result.new_messages() + current_user_message
+        parts = [UserPromptPart(summary_result.output)]
+        if current_user_message[0].kind == "request":
+            for part in current_user_message[0].parts:
+                if part.part_kind == "user-prompt":
+                    parts.append(part)
+                # [TODO] handle tool call parts
 
-        return summary_part
+        return [ModelRequest(parts=parts)]
     except Exception as e:
         logger.exception(
             f"Error summarizing history with agent: {e.__class__.__name__} - {e}"
