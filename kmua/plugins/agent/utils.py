@@ -1,5 +1,4 @@
 import asyncio
-import math
 import random
 from collections import defaultdict
 from io import BytesIO
@@ -7,11 +6,17 @@ from typing import Any
 from weakref import WeakValueDictionary
 
 import pyrogram
-from pydantic_ai import Agent, BinaryContent, ModelRetry, MultiModalContent, UserContent
-from pydantic_ai.messages import ModelMessage, ModelRequest, SystemPromptPart
+from pydantic_ai import (
+    Agent,
+    BinaryContent,
+    ModelRetry,
+    MultiModalContent,
+    UserContent,
+)
+from pydantic_ai.messages import ModelMessage, ModelRequest
 from pyrogram.client import Client as PyrogramClient
 
-from kmua import affection, database
+from kmua import affection
 from kmua.common.memory_store import memttlcache
 from kmua.config import app_config
 from kmua.i18n import i18n
@@ -52,48 +57,38 @@ def get_history_text(message_history: list[ModelMessage]) -> str:
 
 async def summarize_history(
     summary_agent: Agent,
-    message_history: list[ModelMessage],
+    messages: list[ModelMessage],
     messages_threshold: int = app_config.agent_messages_threshold,
 ) -> list[ModelMessage]:
-    has_multimodal_content = False
-    for msg in message_history:
+    multimodal_content_count = 0
+    for msg in messages:
         for part in msg.parts:
             if part.part_kind == "user-prompt" and not isinstance(part.content, str):
                 for content in part.content:
                     if not isinstance(content, str):
-                        has_multimodal_content = True
-                        break
-        if has_multimodal_content:
-            break
-
-    if not has_multimodal_content and len(message_history) <= messages_threshold:
-        # 有多模态内容时, 强制总结历史消息
-        return message_history
+                        multimodal_content_count += 1
+    # 有两条及以上多模态内容时, 强制总结历史消息
+    if multimodal_content_count < 2 and len(messages) <= messages_threshold:
+        return messages
 
     logger.debug(
-        f"Summarizing history: total messages={len(message_history)}, messages_threshold={messages_threshold}"
+        f"Summarizing history: total messages={len(messages)}, messages_threshold={messages_threshold}"
     )
     try:
-        message_text = get_history_text(message_history)
+        message_text = get_history_text(messages)
 
         summary_result = await summary_agent.run(
             user_prompt=f"{i18n.t('bot.msg.agent.summary_prompt', locale=app_config.lang)}: {message_text}"
         )
         logger.debug(f"Agent summarize: {summary_result.output}")
-        summary_part = SystemPromptPart(
-            content=f"[CONVERSATION HISTORY]: {summary_result.output}"
-        )
+        summary_part = summary_result.new_messages() + messages[-1:]
 
-        return [
-            ModelRequest(parts=[summary_part]),
-        ]
+        return summary_part
     except Exception as e:
         logger.exception(
             f"Error summarizing history with agent: {e.__class__.__name__} - {e}"
         )
-        filtered_messages = filter_tool_return_if_needed(
-            message_history[-messages_threshold:]
-        )
+        filtered_messages = filter_tool_return_if_needed(messages[-messages_threshold:])
 
         result_messages = []
         for msg in filtered_messages:

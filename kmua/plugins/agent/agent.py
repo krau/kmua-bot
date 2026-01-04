@@ -7,7 +7,7 @@ import pydantic_ai
 import pyrogram
 import pyrogram.errors
 from ddgs import DDGS
-from pydantic_ai import Agent, ModelMessage, Tool
+from pydantic_ai import Agent, ModelMessage, RunContext, Tool
 from pydantic_ai.common_tools.duckduckgo import DuckDuckGoSearchTool
 from pydantic_ai.models.openai import OpenAIChatModel
 from pydantic_ai.providers.openai import OpenAIProvider
@@ -29,6 +29,29 @@ model = None
 multimodal_model = None
 summary_agent = None
 memory_agent = None
+
+
+async def history_processor(
+    ctx: RunContext[datatype.ContextDeps], messages: list[ModelMessage]
+) -> list[ModelMessage]:
+    # 总结历史+更新记忆
+    # processor 会在消息发送给模型之前被调用
+    summary = await utils.summarize_history(summary_agent, messages)
+    await common.memttlcache.set(
+        _history_key(ctx.deps.chat_id, ctx.deps.user_id),
+        summary,
+        ttl=app_config.cachettl_agent_history,
+    )
+    if len(messages) >= app_config.agent_messages_threshold:
+        try:
+            history_text = utils.get_history_text(messages)
+            await utils.update_memory(memory_agent, history_text, ctx.deps.user_id)
+        except Exception as e:
+            logger.exception(
+                f"Error updating memory for user {ctx.deps.user_id}: {e.__class__.__name__} - {e}"
+            )
+    return summary
+
 
 if app_config.agent:
     model = OpenAIChatModel(
@@ -73,6 +96,7 @@ if app_config.agent:
             tools.send_anime_photo,
         ],
         deps_type=datatype.ContextDeps,
+        history_processors=[history_processor],
         retries=3,
     )
     summary_agent = Agent(
@@ -131,206 +155,176 @@ def get_agent_affection_prompt(rank: float) -> str | None:
 
 @PyrogramClient.on_message(_filter, group=0)
 async def wake_agent(client: PyrogramClient, message: pyrogram.types.Message):
+    # some check
+    if not agent:
+        return await word_reply(client, message)
+    user = message.sender_chat or message.from_user
+    if not user or not user.id:
+        return await word_reply(client, message)
+    chat = message.chat
+    if not chat or not chat.id:
+        return await word_reply(client, message)
+    if (
+        app_config.agent_whitelist_mode
+        and user.id not in app_config.agent_whitelist
+        and chat.id not in app_config.agent_whitelist
+    ):
+        return await word_reply(client, message)
+    if chat.type == pyrogram.enums.ChatType.SUPERGROUP:
+        chat_config = await database.get_chat_config(chat)
+        if not chat_config.ai_reply:
+            return await word_reply(client, message)
+    user_data = await database.get_user_by_id(user.id)
+    if not user_data:
+        return
+    if await common.memstore.get(_waiting_key(user.id)):
+        return await word_reply(client, message)
+    await common.memstore.set(_waiting_key(user.id), True)
+    # set language
+    if chat.type == pyrogram.enums.ChatType.PRIVATE:
+        lang = (await database.get_user_config(user.id)).lang
+    else:
+        lang = (await database.get_chat_config(chat.id)).lang
+
+    await message.reply_chat_action(pyrogram.enums.ChatAction.TYPING)
+    # agent run
     try:
-        # some check
-        if not agent:
-            return await word_reply(client, message)
-        user = message.sender_chat or message.from_user
-        if not user or not user.id:
-            return await word_reply(client, message)
-        chat = message.chat
-        if not chat or not chat.id:
-            return await word_reply(client, message)
-        if (
-            app_config.agent_whitelist_mode
-            and user.id not in app_config.agent_whitelist
-            and chat.id not in app_config.agent_whitelist
-        ):
-            return await word_reply(client, message)
-        if chat.type == pyrogram.enums.ChatType.SUPERGROUP:
-            chat_config = await database.get_chat_config(chat)
-            if not chat_config.ai_reply:
-                return await word_reply(client, message)
-        user_data = await database.get_user_by_id(user.id)
-        if not user_data:
-            return
-        if await common.memstore.get(_waiting_key(user.id)):
-            return await word_reply(client, message)
-        await common.memstore.set(_waiting_key(user.id), True)
-        # set language
-        if chat.type == pyrogram.enums.ChatType.PRIVATE:
-            lang = (await database.get_user_config(user.id)).lang
-        else:
-            lang = (await database.get_chat_config(chat.id)).lang
-
-        await message.reply_chat_action(pyrogram.enums.ChatAction.TYPING)
-        # agent run
-        try:
-            chat_id = chat.id
-            history: list[ModelMessage] = await common.memttlcache.get(
-                _history_key(chat_id, user.id), []
+        chat_id = chat.id
+        history: list[ModelMessage] = await common.memttlcache.get(
+            _history_key(chat_id, user.id), []
+        )
+        instructions = app_config.agent_prompt
+        if len(history) % 4 == 0:  # 每四次对话发送一次上下文
+            ctx_info = datatype.ContextInfo(
+                user_data=datatype.UserData(
+                    user_id=user.id,
+                    full_name=user_data.full_name,
+                    username=user_data.username,
+                    config={"lang": user_data.user_config.lang}
+                    if user_data.user_config
+                    else None,
+                ),
+                chat_type=chat.type.name if chat.type else None,
+                msg_id=message.id,
+                current_time=datetime.now().isoformat(),
             )
-            instructions = app_config.agent_prompt
-            if len(history) % 4 == 0:  # 每四次对话发送一次上下文
-                ctx_info = datatype.ContextInfo(
-                    user_data=datatype.UserData(
-                        user_id=user.id,
-                        full_name=user_data.full_name,
-                        username=user_data.username,
-                        config={"lang": user_data.user_config.lang}
-                        if user_data.user_config
-                        else None,
-                    ),
-                    chat_type=chat.type.name if chat.type else None,
-                    msg_id=message.id,
-                    current_time=datetime.now().isoformat(),
-                )
-                if reply_to := message.reply_to_message:
-                    ctx_info.reply_to_msg_id = reply_to.id
-                    ctx_info.reply_to_msg_text = reply_to.text or reply_to.caption
-                memory = await common.memttlcache.get(utils.memory_key(user.id))
-                if memory and isinstance(memory, datatype.MemoryAboutUser):
-                    ctx_info.memory_about_user = memory
-                affection_rank = await affection.get_affection_rank(user_data.id)
-                append_prompt = get_agent_affection_prompt(affection_rank)
-                if append_prompt:
-                    ctx_info.append_prompt = append_prompt
-                instructions += f"\n\n{ctx_info.to_text()}"
-            user_prompt = await utils.get_input_prompt(client, message)
-            logger.debug(
-                f"User {user.id} prompt without context due to long history: {message.text or message.caption or ''}"
-            )
-            sent_any_reply = False
+            if reply_to := message.reply_to_message:
+                ctx_info.reply_to_msg_id = reply_to.id
+                ctx_info.reply_to_msg_text = reply_to.text or reply_to.caption
+            memory = await common.memttlcache.get(utils.memory_key(user.id))
+            if memory and isinstance(memory, datatype.MemoryAboutUser):
+                ctx_info.memory_about_user = memory
+            affection_rank = await affection.get_affection_rank(user_data.id)
+            append_prompt = get_agent_affection_prompt(affection_rank)
+            if append_prompt:
+                ctx_info.append_prompt = append_prompt
+            instructions += f"\n\n{ctx_info.to_text()}"
+        user_prompt = await utils.get_input_prompt(client, message)
+        logger.debug(
+            f"User {user.id} prompt without context due to long history: {message.text or message.caption or ''}"
+        )
+        sent_any_reply = False
 
-            async def _reply_output(text: str):
-                nonlocal sent_any_reply
-                # 将原始文本按两个换行分割为多个句子
-                lines = [line for line in text.split("\n\n") if line.strip()]
-                if not lines:
-                    return
-
-                # 一次调用最多发送 3 条消息，尽量平均每条消息包含的句子数
-                max_messages = 3
-                total_sentences = len(lines)
-                num_messages = min(max_messages, total_sentences)
-
-                base = total_sentences // num_messages
-                remainder = total_sentences % num_messages
-
-                chunks: list[str] = []
-                index = 0
-                for i in range(num_messages):
-                    size = base + (1 if i < remainder else 0)
-                    part = lines[index : index + size]
-                    index += size
-                    # 每条消息内部的句子之间只用一个换行连接
-                    chunks.append("\n".join(part))
-
-                try:
-                    for chunk in chunks:
-                        await message.reply_chat_action(
-                            pyrogram.enums.ChatAction.TYPING
-                        )
-                        await message.reply_text(chunk, parse_mode=ParseMode.DISABLED)
-                        await asyncio.sleep(random.uniform(0.721, 3.9))
-                    sent_any_reply = True
-                except pyrogram.errors.MessageNotModified:
-                    pass
-                except Exception as e:
-                    logger.error(
-                        f"Error replying or editing message: {e.__class__.__name__} - {e}"
-                    )
-
-            try:
-                use_model = (
-                    model
-                    if not utils.has_multimodal_input(user_prompt)
-                    else multimodal_model
-                )
-                async with agent.iter(
-                    instructions=instructions,
-                    model=use_model,
-                    user_prompt=user_prompt,
-                    message_history=history,
-                    deps=datatype.ContextDeps(
-                        user_id=user.id,
-                        chat_id=chat_id,
-                        message=message,
-                        client=client,
-                    ),  # type: ignore
-                ) as agent_run:
-                    async for node in agent_run:
-                        if Agent.is_call_tools_node(node):
-                            for part in node.model_response.parts:
-                                if part.part_kind == "text" and part.content:
-                                    await _reply_output(part.content)
-                        elif Agent.is_end_node(node):
-                            if agent_run.result:
-                                logger.debug(
-                                    f"Agent run end with result: {agent_run.result.output}"
-                                )
-                                # tool call 阶段的 text part 就是这里最终的 output，不需要重复发送
-                                if not sent_any_reply:
-                                    await _reply_output(agent_run.result.output)
-                                summary = await utils.summarize_history(
-                                    summary_agent, agent_run.result.all_messages()
-                                )
-                                await common.memttlcache.set(
-                                    _history_key(chat_id, user.id),
-                                    summary,
-                                    ttl=app_config.cachettl_agent_history,
-                                )
-                                if (
-                                    len(agent_run.result.all_messages())
-                                    >= app_config.agent_messages_threshold
-                                ):
-                                    # update memory
-                                    try:
-                                        history_text = utils.get_history_text(
-                                            agent_run.result.all_messages()
-                                        )
-                                        await utils.update_memory(
-                                            memory_agent, history_text, user.id
-                                        )
-                                    except Exception as e:
-                                        logger.exception(
-                                            f"Error updating memory for user {user.id}: {e.__class__.__name__} - {e}"
-                                        )
-                            else:
-                                logger.error(
-                                    f"Agent run ended with no result for user {user.id} in chat {chat_id}"
-                                )
-            except TypeError as e:
-                # https://github.com/pydantic/pydantic-ai/issues/527
-                # https://github.com/pydantic/pydantic-ai/issues/1813
-                # https://github.com/pydantic/pydantic-ai/issues/1746
-                logger.exception(f"Agent run error: {e}")
-                await message.reply_text(
-                    f"{i18n.t('bot.msg.agent.errors.too_fast', locale=lang)}\n<code>{e}</code>",
-                    parse_mode=pyrogram.enums.ParseMode.HTML,
-                )
-                raise e
-            except pydantic_ai.exceptions.ModelHTTPError as e:
-                logger.exception(f"Agent HTTP error: {e}")
-                if e.status_code == 400:
-                    await message.reply_text(
-                        i18n.t("bot.msg.agent.errors.model_http_400", locale=lang)
-                    )
-                    return
-                else:
-                    await message.reply_text(
-                        i18n.t("bot.msg.agent.errors.model_http", locale=lang).format(
-                            code=e.status_code
-                        )
-                    )
+        async def _reply_output(text: str):
+            nonlocal sent_any_reply
+            # 将原始文本按两个换行分割为多个句子
+            lines = [line for line in text.split("\n\n") if line.strip()]
+            if not lines:
                 return
 
-        finally:
-            await common.memstore.delete(_waiting_key(user.id))
+            # 一次调用最多发送 3 条消息，尽量平均每条消息包含的句子数
+            max_messages = 3
+            total_sentences = len(lines)
+            num_messages = min(max_messages, total_sentences)
+
+            base = total_sentences // num_messages
+            remainder = total_sentences % num_messages
+
+            chunks: list[str] = []
+            index = 0
+            for i in range(num_messages):
+                size = base + (1 if i < remainder else 0)
+                part = lines[index : index + size]
+                index += size
+                # 每条消息内部的句子之间只用一个换行连接
+                chunks.append("\n".join(part))
+
+            try:
+                for chunk in chunks:
+                    await message.reply_chat_action(pyrogram.enums.ChatAction.TYPING)
+                    await message.reply_text(chunk, parse_mode=ParseMode.DISABLED)
+                    await asyncio.sleep(random.uniform(0.721, 3.9))
+                sent_any_reply = True
+            except pyrogram.errors.MessageNotModified:
+                pass
+            except Exception as e:
+                logger.error(
+                    f"Error replying or editing message: {e.__class__.__name__} - {e}"
+                )
+
+        try:
+            use_model = (
+                model
+                if not utils.has_multimodal_input(user_prompt)
+                else multimodal_model
+            )
+            async with agent.iter(
+                instructions=instructions,
+                model=use_model,
+                user_prompt=user_prompt,
+                message_history=history,
+                deps=datatype.ContextDeps(
+                    user_id=user.id,
+                    chat_id=chat_id,
+                    message=message,
+                    client=client,
+                ),  # type: ignore
+            ) as agent_run:
+                async for node in agent_run:
+                    if Agent.is_call_tools_node(node):
+                        for part in node.model_response.parts:
+                            if part.part_kind == "text" and part.content:
+                                await _reply_output(part.content)
+                    elif Agent.is_end_node(node):
+                        assert agent_run.result is not None, (
+                            "Agent run ended without result"
+                        )
+                        logger.debug(
+                            f"Agent run end with result: {agent_run.result.output}"
+                        )
+                        # tool call 阶段的 text part 就是这里最终的 output，不需要重复发送
+                        if not sent_any_reply:
+                            await _reply_output(agent_run.result.output)
+        except TypeError as e:
+            # https://github.com/pydantic/pydantic-ai/issues/527
+            # https://github.com/pydantic/pydantic-ai/issues/1813
+            # https://github.com/pydantic/pydantic-ai/issues/1746
+            logger.exception(f"Agent run error: {e}")
+            await message.reply_text(
+                f"{i18n.t('bot.msg.agent.errors.too_fast', locale=lang)}\n<code>{e}</code>",
+                parse_mode=pyrogram.enums.ParseMode.HTML,
+            )
+            raise e
+        except pydantic_ai.exceptions.ModelHTTPError as e:
+            logger.exception(f"Agent HTTP error: {e}")
+            if e.status_code == 400:
+                await message.reply_text(
+                    i18n.t("bot.msg.agent.errors.model_http_400", locale=lang)
+                )
+                return
+            else:
+                await message.reply_text(
+                    i18n.t("bot.msg.agent.errors.model_http", locale=lang).format(
+                        code=e.status_code
+                    )
+                )
+            return
     except Exception as e:
         logger.exception(
             f"Unexpected error in wake_agent: {e.__class__.__name__} - {e}"
         )
+    finally:
+        await common.memstore.delete(_waiting_key(user.id))
 
 
 @dataclass
@@ -341,7 +335,7 @@ class UserMessageGlobal:
 
 
 @PyrogramClient.on_message(group=100)
-async def after_all(client: PyrogramClient, message: pyrogram.types.Message):
+async def record_cross_group_memory(client: PyrogramClient, message: pyrogram.types.Message):
     if not agent or not app_config.agent or not app_config.agent_cross_group_memory:
         return
     user = message.from_user
