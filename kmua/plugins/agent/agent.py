@@ -220,9 +220,7 @@ async def wake_agent(client: PyrogramClient, message: pyrogram.types.Message):
                 ctx_info.append_prompt = append_prompt
             instructions += f"\n\n{ctx_info.to_text()}"
         user_prompt = await utils.get_input_prompt(client, message)
-        logger.debug(
-            f"User {user.id} prompt: {message.text or message.caption or ''}"
-        )
+        logger.debug(f"User {user.id} prompt: {message.text or message.caption or ''}")
         sent_any_reply = False
 
         async def _reply_output(text: str):
@@ -335,7 +333,9 @@ class UserMessageGlobal:
 
 
 @PyrogramClient.on_message(group=100)
-async def record_cross_group_memory(client: PyrogramClient, message: pyrogram.types.Message):
+async def record_cross_group_memory(
+    client: PyrogramClient, message: pyrogram.types.Message
+):
     if not agent or not app_config.agent or not app_config.agent_cross_group_memory:
         return
     user = message.from_user
@@ -347,6 +347,10 @@ async def record_cross_group_memory(client: PyrogramClient, message: pyrogram.ty
         or message.outgoing
         or message.service
         or message.automatic_forward
+        or message.forward_from_chat
+        or message.forward_from
+        or message.forward_sender_name
+        or message.via_bot
         or (
             user.id
             in (
@@ -375,16 +379,14 @@ async def record_cross_group_memory(client: PyrogramClient, message: pyrogram.ty
         )
     )
     if len(user_messages) > 100:
-        # 只保留最近 100 条
         user_messages = user_messages[-100:]
-
         # 每个用户每小时最多通过此函数更新一次记忆
         last_update_key = f"user_memory_last_update_from_after_all:{user.id}"
         last_updated = await memttlcache.get(last_update_key)
         if not last_updated:
+            await memttlcache.set(last_update_key, True, ttl=3600)
             texts = "\n".join([um.text for um in user_messages])
             await utils.update_memory(memory_agent, texts, user.id)
-            await memttlcache.set(last_update_key, True, ttl=3600)
     await memttlcache.set(
         f"user_messages_global:{user.id}", user_messages, ttl=86400 * 7
     )
