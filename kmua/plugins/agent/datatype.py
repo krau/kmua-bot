@@ -150,6 +150,7 @@ class ContextInfo:
     reply_to_msg_id: int | None = None
     memory_about_user: MemoryAboutUser | None = None
     append_prompt: str | None = None
+    is_group_chat: bool = False
 
     def to_text(self) -> str:
         parts = []
@@ -169,6 +170,10 @@ class ContextInfo:
             parts.append(f"回复的消息ID: {self.reply_to_msg_id}")
         if self.memory_about_user:
             parts.append(f"关于用户的记忆: ({self.memory_about_user.to_text()})")
+        if self.is_group_chat:
+            parts.append(
+                "群聊场景，请注意用户输入的消息前面可能包含其他用户的近期消息作为上下文"
+            )
         if self.append_prompt:
             parts.append(f"附加提示: {self.append_prompt}")
         text = "\n".join(parts)

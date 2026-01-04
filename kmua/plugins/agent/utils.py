@@ -272,7 +272,9 @@ async def get_input_prompt(
         return None, None
 
     async def build_contents_from_message(
-        msg: pyrogram.types.Message, ctx_text: str | None = None
+        msg: pyrogram.types.Message,
+        ctx_text: str | None = None,
+        include_media: bool = True,
     ) -> list[UserContent]:
         contents: list[UserContent] = []
         text_part = f"{ctx_text or ''}\n{msg.text or msg.caption or ''}".strip()
@@ -280,7 +282,7 @@ async def get_input_prompt(
             contents.append(text_part)
 
         media, media_message = get_media_and_message(msg)
-        if media and media_message and app_config.agent_multimodal:
+        if media and media_message and app_config.agent_multimodal and include_media:
             match media:
                 case pyrogram.enums.MessageMediaType.PHOTO:
                     photo = media_message.photo
@@ -356,6 +358,14 @@ async def get_input_prompt(
 
     user_prompt: list[UserContent] = []
 
+    # 处理回复消息链：从当前消息向上追溯
+    reply_chain: list[pyrogram.types.Message] = []
+    current = message
+    while current.reply_to_message and len(reply_chain) < 10:  # 最多10条消息链
+        reply_chain.append(current.reply_to_message)
+        current = current.reply_to_message
+    reply_chain.reverse()  # 反转，使其按时间顺序排列
+
     # include_nearby > 0 时，先追加前面 N 条消息（从旧到新）
     if include_nearby and include_nearby > 0 and message.chat and message.chat.id:
         prev_msgs: list[pyrogram.types.Message] = []
@@ -378,13 +388,39 @@ async def get_input_prompt(
         prev_msgs.reverse()
 
         for prev_msg in prev_msgs:
+            sender_name = "未知用户"
+            if prev_msg.from_user:
+                sender_name = prev_msg.from_user.first_name or "未知用户"
+            elif prev_msg.sender_chat:
+                sender_name = prev_msg.sender_chat.title or "未知频道"
             user_prompt.extend(
-                await build_contents_from_message(prev_msg, "[Context Message]")
+                await build_contents_from_message(
+                    prev_msg, f"[群聊上下文 - {sender_name}]", include_media=False
+                )
+            )
+
+    # 处理回复消息链，只在最后一条消息中包含媒体
+    if reply_chain:
+        for idx, reply_msg in enumerate(reply_chain):
+            is_last = idx == len(reply_chain) - 1
+            sender_name = "未知用户"
+            if reply_msg.from_user:
+                sender_name = reply_msg.from_user.first_name or "未知用户"
+            elif reply_msg.sender_chat:
+                sender_name = reply_msg.sender_chat.title or "未知频道"
+            user_prompt.extend(
+                await build_contents_from_message(
+                    reply_msg,
+                    f"[回复链消息 - {sender_name}]",
+                    include_media=is_last,
+                )
             )
 
     # 最后追加当前消息（带 ctx）
     user_prompt.extend(
-        await build_contents_from_message(message, ctx_text=str(ctx) if ctx else None)
+        await build_contents_from_message(
+            message, ctx_text=str(ctx) if ctx else None, include_media=True
+        )
     )
 
     return user_prompt

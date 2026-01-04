@@ -194,6 +194,11 @@ async def wake_agent(client: PyrogramClient, message: pyrogram.types.Message):
             _history_key(chat_id, user.id), []
         )
         instructions = app_config.agent_prompt
+        is_group_chat = chat.type in (
+            pyrogram.enums.ChatType.SUPERGROUP,
+            pyrogram.enums.ChatType.GROUP,
+        )
+        ctx_info: datatype.ContextInfo | None = None
         if len(history) % 4 == 0:  # 每四次对话发送一次上下文
             ctx_info = datatype.ContextInfo(
                 user_data=datatype.UserData(
@@ -207,6 +212,7 @@ async def wake_agent(client: PyrogramClient, message: pyrogram.types.Message):
                 chat_type=chat.type.name if chat.type else None,
                 msg_id=message.id,
                 current_time=datetime.now().isoformat(),
+                is_group_chat=is_group_chat,
             )
             if reply_to := message.reply_to_message:
                 ctx_info.reply_to_msg_id = reply_to.id
@@ -219,7 +225,11 @@ async def wake_agent(client: PyrogramClient, message: pyrogram.types.Message):
             if append_prompt:
                 ctx_info.append_prompt = append_prompt
             instructions += f"\n\n{ctx_info.to_text()}"
-        user_prompt = await utils.get_input_prompt(client, message)
+        # 在群聊场景中获取附近消息作为上下文
+        nearby_count = 3 if is_group_chat else 0
+        user_prompt = await utils.get_input_prompt(
+            client, message, include_nearby=nearby_count, ctx=ctx_info
+        )
         logger.debug(f"User {user.id} prompt: {message.text or message.caption or ''}")
         sent_any_reply = False
 
