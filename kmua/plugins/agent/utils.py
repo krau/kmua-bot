@@ -61,15 +61,15 @@ async def summarize_history(
     messages: list[ModelMessage],
     messages_threshold: int = app_config.agent_messages_threshold,
 ) -> list[ModelMessage]:
-    multimodal_content_count = 0
-    for msg in messages:
-        for part in msg.parts:
-            if part.part_kind == "user-prompt" and not isinstance(part.content, str):
-                for content in part.content:
-                    if not isinstance(content, str):
-                        multimodal_content_count += 1
-    # 有3条及以上多模态内容时, 强制总结历史消息
-    if multimodal_content_count < 3 and len(messages) <= messages_threshold:
+    # multimodal_content_count = 0
+    # for msg in messages:
+    #     for part in msg.parts:
+    #         if part.part_kind == "user-prompt" and not isinstance(part.content, str):
+    #             for content in part.content:
+    #                 if not isinstance(content, str):
+    #                     multimodal_content_count += 1
+    # # 有3条及以上多模态内容时, 强制总结历史消息
+    if len(messages) <= messages_threshold:
         return messages
 
     logger.debug(
