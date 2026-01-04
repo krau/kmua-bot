@@ -226,7 +226,7 @@ async def wake_agent(client: PyrogramClient, message: pyrogram.types.Message):
                 ctx_info.append_prompt = append_prompt
             instructions += f"\n\n{ctx_info.to_text()}"
         # 在群聊场景中获取附近消息作为上下文
-        nearby_count = 6 if is_group_chat else 0
+        nearby_count = 11 if is_group_chat else 0
         user_prompt = await utils.get_input_prompt(
             client, message, include_nearby=nearby_count, ctx=ctx_info
         )

@@ -34,7 +34,7 @@ async def cache_message_object(message: pyrogram.types.Message) -> None:
     await memttlcache.set(
         cache_key,
         message,
-        ttl=app_config.cachettl_history_message,
+        ttl=app_config.cachettl_message_object,
     )
 
 
