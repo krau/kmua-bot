@@ -221,7 +221,7 @@ async def wake_agent(client: PyrogramClient, message: pyrogram.types.Message):
             instructions += f"\n\n{ctx_info.to_text()}"
         user_prompt = await utils.get_input_prompt(client, message)
         logger.debug(
-            f"User {user.id} prompt without context due to long history: {message.text or message.caption or ''}"
+            f"User {user.id} prompt: {message.text or message.caption or ''}"
         )
         sent_any_reply = False
 
