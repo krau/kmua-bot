@@ -21,6 +21,69 @@ def chat_message_cache_key(chat_id: int, message_id: int) -> str:
     return f"chat_history:{chat_id}:{message_id}"
 
 
+def chat_message_object_cache_key(chat_id: int, message_id: int) -> str:
+    """Generate a cache key for a full chat message object."""
+    return f"chat_message_obj:{chat_id}:{message_id}"
+
+
+async def cache_message_object(message: pyrogram.types.Message) -> None:
+    """Cache a full message object for later retrieval."""
+    if not message.chat or not message.chat.id:
+        return
+    cache_key = chat_message_object_cache_key(message.chat.id, message.id)
+    await memttlcache.set(
+        cache_key,
+        message,
+        ttl=app_config.cachettl_history_message,
+    )
+
+
+async def get_cached_message_object(
+    chat_id: int, message_id: int
+) -> pyrogram.types.Message | None:
+    """Get a cached message object."""
+    cache_key = chat_message_object_cache_key(chat_id, message_id)
+    return await memttlcache.get(cache_key, None)
+
+
+async def get_cached_messages_objects(
+    chat_id: int, message_ids: list[int]
+) -> list[pyrogram.types.Message]:
+    """Get multiple cached message objects, fetching from API if not in cache."""
+    cached_messages: list[pyrogram.types.Message] = []
+    to_fetch_ids: list[int] = []
+
+    for msg_id in message_ids:
+        cached = await get_cached_message_object(chat_id, msg_id)
+        if cached:
+            cached_messages.append(cached)
+        else:
+            to_fetch_ids.append(msg_id)
+
+    if to_fetch_ids:
+        logger.debug(f"Fetching {len(to_fetch_ids)} uncached messages from API")
+        try:
+            fetched = await client.get_messages(
+                chat_id=chat_id,
+                message_ids=to_fetch_ids,
+            )
+            if isinstance(fetched, pyrogram.types.Message):
+                fetched = [fetched] if fetched else []
+            else:
+                fetched = fetched or []
+
+            for msg in fetched:
+                if msg:
+                    await cache_message_object(msg)
+                    cached_messages.append(msg)
+        except Exception as e:
+            logger.debug(f"Failed to fetch messages from API: {e}")
+
+    # Sort by message_id to maintain order
+    cached_messages.sort(key=lambda x: x.id)
+    return cached_messages
+
+
 @dataclass
 class HistoryMessage:
     message_id: int

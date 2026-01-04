@@ -4,12 +4,12 @@ from pyrogram.client import Client
 from pyrogram.enums import ChatType
 from pyrogram.types import CallbackQuery, InlineQuery, Message
 
-from kmua import common, database
+from kmua import common, database, enums
 from kmua.config import app_config
 from kmua.logger import logger
 
 
-@Client.on_message(group=-1)
+@Client.on_message(group=-100)
 async def on_m(client: Client, message: Message):
     if app_config.debug:
         logger.debug(message)
@@ -40,9 +40,27 @@ async def on_m(client: Client, message: Message):
                 True,
                 app_config.coin_daily_add_interval,
             )
+        if app_config.agent and chat_db.chat_config.ai_reply:
+            if (
+                message.outgoing
+                or message.service
+                or message.automatic_forward
+                or message.sticker
+                or message.game
+                or (
+                    user.id
+                    in (
+                        enums.ChatID.ANONYMOUS_ADMIN,
+                        enums.ChatID.SERVICE_CHAT,
+                        enums.ChatID.FAKE_CHANNEL,
+                    )
+                )
+            ):
+                return
+            await common.tgmethod.cache_message_object(message)
 
 
-@Client.on_callback_query(group=-1)
+@Client.on_callback_query(group=-100)
 async def on_cb(client: Client, callback_query: CallbackQuery):
     if app_config.debug:
         logger.debug(callback_query)

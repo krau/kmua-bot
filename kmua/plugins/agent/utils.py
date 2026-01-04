@@ -17,7 +17,7 @@ from pydantic_ai import (
 from pydantic_ai.messages import ModelMessage, ModelRequest
 from pyrogram.client import Client as PyrogramClient
 
-from kmua import affection
+from kmua import affection, common
 from kmua.common.memory_store import memttlcache
 from kmua.config import app_config
 from kmua.i18n import i18n
@@ -68,8 +68,8 @@ async def summarize_history(
                 for content in part.content:
                     if not isinstance(content, str):
                         multimodal_content_count += 1
-    # 有两条及以上多模态内容时, 强制总结历史消息
-    if multimodal_content_count < 2 and len(messages) <= messages_threshold:
+    # 有3条及以上多模态内容时, 强制总结历史消息
+    if multimodal_content_count < 3 and len(messages) <= messages_threshold:
         return messages
 
     logger.debug(
@@ -368,36 +368,32 @@ async def get_input_prompt(
 
     # include_nearby > 0 时，先追加前面 N 条消息（从旧到新）
     if include_nearby and include_nearby > 0 and message.chat and message.chat.id:
-        prev_msgs: list[pyrogram.types.Message] = []
+        # 构建需要获取的消息ID列表
+        message_ids = []
         base_id = message.id
         for i in range(include_nearby):
             mid = base_id - (i + 1)
-            if mid <= 0:
-                break
-            try:
-                prev_result = await client.get_messages(message.chat.id, mid)
-            except Exception:
-                prev_result = None
+            if mid > 0:
+                message_ids.append(mid)
+        message_ids.reverse()  # 反转以按时间顺序获取
 
-            # get_messages 可能返回单条 Message 或 List[Message]，这里统一转成单条
-            if isinstance(prev_result, list):
-                if prev_result:
-                    prev_msgs.append(prev_result[0])
-            elif prev_result is not None:
-                prev_msgs.append(prev_result)
-        prev_msgs.reverse()
-
-        for prev_msg in prev_msgs:
-            sender_name = "未知用户"
-            if prev_msg.from_user:
-                sender_name = prev_msg.from_user.first_name or "未知用户"
-            elif prev_msg.sender_chat:
-                sender_name = prev_msg.sender_chat.title or "未知频道"
-            user_prompt.extend(
-                await build_contents_from_message(
-                    prev_msg, f"[群聊上下文 - {sender_name}]", include_media=False
-                )
+        if message_ids:
+            # 从缓存中获取消息对象，未命中则从API获取
+            prev_msgs = await common.tgmethod.get_cached_messages_objects(
+                message.chat.id, message_ids
             )
+
+            for prev_msg in prev_msgs:
+                sender_name = "未知用户"
+                if prev_msg.from_user:
+                    sender_name = prev_msg.from_user.first_name or "未知用户"
+                elif prev_msg.sender_chat:
+                    sender_name = prev_msg.sender_chat.title or "未知频道"
+                user_prompt.extend(
+                    await build_contents_from_message(
+                        prev_msg, f"[群聊上下文 - {sender_name}]", include_media=False
+                    )
+                )
 
     # 处理回复消息链，只在最后一条消息中包含媒体
     if reply_chain:
