@@ -173,7 +173,7 @@ async def wake_agent(client: PyrogramClient, message: pyrogram.types.Message):
             history: list[ModelMessage] = await common.memttlcache.get(
                 _history_key(chat_id, user.id), []
             )
-            if len(history) <= 6:
+            if len(history) % 4 == 0:  # 每四次对话发送一次上下文
                 ctx_info = datatype.ContextInfo(
                     user_data=datatype.UserData(
                         user_id=user.id,
