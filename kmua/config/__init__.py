@@ -38,6 +38,7 @@ class _AppConfig(pydantic.BaseModel):
     cachettl_sticker_fileid: int = 86400 * 7
     cachettl_history_message: int = 86400 * 3
     cachettl_message_object: int = 7200
+    cache_message_object_per_chat_limit: int = 50
     cachettl_sync_members: int = 86400
 
     # manyacg https://github.com/krau/manyacg
