@@ -54,7 +54,7 @@ if app_config.agent:
     )
     agent = Agent(
         model=model,
-        system_prompt=app_config.agent_prompt,
+        instructions=app_config.agent_prompt,
         tools=[
             tools.schedule_message,
             Tool(tools.get_chat_info, prepare=tools.prepare_group_tools),
@@ -173,6 +173,7 @@ async def wake_agent(client: PyrogramClient, message: pyrogram.types.Message):
             history: list[ModelMessage] = await common.memttlcache.get(
                 _history_key(chat_id, user.id), []
             )
+            instructions = app_config.agent_prompt
             if len(history) % 4 == 0:  # 每四次对话发送一次上下文
                 ctx_info = datatype.ContextInfo(
                     user_data=datatype.UserData(
@@ -197,16 +198,11 @@ async def wake_agent(client: PyrogramClient, message: pyrogram.types.Message):
                 append_prompt = get_agent_affection_prompt(affection_rank)
                 if append_prompt:
                     ctx_info.append_prompt = append_prompt
-                user_prompt = await utils.get_input_prompt(
-                    client, message, ctx=ctx_info.to_text()
-                )
-                user_prompt_text = f"{ctx_info.to_text()}\n{message.text or message.caption or ''}".strip()
-                logger.debug(f"User {user.id} prompt: {user_prompt_text}")
-            else:
-                user_prompt = await utils.get_input_prompt(client, message)
-                logger.debug(
-                    f"User {user.id} prompt without context due to long history: {message.text or message.caption or ''}"
-                )
+                instructions += f"\n\n{ctx_info.to_text()}"
+            user_prompt = await utils.get_input_prompt(client, message)
+            logger.debug(
+                f"User {user.id} prompt without context due to long history: {message.text or message.caption or ''}"
+            )
             sent_any_reply = False
 
             async def _reply_output(text: str):
@@ -255,6 +251,7 @@ async def wake_agent(client: PyrogramClient, message: pyrogram.types.Message):
                     else multimodal_model
                 )
                 async with agent.iter(
+                    instructions=instructions,
                     model=use_model,
                     user_prompt=user_prompt,
                     message_history=history,
