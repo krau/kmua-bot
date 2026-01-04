@@ -7,39 +7,39 @@ from pyrogram.types import Message
 
 
 class MemoryAboutUser(BaseModel):
-    disposition: str | None = Field(description="性格")
-    interests: str | None = Field(description="兴趣爱好")
-    doings: str | None = Field(description="正在做的事情")
-    works: str | None = Field(description="工作/职业")
-    wishes: str | None = Field(description="愿望/目标")
-    worries: str | None = Field(description="担忧/烦恼")
-    skills: str | None = Field(description="技能/专长")
-    attitudes_to_you: str | None = Field(description="对你的态度")
-    experiences_with_you: str | None = Field(description="与你的经历")
-    extra_info: str | None = Field(description="其他补充信息, 若无可不填")
+    disposition: list[str] | str | None = Field(description="性格")
+    interests: list[str] | str | None = Field(description="兴趣爱好")
+    doings: list[str] | str | None = Field(description="正在做的事情")
+    works: list[str] | str | None = Field(description="工作/职业")
+    wishes: list[str] | str | None = Field(description="愿望/目标")
+    worries: list[str] | str | None = Field(description="担忧/烦恼")
+    skills: list[str] | str | None = Field(description="技能/专长")
+    attitudes_to_you: list[str] | str | None = Field(description="对你的态度")
+    experiences_with_you: list[str] | str | None = Field(description="与你的经历")
+    extra_info: list[str] | str | None = Field(description="其他补充信息, 若无可不填")
 
     def to_text(self) -> str:
         parts = []
         if self.disposition:
-            parts.append(f"性格: {self.disposition}")
+            parts.append(f"性格: {';'.join(self.disposition)}")
         if self.interests:
-            parts.append(f"兴趣爱好: {self.interests}")
+            parts.append(f"兴趣爱好: {';'.join(self.interests)}")
         if self.doings:
-            parts.append(f"正在做的事情: {self.doings}")
+            parts.append(f"正在做的事情: {';'.join(self.doings)}")
         if self.works:
-            parts.append(f"工作/职业: {self.works}")
+            parts.append(f"工作/职业: {';'.join(self.works)}")
         if self.wishes:
-            parts.append(f"愿望/目标: {self.wishes}")
+            parts.append(f"愿望/目标: {';'.join(self.wishes)}")
         if self.worries:
-            parts.append(f"担忧/烦恼: {self.worries}")
+            parts.append(f"担忧/烦恼: {';'.join(self.worries)}")
         if self.skills:
-            parts.append(f"技能/专长: {self.skills}")
+            parts.append(f"技能/专长: {';'.join(self.skills)}")
         if self.attitudes_to_you:
-            parts.append(f"对你的态度: {self.attitudes_to_you}")
+            parts.append(f"对你的态度: {';'.join(self.attitudes_to_you)}")
         if self.experiences_with_you:
-            parts.append(f"与你的经历: {self.experiences_with_you}")
+            parts.append(f"与你的经历: {';'.join(self.experiences_with_you)}")
         if self.extra_info:
-            parts.append(f"其他补充信息: {self.extra_info}")
+            parts.append(f"其他补充信息: {';'.join(self.extra_info)}")
         return "\n".join(parts)
 
 

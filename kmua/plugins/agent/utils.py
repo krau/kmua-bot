@@ -215,9 +215,27 @@ async def update_memory(
                 await affection.update_user_affection(user_id, affection_change)
         except Exception as e:
             logger.exception(f"Error updating user affection: {e}")
+        new_memory = result.get_memory()
+        if old_memory:
+            # 合并记忆列表, 每个字段去重(?), 且限制长度为 3
+            for field in datatype.MemoryAboutUser.model_fields:
+                old_value = getattr(old_memory, field)
+                new_value = getattr(new_memory, field)
+                if old_value and new_value:
+                    if isinstance(old_value, list) and isinstance(new_value, list):
+                        combined = list(dict.fromkeys(old_value + new_value))
+                        setattr(new_memory, field, combined[:3])
+                    elif isinstance(old_value, str) and isinstance(new_value, str):
+                        if new_value not in old_value:
+                            combined = old_value + "; " + new_value
+                        else:
+                            combined = old_value
+                        setattr(new_memory, field, combined)
+                elif old_value and not new_value:
+                    setattr(new_memory, field, old_value)
         await memttlcache.set(
             memory_key(user_id),
-            memory_result.output.get_memory(),
+            new_memory,
             ttl=86400 * 30,  # 30 days
         )
 
