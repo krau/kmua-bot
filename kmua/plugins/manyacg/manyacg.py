@@ -106,12 +106,14 @@ async def parse_artwork(client: PyrogramClient, message: pyrogram.types.Message)
                             caption=caption if idx == 0 else "",
                             parse_mode=pyrogram.enums.ParseMode.HTML,
                             supports_streaming=True,
+                            has_spoiler=artwork.r18,
                         )
                     else:
                         input_media = pyrogram.types.InputMediaPhoto(
                             media=im,
                             caption=caption if idx == 0 else "",
                             parse_mode=pyrogram.enums.ParseMode.HTML,
+                            has_spoiler=artwork.r18,
                         )
                     inputs.append(input_media)
                 msgs = await message.reply_media_group(
