@@ -1,5 +1,6 @@
-from collections import Counter
+from collections import Counter, defaultdict, deque
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Any
 
 import spacy
@@ -14,10 +15,10 @@ def get_nlp():
         try:
             _nlp = spacy.load("zh_core_web_sm")
         except OSError:
-            print(
-                "spacy model not installed, please run: python -m spacy download zh_core_web_sm"
-            )
-            _nlp = spacy.blank("zh")
+            from spacy.cli.download import download
+
+            download("zh_core_web_sm")
+            _nlp = spacy.load("zh_core_web_sm")
     return _nlp
 
 
@@ -417,7 +418,17 @@ def calculate_complexity(features: MessageFeatures) -> dict[str, Any]:
     }
 
 
-def analyze_message(text: str) -> dict[str, Any]:
+@dataclass
+class AnalyzedMessage:
+    text: str
+    features: MessageFeatures
+    intent: dict[str, Any]
+    emotion: dict[str, Any]
+    topics: list[str]
+    complexity: dict[str, Any]
+
+
+def analyze_message(text: str) -> AnalyzedMessage:
     """
     综合分析消息的所有特征
 
@@ -428,12 +439,139 @@ def analyze_message(text: str) -> dict[str, Any]:
         完整的分析结果
     """
     features = extract_features(text)
+    return AnalyzedMessage(
+        text=text,
+        features=features,
+        intent=analyze_intent(features),
+        emotion=analyze_emotion(features),
+        topics=extract_topics(features),
+        complexity=calculate_complexity(features),
+    )
 
+
+@dataclass
+class MessageAttention:
+    attention: float
+    message: AnalyzedMessage
+    timestamp: datetime
+
+
+def calculate_attention(result: AnalyzedMessage) -> float:
+    """
+    计算一条消息的注意力
+    0 ~ 1
+    """
+    # [TODO] 太简陋了有点, 后续改进
+    attention = 0.0
+    # 情感强度贡献
+    intensity_map = {"low": 0.1, "medium": 0.3, "high": 0.5}
+    attention += intensity_map.get(result.emotion["intensity"], 0.0)
+    # 复杂度贡献
+    complexity_map = {"simple": 0.1, "moderate": 0.3, "complex": 0.5}
+    attention += complexity_map.get(result.complexity["level"], 0.0)
+    # 关键词数量贡献
+    keyword_count = len(result.features.keywords)
+    attention += min(0.2, keyword_count * 0.05)
+    # 意图贡献
+    if result.intent["type"] in ("affection", "hate"):
+        attention += 0.2
+    # 主题贡献
+    topic_count = len(result.topics)
+    attention += min(0.2, topic_count * 0.05)
+    # 命令/疑问贡献
+    if result.intent["type"] in ("command", "question"):
+        attention += 0.2
+    return min(attention, 1.0)
+
+
+event_buffers: dict[str, deque[MessageAttention]] = defaultdict(
+    lambda: deque(maxlen=20)
+)
+
+
+def ingest_message(chat_id: str, text: str, timestamp: float):
+    analysis = analyze_message(text)
+    attention_score = calculate_attention(analysis)
+    message_attention = MessageAttention(
+        attention=attention_score,
+        message=analysis,
+        timestamp=datetime.fromtimestamp(timestamp),
+    )
+    event_buffers[chat_id].append(message_attention)
+
+
+def detect_event(key: str, n: int, threshold: float) -> list[MessageAttention] | None:
+    buffer = event_buffers[key]
+    if len(buffer) < n:
+        return None
+    recent = list(buffer)[-n:]
+    avg_attention = sum(m.attention for m in recent) / len(recent)
+    if avg_attention >= threshold:
+        buffer.clear()
+        return recent
+    return None
+
+
+@dataclass
+class GlobalPerceptionState:
+    # 互动形态
+    message_volume: float  # 活跃度
+    question_pressure: float  # 被提问的强度
+    directedness: float  # 指向我的程度
+
+    # 情绪气候
+    emotional_intensity: float
+    emotional_valence: float  # 正 / 负
+
+    # 主题气候
+    dominant_topics: dict[str, float]
+
+    # 认知负荷
+    complexity: float  # 话题复杂度
+    repetitiveness: float  # 重复感
+
+    # 时间感
+    novelty_decay: float  # 新鲜感衰减
+    fatigue: float  # 累积疲惫
+
+
+_global_state = GlobalPerceptionState(
+    message_volume=0.5,
+    question_pressure=0.3,
+    directedness=0.4,
+    emotional_intensity=0.2,
+    emotional_valence=0.1,
+    dominant_topics={},
+    complexity=0.4,
+    repetitiveness=0.2,
+    novelty_decay=0.5,
+    fatigue=0.3,
+)
+
+
+def describe_level(value: float) -> str:
+    if value < 0.3:
+        return "low"
+    elif value < 0.7:
+        return "medium"
+    else:
+        return "high"
+
+
+def build_impression_input() -> dict[str, Any]:
     return {
-        "text": text,
-        "features": features,
-        "intent": analyze_intent(features),
-        "emotion": analyze_emotion(features),
-        "topics": extract_topics(features),
-        "complexity": calculate_complexity(features),
+        "activity": describe_level(_global_state.message_volume),
+        "pressure": _global_state.question_pressure,
+        "emotional_climate": {
+            "intensity": _global_state.emotional_intensity,
+            "valence": _global_state.emotional_valence,
+        },
+        "themes": [
+            topic
+            for topic, _ in sorted(
+                _global_state.dominant_topics.items(), key=lambda x: x[1], reverse=True
+            )[:5]  # top 5
+        ],
+        "fatigue": _global_state.fatigue,
+        "novelty": _global_state.novelty_decay,
     }
