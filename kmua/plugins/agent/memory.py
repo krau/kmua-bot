@@ -64,6 +64,11 @@ async def _cross_memory_filter_func(
         )
     ):
         return False
+    if (
+        message.entities is not None
+        and message.entities[0].type == pyrogram.enums.MessageEntityType.BOT_COMMAND
+    ):
+        return False    
     text = message.caption or message.text
     if not text or len(text) < 2 or len(text) > 2048:
         return False
