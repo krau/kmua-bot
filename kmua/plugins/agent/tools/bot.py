@@ -307,7 +307,7 @@ async def search_messages(
                 username=user.full_name if user else str(hit.user_id),
                 text=hit.message,
                 time=datetime.datetime.fromtimestamp(
-                    hit.timestamp, datetime.timezone.utc
+                    hit.timestamp, datetime.UTC
                 ),
             )
         )
@@ -342,7 +342,7 @@ async def schedule_message(
         raise ModelRetry(
             f"Invalid schedule_time format. Use ISO 8601 format, e.g., '2025-06-04T15:00:00+08:00'.\nError: {e}"
         )
-    if schedule_datetime < datetime.datetime.now(datetime.timezone.utc):
+    if schedule_datetime < datetime.datetime.now(datetime.UTC):
         raise ModelRetry("Schedule time must be in the future.")
     try:
 

@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Any, Type, TypeVar
+from typing import Any, TypeVar
 
 import pydantic
 from dynaconf import Dynaconf
@@ -154,7 +154,9 @@ class _InternalConfig(pydantic.BaseModel):
 _T = TypeVar("_T", bound=pydantic.BaseModel)
 
 
-def _get_typed_config(config_class: Type[_T], settings_obj: Any = None) -> _T:
+def _get_typed_config[T: pydantic.BaseModel](
+    config_class: type[T], settings_obj: Any = None
+) -> T:
     if settings_obj is None:
         settings_obj = _settings
 

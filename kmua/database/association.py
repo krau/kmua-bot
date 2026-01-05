@@ -1,4 +1,4 @@
-from typing import AsyncGenerator, Sequence
+from collections.abc import AsyncGenerator, Sequence
 
 import sqlalchemy
 import sqlalchemy.dialects
@@ -260,7 +260,7 @@ async def take_waifu_for_user_in_chat(
 
 def get_chat_user_participated_waifu(
     chat_id: int, batch_size: int = 100
-) -> AsyncGenerator[UserData, None]:
+) -> AsyncGenerator[UserData]:
     async def user_generator():
         async with AsyncSessionFactory() as session:
             offset = 0

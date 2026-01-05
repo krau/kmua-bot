@@ -1,4 +1,4 @@
-from pyrogram import Client
+from pyrogram.client import Client
 
 from kmua.config import app_config
 

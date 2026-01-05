@@ -1,8 +1,9 @@
 import inspect
 import pathlib
+from collections.abc import AsyncGenerator, Awaitable, Callable
 from contextlib import asynccontextmanager
 from functools import wraps
-from typing import AsyncGenerator, Awaitable, Callable, ParamSpec, TypeVar
+from typing import ParamSpec, TypeVar
 
 import alembic.command
 import alembic.config
@@ -26,7 +27,7 @@ AsyncSessionFactory = async_sessionmaker(
 
 
 @asynccontextmanager
-async def get_session() -> AsyncGenerator[AsyncSession, None]:
+async def get_session() -> AsyncGenerator[AsyncSession]:
     async with AsyncSessionFactory() as ss:
         try:
             yield ss
@@ -43,7 +44,7 @@ T = TypeVar("T")
 P = ParamSpec("P")
 
 
-def with_session(func: Callable[P, Awaitable[T]]) -> Callable[P, Awaitable[T]]:
+def with_session[**P, T](func: Callable[P, Awaitable[T]]) -> Callable[P, Awaitable[T]]:
     sig = inspect.signature(func)
 
     @wraps(func)
@@ -61,7 +62,7 @@ def with_session(func: Callable[P, Awaitable[T]]) -> Callable[P, Awaitable[T]]:
     return wrapper
 
 
-def with_tx(func: Callable[P, Awaitable[T]]) -> Callable[P, Awaitable[T]]:
+def with_tx[**P, T](func: Callable[P, Awaitable[T]]) -> Callable[P, Awaitable[T]]:
     sig = inspect.signature(func)
 
     @wraps(func)

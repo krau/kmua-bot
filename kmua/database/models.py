@@ -1,6 +1,5 @@
 from dataclasses import asdict, dataclass
 from datetime import datetime
-from typing import List
 
 from sqlalchemy import (
     JSON,
@@ -173,7 +172,7 @@ class UserData(Base):
         default=None,
     )
 
-    chats: Mapped[List["ChatData"]] = relationship(
+    chats: Mapped[list["ChatData"]] = relationship(
         "ChatData",
         secondary="user_chat_association",
         back_populates="members",
@@ -182,7 +181,7 @@ class UserData(Base):
         lazy="noload",
     )
 
-    quotes: Mapped[List["Quote"]] = relationship(
+    quotes: Mapped[list["Quote"]] = relationship(
         "Quote",
         back_populates="user",
         cascade="all, delete-orphan",
@@ -235,7 +234,7 @@ class ChatData(Base):
         onupdate=func.now(),
     )
 
-    members: Mapped[List["UserData"]] = relationship(
+    members: Mapped[list["UserData"]] = relationship(
         "UserData",
         secondary="user_chat_association",
         back_populates="chats",
@@ -244,7 +243,7 @@ class ChatData(Base):
         lazy="noload",
     )
 
-    quotes: Mapped[List["Quote"]] = relationship(
+    quotes: Mapped[list["Quote"]] = relationship(
         "Quote",
         back_populates="chat",
         cascade="all, delete-orphan",

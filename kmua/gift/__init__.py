@@ -1,1 +1,1 @@
-from .define import *
+from .define import *  # noqa: F403

@@ -12,7 +12,7 @@ def _load_words() -> dict[str, list[str]]:
     logger.debug(f"loading word dicts from {internal_path}")
     for file in glob.glob(f"{internal_path}" + r"/*.json"):
         try:
-            with open(file, "r", encoding="utf-8") as f:
+            with open(file, encoding="utf-8") as f:
                 for k, v in orjson.loads(f.read()).items():
                     if k in words:
                         words[k].extend(v)

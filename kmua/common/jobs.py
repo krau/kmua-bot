@@ -1,5 +1,5 @@
 import datetime
-from typing import Callable, Optional, Union
+from collections.abc import Callable
 
 from apscheduler.job import Job
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
@@ -28,7 +28,7 @@ class _TaskScheduler:
         func: Callable,
         run_date: datetime.datetime,
         args: list | None = None,
-        kwargs: Optional[dict] = None,
+        kwargs: dict | None = None,
     ) -> Job:
         trigger = DateTrigger(run_date=run_date)
         logger.debug(f"add one-time job: {job_id} at {run_date}")
@@ -50,10 +50,10 @@ class _TaskScheduler:
         minutes: int = 0,
         hours: int = 0,
         days: int = 0,
-        start_date: Optional[str] = None,
-        end_date: Optional[str] = None,
-        args: Optional[list] = None,
-        kwargs: Optional[dict] = None,
+        start_date: str | None = None,
+        end_date: str | None = None,
+        args: list | None = None,
+        kwargs: dict | None = None,
     ) -> Job:
         trigger = IntervalTrigger(
             seconds=seconds,
@@ -80,14 +80,14 @@ class _TaskScheduler:
         self,
         job_id: str,
         func: Callable,
-        hour: Union[int, str] = 0,
-        minute: Union[int, str] = 0,
-        second: Union[int, str] = 0,
+        hour: int | str = 0,
+        minute: int | str = 0,
+        second: int | str = 0,
         timezone: datetime.tzinfo = datetime.timezone(datetime.timedelta(hours=8)),
-        start_date: Optional[str] = None,
-        end_date: Optional[str] = None,
-        args: Optional[list] = None,
-        kwargs: Optional[dict] = None,
+        start_date: str | None = None,
+        end_date: str | None = None,
+        args: list | None = None,
+        kwargs: dict | None = None,
     ) -> Job:
         trigger = CronTrigger(
             hour=hour,

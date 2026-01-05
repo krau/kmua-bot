@@ -1,9 +1,9 @@
 import asyncio
 import html
 import os
+from collections.abc import AsyncGenerator
 from io import BytesIO
 from math import ceil, sqrt
-from typing import AsyncGenerator
 
 import aiofiles
 import graphviz
@@ -127,8 +127,8 @@ def marry_markup(
 # Maybe this should be refactored ...
 async def get_graph_data(
     chat_id: int,
-    participate_users1: AsyncGenerator[UserData, None],
-    participate_users2: AsyncGenerator[UserData, None] | None = None,
+    participate_users1: AsyncGenerator[UserData],
+    participate_users2: AsyncGenerator[UserData] | None = None,
 ):
     db_chat = await database.get_chat_by_id(chat_id)
     if not db_chat:
@@ -160,8 +160,8 @@ async def get_graph_data(
 
 
 async def render_waifu_graph(
-    relationships: AsyncGenerator[tuple[int, int], None],
-    user_info: AsyncGenerator[dict[str, int | str | bytes], None],
+    relationships: AsyncGenerator[tuple[int, int]],
+    user_info: AsyncGenerator[dict[str, int | str | bytes]],
     length: int = 0,
 ) -> tuple[bytes, str]:
     """

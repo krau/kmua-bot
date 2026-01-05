@@ -1,6 +1,6 @@
 from pathlib import Path
 from random import choice
-from typing import Any, Dict, Optional
+from typing import Any
 
 import yaml
 
@@ -13,7 +13,7 @@ class I18n:
     ):
         self.locales_dir = locales_dir
         self.default_locale = default_locale
-        self.translations: Dict[str, Dict[str, Any]] = {}
+        self.translations: dict[str, dict[str, Any]] = {}
         self.available_locales = set()
 
         self.load_translations()
@@ -36,7 +36,7 @@ class I18n:
 
         for yaml_file in yaml_files:
             try:
-                with open(yaml_file, "r", encoding="utf-8") as f:
+                with open(yaml_file, encoding="utf-8") as f:
                     content = yaml.safe_load(f)
                     if content:
                         self._merge_translations(
@@ -45,7 +45,7 @@ class I18n:
             except Exception as e:
                 print(f"加载文件 {yaml_file} 时出错: {e}")
 
-    def _merge_translations(self, target: Dict[str, Any], source: Dict[str, Any]):
+    def _merge_translations(self, target: dict[str, Any], source: dict[str, Any]):
         for key, value in source.items():
             if (
                 isinstance(value, dict)
@@ -57,8 +57,8 @@ class I18n:
                 target[key] = value
 
     def _get_nested_value(
-        self, data: Dict[str, Any], key: str
-    ) -> Optional[str | list[str]]:
+        self, data: dict[str, Any], key: str
+    ) -> str | list[str] | None:
         keys = key.split(".")
         current = data
 

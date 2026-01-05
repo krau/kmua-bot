@@ -1,5 +1,5 @@
 import random
-from typing import Sequence
+from collections.abc import Sequence
 
 import sqlalchemy
 import sqlalchemy.orm

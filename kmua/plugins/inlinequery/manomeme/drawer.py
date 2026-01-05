@@ -28,7 +28,6 @@ SOFTWARE.
 
 import math
 from enum import StrEnum
-from typing import List, Optional, Tuple
 
 from sketchbook import (
     Drawer,
@@ -128,7 +127,7 @@ def get_character(character: str) -> Character:
     return mapping.get(character, Character.EMA)
 
 
-def anan_base_image(face: Optional[str] = None) -> str:
+def anan_base_image(face: str | None = None) -> str:
     """Get the base image path for Anan's face
 
     Args:
@@ -143,7 +142,7 @@ def anan_base_image(face: Optional[str] = None) -> str:
         return str(MANOMEME_PATH / f"anan/{face}.png")
 
 
-def draw_anan(text: str, face: Optional[str] = None) -> bytes:
+def draw_anan(text: str, face: str | None = None) -> bytes:
     """Draw the image of what Anan says
 
     Args:
@@ -185,7 +184,7 @@ def get_statement_image(statement: Statement) -> str:
     return str(MANOMEME_PATH / f"trial/{mapping[statement]}")
 
 
-def get_option_coordinates(number: int) -> List[Tuple[int, int]]:
+def get_option_coordinates(number: int) -> list[tuple[int, int]]:
     """Get the coordinates for drawing options based on the number of options
 
     Args:
@@ -220,7 +219,7 @@ def get_option_coordinates(number: int) -> List[Tuple[int, int]]:
         ]
 
 
-def draw_trial(character: Character, options: List[Option]):
+def draw_trial(character: Character, options: list[Option]):
     """Draw the trial image for a character saying an option
 
     Args:

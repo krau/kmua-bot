@@ -38,7 +38,7 @@ dependencies = [
 
 
 [tool.ruff.lint]
-select = ["I", "F"]
+select = ["F", "UP", "I"]
 
 [tool.uv.sources]
 # pydantic-ai-slim = { git = "https://github.com/krau/pydantic-ai", subdirectory = "pydantic_ai_slim" }

@@ -8,7 +8,6 @@ from pyrogram.types import Chat, User
 
 from kmua import database, enums
 from kmua.bot import client
-from kmua.common import client
 from kmua.config import app_config
 from kmua.database.models import ChatData, UserData
 from kmua.logger import logger
@@ -35,10 +34,10 @@ async def cache_message_object(message: pyrogram.types.Message) -> None:
     """Cache a full message object for later retrieval with automatic LRU-style cleanup."""
     if not message.chat or not message.chat.id:
         return
-    
+
     chat_id = message.chat.id
     message_id = message.id
-    
+
     # 缓存消息对象
     cache_key = chat_message_object_cache_key(chat_id, message_id)
     await memttlcache.set(
@@ -46,15 +45,15 @@ async def cache_message_object(message: pyrogram.types.Message) -> None:
         message,
         ttl=app_config.cachettl_message_object,
     )
-    
+
     # 维护消息ID列表，实现LRU清理
     list_key = chat_message_list_cache_key(chat_id)
     message_ids: list[int] = await memttlcache.get(list_key, [])
-    
+
     # 添加新消息ID（如果不存在）
     if message_id not in message_ids:
         message_ids.append(message_id)
-    
+
     # 检查是否超出限制
     limit = app_config.cache_message_object_per_chat_limit
     if len(message_ids) > limit:
@@ -65,7 +64,7 @@ async def cache_message_object(message: pyrogram.types.Message) -> None:
             await memttlcache.delete(old_cache_key)
         # 保留最新的N条
         message_ids = message_ids[-limit:]
-    
+
     # 更新消息ID列表
     await memttlcache.set(
         list_key,
