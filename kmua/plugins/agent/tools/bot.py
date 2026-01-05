@@ -306,9 +306,7 @@ async def search_messages(
                 user_id=hit.user_id,
                 username=user.full_name if user else str(hit.user_id),
                 text=hit.message,
-                time=datetime.datetime.fromtimestamp(
-                    hit.timestamp, datetime.UTC
-                ),
+                time=datetime.datetime.fromtimestamp(hit.timestamp, datetime.UTC),
             )
         )
     if not messages:
