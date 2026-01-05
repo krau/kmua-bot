@@ -15,9 +15,7 @@ from .agent import agent, small_model
 
 
 class RelevanceCheck(BaseModel):
-    confidence: float = Field(
-        ge=0.0, le=1.0, description="相关性的置信度评分, 范围0.0-1.0"
-    )
+    relevance: bool = Field(description="是否相关")
     reason: str = Field(description="判断依据说明")
 
 
@@ -133,14 +131,16 @@ Bot回复: {bot_reply.reply_text}
 
 现在收到了某用户发送的新消息: {message_text}
 
-判断这条新消息是否是对Bot回复的评论、疑问、补充、反驳或相关讨论, 宁漏勿错.
-注意：即使是不同用户发送的消息也可能相关。
+判断这条新消息是否是对Bot回复的评论、疑问、补充、反驳或相关讨论.
+注意：
+- 即使是不同用户发送的消息也可能相关
+- 新消息与原先话题必须存在明显的关联性才算相关, 如果不能确定, 一律判定为不相关
 """
     try:
         relevance_result = await relevance_check_agent.run(
             user_prompt=relevance_check_prompt,
         )
-        if relevance_result.output.confidence < 0.6:
+        if not relevance_result.output.relevance:
             return
     except Exception as e:
         logger.error(
@@ -148,7 +148,7 @@ Bot回复: {bot_reply.reply_text}
         )
         return
     logger.info(
-        f"Detected follow-up message {message.id} (confidence: {relevance_result.output.confidence}, reason: {relevance_result.output.reason})"
+        f"Detected follow-up message {message.id} (reason: {relevance_result.output.reason})"
     )
     if await common.memstore.get(state.waiting_key(user.id)):
         return
