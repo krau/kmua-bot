@@ -1,11 +1,15 @@
+import asyncio
 from dataclasses import dataclass
+from datetime import datetime
 
 import pyrogram
+from powermem import AsyncMemory
 from pyrogram.client import Client
 
 from kmua import database, enums
 from kmua.common.memory_store import memttlcache
 from kmua.config import app_config
+from kmua.logger import logger
 from kmua.plugins.agent import state, utils
 
 from .agent import memory_agent
@@ -18,10 +22,31 @@ class UserMessageGlobal:
     text: str
 
 
+@dataclass
+class GroupMessage:
+    chat_id: int
+    message_id: int
+    text: str
+    sender_name: str
+    sender_id: int
+    date: datetime
+
+
+powermemory = None
+if app_config.agent_powermem_config is not None:
+    powermemory = AsyncMemory(app_config.agent_powermem_config)
+
+    async def init_powermem():
+        assert powermemory is not None
+        await powermemory.initialize()
+
+    asyncio.create_task(init_powermem())
+
+
 async def _cross_memory_filter_func(
     _, client: Client, message: pyrogram.types.Message
 ) -> bool:
-    if not app_config.agent or not app_config.agent_cross_group_memory:
+    if not app_config.agent:
         return False
     if not message:
         return False
@@ -53,7 +78,7 @@ async def _cross_memory_filter_func(
     ):
         return False
     text = message.caption or message.text
-    if not text or len(text) < 12:
+    if not text or len(text) < 12 or len(text) > 2048:
         return False
     if chat.type in (pyrogram.enums.ChatType.SUPERGROUP, pyrogram.enums.ChatType.GROUP):
         config = await database.get_chat_config(chat.id)
@@ -66,7 +91,7 @@ cross_memory_filter = pyrogram.filters.create(_cross_memory_filter_func)
 
 
 @Client.on_message(cross_memory_filter, group=100)
-async def record_cross_group_memory(client: Client, message: pyrogram.types.Message):
+async def record_memory(client: Client, message: pyrogram.types.Message):
     user = message.from_user
     chat = message.chat
     text = message.caption or message.text
@@ -77,25 +102,68 @@ async def record_cross_group_memory(client: Client, message: pyrogram.types.Mess
         and user.id is not None
         and chat.id is not None
     ), "Invalid message state in record_cross_group_memory"
-    user_messages: list[UserMessageGlobal] = await memttlcache.get(
-        state.user_messages_global_key(user.id), []
-    )
-    user_messages.append(
-        UserMessageGlobal(
-            chat_id=chat.id,
-            message_id=message.id,
-            text=text,
+    if app_config.agent_cross_group_memory:
+        user_messages: list[UserMessageGlobal] = await memttlcache.get(
+            state.user_messages_global_key(user.id), []
         )
-    )
-    if len(user_messages) > 100:
-        user_messages = user_messages[-100:]
-        # 每个用户每小时最多通过此函数更新一次记忆
-        last_update_key = state.user_memory_update_key(user.id)
-        last_updated = await memttlcache.get(last_update_key)
-        if not last_updated:
-            await memttlcache.set(last_update_key, True, ttl=3600)
-            texts = "\n".join([um.text for um in user_messages])
-            await utils.update_memory(memory_agent, texts, user.id)
-    await memttlcache.set(
-        state.user_messages_global_key(user.id), user_messages, ttl=86400 * 7
-    )
+        user_messages.append(
+            UserMessageGlobal(
+                chat_id=chat.id,
+                message_id=message.id,
+                text=text,
+            )
+        )
+        if len(user_messages) > 100:
+            user_messages = user_messages[-100:]
+            # 每个用户每小时最多通过此函数更新一次记忆
+            last_update_key = state.user_memory_update_key(user.id)
+            last_updated = await memttlcache.get(last_update_key)
+            if not last_updated:
+                await memttlcache.set(last_update_key, True, ttl=3600)
+                texts = "\n".join([um.text for um in user_messages])
+                await utils.update_user_memory(memory_agent, texts, user.id)
+            # 清空记录
+            user_messages = []
+        await memttlcache.set(
+            state.user_messages_global_key(user.id), user_messages, ttl=86400 * 7
+        )
+    if app_config.agent_group_memory and powermemory is not None:
+        group_messages: list[GroupMessage] = await memttlcache.get(
+            state.group_messages_key(chat.id), []
+        )
+        group_messages.append(
+            GroupMessage(
+                chat_id=chat.id,
+                message_id=message.id,
+                text=text,
+                sender_name=user.full_name or f"{user.id}",
+                sender_id=user.id,
+                date=message.date or datetime.now(),
+            )
+        )
+        if len(group_messages) > 200:
+            group_messages = group_messages[-200:]
+            # 每个群组每小时最多通过此函数更新一次记忆
+            last_update_key = state.group_memory_update_key(chat.id)
+            last_updated = await memttlcache.get(last_update_key)
+            if not last_updated:
+                logger.debug(
+                    f"Updating group memory for chat {chat.id} with {len(group_messages)} messages"
+                )
+                await memttlcache.set(last_update_key, True, ttl=3600)
+                text = "群聊消息记录:\n" + "\n".join(
+                    [
+                        f"{gm.sender_name}({gm.sender_id})说: {gm.text}"
+                        for gm in group_messages
+                    ]
+                )
+                result = await powermemory.add(
+                    text, infer=True, user_id=f"group_{chat.id}"
+                )
+                logger.debug(
+                    f"Updated group memory for chat {chat.id}, powermem result: {result}"
+                )
+            group_messages = []
+        await memttlcache.set(
+            state.group_messages_key(chat.id), group_messages, ttl=86400 * 7
+        )

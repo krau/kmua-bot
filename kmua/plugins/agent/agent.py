@@ -2,7 +2,6 @@ from datetime import datetime
 
 import pydantic_ai
 import pyrogram
-import pyrogram.errors
 from ddgs import DDGS
 from pydantic_ai import Agent, ModelMessage, RunContext, Tool
 from pydantic_ai.common_tools.duckduckgo import DuckDuckGoSearchTool
@@ -43,7 +42,7 @@ async def history_processor(
     if len(messages) >= app_config.agent_messages_threshold:
         try:
             history_text = utils.get_history_text(messages)
-            await utils.update_memory(memory_agent, history_text, ctx.deps.user_id)
+            await utils.update_user_memory(memory_agent, history_text, ctx.deps.user_id)
         except Exception as e:
             logger.exception(
                 f"Error updating memory for user {ctx.deps.user_id}: {e.__class__.__name__} - {e}"
@@ -114,7 +113,7 @@ if app_config.agent:
     memory_agent = Agent(
         retries=3,
         model=model,
-        output_type=datatype.MemoryResult,
+        output_type=datatype.UserMemoryResult,
         system_prompt=app_config.agent_memory_prompt,
     )
 
@@ -210,7 +209,7 @@ async def wake_agent(client: PyrogramClient, message: pyrogram.types.Message):
                 ctx_info.reply_to_msg_id = reply_to.id
                 ctx_info.reply_to_msg_text = reply_to.text or reply_to.caption
             memory = await common.memttlcache.get(state.memory_key(user.id))
-            if memory and isinstance(memory, datatype.MemoryAboutUser):
+            if memory and isinstance(memory, datatype.ChatMemoryy):
                 ctx_info.memory_about_user = memory
             affection_rank = await affection.get_affection_rank(user_data.id)
             append_prompt = utils.get_agent_affection_prompt(affection_rank)

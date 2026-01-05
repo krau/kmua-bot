@@ -229,8 +229,8 @@ async def _get_user_memory_lock(user_id: int) -> asyncio.Lock:
         return lock
 
 
-async def update_memory(
-    agent: Agent[None, datatype.MemoryResult],
+async def update_user_memory(
+    agent: Agent[None, datatype.UserMemoryResult],
     message_text: str,
     user_id: int,
 ):
@@ -248,10 +248,10 @@ async def update_memory(
 
         logger.debug(f"Updating memory for user {user_id}")
         old_memory = await memttlcache.get(f"user_memory_{user_id}")
-        if old_memory and isinstance(old_memory, datatype.MemoryAboutUser):
+        if old_memory and isinstance(old_memory, datatype.ChatMemoryy):
             message_text = f"根据已有的记忆和新的聊天消息, 更新对用户的记忆, 并决定对用户的好感变化.\n旧的记忆: {old_memory}\n新的聊天消息: {message_text}"
         memory_result = await agent.run(
-            output_type=datatype.MemoryResult,
+            output_type=datatype.UserMemoryResult,
             user_prompt=f"根据以下聊天消息, 总结出关于用户的重要信息, 并决定对用户的好感变化:\n {message_text}",
         )
         logger.debug(f"Agent memory history: {memory_result.output}")
@@ -273,7 +273,7 @@ async def update_memory(
         new_memory = result.get_memory()
         if old_memory:
             # 合并记忆列表, 每个字段去重(?), 且限制长度为 3
-            for field in datatype.MemoryAboutUser.model_fields:
+            for field in datatype.ChatMemoryy.model_fields:
                 old_value = getattr(old_memory, field, [])
                 new_value = getattr(new_memory, field, [])
                 if old_value and new_value:
@@ -308,6 +308,10 @@ async def update_memory(
             new_memory,
             ttl=86400 * 30,  # 30 days
         )
+
+
+async def update_group_memory():
+    pass  # Placeholder for future implementation
 
 
 async def get_input_prompt(

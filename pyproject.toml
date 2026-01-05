@@ -23,6 +23,7 @@ dependencies = [
     "orjson>=3.10.18",
     "pillow>=11.2.1",
     "pilmoji>=2.0.4",
+    "powermem>=0.2.1",
     "pydantic>=2.11.4",
     "pydantic-ai>=1.7.0",
     "pyyaml>=6.0.2",

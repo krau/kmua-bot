@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 from typing import Any, TypeVar
 
@@ -60,6 +61,9 @@ class _AppConfig(pydantic.BaseModel):
     agent: bool = False
     agent_follow_up: bool = True
     agent_cross_group_memory: bool = True
+    agent_group_memory: bool = True
+    agent_powermem_config_path: str | None = None
+    agent_powermem_config: dict[str, Any] | None = None
     agent_model: str = "gpt-5.1"
     agent_model_multimodal: str | None = None
     agent_model_small: str | None = None
@@ -178,6 +182,15 @@ _settings = Dynaconf(
 )
 
 app_config = _get_typed_config(_AppConfig)
+
+if app_config.agent_powermem_config_path:
+    try:
+        with open(app_config.agent_powermem_config_path, encoding="utf-8") as f:
+            app_config.agent_powermem_config = json.load(f)
+    except Exception as e:
+        raise RuntimeError(
+            f"Failed to load powermem config from {app_config.agent_powermem_config_path}: {e}"
+        ) from e
 
 
 def _get_runtime_config() -> _InternalConfig:

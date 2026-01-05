@@ -184,7 +184,7 @@ Bot回复: {bot_reply.reply_text}
             is_group_chat=True,
         )
         memory = await memttlcache.get(state.memory_key(user.id))
-        if memory and isinstance(memory, datatype.MemoryAboutUser):
+        if memory and isinstance(memory, datatype.ChatMemoryy):
             ctx_info.memory_about_user = memory
         affection_rank = await affection.get_affection_rank(user.id)
         append_prompt = utils.get_agent_affection_prompt(affection_rank)

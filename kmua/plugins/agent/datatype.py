@@ -6,7 +6,7 @@ from pyrogram.client import Client as PyrogramClient
 from pyrogram.types import Message
 
 
-class MemoryAboutUser(BaseModel):
+class ChatMemoryy(BaseModel):
     disposition: list[str] | str | None = Field(description="性格")
     interests: list[str] | str | None = Field(description="兴趣爱好")
     doings: list[str] | str | None = Field(description="正在做的事情")
@@ -58,7 +58,7 @@ class AffectionChangeAmplitude(StrEnum):
 # fuck pydantic-ai: https://github.com/pydantic/pydantic-ai/issues/607
 
 
-class MemoryResult(BaseModel):
+class UserMemoryResult(BaseModel):
     disposition: str | None = Field(description="性格")
     interests: str | None = Field(description="兴趣爱好")
     doings: str | None = Field(description="正在做的事情")
@@ -80,8 +80,8 @@ class MemoryResult(BaseModel):
         description="好感度变化幅度, 枚举值 small,medium,large"
     )
 
-    def get_memory(self) -> MemoryAboutUser:
-        return MemoryAboutUser(
+    def get_memory(self) -> ChatMemoryy:
+        return ChatMemoryy(
             disposition=self.disposition,
             interests=self.interests,
             doings=self.doings,
@@ -148,7 +148,7 @@ class ContextInfo:
     chat_type: str | None = None
     reply_to_msg_text: str | None = None
     reply_to_msg_id: int | None = None
-    memory_about_user: MemoryAboutUser | None = None
+    memory_about_user: ChatMemoryy | None = None
     append_prompt: str | None = None
     is_group_chat: bool = False
 

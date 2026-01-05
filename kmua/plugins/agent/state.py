@@ -26,3 +26,11 @@ def user_memory_update_key(user_id: int) -> str:
 
 def memory_key(user_id: int) -> str:
     return f"agent_user_memory:{user_id}"
+
+
+def group_messages_key(chat_id: int) -> str:
+    return f"group_messages:{chat_id}"
+
+
+def group_memory_update_key(chat_id: int) -> str:
+    return f"group_memory_last_update:{chat_id}"
