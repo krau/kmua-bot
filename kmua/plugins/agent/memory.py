@@ -102,6 +102,10 @@ async def record_memory(client: Client, message: pyrogram.types.Message):
         and user.id is not None
         and chat.id is not None
     ), "Invalid message state in record_cross_group_memory"
+    in_group = chat.type in (
+        pyrogram.enums.ChatType.SUPERGROUP,
+        pyrogram.enums.ChatType.GROUP,
+    )
     if app_config.agent_cross_group_memory:
         user_messages: list[UserMessageGlobal] = await memttlcache.get(
             state.user_messages_global_key(user.id), []
@@ -127,7 +131,7 @@ async def record_memory(client: Client, message: pyrogram.types.Message):
         await memttlcache.set(
             state.user_messages_global_key(user.id), user_messages, ttl=86400 * 7
         )
-    if app_config.agent_group_memory and powermemory is not None:
+    if app_config.agent_group_memory and powermemory is not None and in_group:
         group_messages: list[GroupMessage] = await memttlcache.get(
             state.group_messages_key(chat.id), []
         )
