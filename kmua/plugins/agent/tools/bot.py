@@ -11,7 +11,6 @@ from kmua import common, database, i18n
 from kmua.common.memory_store import memttlcache
 from kmua.config import app_config
 from kmua.logger import logger
-from kmua.plugins.agent.utils import memory_key
 from kmua.plugins.manyacg import manyacg
 from kmua.services import btts
 

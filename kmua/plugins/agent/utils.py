@@ -1,6 +1,7 @@
 import asyncio
 import random
 from collections import defaultdict
+from datetime import datetime
 from io import BytesIO
 from typing import Any
 from weakref import WeakValueDictionary
@@ -22,7 +23,65 @@ from kmua.common.memory_store import memttlcache
 from kmua.config import app_config
 from kmua.i18n import i18n
 from kmua.logger import logger
-from kmua.plugins.agent import datatype
+from kmua.plugins.agent import datatype, state
+
+
+def get_agent_affection_prompt(rank: float) -> str | None:
+    prompts = app_config.agent_affection_prompts
+    sorted_ranks = sorted(prompts.keys(), reverse=True)
+    for r in sorted_ranks:
+        if rank >= float(r):
+            return prompts[r]
+    return None
+
+
+async def reply_output(
+    client: PyrogramClient, message: pyrogram.types.Message, text: str
+):
+    is_group_chat = message.chat.type in (
+        pyrogram.enums.ChatType.SUPERGROUP,
+        pyrogram.enums.ChatType.GROUP,
+    )
+    user = message.sender_chat or message.from_user
+    lines = [line for line in text.split("\n\n") if line.strip()]
+    if not lines:
+        return
+
+    max_messages = 2
+    total_sentences = len(lines)
+    num_messages = min(max_messages, total_sentences)
+
+    base = total_sentences // num_messages
+    remainder = total_sentences % num_messages
+
+    chunks: list[str] = []
+    index = 0
+    for i in range(num_messages):
+        size = base + (1 if i < remainder else 0)
+        part = lines[index : index + size]
+        index += size
+        chunks.append("\n".join(part))
+    try:
+        for chunk in chunks:
+            await message.reply_chat_action(pyrogram.enums.ChatAction.TYPING)
+            reply_msg = await message.reply_text(
+                chunk, parse_mode=pyrogram.enums.ParseMode.DISABLED
+            )
+            if reply_msg and is_group_chat and user and user.id:
+                bot_reply = datatype.BotLastReply(
+                    message_id=reply_msg.id,
+                    reply_to_user_id=user.id,
+                    reply_to_message_id=message.id,
+                    reply_text=chunk,
+                    original_user_message=message.text or message.caption or "",
+                    timestamp=datetime.now().timestamp(),
+                )
+                await memttlcache.set(
+                    state.bot_last_reply_key(message.chat.id), bot_reply, ttl=300
+                )
+            await asyncio.sleep(random.uniform(0.721, 3.9))
+    except Exception as e:
+        logger.error(f"Error replying message: {e.__class__.__name__} - {e}")
 
 
 def get_history_text(message_history: list[ModelMessage]) -> str:
@@ -170,10 +229,6 @@ async def _get_user_memory_lock(user_id: int) -> asyncio.Lock:
         return lock
 
 
-def memory_key(user_id: int) -> str:
-    return f"agent_user_memory:{user_id}"
-
-
 async def update_memory(
     agent: Agent[None, datatype.MemoryResult],
     message_text: str,
@@ -249,7 +304,7 @@ async def update_memory(
                     else:
                         setattr(new_memory, field, [old_value])
         await memttlcache.set(
-            memory_key(user_id),
+            state.memory_key(user_id),
             new_memory,
             ttl=86400 * 30,  # 30 days
         )

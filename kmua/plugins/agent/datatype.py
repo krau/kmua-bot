@@ -178,3 +178,15 @@ class ContextInfo:
             parts.append(f"附加提示: {self.append_prompt}")
         text = "\n".join(parts)
         return f"ContextInfo[{text}]" if text else ""
+
+
+@dataclass
+class BotLastReply:
+    """记录bot最近的回复信息"""
+
+    message_id: int
+    reply_to_user_id: int
+    reply_to_message_id: int
+    reply_text: str
+    timestamp: float
+    original_user_message: str = ""  # 原始用户消息文本
