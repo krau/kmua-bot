@@ -129,6 +129,7 @@ async def take_quotes_user_can_see(
     assert session is not None
 
     conditions = [
+        Quote.text.is_not(None),
         sqlalchemy.or_(
             Quote.chat_id.in_(
                 sqlalchemy.select(ChatData.id).join(
@@ -139,7 +140,7 @@ async def take_quotes_user_can_see(
             ),
             Quote.user_id == user_id,
             Quote.qer_id == user_id,
-        )
+        ),
     ]
 
     if query:
@@ -192,7 +193,10 @@ async def get_chat_quotes(
 ) -> Sequence[Quote]:
     assert session is not None
 
-    conditions = [Quote.chat_id == chat_id]
+    conditions = [
+        Quote.text.is_not(other=None),
+        Quote.chat_id == chat_id,
+    ]
 
     if query:
         conditions.append(_build_text_search_condition(query))
