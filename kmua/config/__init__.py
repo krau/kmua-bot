@@ -64,6 +64,7 @@ class _AppConfig(pydantic.BaseModel):
     agent_group_memory: bool = True
     agent_powermem_config_path: str | None = None
     agent_powermem_config: dict[str, Any] | None = None
+    agent_powermem_custom_fact_extraction_prompt: str | None = None
     agent_model: str = "gpt-5.1"
     agent_model_multimodal: str | None = None
     agent_model_small: str | None = None
@@ -187,6 +188,12 @@ if app_config.agent_powermem_config_path:
     try:
         with open(app_config.agent_powermem_config_path, encoding="utf-8") as f:
             app_config.agent_powermem_config = json.load(f)
+        if app_config.agent_powermem_config is None:
+            raise ValueError("Loaded powermem_config is None")
+        if app_config.agent_powermem_custom_fact_extraction_prompt is not None:
+            app_config.agent_powermem_config["custom_fact_extraction_prompt"] = (
+                app_config.agent_powermem_custom_fact_extraction_prompt
+            )
     except Exception as e:
         raise RuntimeError(
             f"Failed to load powermem config from {app_config.agent_powermem_config_path}: {e}"

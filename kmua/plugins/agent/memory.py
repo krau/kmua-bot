@@ -78,7 +78,7 @@ async def _cross_memory_filter_func(
     ):
         return False
     text = message.caption or message.text
-    if not text or len(text) < 12 or len(text) > 2048:
+    if not text or len(text) < 2 or len(text) > 2048:
         return False
     if chat.type in (pyrogram.enums.ChatType.SUPERGROUP, pyrogram.enums.ChatType.GROUP):
         config = await database.get_chat_config(chat.id)
@@ -141,8 +141,8 @@ async def record_memory(client: Client, message: pyrogram.types.Message):
                 date=message.date or datetime.now(),
             )
         )
-        if len(group_messages) > 200:
-            group_messages = group_messages[-200:]
+        if len(group_messages) > 100:
+            group_messages = group_messages[-100:]
             # 每个群组每小时最多通过此函数更新一次记忆
             last_update_key = state.group_memory_update_key(chat.id)
             last_updated = await memttlcache.get(last_update_key)
