@@ -56,7 +56,7 @@ async def query_quote(
                 )
             results.append(
                 pyrogram.types.InlineQueryResultArticle(
-                    title=quote.text or "",
+                    title=quote.text or quote.user.full_name,
                     input_message_content=pyrogram.types.InputTextMessageContent(
                         message_text=quote.text or "",
                     ),
