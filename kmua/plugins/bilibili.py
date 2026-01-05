@@ -47,5 +47,5 @@ async def bililink_convert(client: Client, message: Message):
     if in_group:
         try:
             await message.delete()
-        except Exception as e:
+        except Exception:
             pass

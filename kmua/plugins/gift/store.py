@@ -191,11 +191,11 @@ async def send_gift(client: Client, message: types.Message):
             [
                 types.InlineKeyboardButton(
                     "上一页",
-                    callback_data=f"sendgift_page:-5",  # sendgift_page:OFFSET
+                    callback_data="sendgift_page:-5",  # sendgift_page:OFFSET
                 ),
                 types.InlineKeyboardButton(
                     "下一页",
-                    callback_data=f"sendgift_page:5",  # sendgift_page:OFFSET
+                    callback_data="sendgift_page:5",  # sendgift_page:OFFSET
                 ),
             ]
         )

@@ -1,8 +1,6 @@
 from kmua import common, database, enums
 from kmua.logger import logger
 
-from .client import client
-
 
 async def cleanup():
     try:

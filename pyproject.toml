@@ -36,8 +36,9 @@ dependencies = [
     "zhconv>=1.4.3",
 ]
 
-[tool.ruff]
-lint.select = ["I"]
+
+[tool.ruff.lint]
+select = ["I", "F"]
 
 [tool.uv.sources]
 # pydantic-ai-slim = { git = "https://github.com/krau/pydantic-ai", subdirectory = "pydantic_ai_slim" }

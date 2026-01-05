@@ -10,7 +10,7 @@ def get_msg_link(message: pyrogram.types.Message) -> str:
             raise ValueError("Chat is None")
         link = f"https://t.me/c/{str(chat.id).removeprefix('-100')}/{message.id}"
         return link
-    except Exception as e:
+    except Exception:
         return ""
 
 

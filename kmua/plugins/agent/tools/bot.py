@@ -8,7 +8,6 @@ import pyrogram
 from pydantic_ai import ModelRetry, RunContext
 
 from kmua import common, database, i18n
-from kmua.common.memory_store import memttlcache
 from kmua.config import app_config
 from kmua.logger import logger
 from kmua.plugins.manyacg import manyacg
@@ -289,7 +288,7 @@ async def search_messages(
     )
     if err != "" or resp is None:
         logger.error(f"Error searching messages: {err}")
-        return f"Error searching messages"
+        return "Error searching messages"
     results = resp.results
     if not results.hits:
         return "No messages found matching the query."

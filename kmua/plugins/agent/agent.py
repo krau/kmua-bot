@@ -1,23 +1,17 @@
-import asyncio
-import random
-from dataclasses import dataclass
 from datetime import datetime
 
 import pydantic_ai
 import pyrogram
 import pyrogram.errors
 from ddgs import DDGS
-from pydantic import BaseModel
 from pydantic_ai import Agent, ModelMessage, RunContext, Tool
 from pydantic_ai.common_tools.duckduckgo import DuckDuckGoSearchTool
 from pydantic_ai.models.openai import OpenAIChatModel
 from pydantic_ai.providers.openai import OpenAIProvider
 from pyrogram import filters
 from pyrogram.client import Client as PyrogramClient
-from pyrogram.enums.parse_mode import ParseMode
 
-from kmua import affection, common, database, enums, i18n
-from kmua.common.memory_store import memttlcache
+from kmua import affection, common, database, i18n
 from kmua.config import app_config
 from kmua.logger import logger
 from kmua.services import manyacg

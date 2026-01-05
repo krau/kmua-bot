@@ -6,8 +6,8 @@ import aiofiles
 import httpx
 from PIL import Image
 
-from kmua import common, logger
-from kmua.services.manyacg import FetchedPicture, FetchedUgoira, FetchedVideo, Picture
+from kmua import common
+from kmua.services.manyacg import FetchedPicture, FetchedVideo
 
 _max_size = 2560
 

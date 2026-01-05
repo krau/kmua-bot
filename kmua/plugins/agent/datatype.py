@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from enum import IntEnum, StrEnum
+from enum import StrEnum
 
 from pydantic import BaseModel, Field
 from pyrogram.client import Client as PyrogramClient

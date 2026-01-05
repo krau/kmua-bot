@@ -1,4 +1,3 @@
-import random
 from typing import AsyncGenerator, Sequence
 
 import sqlalchemy
@@ -8,11 +7,11 @@ import sqlalchemy.dialects.postgresql
 import sqlalchemy.dialects.sqlite
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from kmua import common, enums
+from kmua import enums
 from kmua.config import app_config, runtime_config
 
 from .db import AsyncSessionFactory, with_session, with_tx
-from .models import ChatData, UserChatAssociation, UserConfig, UserData
+from .models import ChatData, UserChatAssociation, UserData
 
 
 @with_session

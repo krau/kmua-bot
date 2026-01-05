@@ -1,7 +1,6 @@
 import html
 import io
 import random
-import re
 
 import aiofiles
 import httpx
