@@ -11,7 +11,7 @@ from kmua.config import app_config
 from kmua.logger import logger
 from kmua.plugins.agent import datatype, state, utils
 
-from .agent import agent, small_model
+from .agent import agent, powermemory, small_model
 
 
 class RelevanceCheck(BaseModel):
@@ -203,6 +203,7 @@ Bot回复: {bot_reply.reply_text}
                 chat_id=chat.id,
                 message=message,
                 client=client,
+                powermemory=powermemory,
             ),
         ) as agent_run:
             repiled = False

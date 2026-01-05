@@ -51,3 +51,15 @@ async def prepare_message_search_tool(
     if current_chat in chat_ids:
         return tool_def
     return None
+
+
+async def prepare_powermem_tool(
+    ctx: RunContext[datatype.ContextDeps], tool_def: ToolDefinition
+) -> ToolDefinition | None:
+    if (
+        app_config.agent_powermem_config is not None
+        and ctx.deps.powermemory is not None
+        and ctx.deps.chat_id < -100  # current powermem tool is only for group chat
+    ):
+        return tool_def
+    return None

@@ -1,8 +1,10 @@
+import asyncio
 from datetime import datetime
 
 import pydantic_ai
 import pyrogram
 from ddgs import DDGS
+from powermem import AsyncMemory
 from pydantic_ai import Agent, ModelMessage, RunContext, Tool
 from pydantic_ai.common_tools.duckduckgo import DuckDuckGoSearchTool
 from pydantic_ai.models.openai import OpenAIChatModel
@@ -24,6 +26,17 @@ small_model = None
 multimodal_model = None
 summary_agent = None
 memory_agent = None
+powermemory = None
+
+if app_config.agent_powermem_config is not None:
+    # for group memory, the key is f"group_{chat_id}"
+    powermemory = AsyncMemory(app_config.agent_powermem_config)
+
+    async def _init_powermem():
+        assert powermemory is not None
+        await powermemory.initialize()
+
+    asyncio.create_task(_init_powermem())
 
 
 async def history_processor(
@@ -102,6 +115,10 @@ if app_config.agent:
                 prepare=tools.prepare_group_tools,
             ),
             tools.send_anime_photo,
+            Tool(
+                tools.search_group_memory,
+                prepare=tools.prepare_powermem_tool,
+            ),
         ],
         deps_type=datatype.ContextDeps,
         history_processors=[history_processor],
@@ -238,6 +255,7 @@ async def wake_agent(client: PyrogramClient, message: pyrogram.types.Message):
                     chat_id=chat_id,
                     message=message,
                     client=client,
+                    powermemory=powermemory,
                 ),  # type: ignore
             ) as agent_run:
                 replied = False

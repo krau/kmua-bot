@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from enum import StrEnum
 
+from powermem import AsyncMemory
 from pydantic import BaseModel, Field
 from pyrogram.client import Client as PyrogramClient
 from pyrogram.types import Message
@@ -130,6 +131,7 @@ class ContextDeps:
     user_id: int
     chat_id: int
     message: Message
+    powermemory: AsyncMemory | None = None
 
 
 @dataclass

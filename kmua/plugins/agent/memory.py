@@ -1,9 +1,7 @@
-import asyncio
 from dataclasses import dataclass
 from datetime import datetime
 
 import pyrogram
-from powermem import AsyncMemory
 from pyrogram.client import Client
 
 from kmua import database, enums
@@ -12,7 +10,7 @@ from kmua.config import app_config
 from kmua.logger import logger
 from kmua.plugins.agent import state, utils
 
-from .agent import memory_agent
+from .agent import memory_agent, powermemory
 
 
 @dataclass
@@ -30,17 +28,6 @@ class GroupMessage:
     sender_name: str
     sender_id: int
     date: datetime
-
-
-powermemory = None
-if app_config.agent_powermem_config is not None:
-    powermemory = AsyncMemory(app_config.agent_powermem_config)
-
-    async def init_powermem():
-        assert powermemory is not None
-        await powermemory.initialize()
-
-    asyncio.create_task(init_powermem())
 
 
 async def _cross_memory_filter_func(
