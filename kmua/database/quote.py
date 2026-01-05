@@ -5,8 +5,28 @@ import sqlalchemy
 import sqlalchemy.orm
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from kmua.config import app_config, runtime_config
 from kmua.database.db import with_session, with_tx
 from kmua.database.models import ChatData, Quote, UserChatAssociation, UserData
+
+
+def _build_text_search_condition(query: str) -> sqlalchemy.ColumnElement[bool]:
+    """
+    根据数据库类型和配置构建文本搜索条件。
+
+    对于 PostgreSQL:
+    - 如果启用了 PGroonga (pg_pgroonga=true)，使用 &@~ 操作符进行全文搜索
+    - 否则使用 pg_trgm 的 ilike
+
+    对于其他数据库:
+    - 使用标准的 ilike
+    """
+    if runtime_config.db_is_postgres and app_config.pg_pgroonga:
+        # PGroonga 全文搜索操作符 &@~
+        return Quote.text.op("&@~")(query)
+    else:
+        # 标准 ILIKE 查询（SQLite, MySQL, PostgreSQL with pg_trgm）
+        return Quote.text.ilike(f"%{query}%")
 
 
 @with_session
@@ -108,23 +128,27 @@ async def take_quotes_user_can_see(
 ) -> Sequence[Quote]:
     assert session is not None
 
+    conditions = [
+        sqlalchemy.or_(
+            Quote.chat_id.in_(
+                sqlalchemy.select(ChatData.id).join(
+                    UserChatAssociation,
+                    (UserChatAssociation.chat_id == ChatData.id)
+                    & (UserChatAssociation.user_id == user_id),
+                )
+            ),
+            Quote.user_id == user_id,
+            Quote.qer_id == user_id,
+        )
+    ]
+
+    if query:
+        conditions.append(_build_text_search_condition(query))
+
     stmt = (
         sqlalchemy.select(Quote)
         .options(sqlalchemy.orm.selectinload(Quote.user))
-        .where(
-            sqlalchemy.or_(
-                Quote.chat_id.in_(
-                    sqlalchemy.select(ChatData.id).join(
-                        UserChatAssociation,
-                        (UserChatAssociation.chat_id == ChatData.id)
-                        & (UserChatAssociation.user_id == user_id),
-                    )
-                ),
-                Quote.user_id == user_id,
-                Quote.qer_id == user_id,
-            ),
-            Quote.text.ilike(f"%{query}%"),
-        )
+        .where(*conditions)
         .order_by(sqlalchemy.func.random())
         .limit(limit)
     )
@@ -168,13 +192,15 @@ async def get_chat_quotes(
 ) -> Sequence[Quote]:
     assert session is not None
 
+    conditions = [Quote.chat_id == chat_id]
+
+    if query:
+        conditions.append(_build_text_search_condition(query))
+
     stmt = (
         sqlalchemy.select(Quote)
         .options(sqlalchemy.orm.selectinload(Quote.user))
-        .where(
-            Quote.chat_id == chat_id,
-            Quote.text.ilike(f"%{query}%"),
-        )
+        .where(*conditions)
         .order_by(sqlalchemy.func.random())
         .limit(limit)
     )

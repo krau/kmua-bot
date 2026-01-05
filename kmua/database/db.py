@@ -7,6 +7,7 @@ from typing import ParamSpec, TypeVar
 
 import alembic.command
 import alembic.config
+import sqlalchemy
 from sqlalchemy.ext.asyncio import (
     AsyncSession,
     async_sessionmaker,
@@ -14,7 +15,7 @@ from sqlalchemy.ext.asyncio import (
 )
 
 from kmua import i18n
-from kmua.config import app_config
+from kmua.config import app_config, runtime_config
 from kmua.logger import logger
 
 from .models import Base
@@ -98,6 +99,76 @@ def migrate_db() -> None:
         )
 
 
+async def manage_quote_text_index() -> None:
+    """
+    根据 pg_pgroonga 配置切换 PGroonga 或 pg_trgm 索引。
+    """
+    if not runtime_config.db_is_postgres:
+        return
+
+    logger.debug("Managing quote text search index...")
+
+    async with engine.begin() as conn:
+        check_pgroonga_idx = await conn.execute(
+            sqlalchemy.text(
+                "SELECT 1 FROM pg_indexes WHERE tablename='quotes' AND indexname='idx_quotes_text_pgroonga'"
+            )
+        )
+        has_pgroonga_idx = check_pgroonga_idx.scalar() is not None
+
+        check_gin_idx = await conn.execute(
+            sqlalchemy.text(
+                "SELECT 1 FROM pg_indexes WHERE tablename='quotes' AND indexname='idx_quotes_text_gin_trgm'"
+            )
+        )
+        has_gin_idx = check_gin_idx.scalar() is not None
+
+        if app_config.pg_pgroonga:
+            # 使用 PGroonga
+            if has_gin_idx:
+                logger.info("Removing pg_trgm index for quotes.text...")
+                await conn.execute(
+                    sqlalchemy.text("DROP INDEX IF EXISTS idx_quotes_text_gin_trgm")
+                )
+
+            if not has_pgroonga_idx:
+                logger.info("Creating PGroonga extension and index for quotes.text...")
+                # 创建 PGroonga 扩展
+                await conn.execute(
+                    sqlalchemy.text("CREATE EXTENSION IF NOT EXISTS pgroonga")
+                )
+                # 创建 PGroonga 索引
+                await conn.execute(
+                    sqlalchemy.text(
+                        "CREATE INDEX idx_quotes_text_pgroonga ON quotes USING pgroonga (text pgroonga_varchar_full_text_search_ops)"
+                    )
+                )
+                logger.success("PGroonga index created for quotes.text")
+            else:
+                logger.debug("PGroonga index already exists for quotes.text")
+        else:
+            # pg_trgm
+            if has_pgroonga_idx:
+                logger.info("Removing PGroonga index for quotes.text...")
+                await conn.execute(
+                    sqlalchemy.text("DROP INDEX IF EXISTS idx_quotes_text_pgroonga")
+                )
+
+            if not has_gin_idx:
+                logger.info("Creating pg_trgm extension and index for quotes.text...")
+                await conn.execute(
+                    sqlalchemy.text("CREATE EXTENSION IF NOT EXISTS pg_trgm")
+                )
+                await conn.execute(
+                    sqlalchemy.text(
+                        "CREATE INDEX idx_quotes_text_gin_trgm ON quotes USING gin (text gin_trgm_ops)"
+                    )
+                )
+                logger.success("pg_trgm GIN index created for quotes.text")
+            else:
+                logger.debug("pg_trgm index already exists for quotes.text")
+
+
 async def init_db() -> None:
     logger.info(i18n.t("log.db_initing", locale=app_config.lang))
     async with engine.begin() as conn:
@@ -106,6 +177,7 @@ async def init_db() -> None:
     from .affection import init_affection_histogram
 
     await init_affection_histogram()
+    await manage_quote_text_index()
 
 
 async def close_db() -> None:

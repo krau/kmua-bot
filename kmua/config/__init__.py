@@ -10,6 +10,7 @@ class _AppConfig(pydantic.BaseModel):
     token: str
     owners: list[int]
     db_url: str = "sqlite+aiosqlite:///./data/kmua.db"
+    pg_pgroonga: bool = False
     session_name: str = "kmua"
     api_id: int = 1025907
     api_hash: str = "452b0359b988148995f22ff0f4229750"
