@@ -19,7 +19,8 @@ class _AppConfig(pydantic.BaseModel):
     log_retention_days: int = 30
     log_level: str = "INFO"
     lang: str = "zh-CN"
-    fans_channel: str | int | None = None # username or chat_id
+    fans_channel: str | int | None = None  # username or chat_id
+    nickname: str = "kmua"
 
     # external services
     redis: bool = False

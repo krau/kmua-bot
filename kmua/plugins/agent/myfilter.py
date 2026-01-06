@@ -2,6 +2,8 @@ import pyrogram
 from pyrogram import filters
 from pyrogram.client import Client
 
+from kmua.config import app_config
+
 
 async def base_filter_func(_, __, message: pyrogram.types.Message) -> bool:
     if not message:
@@ -36,14 +38,17 @@ async def reply_me_filter_func(
 async def mention_me_filter_func(
     _, client: Client, message: pyrogram.types.Message
 ) -> bool:
-    if not message.text:
+    text = message.text or message.caption or ""
+    if not text:
         return False
+    if app_config.nickname and app_config.nickname in text:
+        return True
     if not client.me:
         return False
     username = client.me.username
     if not username:
         return False
-    if username in message.text:
+    if username in text:
         return True
     if message.caption and username in message.caption:
         return True
