@@ -34,3 +34,6 @@ def group_messages_key(chat_id: int) -> str:
 
 def group_memory_update_key(chat_id: int) -> str:
     return f"group_memory_last_update:{chat_id}"
+
+
+agent_reflection_post_history = "agent_reflection_post_history"

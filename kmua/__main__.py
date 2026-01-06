@@ -83,6 +83,21 @@ async def init_bot(client: Client = client):
         scope=pyrogram.types.BotCommandScopeAllPrivateChats(),
     )
     common.jobqueue.add_daily_job("cleanup", jobs.cleanup, hour=4)
+
+    if (
+        app_config.agent
+        and app_config.agent_reflection_post_interval > 0
+        and app_config.fans_channel
+    ):
+        common.jobqueue.add_interval_job(
+            "reflection_post",
+            jobs.publish_reflection,
+            seconds=app_config.agent_reflection_post_interval,
+        )
+        logger.info(
+            f"Scheduled reflection post job to channel: {app_config.fans_channel}"
+        )
+
     common.jobqueue.start()
     logger.success(i18n.t("log.inited", locale=app_config.lang))
 

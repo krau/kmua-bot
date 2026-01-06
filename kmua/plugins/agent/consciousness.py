@@ -632,7 +632,6 @@ class MessageAttention:
 def calculate_attention(result: AnalyzedMessage) -> float:
     """
     计算一条消息的注意力
-    0 ~ 1
     """
     # [TODO] 太简陋了有点, 后续改进
     attention = 0.0
@@ -657,15 +656,22 @@ def calculate_attention(result: AnalyzedMessage) -> float:
     # 指向性贡献
     directedness_score = calculate_directedness_simple(result.text)
     attention += directedness_score * 0.3
-    return min(attention, 1.0)
+    return attention
 
 
 event_buffers: dict[str, deque[MessageAttention]] = defaultdict(
-    lambda: deque(maxlen=20)
+    lambda: deque(maxlen=50)
 )
 
 
 def ingest_message(chat_id: str, text: str, timestamp: float):
+    """Ingest a message into the event buffer
+
+    Arguments:
+        key -- chat_id
+        text -- message text
+        timestamp -- message timestamp
+    """
     analysis = analyze_message(text)
     attention_score = calculate_attention(analysis)
     message_attention = MessageAttention(
@@ -676,8 +682,21 @@ def ingest_message(chat_id: str, text: str, timestamp: float):
     event_buffers[chat_id].append(message_attention)
 
 
-def detect_event(key: str, n: int, threshold: float) -> list[MessageAttention] | None:
-    buffer = event_buffers[key]
+def detect_event(
+    chat_id: str, n: int, threshold: float
+) -> list[MessageAttention] | None:
+    """detect event from recent messages
+    if average attention of last n messages >= threshold, return the messages and **clear the buffer**
+
+    Arguments:
+        chat_id -- _chat_id_
+        n -- number of messages to consider
+        threshold --attention threshold
+
+    Returns:
+        list[MessageAttention] | None
+    """
+    buffer = event_buffers[chat_id]
     if len(buffer) < n:
         return None
     recent = list(buffer)[-n:]
@@ -705,6 +724,10 @@ class GlobalPerceptionState:
     # 认知负荷
     complexity: float  # 话题复杂度
 
+    # 疲劳度和新鲜度
+    fatigue: float  # 疲劳程度
+    novelty_decay: float  # 新鲜度衰减
+
 
 _global_state = GlobalPerceptionState(
     message_volume=0.5,
@@ -714,6 +737,8 @@ _global_state = GlobalPerceptionState(
     emotional_valence=0.1,
     dominant_topics={},
     complexity=0.4,
+    fatigue=0.2,
+    novelty_decay=0.5,
 )
 
 
@@ -727,6 +752,8 @@ def reset_global_state():
         emotional_valence=0.1,
         dominant_topics={},
         complexity=0.4,
+        fatigue=0.2,
+        novelty_decay=0.5,
     )
 
 
@@ -736,7 +763,6 @@ def update_global_state_by_event(event_messages: list[MessageAttention]):
     """
     if not event_messages:
         return
-
     # 更新互动形态
     avg_attention = sum(m.attention for m in event_messages) / len(event_messages)
     _global_state.message_volume = min(
@@ -788,17 +814,46 @@ def update_global_state_by_event(event_messages: list[MessageAttention]):
         1.0, _global_state.directedness + avg_directedness * 0.1
     )
 
+    # 更新疲劳度（基于消息量和问题压力）
+    _global_state.fatigue = min(
+        1.0,
+        _global_state.fatigue
+        + (_global_state.message_volume * 0.05)
+        + (_global_state.question_pressure * 0.1),
+    )
+
+    # 新鲜度衰减（随着时间推移和重复主题）
+    if _global_state.dominant_topics:
+        max_topic_freq = max(_global_state.dominant_topics.values())
+        _global_state.novelty_decay = max(
+            0.0, _global_state.novelty_decay - max_topic_freq * 0.05
+        )
+
 
 def describe_level(value: float) -> str:
+    """将 0-1 的值转换为描述性文字"""
     if value < 0.3:
-        return "low"
+        return "低"
     elif value < 0.7:
-        return "medium"
+        return "中"
     else:
-        return "high"
+        return "高"
+
+
+def describe_valence(value: float) -> str:
+    """描述情感倾向"""
+    if value > 0.3:
+        return "积极"
+    elif value < -0.3:
+        return "消极"
+    else:
+        return "中性"
 
 
 def build_impression_input() -> dict[str, Any]:
+    """
+    构建当前全局感知状态的结构化输入，用于生成贴文
+    """
     return {
         "activity": describe_level(_global_state.message_volume),
         "pressure": _global_state.question_pressure,
@@ -812,4 +867,51 @@ def build_impression_input() -> dict[str, Any]:
                 _global_state.dominant_topics.items(), key=lambda x: x[1], reverse=True
             )[:5]  # top 5
         ],
+        "fatigue": _global_state.fatigue,
+        "novelty": _global_state.novelty_decay,
     }
+
+
+def get_global_state() -> GlobalPerceptionState:
+    """获取全局感知状态"""
+    return _global_state
+
+
+def generate_post_prompt() -> str:
+    """
+    根据全局感知状态生成贴文提示词
+
+    Returns:
+        str: 给 AI 的提示词
+    """
+    state = _global_state
+
+    # 构建描述
+    activity_desc = describe_level(state.message_volume)
+    emotion_desc = describe_valence(state.emotional_valence)
+    intensity_desc = describe_level(state.emotional_intensity)
+    complexity_desc = describe_level(state.complexity)
+    fatigue_desc = describe_level(state.fatigue)
+    novelty_desc = describe_level(state.novelty_decay)
+
+    # 获取热门主题
+    top_topics = sorted(
+        state.dominant_topics.items(), key=lambda x: x[1], reverse=True
+    )[:10]
+    topics_str = "、".join([t[0] for t in top_topics]) if top_topics else "无特别主题"
+
+    prompt = f"""根据你最近一段时间的观察和体验，写一条简短的个人感想贴文。
+
+当前感知状态：
+- 互动活跃度: {activity_desc} ({state.message_volume:.2f})
+- 被提问压力: {describe_level(state.question_pressure)} ({state.question_pressure:.2f})
+- 指向我的程度: {describe_level(state.directedness)} ({state.directedness:.2f})
+- 情绪氛围: {emotion_desc}，强度{intensity_desc} (倾向值: {state.emotional_valence:.2f}, 强度: {state.emotional_intensity:.2f})
+- 话题复杂度: {complexity_desc} ({state.complexity:.2f})
+- 热门主题: {topics_str}
+- 疲劳程度: {fatigue_desc} ({state.fatigue:.2f})
+- 新鲜感: {novelty_desc} ({state.novelty_decay:.2f})
+
+现在，请根据以上感知状态，写一条贴文："""
+
+    return prompt

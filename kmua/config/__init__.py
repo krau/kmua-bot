@@ -19,6 +19,7 @@ class _AppConfig(pydantic.BaseModel):
     log_retention_days: int = 30
     log_level: str = "INFO"
     lang: str = "zh-CN"
+    fans_channel: str | int | None = None # username or chat_id
 
     # external services
     redis: bool = False
@@ -59,6 +60,7 @@ class _AppConfig(pydantic.BaseModel):
 
     # agent
     agent: bool = False
+    agent_reflection_post_interval: int = 86400 * 3
     agent_follow_up: bool = True
     agent_cross_group_memory: bool = True
     agent_group_memory: bool = True

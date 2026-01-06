@@ -15,6 +15,7 @@ from pyrogram.client import Client as PyrogramClient
 from kmua import affection, common, database, i18n
 from kmua.config import app_config
 from kmua.logger import logger
+from kmua.plugins.agent import consciousness
 from kmua.services import manyacg
 
 from . import datatype, myfilter, state, tools, utils
@@ -238,7 +239,31 @@ async def wake_agent(client: PyrogramClient, message: pyrogram.types.Message):
         user_prompt = await utils.get_input_prompt(
             client, message, include_nearby=nearby_count, ctx=ctx_info
         )
-        logger.debug(f"User {user.id} prompt: {message.text or message.caption or ''}")
+        user_message_text = message.text or message.caption or ""
+        if user_message_text:
+            logger.debug(f"User {user.id} prompt: {user_message_text}")
+            # consciousness.ingest_message(
+            #     f"{chat_id}",
+            #     user_message_text,
+            #     message.date.timestamp()
+            #     if message.date
+            #     else datetime.now().timestamp(),
+            # )
+            await asyncio.to_thread(
+                consciousness.ingest_message,
+                f"{chat_id}",
+                user_message_text,
+                message.date.timestamp()
+                if message.date
+                else datetime.now().timestamp(),
+            )
+            event = consciousness.detect_event(f"{chat_id}", n=5, threshold=0.8)
+            if event:
+                logger.info(f"Detected event in chat {chat_id}: {event}")
+                await asyncio.to_thread(
+                    consciousness.update_global_state_by_event,
+                    event,
+                )
         try:
             use_model = (
                 model
