@@ -728,6 +728,65 @@ class GlobalPerceptionState:
     fatigue: float  # 疲劳程度
     novelty_decay: float  # 新鲜度衰减
 
+    def copy(self) -> "GlobalPerceptionState":
+        """创建当前状态的深拷贝"""
+        return GlobalPerceptionState(
+            message_volume=self.message_volume,
+            question_pressure=self.question_pressure,
+            directedness=self.directedness,
+            emotional_intensity=self.emotional_intensity,
+            emotional_valence=self.emotional_valence,
+            dominant_topics=self.dominant_topics.copy(),
+            complexity=self.complexity,
+            fatigue=self.fatigue,
+            novelty_decay=self.novelty_decay,
+        )
+
+    def diff(self, previous: "GlobalPerceptionState") -> dict[str, Any]:
+        """计算与之前状态的差异"""
+        return {
+            "message_volume": {
+                "previous": previous.message_volume,
+                "current": self.message_volume,
+                "change": self.message_volume - previous.message_volume,
+            },
+            "question_pressure": {
+                "previous": previous.question_pressure,
+                "current": self.question_pressure,
+                "change": self.question_pressure - previous.question_pressure,
+            },
+            "directedness": {
+                "previous": previous.directedness,
+                "current": self.directedness,
+                "change": self.directedness - previous.directedness,
+            },
+            "emotional_intensity": {
+                "previous": previous.emotional_intensity,
+                "current": self.emotional_intensity,
+                "change": self.emotional_intensity - previous.emotional_intensity,
+            },
+            "emotional_valence": {
+                "previous": previous.emotional_valence,
+                "current": self.emotional_valence,
+                "change": self.emotional_valence - previous.emotional_valence,
+            },
+            "complexity": {
+                "previous": previous.complexity,
+                "current": self.complexity,
+                "change": self.complexity - previous.complexity,
+            },
+            "fatigue": {
+                "previous": previous.fatigue,
+                "current": self.fatigue,
+                "change": self.fatigue - previous.fatigue,
+            },
+            "novelty_decay": {
+                "previous": previous.novelty_decay,
+                "current": self.novelty_decay,
+                "change": self.novelty_decay - previous.novelty_decay,
+            },
+        }
+
 
 _global_state = GlobalPerceptionState(
     message_volume=0.5,
@@ -740,6 +799,9 @@ _global_state = GlobalPerceptionState(
     fatigue=0.2,
     novelty_decay=0.5,
 )
+
+# 上次发布贴文时的状态快照
+_last_post_snapshot: GlobalPerceptionState | None = None
 
 
 def reset_global_state():
@@ -760,74 +822,125 @@ def reset_global_state():
 def update_global_state_by_event(event_messages: list[MessageAttention]):
     """
     根据一组事件消息更新全局感知状态
+    采用加权平滑更新，避免值一直增长
     """
     if not event_messages:
         return
-    # 更新互动形态
+
+    # 平滑系数：新数据权重
+    alpha = 0.3
+
+    # 更新互动形态 - 使用加权平均
     avg_attention = sum(m.attention for m in event_messages) / len(event_messages)
-    _global_state.message_volume = min(
-        1.0, _global_state.message_volume + avg_attention * 0.1
+    _global_state.message_volume = (
+        alpha * avg_attention + (1 - alpha) * _global_state.message_volume
     )
+
     question_count = sum(
         1 for m in event_messages if m.message.intent["type"] == "question"
     )
-    _global_state.question_pressure = min(
-        1.0,
-        _global_state.question_pressure + (question_count / len(event_messages)) * 0.1,
+    question_ratio = question_count / len(event_messages)
+    _global_state.question_pressure = (
+        alpha * question_ratio + (1 - alpha) * _global_state.question_pressure
     )
 
-    # 更新情绪气候
+    # 更新情绪气候 - 使用加权平均
     avg_emotion_score = sum(m.message.emotion["score"] for m in event_messages) / len(
         event_messages
     )
-    _global_state.emotional_intensity = min(
-        1.0, _global_state.emotional_intensity + abs(avg_emotion_score) * 0.1
+    avg_emotion_intensity = sum(
+        {"low": 0.2, "medium": 0.5, "high": 0.8}.get(
+            m.message.emotion["intensity"], 0.5
+        )
+        for m in event_messages
+    ) / len(event_messages)
+
+    _global_state.emotional_intensity = (
+        alpha * avg_emotion_intensity + (1 - alpha) * _global_state.emotional_intensity
     )
+    _global_state.emotional_valence = (
+        alpha * avg_emotion_score + (1 - alpha) * _global_state.emotional_valence
+    )
+    # 限制在 [-1, 1] 范围内
     _global_state.emotional_valence = max(
-        -1.0, min(1.0, _global_state.emotional_valence + avg_emotion_score * 0.1)
+        -1.0, min(1.0, _global_state.emotional_valence)
     )
 
-    # 更新主题气候
+    # 更新主题气候 - 合并旧主题和新主题
     topic_counter: Counter[str] = Counter()
     for m in event_messages:
         for topic in m.message.topics:
             topic_counter[topic] += 1
+
+    # 衰减旧主题
+    decay_factor = 0.7
+    for topic in list(_global_state.dominant_topics.keys()):
+        _global_state.dominant_topics[topic] *= decay_factor
+
+    # 添加新主题
     total_topics = sum(topic_counter.values())
     if total_topics > 0:
-        _global_state.dominant_topics = {
-            topic: count / total_topics for topic, count in topic_counter.items()
-        }
+        for topic, count in topic_counter.items():
+            new_weight = count / total_topics
+            if topic in _global_state.dominant_topics:
+                _global_state.dominant_topics[topic] = (
+                    alpha * new_weight
+                    + (1 - alpha) * _global_state.dominant_topics[topic]
+                )
+            else:
+                _global_state.dominant_topics[topic] = new_weight * alpha
 
-    # 更新认知负荷
+    # 清理权重太低的主题
+    _global_state.dominant_topics = {
+        topic: weight
+        for topic, weight in _global_state.dominant_topics.items()
+        if weight > 0.05
+    }
+
+    # 更新认知负荷 - 使用加权平均
     avg_complexity = sum(m.message.complexity["score"] for m in event_messages) / len(
         event_messages
     )
-    _global_state.complexity = min(
-        1.0, _global_state.complexity + (avg_complexity / 10) * 0.1
+    normalized_complexity = avg_complexity / 10  # 归一化到 0-1
+    _global_state.complexity = (
+        alpha * normalized_complexity + (1 - alpha) * _global_state.complexity
     )
 
-    # 更新指向性
+    # 更新指向性 - 使用加权平均
     avg_directedness = sum(
         calculate_directedness_simple(m.message.text) for m in event_messages
     ) / len(event_messages)
-    _global_state.directedness = min(
-        1.0, _global_state.directedness + avg_directedness * 0.1
+    _global_state.directedness = (
+        alpha * avg_directedness + (1 - alpha) * _global_state.directedness
     )
 
-    # 更新疲劳度（基于消息量和问题压力）
-    _global_state.fatigue = min(
-        1.0,
-        _global_state.fatigue
-        + (_global_state.message_volume * 0.05)
-        + (_global_state.question_pressure * 0.1),
+    # 更新疲劳度 - 基于活跃度和问题压力增加，同时有自然恢复
+    fatigue_increase = (
+        _global_state.message_volume * 0.1 + _global_state.question_pressure * 0.15
+    )
+    fatigue_recovery = 0.05  # 自然恢复
+    _global_state.fatigue = max(
+        0.0, min(1.0, _global_state.fatigue + fatigue_increase - fatigue_recovery)
     )
 
-    # 新鲜度衰减（随着时间推移和重复主题）
+    # 新鲜度 - 重复主题降低新鲜度，新主题增加新鲜度
     if _global_state.dominant_topics:
         max_topic_freq = max(_global_state.dominant_topics.values())
-        _global_state.novelty_decay = max(
-            0.0, _global_state.novelty_decay - max_topic_freq * 0.05
+        # 高频主题降低新鲜度
+        novelty_decrease = max_topic_freq * 0.1
+        # 新主题数量增加新鲜度
+        new_topics = len(
+            [t for t in topic_counter.keys() if t not in _global_state.dominant_topics]
         )
+        novelty_increase = min(0.1, new_topics * 0.02)
+
+        _global_state.novelty_decay = max(
+            0.0,
+            min(1.0, _global_state.novelty_decay - novelty_decrease + novelty_increase),
+        )
+    else:
+        # 无主题时新鲜度缓慢恢复
+        _global_state.novelty_decay = min(1.0, _global_state.novelty_decay + 0.02)
 
 
 def describe_level(value: float) -> str:
@@ -877,6 +990,25 @@ def get_global_state() -> GlobalPerceptionState:
     return _global_state
 
 
+def get_last_snapshot() -> GlobalPerceptionState | None:
+    """获取上次快照"""
+    return _last_post_snapshot
+
+
+def create_snapshot() -> GlobalPerceptionState:
+    """创建并保存当前状态的快照"""
+    global _last_post_snapshot
+    _last_post_snapshot = _global_state.copy()
+    return _last_post_snapshot
+
+
+def get_state_changes() -> dict[str, Any] | None:
+    """获取自上次快照以来的状态变化"""
+    if _last_post_snapshot is None:
+        return None
+    return _global_state.diff(_last_post_snapshot)
+
+
 def generate_post_prompt() -> str:
     """
     根据全局感知状态生成贴文提示词
@@ -905,13 +1037,34 @@ def generate_post_prompt() -> str:
 当前感知状态：
 - 互动活跃度: {activity_desc} ({state.message_volume:.2f})
 - 被提问压力: {describe_level(state.question_pressure)} ({state.question_pressure:.2f})
-- 指向我的程度: {describe_level(state.directedness)} ({state.directedness:.2f})
+- 指向你的程度: {describe_level(state.directedness)} ({state.directedness:.2f})
 - 情绪氛围: {emotion_desc}，强度{intensity_desc} (倾向值: {state.emotional_valence:.2f}, 强度: {state.emotional_intensity:.2f})
 - 话题复杂度: {complexity_desc} ({state.complexity:.2f})
 - 热门主题: {topics_str}
 - 疲劳程度: {fatigue_desc} ({state.fatigue:.2f})
-- 新鲜感: {novelty_desc} ({state.novelty_decay:.2f})
+- 新鲜感: {novelty_desc} ({state.novelty_decay:.2f})"""
 
-现在，请根据以上感知状态，写一条贴文："""
+    # 添加状态变化信息
+    changes = get_state_changes()
+    if changes:
+        prompt += "\n\n自上次贴文以来的变化："
+
+        def format_change(name: str, data: dict) -> str:
+            change = data["change"]
+            if abs(change) < 0.05:
+                return f"- {name}: 基本保持稳定"
+            direction = "增加" if change > 0 else "减少"
+            magnitude = "显著" if abs(change) > 0.2 else "略有"
+            return f"- {name}: {magnitude}{direction} ({change:+.2f})"
+
+        prompt += "\n" + format_change("活跃度", changes["message_volume"])
+        prompt += "\n" + format_change("问题压力", changes["question_pressure"])
+        prompt += "\n" + format_change("情绪倾向", changes["emotional_valence"])
+        prompt += "\n" + format_change("疲劳度", changes["fatigue"])
+        prompt += "\n" + format_change("新鲜感", changes["novelty_decay"])
+    else:
+        prompt += "\n\n（这是第一次发布贴文）"
+
+    prompt += "\n\n现在，请根据以上感知状态和变化趋势，写一条贴文："
 
     return prompt

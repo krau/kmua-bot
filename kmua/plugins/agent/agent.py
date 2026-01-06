@@ -257,7 +257,7 @@ async def wake_agent(client: PyrogramClient, message: pyrogram.types.Message):
                 if message.date
                 else datetime.now().timestamp(),
             )
-            event = consciousness.detect_event(f"{chat_id}", n=5, threshold=0.8)
+            event = consciousness.detect_event(f"{chat_id}", n=3, threshold=0.6)
             if event:
                 logger.info(f"Detected event in chat {chat_id}: {event}")
                 await asyncio.to_thread(

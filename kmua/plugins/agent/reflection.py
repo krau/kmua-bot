@@ -11,7 +11,11 @@ from kmua.common.memory_store import memttlcache
 from kmua.config import app_config
 from kmua.logger import logger
 from kmua.plugins.agent import state
-from kmua.plugins.agent.consciousness import generate_post_prompt, get_global_state
+from kmua.plugins.agent.consciousness import (
+    create_snapshot,
+    generate_post_prompt,
+    get_global_state,
+)
 
 from .agent import model
 
@@ -102,6 +106,10 @@ async def publish_reflection_post(client: Client) -> bool:
         logger.success(
             f"Published reflection post to fans_channel: {app_config.fans_channel}"
         )
+
+        # 创建当前状态的快照，用于下次对比
+        create_snapshot()
+        logger.debug("Created state snapshot after publishing post")
 
         return True
     except Exception as e:
