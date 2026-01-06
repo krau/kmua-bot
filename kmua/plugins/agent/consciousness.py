@@ -419,6 +419,179 @@ def calculate_complexity(features: MessageFeatures) -> dict[str, Any]:
 
 
 @dataclass
+class DirectednessAnalysis:
+    """指向性分析结果"""
+
+    score: float  # 0-1, 指向 bot 的强度
+    level: str  # low, medium, high
+    indicators: dict[str, Any]  # 具体的指向性指标
+
+
+def analyze_directedness(
+    text: str,
+    *,
+    bot_name: str | None = None,
+    bot_username: str | None = None,
+    has_mention: bool = False,
+    has_reply: bool = False,
+    is_private: bool = False,
+) -> DirectednessAnalysis:
+    """
+    分析消息指向 bot 的强度
+
+    Args:
+        text: 消息文本
+        bot_name: bot 的名字（如 "kmua"）
+        bot_username: bot 的用户名（如 "kmuav2bot"）
+        has_mention: 是否包含 @ 提及
+        has_reply: 是否回复 bot 的消息
+        is_private: 是否私聊
+
+    Returns:
+        DirectednessAnalysis: 指向性分析结果
+    """
+    score = 0.0
+    indicators = {
+        "has_mention": has_mention,
+        "has_reply": has_reply,
+        "is_private": is_private,
+        "name_mentioned": False,
+        "username_mentioned": False,
+        "direct_address": False,
+        "imperative_to_bot": False,
+        "question_to_bot": False,
+    }
+
+    # 1. 私聊天然具有高指向性
+    if is_private:
+        score += 0.8
+        indicators["is_private"] = True
+
+    # 2. @ 提及 - 最强的指向性信号
+    if has_mention:
+        score += 0.9
+        indicators["has_mention"] = True
+
+    # 3. 回复 bot 的消息
+    if has_reply:
+        score += 0.7
+        indicators["has_reply"] = True
+
+    # 4. 提及 bot 名字或用户名
+    text_lower = text.lower()
+    if bot_name and bot_name.lower() in text_lower:
+        score += 0.6
+        indicators["name_mentioned"] = True
+
+    if bot_username:
+        username_patterns = [
+            f"@{bot_username.lower()}",
+            bot_username.lower(),
+        ]
+        if any(pattern in text_lower for pattern in username_patterns):
+            score += 0.7
+            indicators["username_mentioned"] = True
+
+    # 5. 直接称呼词（你、您、你们）
+    direct_address_words = ["你", "您", "你们"]
+    if any(word in text for word in direct_address_words):
+        score += 0.3
+        indicators["direct_address"] = True
+
+    # 6. 提取特征进行深度分析
+    features = extract_features(text)
+
+    # 7. 命令式语句指向性
+    if features.is_command:
+        # 命令通常是针对 bot 的
+        score += 0.5
+        indicators["imperative_to_bot"] = True
+
+        # 特定命令动词增强指向性
+        command_verbs = {"帮", "给", "告诉", "说", "查", "找", "搜", "发", "显示", "看"}
+        if any(verb in features.imperative_verbs for verb in command_verbs):
+            score += 0.2
+
+    # 8. 疑问句指向性
+    if features.is_question:
+        # 问句很可能是针对 bot 的
+        score += 0.4
+        indicators["question_to_bot"] = True
+
+        # 特定疑问词增强指向性
+        high_directness_questions = {"你", "您", "是不是", "能不能", "可以", "会不会"}
+        if any(word in text for word in high_directness_questions):
+            score += 0.2
+
+    # 9. 情感互动词汇（亲密/敌对行为）
+    affection_words = {"抱抱", "贴贴", "摸摸", "亲亲", "爱你", "揉揉", "捏捏", "拥抱"}
+    hate_words = {"讨厌你", "滚开", "去死", "烦死了"}
+
+    if any(word in text for word in affection_words | hate_words):
+        score += 0.6
+
+    # 10. 特定指向性短语
+    directive_phrases = [
+        "你好",
+        "你在吗",
+        "你是谁",
+        "你叫什么",
+        "听我说",
+        "注意",
+        "看这个",
+    ]
+    if any(phrase in text for phrase in directive_phrases):
+        score += 0.3
+
+    # 归一化分数到 0-1 范围
+    score = min(1.0, score)
+
+    # 确定指向性等级
+    if score >= 0.7:
+        level = "high"
+    elif score >= 0.4:
+        level = "medium"
+    else:
+        level = "low"
+
+    return DirectednessAnalysis(
+        score=score,
+        level=level,
+        indicators=indicators,
+    )
+
+
+def calculate_directedness_simple(
+    text: str,
+    bot_name: str | None = None,
+    has_mention: bool = False,
+    has_reply: bool = False,
+    is_private: bool = False,
+) -> float:
+    """
+    简化版指向性计算，只返回分数
+
+    Args:
+        text: 消息文本
+        bot_name: bot 的名字
+        has_mention: 是否 @ 提及
+        has_reply: 是否回复 bot
+        is_private: 是否私聊
+
+    Returns:
+        float: 0-1 的指向性分数
+    """
+    result = analyze_directedness(
+        text,
+        bot_name=bot_name,
+        has_mention=has_mention,
+        has_reply=has_reply,
+        is_private=is_private,
+    )
+    return result.score
+
+
+@dataclass
 class AnalyzedMessage:
     text: str
     features: MessageFeatures
@@ -481,6 +654,9 @@ def calculate_attention(result: AnalyzedMessage) -> float:
     # 命令/疑问贡献
     if result.intent["type"] in ("command", "question"):
         attention += 0.2
+    # 指向性贡献
+    directedness_score = calculate_directedness_simple(result.text)
+    attention += directedness_score * 0.3
     return min(attention, 1.0)
 
 
@@ -528,11 +704,6 @@ class GlobalPerceptionState:
 
     # 认知负荷
     complexity: float  # 话题复杂度
-    repetitiveness: float  # 重复感
-
-    # 时间感
-    novelty_decay: float  # 新鲜感衰减
-    fatigue: float  # 累积疲惫
 
 
 _global_state = GlobalPerceptionState(
@@ -543,10 +714,79 @@ _global_state = GlobalPerceptionState(
     emotional_valence=0.1,
     dominant_topics={},
     complexity=0.4,
-    repetitiveness=0.2,
-    novelty_decay=0.5,
-    fatigue=0.3,
 )
+
+
+def reset_global_state():
+    global _global_state
+    _global_state = GlobalPerceptionState(
+        message_volume=0.5,
+        question_pressure=0.3,
+        directedness=0.4,
+        emotional_intensity=0.2,
+        emotional_valence=0.1,
+        dominant_topics={},
+        complexity=0.4,
+    )
+
+
+def update_global_state_by_event(event_messages: list[MessageAttention]):
+    """
+    根据一组事件消息更新全局感知状态
+    """
+    if not event_messages:
+        return
+
+    # 更新互动形态
+    avg_attention = sum(m.attention for m in event_messages) / len(event_messages)
+    _global_state.message_volume = min(
+        1.0, _global_state.message_volume + avg_attention * 0.1
+    )
+    question_count = sum(
+        1 for m in event_messages if m.message.intent["type"] == "question"
+    )
+    _global_state.question_pressure = min(
+        1.0,
+        _global_state.question_pressure + (question_count / len(event_messages)) * 0.1,
+    )
+
+    # 更新情绪气候
+    avg_emotion_score = sum(m.message.emotion["score"] for m in event_messages) / len(
+        event_messages
+    )
+    _global_state.emotional_intensity = min(
+        1.0, _global_state.emotional_intensity + abs(avg_emotion_score) * 0.1
+    )
+    _global_state.emotional_valence = max(
+        -1.0, min(1.0, _global_state.emotional_valence + avg_emotion_score * 0.1)
+    )
+
+    # 更新主题气候
+    topic_counter: Counter[str] = Counter()
+    for m in event_messages:
+        for topic in m.message.topics:
+            topic_counter[topic] += 1
+    total_topics = sum(topic_counter.values())
+    if total_topics > 0:
+        _global_state.dominant_topics = {
+            topic: count / total_topics for topic, count in topic_counter.items()
+        }
+
+    # 更新认知负荷
+    avg_complexity = sum(m.message.complexity["score"] for m in event_messages) / len(
+        event_messages
+    )
+    _global_state.complexity = min(
+        1.0, _global_state.complexity + (avg_complexity / 10) * 0.1
+    )
+
+    # 更新指向性
+    avg_directedness = sum(
+        calculate_directedness_simple(m.message.text) for m in event_messages
+    ) / len(event_messages)
+    _global_state.directedness = min(
+        1.0, _global_state.directedness + avg_directedness * 0.1
+    )
 
 
 def describe_level(value: float) -> str:
@@ -572,6 +812,4 @@ def build_impression_input() -> dict[str, Any]:
                 _global_state.dominant_topics.items(), key=lambda x: x[1], reverse=True
             )[:5]  # top 5
         ],
-        "fatigue": _global_state.fatigue,
-        "novelty": _global_state.novelty_decay,
     }
