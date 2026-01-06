@@ -723,9 +723,6 @@ class GlobalPerceptionState:
 
     # 认知负荷
     complexity: float  # 话题复杂度
-
-    # 疲劳度和新鲜度
-    fatigue: float  # 疲劳程度
     novelty_decay: float  # 新鲜度衰减
 
     def copy(self) -> "GlobalPerceptionState":
@@ -738,7 +735,6 @@ class GlobalPerceptionState:
             emotional_valence=self.emotional_valence,
             dominant_topics=self.dominant_topics.copy(),
             complexity=self.complexity,
-            fatigue=self.fatigue,
             novelty_decay=self.novelty_decay,
         )
 
@@ -775,11 +771,6 @@ class GlobalPerceptionState:
                 "current": self.complexity,
                 "change": self.complexity - previous.complexity,
             },
-            "fatigue": {
-                "previous": previous.fatigue,
-                "current": self.fatigue,
-                "change": self.fatigue - previous.fatigue,
-            },
             "novelty_decay": {
                 "previous": previous.novelty_decay,
                 "current": self.novelty_decay,
@@ -796,7 +787,6 @@ _global_state = GlobalPerceptionState(
     emotional_valence=0.1,
     dominant_topics={},
     complexity=0.4,
-    fatigue=0.2,
     novelty_decay=0.5,
 )
 
@@ -814,7 +804,6 @@ def reset_global_state():
         emotional_valence=0.1,
         dominant_topics={},
         complexity=0.4,
-        fatigue=0.2,
         novelty_decay=0.5,
     )
 
@@ -914,15 +903,6 @@ def update_global_state_by_event(event_messages: list[MessageAttention]):
         alpha * avg_directedness + (1 - alpha) * _global_state.directedness
     )
 
-    # 更新疲劳度 - 基于活跃度和问题压力增加，同时有自然恢复
-    fatigue_increase = (
-        _global_state.message_volume * 0.1 + _global_state.question_pressure * 0.15
-    )
-    fatigue_recovery = 0.05  # 自然恢复
-    _global_state.fatigue = max(
-        0.0, min(1.0, _global_state.fatigue + fatigue_increase - fatigue_recovery)
-    )
-
     # 新鲜度 - 重复主题降低新鲜度，新主题增加新鲜度
     if _global_state.dominant_topics:
         max_topic_freq = max(_global_state.dominant_topics.values())
@@ -980,7 +960,6 @@ def build_impression_input() -> dict[str, Any]:
                 _global_state.dominant_topics.items(), key=lambda x: x[1], reverse=True
             )[:5]  # top 5
         ],
-        "fatigue": _global_state.fatigue,
         "novelty": _global_state.novelty_decay,
     }
 
@@ -1023,7 +1002,6 @@ def generate_post_prompt() -> str:
     emotion_desc = describe_valence(state.emotional_valence)
     intensity_desc = describe_level(state.emotional_intensity)
     complexity_desc = describe_level(state.complexity)
-    fatigue_desc = describe_level(state.fatigue)
     novelty_desc = describe_level(state.novelty_decay)
 
     # 获取热门主题
@@ -1041,7 +1019,6 @@ def generate_post_prompt() -> str:
 - 情绪氛围: {emotion_desc}，强度{intensity_desc} (倾向值: {state.emotional_valence:.2f}, 强度: {state.emotional_intensity:.2f})
 - 话题复杂度: {complexity_desc} ({state.complexity:.2f})
 - 热门主题: {topics_str}
-- 疲劳程度: {fatigue_desc} ({state.fatigue:.2f})
 - 新鲜感: {novelty_desc} ({state.novelty_decay:.2f})"""
 
     # 添加状态变化信息
@@ -1060,7 +1037,6 @@ def generate_post_prompt() -> str:
         prompt += "\n" + format_change("活跃度", changes["message_volume"])
         prompt += "\n" + format_change("问题压力", changes["question_pressure"])
         prompt += "\n" + format_change("情绪倾向", changes["emotional_valence"])
-        prompt += "\n" + format_change("疲劳度", changes["fatigue"])
         prompt += "\n" + format_change("新鲜感", changes["novelty_decay"])
     else:
         prompt += "\n\n（这是第一次发布贴文）"

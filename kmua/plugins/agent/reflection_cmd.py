@@ -60,7 +60,6 @@ async def cmd_perception(client: Client, message: Message):
 💭 **情绪倾向**: {summary["emotion"]["valence"]:.2f}
 
 🧠 **话题复杂度**: {summary["cognitive"]["complexity"]:.2f}
-😴 **疲劳度**: {summary["cognitive"]["fatigue"]:.2f}
 ✨ **新鲜感**: {summary["cognitive"]["novelty"]:.2f}
 
 🔥 **热门主题**:

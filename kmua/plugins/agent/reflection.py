@@ -138,13 +138,12 @@ async def get_perception_summary() -> dict:
         },
         "cognitive": {
             "complexity": state.complexity,
-            "fatigue": state.fatigue,
             "novelty": state.novelty_decay,
         },
         "topics": dict(
             list(
                 sorted(state.dominant_topics.items(), key=lambda x: x[1], reverse=True)[
-                    :5
+                    :10
                 ]
             )
         ),
