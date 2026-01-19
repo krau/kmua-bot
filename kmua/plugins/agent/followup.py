@@ -107,14 +107,14 @@ async def handle_follow_up_message(
     )
     bot_reply = await common.memttlcache.get(state.bot_last_reply_key(chat.id))
     if not bot_reply or not isinstance(bot_reply, datatype.BotLastReply):
-        return False
+        return
     if not message.date:
-        return False
+        return
     time_diff = message.date.timestamp() - bot_reply.timestamp
     if time_diff < 0 or time_diff > 300:
-        return False
+        return
     if message.id - bot_reply.message_id > 6:
-        return False
+        return
     chat_config = await database.get_chat_config(chat.id)
     if not chat_config.ai_reply:
         return
