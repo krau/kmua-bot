@@ -113,6 +113,8 @@ async def handle_follow_up_message(
     time_diff = message.date.timestamp() - bot_reply.timestamp
     if time_diff < 0 or time_diff > 300:
         return False
+    if message.id - bot_reply.message_id > 6:
+        return False
     chat_config = await database.get_chat_config(chat.id)
     if not chat_config.ai_reply:
         return
