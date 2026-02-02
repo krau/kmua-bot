@@ -29,7 +29,6 @@ dependencies = [
     "pyyaml>=6.0.2",
     "redis>=6.2.0",
     "sketchbook-py==0.2.1",
-    "spacy>=3.8.11",
     "sqlalchemy[asyncio]>=2.0.41",
     "tgcrypto>=1.2.5",
     "ujson>=5.11.0",
