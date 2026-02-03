@@ -21,7 +21,7 @@ agent_provider_url = "https://api.openai.com/v1"
 agent_api_key = ""
 agent_messages_threshold = 20
 agent_whitelist_mode = false
-agent_chatlist = []
+agent_whitelist = []
 agent_prompt = ''''''
 
 manyacg_api_url = "https://api.manyacg.top/v1"
