@@ -18,7 +18,8 @@ async def word_reply(client: pyrogram.Client, message: pyrogram.types.Message):
     )
     await message.reply_chat_action(pyrogram.enums.ChatAction.TYPING)
     all_replies = []
-    for keyword, replies in resources.word_dict.items():
+    word_dict = resources.get_word_dict()
+    for keyword, replies in word_dict.items():
         if keyword in text:
             all_replies.extend(replies)
     if all_replies:

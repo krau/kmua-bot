@@ -5,8 +5,11 @@ from anyio import Path
 
 from kmua.logger import logger
 
+_word_dict_cache: dict[str, list[str]] | None = None
+
 
 def _load_words() -> dict[str, list[str]]:
+    """加载词库文件"""
     internal_path = Path(__file__).parent / "word_dicts"
     words = {}
     logger.debug(f"loading word dicts from {internal_path}")
@@ -26,4 +29,11 @@ def _load_words() -> dict[str, list[str]]:
     return words
 
 
-word_dict = _load_words()
+def get_word_dict() -> dict[str, list[str]]:
+    """
+    获取词库，按需加载并缓存
+    """
+    global _word_dict_cache
+    if _word_dict_cache is None:
+        _word_dict_cache = _load_words()
+    return _word_dict_cache
