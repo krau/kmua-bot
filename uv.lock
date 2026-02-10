@@ -1571,7 +1571,7 @@ requires-dist = [
 [[package]]
 name = "kurigram"
 version = "2.2.18"
-source = { git = "https://github.com/KurimuzonAkuma/kurigram.git#cf28a3fd2a5fdcdf562f61f8539b1883af35f6f0" }
+source = { git = "https://github.com/KurimuzonAkuma/kurigram.git#c37247d5187d3706f412b565980d53c8caf25555" }
 dependencies = [
     { name = "pyaes" },
     { name = "pysocks" },

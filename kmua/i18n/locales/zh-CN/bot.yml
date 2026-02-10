@@ -144,3 +144,9 @@ bot:
     wordcloud:
       generating: 已经正在生成啦, 请稍等一会儿...
       generated: 最近聊天记录的词云图
+    randmyavatar:
+      service_unavailable: manyacg 或 aniobjcut 服务未启用
+      processing: 正在更换头像...
+      fetch_failed: 获取图片失败, 请稍后再试
+      success: "头像更换成功!\n作品: <a href='{url}'>{title}</a>"
+      failed: "更换头像失败: {error}"

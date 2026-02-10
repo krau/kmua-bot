@@ -70,6 +70,11 @@ async def init_bot(client: Client = client):
         BotCommand("buygift", i18n.t("bot.cmd.buygift", locale=app_config.lang)),
         BotCommand("gift", i18n.t("bot.cmd.gift", locale=app_config.lang)),
     ]
+    owner_commands = [
+        BotCommand(
+            "randmyavatar", i18n.t("bot.cmd.randmyavatar", locale=app_config.lang)
+        ),
+    ]
     await client.set_bot_commands(
         common_commands + group_common_commands,
         scope=pyrogram.types.BotCommandScopeAllGroupChats(),
@@ -82,7 +87,26 @@ async def init_bot(client: Client = client):
         common_commands + private_commands,
         scope=pyrogram.types.BotCommandScopeAllPrivateChats(),
     )
+    # 为每个 owner 注册 owner 专属命令
+    for owner_id in app_config.owners:
+        await client.set_bot_commands(
+            common_commands + private_commands + owner_commands,
+            scope=pyrogram.types.BotCommandScopeChat(owner_id),
+        )
     common.jobqueue.add_daily_job("cleanup", jobs.cleanup, hour=4)
+
+    # 添加定时更换 bot 头像任务
+    if app_config.avatar_change_enabled:
+        logger.info(
+            i18n.t("log.avatar_change_enabled", locale=app_config.lang).format(
+                interval=app_config.avatar_change_interval
+            )
+        )
+        common.jobqueue.add_interval_job(
+            "change_bot_avatar",
+            jobs.change_bot_avatar,
+            hours=app_config.avatar_change_interval,
+        )
 
     common.jobqueue.start()
     logger.success(i18n.t("log.inited", locale=app_config.lang))

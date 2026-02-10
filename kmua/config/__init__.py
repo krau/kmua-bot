@@ -59,6 +59,10 @@ class _AppConfig(pydantic.BaseModel):
     aniobjcut_api_url: str = "http://localhost:39728"
     aniobjcut_api_key: str | None = None
 
+    # bot avatar change
+    avatar_change_enabled: bool = False
+    avatar_change_interval: int = 24  # hours
+
     # agent
     agent: bool = False
     agent_reflection_post_interval: int = 86400 * 3
