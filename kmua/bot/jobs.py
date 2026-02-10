@@ -56,7 +56,7 @@ async def change_bot_avatar():
         avatar = await aniobjcut.aniobjcut_client.cut_avatar(fileresp.content)
 
         await client.set_profile_photo(
-            pyrogram.types.InputChatPhotoStatic(io.BytesIO(avatar)), is_public=True
+            pyrogram.types.InputChatPhotoStatic(io.BytesIO(avatar))
         )
         logger.success(
             i18n.t("log.avatar_changed", locale=app_config.lang).format(

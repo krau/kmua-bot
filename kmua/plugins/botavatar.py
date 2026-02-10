@@ -68,9 +68,7 @@ async def randmyavatar_command(client: Client, message: Message):
         avatar = await aniobjcut.aniobjcut_client.cut_avatar(fileresp.content)
 
         # 更新头像
-        await client.set_profile_photo(
-            InputChatPhotoStatic(io.BytesIO(avatar)), is_public=True
-        )
+        await client.set_profile_photo(InputChatPhotoStatic(io.BytesIO(avatar)))
 
         # 成功消息
         await status_msg.edit_text(
