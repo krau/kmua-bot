@@ -9,11 +9,14 @@ from weakref import WeakValueDictionary
 import pyrogram
 from pydantic_ai import (
     Agent,
+    AudioUrl,
     BinaryContent,
+    DocumentUrl,
+    ImageUrl,
     ModelRetry,
-    MultiModalContent,
     UserContent,
     UserPromptPart,
+    VideoUrl,
 )
 from pydantic_ai.messages import ModelMessage, ModelRequest
 from pyrogram.client import Client as PyrogramClient
@@ -38,6 +41,8 @@ def get_agent_affection_prompt(rank: float) -> str | None:
 async def reply_output(
     client: PyrogramClient, message: pyrogram.types.Message, text: str
 ):
+    if message.chat is None:
+        return
     is_group_chat = message.chat.type in (
         pyrogram.enums.ChatType.SUPERGROUP,
         pyrogram.enums.ChatType.GROUP,
@@ -490,6 +495,8 @@ async def get_input_prompt(
 
 def has_multimodal_input(user_prompt: list[UserContent]) -> bool:
     for content in user_prompt:
-        if isinstance(content, MultiModalContent):
+        if isinstance(
+            content, (ImageUrl | AudioUrl | DocumentUrl | VideoUrl | BinaryContent)
+        ):
             return True
     return False
