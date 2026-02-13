@@ -59,6 +59,7 @@ class ChatConfig:
     convert_b23_enabled: bool = True
     parse_artwork_enabled: bool = True
     pick_bottle_enabled: bool = True
+    group_memory_enabled: bool = True
     lang: str = "zh-CN"
 
     @classmethod
@@ -80,6 +81,7 @@ class ChatConfig:
             parse_artwork_enabled=data.get("parse_artwork_enabled", True),
             pick_bottle_enabled=data.get("pick_bottle_enabled", True),
             ai_comment=data.get("ai_comment", False),
+            group_memory_enabled=data.get("group_memory_enabled", True),
             lang=data.get("lang", "zh-CN"),
         )
 

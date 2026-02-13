@@ -282,10 +282,13 @@ bot:
       message_search: 메시지 검색
       quote_pin_message: 인용 메시지 고정
       ai_reply: AI 답장
+      ai_comment: AI 댓글
       setu_enabled: 랜덤 숭한 짤
       unpin_channel_pin_enabled: 채널 공지 고정 해제
       convert_b23_enabled: b23 링크 변환
       parse_artwork_enabled: 작품 링크 분석
+      pick_bottle_enabled: 병 줍기
+      group_memory_enabled: 그룹 메모리
       save: 저장
     waifu:
       remove: 삭제 (관리자)

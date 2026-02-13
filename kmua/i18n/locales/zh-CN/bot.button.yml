@@ -22,6 +22,7 @@ bot:
       parse_artwork_enabled: 解析插画链接
       pick_bottle_enabled: 捡瓶子
       ai_comment: AI评论
+      group_memory_enabled: 群组记忆
       save: 保存设置
     waifu:
       remove: 移除

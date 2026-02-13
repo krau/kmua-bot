@@ -283,10 +283,13 @@ bot:
       message_search: "メッセージ検索"
       quote_pin_message: "名言ピン留め"
       ai_reply: "AI返信"
+      ai_comment: "AIコメント"
       setu_enabled: "ランダムエッチ画像"
       unpin_channel_pin_enabled: "チャンネルピン留め解除"
       convert_b23_enabled: "b23短縮URL変換"
       parse_artwork_enabled: "イラストリンク解析"
+      pick_bottle_enabled: "ボトルを拾う"
+      group_memory_enabled: "グループメモリー"
       save: "設定を保存"
     waifu:
       remove: "削除(管理者)"

@@ -46,11 +46,15 @@ class ChatConfigMarkup:
                         callback_data=self.get_callback_data("ai_comment"),
                     ),
                     InlineKeyboardButton(
-                        f"{i18n.t('bot.button.chat_config.setu_enabled', locale=self.lang)} {self.get_status_emoji(self.chat_config.setu_enabled)}",
-                        callback_data=self.get_callback_data("setu_enabled"),
+                        f"{i18n.t('bot.button.chat_config.group_memory_enabled', locale=self.lang)} {self.get_status_emoji(self.chat_config.group_memory_enabled)}",
+                        callback_data=self.get_callback_data("group_memory_enabled"),
                     ),
                 ],
                 [
+                    InlineKeyboardButton(
+                        f"{i18n.t('bot.button.chat_config.setu_enabled', locale=self.lang)} {self.get_status_emoji(self.chat_config.setu_enabled)}",
+                        callback_data=self.get_callback_data("setu_enabled"),
+                    ),
                     InlineKeyboardButton(
                         f"{i18n.t('bot.button.chat_config.unpin_channel_pin_enabled', locale=self.lang)} {self.get_status_emoji(self.chat_config.unpin_channel_pin_enabled)}",
                         callback_data=self.get_callback_data(
@@ -152,6 +156,8 @@ async def config_chat(
                 chat_config.pick_bottle_enabled = not chat_config.pick_bottle_enabled
             case "ai_comment":
                 chat_config.ai_comment = not chat_config.ai_comment
+            case "group_memory_enabled":
+                chat_config.group_memory_enabled = not chat_config.group_memory_enabled
             case _:
                 await callback_query.answer(
                     text=i18n.t("bot.msg.unknown_operation", locale=lang),

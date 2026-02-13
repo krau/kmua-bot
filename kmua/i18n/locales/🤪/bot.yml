@@ -484,6 +484,8 @@ bot:
 
       ai_reply: AI📎複
 
+      ai_comment: AI評論
+
       setu_enabled: 隨機澀圖
 
       unpin_channel_pin_enabled: 🔓➗頻☯📍頂
@@ -491,6 +493,10 @@ bot:
       convert_b23_enabled: 轉換b23👕鏈
 
       parse_artwork_enabled: 🔓🔬🔌畫鏈🔗
+
+      pick_bottle_enabled: 撿🍶🧴
+
+      group_memory_enabled: 群組🧠💾
 
       save: 🎳💾設📍
 
