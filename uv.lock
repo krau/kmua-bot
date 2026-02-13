@@ -1667,7 +1667,7 @@ requires-dist = [
     { name = "orjson", specifier = ">=3.10.18" },
     { name = "pillow", specifier = ">=11.2.1" },
     { name = "pilmoji", git = "https://github.com/jay3332/pilmoji.git" },
-    { name = "powermem", specifier = ">=0.2.1" },
+    { name = "powermem", specifier = "==0.4.0" },
     { name = "pydantic", specifier = ">=2.11.4" },
     { name = "pydantic-ai", specifier = ">=1.7.0" },
     { name = "pyyaml", specifier = ">=6.0.2" },
@@ -2335,7 +2335,7 @@ wheels = [
 
 [[package]]
 name = "powermem"
-version = "0.5.2"
+version = "0.4.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "anthropic" },
@@ -2368,9 +2368,9 @@ dependencies = [
     { name = "vertexai" },
     { name = "zai-sdk" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/31/fb/093bf851113caa25d344da383cc7a157d3db5778fc0ea8dd708e13025828/powermem-0.5.2.tar.gz", hash = "sha256:8f422580354d997650af8a3a25ee5901915aca53148f050960618e582edb798a", size = 281622, upload-time = "2026-02-12T14:12:28.943Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/9e/0e/092ccd2a6d1f9b0c331c40c18b628c0ef37eca298abcf9814fdee6f70da8/powermem-0.4.0.tar.gz", hash = "sha256:c8feeaaec58089eeac97544f2401d2adfc11c12df76ad38b5465d85e2022c443", size = 266010, upload-time = "2026-01-20T06:56:45.388Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/1d/0e/a19492c48e7d09748dc0b1487e5ff028b7f0429a03fc6d317ff3bf00bde7/powermem-0.5.2-py3-none-any.whl", hash = "sha256:02811a6a07255818238a387cc99ee5017191e9f11b890935c91a9e3c1f0516de", size = 380573, upload-time = "2026-02-12T14:12:27.443Z" },
+    { url = "https://files.pythonhosted.org/packages/06/ae/97d6689521fc69df952a3530989d75e22f27dec7e35df4f84a051dee2ea2/powermem-0.4.0-py3-none-any.whl", hash = "sha256:827055d5c368949090c1979b7866fbad80f74e77f77577a08d74d0627163e5df", size = 362618, upload-time = "2026-01-20T06:56:43.236Z" },
 ]
 
 [[package]]
