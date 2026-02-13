@@ -37,13 +37,14 @@ async def search_chat_in_jokes(
 async def search_group_memory(
     ctx: RunContext[datatype.ContextDeps], query: str
 ) -> list[str]:
-    """Search the group chat memory.
+    """搜索群聊记忆.
+    记忆是指群聊中的事实性信息, 例如某个成员的兴趣爱好, 某两个成员之间的关系, 某个事件的经过等.
 
-    Arguments:
-        query -- The search query, should be short and descriptive.
+    参数:
+        query -- 搜索查询字符串.
 
-    Returns:
-        A list of strings representing the chat memory entries. If no entries found, returns an empty list.
+    返回:
+        一个字符串列表, 每个字符串是一个记忆条目. 如果没有找到任何记忆, 返回空列表.
     """
     if not ctx.deps.powermemory:
         return []

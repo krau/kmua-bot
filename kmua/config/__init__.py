@@ -67,7 +67,7 @@ class _AppConfig(pydantic.BaseModel):
     agent: bool = False
     agent_reflection_post_interval: int = 86400 * 3
     agent_follow_up: bool = True
-    agent_cross_group_memory: bool = True
+    agent_cross_group_memory: bool = False
     agent_group_memory: bool = True
     agent_powermem_config_path: str | None = None
     agent_powermem_config: dict[str, Any] | None = None

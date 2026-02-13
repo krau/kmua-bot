@@ -2335,7 +2335,7 @@ wheels = [
 
 [[package]]
 name = "powermem"
-version = "0.4.0"
+version = "0.5.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "anthropic" },
@@ -2368,9 +2368,9 @@ dependencies = [
     { name = "vertexai" },
     { name = "zai-sdk" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/9e/0e/092ccd2a6d1f9b0c331c40c18b628c0ef37eca298abcf9814fdee6f70da8/powermem-0.4.0.tar.gz", hash = "sha256:c8feeaaec58089eeac97544f2401d2adfc11c12df76ad38b5465d85e2022c443", size = 266010, upload-time = "2026-01-20T06:56:45.388Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/31/fb/093bf851113caa25d344da383cc7a157d3db5778fc0ea8dd708e13025828/powermem-0.5.2.tar.gz", hash = "sha256:8f422580354d997650af8a3a25ee5901915aca53148f050960618e582edb798a", size = 281622, upload-time = "2026-02-12T14:12:28.943Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/06/ae/97d6689521fc69df952a3530989d75e22f27dec7e35df4f84a051dee2ea2/powermem-0.4.0-py3-none-any.whl", hash = "sha256:827055d5c368949090c1979b7866fbad80f74e77f77577a08d74d0627163e5df", size = 362618, upload-time = "2026-01-20T06:56:43.236Z" },
+    { url = "https://files.pythonhosted.org/packages/1d/0e/a19492c48e7d09748dc0b1487e5ff028b7f0429a03fc6d317ff3bf00bde7/powermem-0.5.2-py3-none-any.whl", hash = "sha256:02811a6a07255818238a387cc99ee5017191e9f11b890935c91a9e3c1f0516de", size = 380573, upload-time = "2026-02-12T14:12:27.443Z" },
 ]
 
 [[package]]
@@ -2859,7 +2859,7 @@ wheels = [
 
 [[package]]
 name = "pyobvector"
-version = "0.2.23"
+version = "0.2.24"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "aiomysql" },
@@ -2869,9 +2869,9 @@ dependencies = [
     { name = "sqlalchemy" },
     { name = "sqlglot" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/7f/14/ea82e5f70c335d2a253ae0a5f182f99abc0319511d565ec887c1d576cfb4/pyobvector-0.2.23.tar.gz", hash = "sha256:c575c84d7aef078d19f7ceeccb7240ea7371940e4e240214ed013b757fbe2b97", size = 73663, upload-time = "2026-01-29T09:29:37.197Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/b1/4d/803a69642ea3375a44f0bce2cb5a9432ee95011fe3000bdcc0acdc52c4bc/pyobvector-0.2.24.tar.gz", hash = "sha256:c395fa8452bfe7b8d0d4111f53afea8c38fc76a61d9047f4a462071b72276bf4", size = 73812, upload-time = "2026-02-05T06:51:42.908Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/4f/45/29100150b64ec6c2361f11da969bf0a25f33408bae1eba0054abe315922d/pyobvector-0.2.23-py3-none-any.whl", hash = "sha256:04973247f843cbfef548b9d07989190ffc64a56d49c88bf60b3220f0841b33d3", size = 60900, upload-time = "2026-01-29T09:29:35.727Z" },
+    { url = "https://files.pythonhosted.org/packages/d9/eb/323474f03164ef35f9902ea68ce34e9d486bd53e636fccfa0ea04f8b5894/pyobvector-0.2.24-py3-none-any.whl", hash = "sha256:70999564817f10d18923f55ff49d1c1e3008bbac6ca46d2070874f4292c85935", size = 61020, upload-time = "2026-02-05T06:51:41.793Z" },
 ]
 
 [[package]]
