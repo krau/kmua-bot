@@ -125,6 +125,14 @@ if app_config.agent:
                 tools.search_group_memory,
                 prepare=tools.prepare_powermem_tool,
             ),
+            Tool(
+                tools.generate_image,
+                prepare=tools.prepare_image_gen_tools,
+            ),
+            Tool(
+                tools.edit_image,
+                prepare=tools.prepare_image_edit_tools,
+            ),
         ],
         deps_type=datatype.ContextDeps,
         history_processors=[history_processor],

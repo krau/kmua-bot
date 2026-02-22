@@ -5,7 +5,7 @@ from kmua import common
 from kmua.config import app_config
 from kmua.logger import logger
 from kmua.plugins.agent import datatype
-from kmua.services import btts
+from kmua.services import btts, image_gen
 
 
 async def prepare_group_tools(
@@ -61,5 +61,21 @@ async def prepare_powermem_tool(
         and ctx.deps.powermemory is not None
         and ctx.deps.chat_id < -100  # current powermem tool is only for group chat
     ):
+        return tool_def
+    return None
+
+
+async def prepare_image_gen_tools(
+    ctx: RunContext[datatype.ContextDeps], tool_def: ToolDefinition
+) -> ToolDefinition | None:
+    if image_gen.image_gen_client is not None:
+        return tool_def
+    return None
+
+
+async def prepare_image_edit_tools(
+    ctx: RunContext[datatype.ContextDeps], tool_def: ToolDefinition
+) -> ToolDefinition | None:
+    if image_gen.image_edit_client is not None:
         return tool_def
     return None

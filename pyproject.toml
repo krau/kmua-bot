@@ -21,6 +21,7 @@ dependencies = [
     "httpx>=0.28.1",
     "kurigram>=2.2.3",
     "loguru>=0.7.3",
+    "openai>=2.16.0",
     "orjson>=3.10.18",
     "pillow>=11.2.1",
     "pilmoji>=2.0.4",

@@ -88,6 +88,17 @@ class _AppConfig(pydantic.BaseModel):
         "text/markdown",
     ]
     agent_extra_tools: list[str] = ["duckduckgo_search"]
+    # image generation model (OpenAI-compatible /images/generations API)
+    # if not set, the generate_image tool will be disabled
+    agent_image_gen_model: str | None = None
+    agent_image_gen_provider_url: str | None = None
+    agent_image_gen_api_key: str | None = None
+    # image editing model (OpenAI-compatible /images/edits API)
+    # if not set, falls back to the generation model config above;
+    # set explicitly when using a different model/endpoint for editing
+    agent_image_edit_model: str | None = None
+    agent_image_edit_provider_url: str | None = None
+    agent_image_edit_api_key: str | None = None
     # experimental, maybe removed in the future
     agent_whitelist_mode: bool = False
     agent_whitelist: list[int] = []
