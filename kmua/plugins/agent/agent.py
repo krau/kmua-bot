@@ -250,18 +250,14 @@ async def wake_agent(client: PyrogramClient, message: pyrogram.types.Message):
             instructions += f"\n\n{ctx_info.to_text()}\n"
         # 在群聊场景中获取附近消息作为上下文
         nearby_count = 11 if is_group_chat else 0
-        user_prompt = await utils.get_input_prompt(
+        user_prompt, needs_multimodal = await utils.get_input_prompt(
             client, message, include_nearby=nearby_count, ctx=ctx_info
         )
         user_message_text = message.text or message.caption or ""
         if user_message_text:
             logger.debug(f"User {user.id} prompt: {user_message_text}")
         try:
-            use_model = (
-                model
-                if not utils.has_multimodal_input(user_prompt)
-                else multimodal_model
-            )
+            use_model = multimodal_model if needs_multimodal else model
             if app_config.agent_streaming:
                 async with agent.iter(
                     instructions=instructions,

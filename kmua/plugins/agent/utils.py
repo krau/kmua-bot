@@ -460,7 +460,16 @@ async def get_input_prompt(
     message: pyrogram.types.Message,
     include_nearby: int = 0,
     ctx: datatype.ContextInfo | Any | None = None,
-) -> list[UserContent]:
+) -> tuple[list[UserContent], bool]:
+    """Build the user prompt list and return whether the current message itself
+    contains media that requires multimodal understanding.
+
+    The second element is True only when the *current* message (or its direct
+    reply_to_message) contributed a BinaryContent item — nearby group context
+    messages and deep reply-chain entries are intentionally excluded so that the
+    smart text model is not swapped out just because unrelated media exists nearby.
+    """
+
     # 公共的单条消息提取逻辑：与原函数一致
     def get_media_and_message(
         m: pyrogram.types.Message,
@@ -619,20 +628,16 @@ async def get_input_prompt(
                 )
             )
 
-    # 最后追加当前消息（带 ctx）
+    # 最后追加当前消息（带 ctx），并检测是否含有需要多模态理解的媒体
+    len_before = len(user_prompt)
     user_prompt.extend(
         await build_contents_from_message(
             message, ctx_text=str(ctx) if ctx else None, include_media=True
         )
     )
+    needs_multimodal = any(
+        isinstance(item, (ImageUrl, AudioUrl, DocumentUrl, VideoUrl, BinaryContent))
+        for item in user_prompt[len_before:]
+    )
 
-    return user_prompt
-
-
-def has_multimodal_input(user_prompt: list[UserContent]) -> bool:
-    for content in user_prompt:
-        if isinstance(
-            content, (ImageUrl | AudioUrl | DocumentUrl | VideoUrl | BinaryContent)
-        ):
-            return True
-    return False
+    return user_prompt, needs_multimodal

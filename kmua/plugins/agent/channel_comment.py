@@ -80,11 +80,11 @@ async def comment_channel_message(client: Client, message: pyrogram.types.Messag
         "channel_bio": channel.bio or channel.description,
         "current_time": datetime.datetime.now().strftime("%Y年%m月%d日 %H:%M:%S"),
     }
-    prompts = await utils.get_input_prompt(client, message, ctx=ctx)
+    prompts, needs_multimodal = await utils.get_input_prompt(client, message, ctx=ctx)
     if not prompts:
         return
     logger.debug(f"Channel comment post: {message.caption or message.text}")
-    use_model = model if not utils.has_multimodal_input(prompts) else multimodal_model
+    use_model = multimodal_model if needs_multimodal else model
     resp = await agent.run(
         model=use_model,
         toolsets=None,
