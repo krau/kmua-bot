@@ -19,9 +19,33 @@ bot:
       not_found: 没有找到这个瓶子呢
       seek_result: 这个瓶子是由 {sender} 在 {created_at} 扔进大海的哦
       pick_disabled_in_chat: 这里不允许捡漂流瓶哦
+      reply_prompt: 请选择回复方式
+      reply_waiting: 请直接回复这条瓶子消息来回复
+      reply_sent: 你的回信已经被送出去了💌
+      reply_failed: 回信发送失败了...
+      reply_received_anonymous: "有人给你的漂流瓶回信了💌\n\n{content}"
+      reply_received: "有人给你的漂流瓶回信了💌\n\n来自: {sender}\n\n{content}"
+      reply_received_anonymous_header: 有人给你的漂流瓶回信了💌
+      reply_received_header: "{sender} 给你的漂流瓶回信了💌"
+      reply_bottle_preview: "你的瓶子:\n{preview}"
+      bottle_preview_media: "[媒体内容]"
+      reply_cancelled: 已取消回复
+      no_reply_content: 回信内容不能为空哦
+      reply_text_too_long: 回信太长了, 进不去!
+      bottle_destroyed: 已销毁这个瓶子
+      bottle_kept: 已将瓶子扔回大海
+      reply_too_fast: 回信发送太频繁了，请稍后再试~
+      reply_bottle_not_found: 这个瓶子已经消失在大海中了
+      reply_sender_not_found: 瓶子的主人已经消失在大海中了
   button:
     bottle:
       throw_back: 扔回大海
       destroy: 销毁瓶子
       report: 举报瓶子
       seek: 追寻踪迹
+      reply: 回复瓶子
+      reply_anonymous: 匿名回复
+      reply_public: 公开回复
+      cancel_reply: 取消
+      destroy_bottle_after_reply: 销毁瓶子
+      keep_bottle_after_reply: 扔回大海

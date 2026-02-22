@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from kmua.config import app_config
 from kmua.database.db import with_session, with_tx
-from kmua.database.models import Bottle, UserData
+from kmua.database.models import Bottle, BottleReply, UserData
 
 
 @with_tx
@@ -103,3 +103,49 @@ async def get_bottle_by_id(
 
     bottle = await session.get(Bottle, bottle_id)
     return bottle
+
+
+@with_tx
+async def add_bottle_reply(
+    bottle_id: int,
+    replier_id: int,
+    text: str,
+    is_anonymous: bool = False,
+    file_id: str | None = None,
+    media_type: str | None = None,
+    session: AsyncSession | None = None,
+) -> BottleReply:
+    assert session is not None
+    reply = BottleReply(
+        bottle_id=bottle_id,
+        replier_id=replier_id,
+        text=text,
+        is_anonymous=is_anonymous,
+        file_id=file_id,
+        media_type=media_type,
+    )
+    session.add(reply)
+    await session.flush()
+    return reply
+
+
+@with_session
+async def get_bottle_reply_by_id(
+    reply_id: int, session: AsyncSession | None = None
+) -> BottleReply | None:
+    assert session is not None
+    return await session.get(BottleReply, reply_id)
+
+
+@with_tx
+async def get_bottle_replies(
+    bottle_id: int, session: AsyncSession | None = None
+) -> list[BottleReply]:
+    assert session is not None
+    stmt = (
+        sqlalchemy.select(BottleReply)
+        .where(BottleReply.bottle_id == bottle_id)
+        .order_by(BottleReply.created_at.desc())
+    )
+    result = await session.execute(stmt)
+    return list(result.scalars().all())

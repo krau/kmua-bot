@@ -1,8 +1,5 @@
-import html
-
-from pyrogram import filters
+from pyrogram import enums, filters
 from pyrogram.client import Client
-from pyrogram.enums import ParseMode
 from pyrogram.types import (
     CallbackQuery,
     InlineKeyboardButton,
@@ -10,8 +7,11 @@ from pyrogram.types import (
     Message,
 )
 
-from kmua import common, consts, database, i18n
+from kmua import consts, database, i18n
+from kmua.common.memory_store import memttlcache
 from kmua.logger import logger
+
+_BOTTLE_MSG_PREFIX = "bottle_msg:"
 
 
 class PrivateStartBotMarkup:
@@ -79,21 +79,93 @@ async def start(client: Client, message: Message):
                 reply_markup=PrivateStartBotMarkup(lang).build(),
             )
             return
-        sender_user = await database.get_user_by_id(bottle.sender_id)
-        sender_mention = await common.mention_html(sender_user)
-        try:
-            await message.reply(
-                text=i18n.t(
-                    "bot.msg.bottle.seek_result",
-                    locale=lang,
-                ).format(
-                    sender=sender_mention,
-                    created_at=html.escape(
-                        bottle.created_at.strftime("%Y-%m-%d %H:%M:%S")
-                    ),
+        bot_username = client.me.username if client.me else None
+        buttons = [
+            [
+                InlineKeyboardButton(
+                    i18n.t("bot.button.bottle.throw_back", locale=lang),
+                    callback_data=f"throw_back {message.from_user.id}",
                 ),
-                parse_mode=ParseMode.HTML,
+                InlineKeyboardButton(
+                    i18n.t("bot.button.bottle.destroy", locale=lang),
+                    callback_data=f"destroy_bottle {bottle.id} {message.from_user.id}",
+                ),
+            ],
+            [
+                InlineKeyboardButton(
+                    i18n.t("bot.button.bottle.report", locale=lang),
+                    callback_data=f"report_bottle {bottle.id}",
+                ),
+            ],
+        ]
+        if bot_username:
+            buttons[1].append(
+                InlineKeyboardButton(
+                    i18n.t("bot.button.bottle.seek", locale=lang),
+                    url=f"https://t.me/{bot_username}?start=seek_bottle_{bottle.id}",
+                )
             )
+        reply_markup = InlineKeyboardMarkup(buttons)
+        try:
+            content_kwargs = {"has_spoiler": True}
+            if bottle.text:
+                content_kwargs["caption"] = bottle.text
+            bot_msg = None
+            if bottle.media_type and bottle.file_id:
+                match bottle.media_type:
+                    case enums.MessageMediaType.PHOTO.name:
+                        bot_msg = await message.reply_photo(
+                            bottle.file_id,
+                            reply_markup=reply_markup,
+                            **content_kwargs,
+                        )
+                    case enums.MessageMediaType.VIDEO.name:
+                        bot_msg = await message.reply_video(
+                            bottle.file_id,
+                            reply_markup=reply_markup,
+                            **content_kwargs,
+                        )
+                    case enums.MessageMediaType.AUDIO.name:
+                        bot_msg = await message.reply_audio(
+                            bottle.file_id,
+                            reply_markup=reply_markup,
+                            **content_kwargs,
+                        )
+                    case enums.MessageMediaType.DOCUMENT.name:
+                        bot_msg = await message.reply_document(
+                            bottle.file_id,
+                            reply_markup=reply_markup,
+                            **content_kwargs,
+                        )
+                    case enums.MessageMediaType.ANIMATION.name:
+                        bot_msg = await message.reply_animation(
+                            bottle.file_id,
+                            reply_markup=reply_markup,
+                            **content_kwargs,
+                        )
+                    case _:
+                        await message.reply(
+                            text=i18n.t("bot.msg.bottle.unsupported_media", locale=lang)
+                        )
+            elif bottle.text:
+                bot_msg = await message.reply_text(
+                    bottle.text,
+                    reply_markup=reply_markup,
+                )
+            if bot_msg:
+                await memttlcache.set(
+                    f"{_BOTTLE_MSG_PREFIX}{bot_msg.chat.id}:{bot_msg.id}",
+                    {
+                        "bottle_id": bottle.id,
+                        "text": bottle.text,
+                        "file_id": bottle.file_id,
+                        "media_type": bottle.media_type,
+                        "user_id": message.from_user.id,
+                        "is_owner": True,
+                        "lang": lang,
+                    },
+                    ttl=86400,
+                )
         except Exception as e:
             logger.exception(e)
     else:

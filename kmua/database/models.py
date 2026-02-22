@@ -1,6 +1,7 @@
 from dataclasses import asdict, dataclass
 from datetime import datetime
 
+import sqlalchemy as sa
 from sqlalchemy import (
     JSON,
     BigInteger,
@@ -356,6 +357,42 @@ class Bottle(Base):
 
     def __repr__(self) -> str:
         return f"<Bottle(id={self.id}, sender_id={self.sender_id})>"
+
+
+class BottleReply(Base):
+    __tablename__ = "bottle_replies"
+
+    id: Mapped[int] = mapped_column(
+        Integer,
+        primary_key=True,
+        autoincrement=True,
+        index=True,
+    )
+    bottle_id: Mapped[int] = mapped_column(
+        BigInteger,
+        ForeignKey("bottles.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    replier_id: Mapped[int] = mapped_column(
+        BigInteger,
+        ForeignKey("user_data.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    text: Mapped[str] = mapped_column(String(4096), nullable=False)
+    is_anonymous: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default=sa.text("false")
+    )
+    file_id: Mapped[str | None] = mapped_column(String(256), nullable=True)
+    media_type: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+    )
+
+    def __repr__(self) -> str:
+        return f"<BottleReply(id={self.id}, bottle_id={self.bottle_id}, replier_id={self.replier_id})>"
 
 
 class Gift(Base):

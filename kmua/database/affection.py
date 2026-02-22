@@ -317,6 +317,9 @@ async def update_user_affection(
 async def init_affection_histogram() -> None:
     from .db import AsyncSessionFactory
 
+    if runtime_config.db_is_postgres:
+        await install_postgres_trigger()
+
     async with AsyncSessionFactory() as session:
         count = (
             await session.execute(
@@ -329,9 +332,6 @@ async def init_affection_histogram() -> None:
         if not count:
             await rebuild_histogram(session=session)
             await session.commit()
-
-    if runtime_config.db_is_postgres:
-        await install_postgres_trigger()
 
 
 @with_session

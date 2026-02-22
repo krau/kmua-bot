@@ -163,6 +163,7 @@ if app_config.agent:
 _filter = (
     myfilter.base_filter
     & (myfilter.reply_me_filter | filters.private | myfilter.mention_me_filter)
+    & myfilter.not_bottle_reply_filter
     & ~pyrogram.filters.regex("|".join([r.pattern for r in manyacg.ARTWORK_ALL_REGEX]))
 )
 
