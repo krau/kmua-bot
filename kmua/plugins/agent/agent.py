@@ -133,6 +133,7 @@ if app_config.agent:
                 tools.edit_image,
                 prepare=tools.prepare_image_edit_tools,
             ),
+            tools.ask_user,
         ],
         deps_type=datatype.ContextDeps,
         history_processors=[history_processor],
@@ -202,6 +203,7 @@ async def wake_agent(client: PyrogramClient, message: pyrogram.types.Message):
         return
     if await common.memstore.get(state.waiting_key(user.id)):
         return await word_reply(client, message)
+    await tools.cancel_pending_asks(user.id)
     await common.memstore.set(state.waiting_key(user.id), True)
     # set language
     if chat.type == pyrogram.enums.ChatType.PRIVATE:
@@ -249,7 +251,7 @@ async def wake_agent(client: PyrogramClient, message: pyrogram.types.Message):
                 ctx_info.append_prompt = append_prompt
             instructions += f"\n\n{ctx_info.to_text()}\n"
         # 在群聊场景中获取附近消息作为上下文
-        nearby_count = 11 if is_group_chat else 0
+        nearby_count = 6 if is_group_chat else 0
         user_prompt, needs_multimodal = await utils.get_input_prompt(
             client, message, include_nearby=nearby_count, ctx=ctx_info
         )
