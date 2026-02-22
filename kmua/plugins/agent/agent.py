@@ -7,6 +7,12 @@ from ddgs import DDGS
 from powermem import AsyncMemory
 from pydantic_ai import Agent, ModelMessage, RunContext, Tool
 from pydantic_ai.common_tools.duckduckgo import DuckDuckGoSearchTool
+from pydantic_ai.messages import (
+    PartDeltaEvent,
+    PartStartEvent,
+    TextPart,
+    TextPartDelta,
+)
 from pydantic_ai.models.openai import OpenAIChatModel
 from pydantic_ai.providers.openai import OpenAIProvider
 from pyrogram import filters
@@ -247,38 +253,94 @@ async def wake_agent(client: PyrogramClient, message: pyrogram.types.Message):
                 if not utils.has_multimodal_input(user_prompt)
                 else multimodal_model
             )
-            async with agent.iter(
-                instructions=instructions,
-                model=use_model,
-                user_prompt=user_prompt,
-                message_history=history,
-                deps=datatype.ContextDeps(
-                    user_id=user.id,
-                    chat_id=chat_id,
-                    message=message,
-                    client=client,
-                    powermemory=powermemory,
-                ),  # type: ignore
-            ) as agent_run:
-                replied = False
-                async for node in agent_run:
-                    if Agent.is_call_tools_node(node):
-                        for part in node.model_response.parts:
-                            if part.part_kind == "text" and part.content:
-                                await utils.reply_output(client, message, part.content)
-                                replied = True
-                    elif Agent.is_end_node(node):
-                        assert agent_run.result is not None, (
-                            "Agent run ended without result"
-                        )
-                        logger.debug(
-                            f"Agent run end with result: {agent_run.result.output}"
-                        )
-                        # tool call 阶段的 text part 就是这里最终的 output，不需要重复发送
-                        if not replied and agent_run.result:
-                            await utils.reply_output(
-                                client, message, agent_run.result.output
+            if app_config.agent_streaming:
+                async with agent.iter(
+                    instructions=instructions,
+                    model=use_model,
+                    user_prompt=user_prompt,
+                    message_history=history,
+                    deps=datatype.ContextDeps(
+                        user_id=user.id,
+                        chat_id=chat_id,
+                        message=message,
+                        client=client,
+                        powermemory=powermemory,
+                    ),  # type: ignore
+                ) as agent_run:
+                    streaming_output: utils.StreamingOutput | None = None
+                    async for node in agent_run:
+                        if Agent.is_model_request_node(node):
+                            async with node.stream(agent_run.ctx) as request_stream:
+                                async for event in request_stream:
+                                    if isinstance(event, PartStartEvent):
+                                        if isinstance(event.part, TextPart):
+                                            if streaming_output is None:
+                                                streaming_output = (
+                                                    utils.StreamingOutput(
+                                                        client, message
+                                                    )
+                                                )
+                                            await streaming_output.append_delta(
+                                                event.part.content
+                                            )
+                                    elif isinstance(event, PartDeltaEvent):
+                                        if isinstance(event.delta, TextPartDelta):
+                                            if streaming_output is None:
+                                                streaming_output = (
+                                                    utils.StreamingOutput(
+                                                        client, message
+                                                    )
+                                                )
+                                            await streaming_output.append_delta(
+                                                event.delta.content_delta
+                                            )
+                        elif Agent.is_end_node(node):
+                            assert agent_run.result is not None, (
+                                "Agent run ended without result"
                             )
+                            logger.debug(
+                                f"Agent run end with result: {agent_run.result.output}"
+                            )
+                            if streaming_output is not None:
+                                await streaming_output.finalize()
+                            elif agent_run.result and agent_run.result.output:
+                                await utils.reply_output(
+                                    client, message, agent_run.result.output
+                                )
+            else:
+                async with agent.iter(
+                    instructions=instructions,
+                    model=use_model,
+                    user_prompt=user_prompt,
+                    message_history=history,
+                    deps=datatype.ContextDeps(
+                        user_id=user.id,
+                        chat_id=chat_id,
+                        message=message,
+                        client=client,
+                        powermemory=powermemory,
+                    ),  # type: ignore
+                ) as agent_run:
+                    replied = False
+                    async for node in agent_run:
+                        if Agent.is_call_tools_node(node):
+                            for part in node.model_response.parts:
+                                if part.part_kind == "text" and part.content:
+                                    await utils.reply_output(
+                                        client, message, part.content
+                                    )
+                                    replied = True
+                        elif Agent.is_end_node(node):
+                            assert agent_run.result is not None, (
+                                "Agent run ended without result"
+                            )
+                            logger.debug(
+                                f"Agent run end with result: {agent_run.result.output}"
+                            )
+                            if not replied and agent_run.result:
+                                await utils.reply_output(
+                                    client, message, agent_run.result.output
+                                )
         except TypeError as e:
             # https://github.com/pydantic/pydantic-ai/issues/527
             # https://github.com/pydantic/pydantic-ai/issues/1813

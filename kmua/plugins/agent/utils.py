@@ -89,6 +89,92 @@ async def reply_output(
         logger.error(f"Error replying message: {e.__class__.__name__} - {e}")
 
 
+class StreamingOutput:
+    STREAM_EDIT_INTERVAL = 0.8
+    MAX_MESSAGE_LENGTH = 4000
+
+    def __init__(
+        self,
+        client: PyrogramClient,
+        message: pyrogram.types.Message,
+    ):
+        self.client = client
+        self.message = message
+        self.current_text = ""
+        self.reply_message: pyrogram.types.Message | None = None
+        self.last_edit_time = 0.0
+        self.is_group_chat = message.chat and message.chat.type in (
+            pyrogram.enums.ChatType.SUPERGROUP,
+            pyrogram.enums.ChatType.GROUP,
+        )
+        self.user = message.sender_chat or message.from_user
+
+    async def _send_or_edit(self, text: str, force_new: bool = False):
+        if not text.strip():
+            return
+        if force_new or self.reply_message is None:
+            await self.message.reply_chat_action(pyrogram.enums.ChatAction.TYPING)
+            self.reply_message = await self.message.reply_text(
+                text[: self.MAX_MESSAGE_LENGTH],
+                parse_mode=pyrogram.enums.ParseMode.DISABLED,
+            )
+            self.current_text = text
+            if self.reply_message and self.is_group_chat and self.user and self.user.id:
+                bot_reply = datatype.BotLastReply(
+                    message_id=self.reply_message.id,
+                    reply_to_user_id=self.user.id,
+                    reply_to_message_id=self.message.id,
+                    reply_text=text,
+                    original_user_message=self.message.text
+                    or self.message.caption
+                    or "",
+                    timestamp=datetime.now().timestamp(),
+                )
+                await memttlcache.set(
+                    state.bot_last_reply_key(self.message.chat.id),
+                    bot_reply,
+                    ttl=300,
+                )
+        else:
+            current_time = asyncio.get_event_loop().time()
+            if (current_time - self.last_edit_time < self.STREAM_EDIT_INTERVAL) and len(
+                text
+            ) < self.MAX_MESSAGE_LENGTH * 0.8:
+                return
+            if text == self.current_text:
+                return
+            try:
+                await self.message.reply_chat_action(pyrogram.enums.ChatAction.TYPING)
+                await self.reply_message.edit_text(
+                    text[: self.MAX_MESSAGE_LENGTH],
+                    parse_mode=pyrogram.enums.ParseMode.DISABLED,
+                )
+                self.current_text = text
+                self.last_edit_time = current_time
+            except pyrogram.errors.exceptions.bad_request_400.MessageNotModified:
+                pass
+            except pyrogram.errors.exceptions.bad_request_400.MessageTooLong:
+                await self._send_or_edit(text, force_new=True)
+
+    async def append_delta(self, delta: str):
+        if not delta:
+            return
+        self.current_text += delta
+        await self._send_or_edit(self.current_text)
+
+    async def finalize(self):
+        if self.reply_message and self.current_text:
+            try:
+                await self.reply_message.edit_text(
+                    self.current_text[: self.MAX_MESSAGE_LENGTH],
+                    parse_mode=pyrogram.enums.ParseMode.DISABLED,
+                )
+            except pyrogram.errors.exceptions.bad_request_400.MessageNotModified:
+                pass
+            except Exception as e:
+                logger.error(f"Error finalizing message: {e.__class__.__name__} - {e}")
+
+
 def get_history_text(message_history: list[ModelMessage]) -> str:
     text_lines = []
     for msg in message_history:

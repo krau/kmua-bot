@@ -79,6 +79,7 @@ class _AppConfig(pydantic.BaseModel):
     agent_api_key: str = ""
     agent_messages_threshold: int = 20
     agent_multimodal: bool = True
+    agent_streaming: bool = False
     agent_multimodal_inputs: list[str] = [
         "photo",
         # "video",
