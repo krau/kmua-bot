@@ -1,22 +1,14 @@
 from dataclasses import dataclass
 from io import BytesIO
-from typing import Protocol, runtime_checkable
 
 import pyrogram
 from pydantic_ai import ModelRetry, RunContext
-from pydantic_ai.messages import ModelRequest, UserPromptPart
+from pydantic_ai.messages import BinaryContent, ModelRequest, UserPromptPart
 
 from kmua.logger import logger
 from kmua.services import image_gen
 
 from .. import datatype
-
-
-@runtime_checkable
-class _BinaryImageContent(Protocol):
-    data: bytes
-    media_type: str
-    kind: str
 
 
 @dataclass
@@ -42,12 +34,10 @@ def _find_image_in_history(
             if isinstance(content, str):
                 continue
             for item in reversed(list(content)):
-                if (
-                    isinstance(item, _BinaryImageContent)
-                    and item.kind == "binary"
-                    and item.media_type.startswith("image/")
+                if isinstance(item, BinaryContent) and item.media_type.startswith(  # type: ignore[union-attr]
+                    "image/"
                 ):
-                    return item.data, item.media_type
+                    return item.data, item.media_type  # type: ignore[union-attr]
     return None
 
 
