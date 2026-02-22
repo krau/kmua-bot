@@ -1,8 +1,10 @@
 from dataclasses import dataclass
 from io import BytesIO
+from typing import Protocol, runtime_checkable
 
 import pyrogram
 from pydantic_ai import ModelRetry, RunContext
+from pydantic_ai.messages import ModelRequest, UserPromptPart
 
 from kmua.logger import logger
 from kmua.services import image_gen
@@ -10,11 +12,43 @@ from kmua.services import image_gen
 from .. import datatype
 
 
+@runtime_checkable
+class _BinaryImageContent(Protocol):
+    data: bytes
+    media_type: str
+    kind: str
+
+
 @dataclass
 class ImageOperationResult:
     success: bool
     message: str | None = None
     revised_prompt: str | None = None
+
+
+def _find_image_in_history(
+    ctx: RunContext[datatype.ContextDeps],
+) -> tuple[bytes, str] | None:
+    """Scan message history in reverse and return (image_bytes, mime_type) for the
+    most recently seen image, or None if no image is found."""
+
+    for msg in reversed(ctx.deps.history):
+        if not isinstance(msg, ModelRequest):
+            continue
+        for part in reversed(list(msg.parts)):
+            if not isinstance(part, UserPromptPart):
+                continue
+            content = part.content
+            if isinstance(content, str):
+                continue
+            for item in reversed(list(content)):
+                if (
+                    isinstance(item, _BinaryImageContent)
+                    and item.kind == "binary"
+                    and item.media_type.startswith("image/")
+                ):
+                    return item.data, item.media_type
+    return None
 
 
 async def generate_image(
@@ -90,7 +124,8 @@ async def edit_image(
     some way based on their description.
 
     The image to edit is taken automatically from the current conversation context
-    (the photo in the user's message or the message it replies to).
+    (the photo in the user's message, the message it replies to, or the most recent
+    image from the conversation history).
 
     Args:
         prompt: Detailed description of what changes to make to the image, or what
@@ -131,38 +166,46 @@ async def edit_image(
     ):
         source_message = ctx.deps.message.reply_to_message
 
-    if source_message is None:
-        return ImageOperationResult(
-            success=False,
-            message="No image found in the current message or the message being replied to. Please send or reply to a message containing an image.",
-        )
-
     logger.debug(
         f"edit_image called: chat_id={ctx.deps.chat_id}, user_id={ctx.deps.user_id}, prompt={prompt[:100]}"
     )
 
-    try:
-        if source_message.photo:
-            photo = source_message.photo
-            file_id = photo.file_id
-            mime_type = "image/jpeg"
-        else:
-            doc = source_message.document
-            file_id = doc.file_id  # type: ignore[union-attr]
-            mime_type = doc.mime_type or "image/png"  # type: ignore[union-attr]
+    if source_message is not None:
+        try:
+            if source_message.photo:
+                file_id = source_message.photo.file_id
+                mime_type = "image/jpeg"
+            else:
+                doc = source_message.document
+                assert doc is not None
+                file_id = doc.file_id
+                mime_type = doc.mime_type or "image/png"
 
-        file_obj = await ctx.deps.client.download_media(message=file_id, in_memory=True)
-        if not isinstance(file_obj, BytesIO):
-            return ImageOperationResult(
-                success=False, message="Failed to download source image."
+            file_obj = await ctx.deps.client.download_media(
+                message=file_id, in_memory=True
             )
-        image_bytes = file_obj.getvalue()
-    except Exception as e:
-        logger.error(f"Failed to download source image: {e.__class__.__name__}: {e}")
-        return ImageOperationResult(
-            success=False,
-            message=f"Failed to download source image: {e.__class__.__name__}",
-        )
+            if not isinstance(file_obj, BytesIO):
+                return ImageOperationResult(
+                    success=False, message="Failed to download source image."
+                )
+            image_bytes = file_obj.getvalue()
+        except Exception as e:
+            logger.error(
+                f"Failed to download source image: {e.__class__.__name__}: {e}"
+            )
+            return ImageOperationResult(
+                success=False,
+                message=f"Failed to download source image: {e.__class__.__name__}",
+            )
+    else:
+        history_image = _find_image_in_history(ctx)
+        if history_image is None:
+            return ImageOperationResult(
+                success=False,
+                message="No image found in the current message, the message being replied to, or the recent conversation history. Please send an image to edit.",
+            )
+        image_bytes, mime_type = history_image
+        logger.debug("edit_image: using image from conversation history")
 
     result = await edit_client.edit(
         prompt=prompt,

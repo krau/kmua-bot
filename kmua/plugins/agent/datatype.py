@@ -1,8 +1,9 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import StrEnum
 
 from powermem import AsyncMemory
 from pydantic import BaseModel, Field
+from pydantic_ai import ModelMessage
 from pyrogram.client import Client as PyrogramClient
 from pyrogram.types import Message
 
@@ -25,7 +26,7 @@ class ChatMemoryy(BaseModel):
             parts.append(f"性格: {';'.join(self.disposition)}")
         if self.attitudes_to_you:
             parts.append(f"对你的态度: {';'.join(self.attitudes_to_you)}")
-        
+
         # 仅在私聊时输出完整信息
         if not is_group_chat:
             if self.interests:
@@ -135,6 +136,7 @@ class ContextDeps:
     chat_id: int
     message: Message
     powermemory: AsyncMemory | None = None
+    history: list[ModelMessage] = field(default_factory=list)
 
 
 @dataclass
@@ -174,7 +176,9 @@ class ContextInfo:
         if self.reply_to_msg_id:
             parts.append(f"回复的消息ID: {self.reply_to_msg_id}")
         if self.memory_about_user:
-            parts.append(f"关于用户的记忆: ({self.memory_about_user.to_text(is_group_chat=self.is_group_chat)})")
+            parts.append(
+                f"关于用户的记忆: ({self.memory_about_user.to_text(is_group_chat=self.is_group_chat)})"
+            )
         if self.is_group_chat:
             parts.append(
                 "群聊场景，请注意用户输入的消息前面可能包含其他用户的近期消息作为上下文"

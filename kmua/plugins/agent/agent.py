@@ -274,6 +274,7 @@ async def wake_agent(client: PyrogramClient, message: pyrogram.types.Message):
                         message=message,
                         client=client,
                         powermemory=powermemory,
+                        history=history,
                     ),  # type: ignore
                 ) as agent_run:
                     streaming_output: utils.StreamingOutput | None = None
@@ -328,6 +329,7 @@ async def wake_agent(client: PyrogramClient, message: pyrogram.types.Message):
                         message=message,
                         client=client,
                         powermemory=powermemory,
+                        history=history,
                     ),  # type: ignore
                 ) as agent_run:
                     replied = False
