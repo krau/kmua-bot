@@ -652,7 +652,7 @@ async def handle_bottle_reply_message(client: Client, message: types.Message):
             [
                 types.InlineKeyboardButton(
                     i18n.t("bot.button.bottle.seek", locale=sender_lang),
-                    url=f"https://t.me/{bot_username}?start=seek_bottle_{bottle_id}",
+                    url=f"https://t.me/{bot_username}?start=view_bottle_{bottle_id}",
                 )
             ]
         )

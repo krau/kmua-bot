@@ -1,5 +1,8 @@
+import html
+
 from pyrogram import enums, filters
 from pyrogram.client import Client
+from pyrogram.enums import ParseMode
 from pyrogram.types import (
     CallbackQuery,
     InlineKeyboardButton,
@@ -7,7 +10,7 @@ from pyrogram.types import (
     Message,
 )
 
-from kmua import consts, database, i18n
+from kmua import common, consts, database, i18n
 from kmua.common.memory_store import memttlcache
 from kmua.logger import logger
 
@@ -79,6 +82,38 @@ async def start(client: Client, message: Message):
                 reply_markup=PrivateStartBotMarkup(lang).build(),
             )
             return
+        sender_user = await database.get_user_by_id(bottle.sender_id)
+        sender_mention = await common.mention_html(sender_user)
+        try:
+            await message.reply(
+                text=i18n.t(
+                    "bot.msg.bottle.seek_result",
+                    locale=lang,
+                ).format(
+                    sender=sender_mention,
+                    created_at=html.escape(
+                        bottle.created_at.strftime("%Y-%m-%d %H:%M:%S")
+                    ),
+                ),
+                parse_mode=ParseMode.HTML,
+            )
+        except Exception as e:
+            logger.exception(e)
+    elif cmd.startswith("view_bottle"):
+        if len(cmd.split("_")) != 3:
+            await message.reply(
+                text=i18n.t("bot.msg.private_start", locale=lang),
+                reply_markup=PrivateStartBotMarkup(lang).build(),
+            )
+            return
+        bottle_id = int(cmd.split("_")[2])
+        bottle = await database.get_bottle_by_id(bottle_id)
+        if bottle is None:
+            await message.reply(
+                text=i18n.t("bot.msg.bottle.not_found", locale=lang),
+                reply_markup=PrivateStartBotMarkup(lang).build(),
+            )
+            return
         bot_username = client.me.username if client.me else None
         buttons = [
             [
@@ -96,18 +131,20 @@ async def start(client: Client, message: Message):
                     i18n.t("bot.button.bottle.report", locale=lang),
                     callback_data=f"report_bottle {bottle.id}",
                 ),
-            ],
-        ]
-        if bot_username:
-            buttons[1].append(
                 InlineKeyboardButton(
                     i18n.t("bot.button.bottle.seek", locale=lang),
                     url=f"https://t.me/{bot_username}?start=seek_bottle_{bottle.id}",
                 )
-            )
+                if bot_username
+                else InlineKeyboardButton(
+                    i18n.t("bot.button.bottle.seek", locale=lang),
+                    callback_data="noop",
+                ),
+            ],
+        ]
         reply_markup = InlineKeyboardMarkup(buttons)
         try:
-            content_kwargs = {"has_spoiler": True}
+            content_kwargs: dict = {"has_spoiler": True}
             if bottle.text:
                 content_kwargs["caption"] = bottle.text
             bot_msg = None
