@@ -91,7 +91,10 @@ async def reply_output(
 
 class StreamingOutput:
     STREAM_EDIT_INTERVAL = 0.8
+    CHAT_ACTION_INTERVAL = 4.5
     MAX_MESSAGE_LENGTH = 4000
+    MAX_EDIT_COUNT = 20
+    MAX_TOTAL_TIME = 120.0
 
     def __init__(
         self,
@@ -103,22 +106,62 @@ class StreamingOutput:
         self.current_text = ""
         self.reply_message: pyrogram.types.Message | None = None
         self.last_edit_time = 0.0
+        self.last_chat_action_time = 0.0
+        self.edit_count = 0
+        self.start_time = 0.0
         self.is_group_chat = message.chat and message.chat.type in (
             pyrogram.enums.ChatType.SUPERGROUP,
             pyrogram.enums.ChatType.GROUP,
         )
         self.user = message.sender_chat or message.from_user
+        self._chat_action_task: asyncio.Task | None = None
+        self._stop_chat_action = False
+
+    async def _keep_typing_action(self):
+        while not self._stop_chat_action:
+            try:
+                if self.message.chat:
+                    await self.client.send_chat_action(
+                        chat_id=self.message.chat.id,
+                        action=pyrogram.enums.ChatAction.TYPING,
+                    )
+                await asyncio.sleep(self.CHAT_ACTION_INTERVAL)
+            except asyncio.CancelledError:
+                break
+            except Exception as e:
+                logger.error(f"Error sending chat action: {e.__class__.__name__} - {e}")
+                break
+
+    def _is_within_limits(self) -> bool:
+        current_time = asyncio.get_event_loop().time()
+        if self.start_time == 0.0:
+            self.start_time = current_time
+        elapsed = current_time - self.start_time
+        if elapsed > self.MAX_TOTAL_TIME:
+            logger.warning(f"Streaming output exceeded max time {self.MAX_TOTAL_TIME}s")
+            return False
+        if self.edit_count >= self.MAX_EDIT_COUNT:
+            logger.warning(
+                f"Streaming output exceeded max edit count {self.MAX_EDIT_COUNT}"
+            )
+            return False
+        return True
 
     async def _send_or_edit(self, text: str, force_new: bool = False):
         if not text.strip():
             return
+        if not self._is_within_limits():
+            return
         if force_new or self.reply_message is None:
-            await self.message.reply_chat_action(pyrogram.enums.ChatAction.TYPING)
+            self._stop_chat_action = False
+            if self._chat_action_task is None or self._chat_action_task.done():
+                self._chat_action_task = asyncio.create_task(self._keep_typing_action())
             self.reply_message = await self.message.reply_text(
                 text[: self.MAX_MESSAGE_LENGTH],
                 parse_mode=pyrogram.enums.ParseMode.DISABLED,
             )
             self.current_text = text
+            self.edit_count += 1
             if self.reply_message and self.is_group_chat and self.user and self.user.id:
                 bot_reply = datatype.BotLastReply(
                     message_id=self.reply_message.id,
@@ -137,20 +180,20 @@ class StreamingOutput:
                 )
         else:
             current_time = asyncio.get_event_loop().time()
+            if text == self.current_text:
+                return
             if (current_time - self.last_edit_time < self.STREAM_EDIT_INTERVAL) and len(
                 text
             ) < self.MAX_MESSAGE_LENGTH * 0.8:
                 return
-            if text == self.current_text:
-                return
             try:
-                await self.message.reply_chat_action(pyrogram.enums.ChatAction.TYPING)
                 await self.reply_message.edit_text(
                     text[: self.MAX_MESSAGE_LENGTH],
                     parse_mode=pyrogram.enums.ParseMode.DISABLED,
                 )
                 self.current_text = text
                 self.last_edit_time = current_time
+                self.edit_count += 1
             except pyrogram.errors.exceptions.bad_request_400.MessageNotModified:
                 pass
             except pyrogram.errors.exceptions.bad_request_400.MessageTooLong:
@@ -163,6 +206,13 @@ class StreamingOutput:
         await self._send_or_edit(self.current_text)
 
     async def finalize(self):
+        self._stop_chat_action = True
+        if self._chat_action_task and not self._chat_action_task.done():
+            self._chat_action_task.cancel()
+            try:
+                await self._chat_action_task
+            except asyncio.CancelledError:
+                pass
         if self.reply_message and self.current_text:
             try:
                 await self.reply_message.edit_text(
