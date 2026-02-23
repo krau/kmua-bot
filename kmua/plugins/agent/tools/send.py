@@ -30,13 +30,21 @@ async def send_message(
     poll_allows_multiple_answers: bool = False,
     schedule_time: str | None = None,
 ) -> SendResult:
-    """Send a message to the current chat proactively. Supports text, media (via URL), polls,
-    stickers, and scheduled delivery.
-    This tool is not needed for normal replies; it should only be used when you need to actively send a message.
+    """Send a message to the current chat without replying to a specific message.
+
+    **Use this tool only when a normal return value is not appropriate**, such as:
+    - Sending a scheduled/delayed message (use `schedule_time`)
+    - Proactively sending media (photo, video, audio, document) or a poll
+    - Any situation where you need to send a non-text message type
+
+    **Do NOT use this tool just to send a plain text response.** When you want
+    to reply to the user with text, simply return the text as your response —
+    the bot will deliver it automatically. Calling this tool for a plain text
+    reply creates a duplicate message and degrades the experience.
 
     Args:
         type: Message type. One of:
-            - "text": plain text message. Requires `text`.
+            - "text": plain text message (avoid unless scheduling). Requires `text`.
             - "photo": image. Requires `url` (direct image link).
             - "video": video. Requires `url` (direct video link).
             - "audio": audio file. Requires `url` (direct audio link).
