@@ -265,65 +265,70 @@ async def wake_agent(client: PyrogramClient, message: pyrogram.types.Message):
         try:
             use_model = multimodal_model if needs_multimodal else model
             if app_config.agent_streaming:
-                async with agent.iter(
-                    instructions=instructions,
-                    model=use_model,
-                    user_prompt=user_prompt,
-                    message_history=history,
-                    deps=datatype.ContextDeps(
-                        user_id=user.id,
-                        chat_id=chat_id,
-                        message=message,
-                        client=client,
-                        powermemory=powermemory,
-                        history=history,
-                    ),  # type: ignore
-                ) as agent_run:
-                    streaming_output: utils.StreamingOutput | None = None
-                    async for node in agent_run:
-                        if Agent.is_model_request_node(node):
-                            async with node.stream(agent_run.ctx) as request_stream:
-                                async for event in request_stream:
-                                    if isinstance(event, PartStartEvent):
-                                        if isinstance(event.part, TextPart):
-                                            if streaming_output is None:
-                                                streaming_output = (
-                                                    utils.StreamingOutput(
-                                                        client, message
+                streaming_output: utils.StreamingOutput | None = None
+                try:
+                    async with agent.iter(
+                        instructions=instructions,
+                        model=use_model,
+                        user_prompt=user_prompt,
+                        message_history=history,
+                        deps=datatype.ContextDeps(
+                            user_id=user.id,
+                            chat_id=chat_id,
+                            message=message,
+                            client=client,
+                            powermemory=powermemory,
+                            history=history,
+                        ),  # type: ignore
+                    ) as agent_run:
+                        async for node in agent_run:
+                            if Agent.is_model_request_node(node):
+                                async with node.stream(agent_run.ctx) as request_stream:
+                                    async for event in request_stream:
+                                        if isinstance(event, PartStartEvent):
+                                            if isinstance(event.part, TextPart):
+                                                if streaming_output is None:
+                                                    streaming_output = (
+                                                        utils.StreamingOutput(
+                                                            client, message
+                                                        )
                                                     )
+                                                await streaming_output.append_delta(
+                                                    event.part.content
                                                 )
-                                            await streaming_output.append_delta(
-                                                event.part.content
-                                            )
-                                    elif isinstance(event, PartDeltaEvent):
-                                        if isinstance(event.delta, TextPartDelta):
-                                            if streaming_output is None:
-                                                streaming_output = (
-                                                    utils.StreamingOutput(
-                                                        client, message
+                                        elif isinstance(event, PartDeltaEvent):
+                                            if isinstance(event.delta, TextPartDelta):
+                                                if streaming_output is None:
+                                                    streaming_output = (
+                                                        utils.StreamingOutput(
+                                                            client, message
+                                                        )
                                                     )
+                                                await streaming_output.append_delta(
+                                                    event.delta.content_delta
                                                 )
-                                            await streaming_output.append_delta(
-                                                event.delta.content_delta
-                                            )
-                        elif Agent.is_end_node(node):
-                            assert agent_run.result is not None, (
-                                "Agent run ended without result"
-                            )
-                            logger.debug(
-                                f"Agent run end with result: {agent_run.result.output}"
-                            )
-                            if streaming_output is not None:
-                                await streaming_output.finalize()
-                            elif agent_run.result and agent_run.result.output:
-                                await utils.reply_output(
-                                    client, message, agent_run.result.output
+                            elif Agent.is_end_node(node):
+                                assert agent_run.result is not None, (
+                                    "Agent run ended without result"
                                 )
-                    await common.memttlcache.set(
-                        state.history_key(chat_id, user.id),
-                        agent_run.all_messages(),
-                        ttl=app_config.cachettl_agent_history,
-                    )
+                                logger.debug(
+                                    f"Agent run end with result: {agent_run.result.output}"
+                                )
+                                if streaming_output is not None:
+                                    await streaming_output.finalize()
+                                elif agent_run.result and agent_run.result.output:
+                                    await utils.reply_output(
+                                        client, message, agent_run.result.output
+                                    )
+                        await common.memttlcache.set(
+                            state.history_key(chat_id, user.id),
+                            agent_run.all_messages(),
+                            ttl=app_config.cachettl_agent_history,
+                        )
+                except Exception:
+                    if streaming_output is not None:
+                        await streaming_output.abort()
+                    raise
             else:
                 async with agent.iter(
                     instructions=instructions,
@@ -373,24 +378,24 @@ async def wake_agent(client: PyrogramClient, message: pyrogram.types.Message):
                 f"{i18n.t('bot.msg.agent.errors.too_fast', locale=lang)}\n<code>{e}</code>",
                 parse_mode=pyrogram.enums.ParseMode.HTML,
             )
-            raise e
         except pydantic_ai.exceptions.ModelHTTPError as e:
             logger.exception(f"Agent HTTP error: {e}")
             if e.status_code == 400:
                 await message.reply_text(
                     i18n.t("bot.msg.agent.errors.model_http_400", locale=lang)
                 )
-                return
             else:
                 await message.reply_text(
                     i18n.t("bot.msg.agent.errors.model_http", locale=lang).format(
                         code=e.status_code
                     )
                 )
-            return
-    except Exception as e:
-        logger.exception(
-            f"Unexpected error in wake_agent: {e.__class__.__name__} - {e}"
-        )
+        except Exception as e:
+            logger.exception(f"Agent run error: {e.__class__.__name__} - {e}")
+            await message.reply_text(
+                i18n.t("bot.msg.agent.errors.interrupted", locale=lang).format(
+                    error=f"{e.__class__.__name__}: {e}"
+                )
+            )
     finally:
         await common.memstore.delete(state.waiting_key(user.id))

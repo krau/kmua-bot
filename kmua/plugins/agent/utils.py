@@ -250,6 +250,16 @@ class StreamingOutput:
                     ttl=300,
                 )
 
+    async def abort(self):
+        self._stop = True
+        for task in (self._start_task, self._chat_action_task, self._edit_task):
+            if task and not task.done():
+                task.cancel()
+                try:
+                    await task
+                except asyncio.CancelledError:
+                    pass
+
 
 def get_history_text(message_history: list[ModelMessage]) -> str:
     text_lines = []

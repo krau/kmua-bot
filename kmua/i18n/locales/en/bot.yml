@@ -165,6 +165,7 @@ bot:
         model_http_400: That's too lewd! I can't do that! (400)
         model_http: Failed, meow~ Please try again later (HTTP {code})
         too_fast: Too fast! Not yet!
+        interrupted: "Output was interrupted ({error})"
     wordcloud:
       generating: Already generating, please wait a moment...
       generated: Word cloud of recent chat history.
