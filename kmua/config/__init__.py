@@ -87,7 +87,7 @@ class _AppConfig(pydantic.BaseModel):
         "text/plain",
         "text/markdown",
     ]
-    agent_extra_tools: list[str] = ["duckduckgo_search"]
+    agent_extra_tools: list[str] = ["duckduckgo_search", "webfetch"]
     # image generation model (OpenAI-compatible /images/generations API)
     # if not set, the generate_image tool will be disabled
     agent_image_gen_model: str | None = None

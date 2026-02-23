@@ -134,6 +134,10 @@ if app_config.agent:
                 prepare=tools.prepare_image_edit_tools,
             ),
             tools.ask_user,
+            Tool(
+                tools.webfetch,
+                prepare=tools.prepare_configurable_tools,
+            ),
         ],
         deps_type=datatype.ContextDeps,
         history_processors=[history_processor],
