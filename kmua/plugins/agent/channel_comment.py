@@ -87,7 +87,6 @@ async def comment_channel_message(client: Client, message: pyrogram.types.Messag
     use_model = multimodal_model if needs_multimodal else model
     resp = await agent.run(
         model=use_model,
-        toolsets=None,
         user_prompt=prompts,
         deps=datatype.ContextDeps(
             client=client,
