@@ -5,7 +5,7 @@ import aiohttp
 from crawl4ai import AsyncWebCrawler, CacheMode, CrawlerRunConfig, HTTPCrawlerConfig
 from crawl4ai.async_crawler_strategy import AsyncHTTPCrawlerStrategy
 from crawl4ai.models import CrawlResult, StringCompatibleMarkdown
-from pydantic_ai import RunContext
+from pydantic_ai import ModelRetry, RunContext
 
 from kmua.config import app_config
 from kmua.logger import logger
@@ -71,12 +71,7 @@ async def _fetch_http(url: str) -> WebFetchResult:
 async def _fetch_crawl_api(url: str) -> WebFetchResult:
     api_url = app_config.agent_crawl_api_url
     if not api_url:
-        return WebFetchResult(
-            success=False,
-            url=url,
-            error="JS rendering is unavailable (agent_crawl_api_url is not configured)",
-        )
-
+        raise ValueError("Crawl API URL is not configured")
     headers: dict[str, str] = {"Content-Type": "application/json"}
     if app_config.agent_crawl_api_token:
         headers["Authorization"] = f"Bearer {app_config.agent_crawl_api_token}"
@@ -135,31 +130,16 @@ async def _fetch_crawl_api(url: str) -> WebFetchResult:
     return WebFetchResult(success=True, url=url, content=_truncate(text))
 
 
-async def webfetch(
-    ctx: RunContext[datatype.ContextDeps],
-    url: str,
-    js: bool = False,
-) -> WebFetchResult:
+async def webfetch(ctx: RunContext[datatype.ContextDeps], url: str) -> WebFetchResult:
     """Fetch a web page and return its content as Markdown.
-
-    Use js=False (default) for most pages (fast, no browser).
-    Use js=True only for pages that require JavaScript to render content (SPAs, dashboards).
-
     Args:
         url: Full URL to fetch (http:// or https://).
-        js: Enable browser-based JS rendering. Default False.
     """
-    logger.debug(
-        f"webfetch called with url={url} js={js} by user_id={ctx.deps.user_id}"
-    )
+    logger.debug(f"webfetch called with url={url} by user_id={ctx.deps.user_id}")
     if not url.startswith(("http://", "https://")):
-        return WebFetchResult(
-            success=False,
-            url=url,
-            error="URL must start with http:// or https://",
-        )
+        raise ModelRetry("URL must start with http:// or https://")
     try:
-        if js:
+        if app_config.agent_crawl_api_url:
             return await _fetch_crawl_api(url)
         return await _fetch_http(url)
     except Exception as e:
