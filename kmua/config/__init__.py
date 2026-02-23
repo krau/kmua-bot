@@ -88,6 +88,11 @@ class _AppConfig(pydantic.BaseModel):
         "text/markdown",
     ]
     agent_extra_tools: list[str] = ["duckduckgo_search", "webfetch"]
+    # crawl4ai API server for JS-rendered pages (e.g. docker run crawl4ai)
+    # if not set, js=True requests will return an error
+    agent_crawl_api_url: str | None = None
+    agent_crawl_api_token: str | None = None
+    agent_crawl_api_timeout: int = 60
     # image generation model (OpenAI-compatible /images/generations API)
     # if not set, the generate_image tool will be disabled
     agent_image_gen_model: str | None = None
