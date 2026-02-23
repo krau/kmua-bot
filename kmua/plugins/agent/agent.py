@@ -315,6 +315,11 @@ async def wake_agent(client: PyrogramClient, message: pyrogram.types.Message):
                                 await utils.reply_output(
                                     client, message, agent_run.result.output
                                 )
+                    await common.memttlcache.set(
+                        state.history_key(chat_id, user.id),
+                        agent_run.all_messages(),
+                        ttl=app_config.cachettl_agent_history,
+                    )
             else:
                 async with agent.iter(
                     instructions=instructions,
@@ -350,6 +355,11 @@ async def wake_agent(client: PyrogramClient, message: pyrogram.types.Message):
                                 await utils.reply_output(
                                     client, message, agent_run.result.output
                                 )
+                    await common.memttlcache.set(
+                        state.history_key(chat_id, user.id),
+                        agent_run.all_messages(),
+                        ttl=app_config.cachettl_agent_history,
+                    )
         except TypeError as e:
             # https://github.com/pydantic/pydantic-ai/issues/527
             # https://github.com/pydantic/pydantic-ai/issues/1813
