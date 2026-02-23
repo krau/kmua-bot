@@ -178,6 +178,7 @@ bot:
         model_http: 😥敗了喵, 請⏱後👋試 (HTTP {code})
 
         too_fast: ☀️🔜了! 🙅‍♂️🚶!
+        interrupted: "輸出被🚫斷ㄋ喵 ({error})"
 
     wordcloud:
       generating: 已經➕📍🎂🍊😃, 請⏱⏳1️⃣會兒...

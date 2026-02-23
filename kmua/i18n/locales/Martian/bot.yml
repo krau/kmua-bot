@@ -125,6 +125,7 @@ bot:
         model_http_400: 冭澀ㄋ, 卟哘! (400)
         model_http: 矢敗ㄋ喵, 請稍後侢試 (HTTP {code})
         too_fast: 冭筷ㄋ! 卟哘!
+        interrupted: "輸出ねㄋ中斷 ({error})"
     wordcloud:
       generating: 已經㊣恠甡晟菈, 請稍等①會兒...
       generated: 蕞近窷迗記錄の詞雲图

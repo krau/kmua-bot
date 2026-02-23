@@ -125,6 +125,7 @@ bot:
         model_http_400: 太澀了, 不行! (400)
         model_http: 失敗了喵, 請稍後再試 (HTTP {code})
         too_fast: 太快了! 不行!
+        interrupted: "輸出被中斷了喵 ({error})"
     wordcloud:
       generating: 已經正在生成啦, 請稍等一會兒...
       generated: 最近聊天記錄的詞雲图

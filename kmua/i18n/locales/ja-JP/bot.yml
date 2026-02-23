@@ -125,6 +125,7 @@ bot:
         model_http_400: "エッチすぎます！ダメです！(400)"
         model_http: "失敗しましたにゃん、しばらくしてからもう一度試してください (HTTP {code})"
         too_fast: "速すぎます！ダメです！"
+        interrupted: "出力が中断されました ({error})"
     wordcloud:
       generating: "生成中です、少々お待ちください..."
       generated: "最近のチャット記録のワードクラウド"

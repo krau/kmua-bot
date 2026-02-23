@@ -125,6 +125,7 @@ bot:
         model_http_400: 너무 숭해요! 안돼요! (400)
         model_http: 실패했어요, 냥. 잠시 후에 다시 시도해주세요 (HTTP {code})
         too_fast: 너무 빨라요! 아직 안돼요!
+        interrupted: "출력이 중단되었어요 ({error})"
     wordcloud:
       generating: 생성 중이니 잠시만 기다려주세요...
       generated: 최근 채팅 기록 워드 클라우드
