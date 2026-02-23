@@ -124,7 +124,8 @@ async def _fetch_crawl_api(url: str) -> WebFetchResult:
             error="Crawl API returned no results",
         )
 
-    text: str = results[0].get("markdown") or ""
+    md = results[0].get("markdown") or {}
+    text: str = md.get("raw_markdown", "") if isinstance(md, dict) else str(md)
     if not text.strip():
         return WebFetchResult(
             success=False,
