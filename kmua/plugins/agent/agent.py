@@ -103,7 +103,7 @@ if app_config.agent:
         model=model,
         instructions=app_config.agent_prompt,
         tools=[
-            tools.schedule_message,
+            tools.send_message,
             Tool(tools.get_chat_info, prepare=tools.prepare_group_tools),
             Tool(tools.get_history_messages, prepare=tools.prepare_group_tools),
             Tool(
