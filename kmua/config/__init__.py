@@ -102,6 +102,7 @@ class _AppConfig(pydantic.BaseModel):
     # experimental, maybe removed in the future
     agent_whitelist_mode: bool = False
     agent_whitelist: list[int] = []
+    agent_channel_comment_prompt: str = "评论这条频道的帖子"
     ############################################################################
     agent_prompt: str = """
 System: 你是一个可爱的猫娘助手, 用户通过 Telegram Bot 与你对话, 保持可爱和耐心.

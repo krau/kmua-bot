@@ -75,7 +75,7 @@ async def comment_channel_message(client: Client, message: pyrogram.types.Messag
         return
     ctx = {
         "task_type": "channel_comment",
-        "task_desc": "评论这条频道的帖子",
+        "task_desc": app_config.agent_channel_comment_prompt,
         "channel_name": channel.title,
         "channel_bio": channel.bio or channel.description,
         "current_time": datetime.datetime.now().strftime("%Y年%m月%d日 %H:%M:%S"),
