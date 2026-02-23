@@ -7,6 +7,7 @@ from typing import Any
 from weakref import WeakValueDictionary
 
 import pyrogram
+import pyrogram.errors
 from pydantic_ai import (
     Agent,
     AudioUrl,
