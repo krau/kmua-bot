@@ -5,10 +5,11 @@ import pyrogram
 from pydantic_ai import ModelRetry, RunContext
 from pydantic_ai.messages import BinaryContent, ModelRequest, UserPromptPart
 
+from kmua.common import memstore
 from kmua.logger import logger
 from kmua.services import image_gen
 
-from .. import datatype
+from .. import datatype, state
 
 
 @dataclass
@@ -18,11 +19,17 @@ class ImageOperationResult:
     revised_prompt: str | None = None
 
 
-def _find_image_in_history(
+async def _find_image_in_history(
     ctx: RunContext[datatype.ContextDeps],
 ) -> tuple[bytes, str] | None:
-    """Scan message history in reverse and return (image_bytes, mime_type) for the
-    most recently seen image, or None if no image is found."""
+    """checks memstore for the last edited image first, then falls
+    back to scanning the pydantic-ai message history."""
+    cached: tuple[bytes, str] | None = await memstore.get(
+        state.last_edited_image_key(ctx.deps.user_id)
+    )
+    if cached is not None:
+        logger.debug("edit_image: using last edited image from memstore")
+        return cached
 
     for msg in reversed(ctx.deps.history):
         if not isinstance(msg, ModelRequest):
@@ -188,7 +195,7 @@ async def edit_image(
                 message=f"Failed to download source image: {e.__class__.__name__}",
             )
     else:
-        history_image = _find_image_in_history(ctx)
+        history_image = await _find_image_in_history(ctx)
         if history_image is None:
             return ImageOperationResult(
                 success=False,
@@ -223,6 +230,10 @@ async def edit_image(
             success=False,
             message=f"Image was edited but could not be sent: {e.__class__.__name__}",
         )
+    await memstore.set(
+        state.last_edited_image_key(ctx.deps.user_id),
+        (result.data, "image/png"),
+    )
     return ImageOperationResult(
         success=True,
         revised_prompt=result.revised_prompt,
