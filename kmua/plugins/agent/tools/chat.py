@@ -38,14 +38,24 @@ async def search_chat_in_jokes(
 async def search_group_memory(
     ctx: RunContext[datatype.ContextDeps], query: str
 ) -> list[str]:
-    """搜索群聊记忆.
-    记忆是指群聊中的事实性信息, 例如某个成员的兴趣爱好, 某两个成员之间的关系, 某个事件的经过等.
+    """Search the group's long-term memory for information relevant to the query.
 
-    参数:
-        query -- 搜索查询字符串.
+    Memory entries contain factual information about the group and its members,
+    such as personal interests, relationships between members, past events, and
+    other notable facts that have been observed over time.
 
-    返回:
-        一个字符串列表, 每个字符串是一个记忆条目. 如果没有找到任何记忆, 返回空列表.
+    This tool uses semantic (vector) search — it finds entries that are
+    conceptually related to the query, not just exact keyword matches. Use
+    natural-language phrases or concepts rather than precise keywords for best
+    results. For example, querying "outdoor activities" may surface memories
+    about hiking, cycling, or camping even if those exact words differ.
+
+    Args:
+        query: A natural-language phrase describing what you want to find.
+
+    Returns:
+        A list of matching memory entries as strings. Returns an empty list if
+        no relevant memories are found.
     """
     logger.debug(
         f"search_group_memory called with query='{query}' for chat_id={ctx.deps.chat_id}"
