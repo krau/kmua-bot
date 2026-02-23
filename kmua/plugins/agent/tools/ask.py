@@ -13,11 +13,16 @@ from .. import datatype
 
 _ASK_TIMEOUT = 120
 _PENDING_KEY_PREFIX = "agent_ask_pending:"
+_OPTIONS_KEY_PREFIX = "agent_ask_options:"
 _USER_TOKENS_PREFIX = "agent_ask_user_tokens:"
 
 
 def _pending_key(token: str) -> str:
     return f"{_PENDING_KEY_PREFIX}{token}"
+
+
+def _options_key(token: str) -> str:
+    return f"{_OPTIONS_KEY_PREFIX}{token}"
 
 
 def _user_tokens_key(user_id: int) -> str:
@@ -46,6 +51,7 @@ async def cancel_pending_asks(user_id: int) -> None:
         if future is not None and not future.done():
             future.cancel()
         await memstore.delete(_pending_key(token))
+        await memstore.delete(_options_key(token))
     await memstore.delete(_user_tokens_key(user_id))
 
 
@@ -82,16 +88,17 @@ async def ask_user(
     loop = asyncio.get_event_loop()
     future: asyncio.Future[str] = loop.create_future()
     await memstore.set(_pending_key(token), future)
+    await memstore.set(_options_key(token), list(options))
     await _register_token(ctx.deps.user_id, token)
 
     rows: list[list[pyrogram.types.InlineKeyboardButton]] = [
         [
             pyrogram.types.InlineKeyboardButton(
                 text=opt,
-                callback_data=f"ask_answer:{token}:{opt}",
+                callback_data=f"ask:{token}:{i}",
             )
         ]
-        for opt in options
+        for i, opt in enumerate(options)
     ]
 
     try:
@@ -105,6 +112,7 @@ async def ask_user(
         )
     except Exception as e:
         await memstore.delete(_pending_key(token))
+        await memstore.delete(_options_key(token))
         await _unregister_token(ctx.deps.user_id, token)
         logger.error(f"ask_user: failed to send question: {e.__class__.__name__}: {e}")
         return f"Failed to send question: {e.__class__.__name__}"
@@ -118,25 +126,36 @@ async def ask_user(
         return "The question was cancelled because the user started a new conversation."
     finally:
         await memstore.delete(_pending_key(token))
+        await memstore.delete(_options_key(token))
         await _unregister_token(ctx.deps.user_id, token)
 
 
-@Client.on_callback_query(pyrogram.filters.regex(r"^ask_answer:([^:]+):(.+)$"), group=0)
+@Client.on_callback_query(pyrogram.filters.regex(r"^ask:([^:]+):(\d+)$"), group=0)
 async def _on_ask_answer(client: Client, callback_query: CallbackQuery) -> None:
     raw = callback_query.data or b""
     data = raw.decode() if isinstance(raw, bytes) else raw
-    parts = data.split(":", 2)
+    parts = data.split(":")
     if len(parts) != 3:
         return
-    _, token, answer = parts
+    _, token, opt_id_str = parts
 
+    options: list[str] | None = await memstore.get(_options_key(token))
     future: asyncio.Future[str] | None = await memstore.get(_pending_key(token))
-    if future is None or future.done():
+
+    if future is None or future.done() or options is None:
         await callback_query.answer("这条回答已经过期了哦", show_alert=True)
+        return
+
+    try:
+        opt_index = int(opt_id_str)
+        answer = options[opt_index]
+    except (ValueError, IndexError):
+        await callback_query.answer("无效的选项", show_alert=True)
         return
 
     future.set_result(answer)
     await callback_query.answer()
+
     try:
         msg = callback_query.message
         chat_id = msg.chat.id if msg and msg.chat else None
@@ -151,11 +170,13 @@ async def _on_ask_answer(client: Client, callback_query: CallbackQuery) -> None:
         for row in markup.inline_keyboard:
             new_row: list[pyrogram.types.InlineKeyboardButton] = []
             for btn in row:
-                if btn.callback_data == data:
+                cb = btn.callback_data
+                cb_str = cb.decode() if isinstance(cb, bytes) else (cb or "")
+                if cb_str == data:
                     new_row.append(
                         pyrogram.types.InlineKeyboardButton(
                             text=f"✅ {btn.text}",
-                            callback_data=btn.callback_data,
+                            callback_data=cb_str,
                         )
                     )
                 else:
