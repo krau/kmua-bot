@@ -20,7 +20,6 @@ agent_model = "gpt-4o-mini"
 agent_provider_url = "https://api.openai.com/v1"
 agent_api_key = ""
 agent_messages_threshold = 20
-agent_streaming = false
 agent_whitelist_mode = false
 agent_whitelist = []
 agent_prompt = ''''''

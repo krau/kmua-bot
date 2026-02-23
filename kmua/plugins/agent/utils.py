@@ -68,30 +68,39 @@ async def reply_output(
         index += size
         chunks.append("\n".join(part))
     try:
+        last_reply_msg: pyrogram.types.Message | None = None
+        last_chunk = ""
         for chunk in chunks:
             await message.reply_chat_action(pyrogram.enums.ChatAction.TYPING)
             reply_msg = await message.reply_text(
                 chunk, parse_mode=pyrogram.enums.ParseMode.DISABLED
             )
-            if reply_msg and is_group_chat and user and user.id:
-                bot_reply = datatype.BotLastReply(
-                    message_id=reply_msg.id,
-                    reply_to_user_id=user.id,
-                    reply_to_message_id=message.id,
-                    reply_text=chunk,
-                    original_user_message=message.text or message.caption or "",
-                    timestamp=datetime.now().timestamp(),
-                )
-                await memttlcache.set(
-                    state.bot_last_reply_key(message.chat.id), bot_reply, ttl=300
-                )
+            last_reply_msg = reply_msg
+            last_chunk = chunk
             await asyncio.sleep(random.uniform(0.721, 3.9))
+        if last_reply_msg and is_group_chat and user and user.id:
+            bot_reply = datatype.BotLastReply(
+                message_id=last_reply_msg.id,
+                reply_to_user_id=user.id,
+                reply_to_message_id=message.id,
+                reply_text=last_chunk,
+                original_user_message=message.text or message.caption or "",
+                timestamp=datetime.now().timestamp(),
+            )
+            _chat = message.chat
+            _chat_id = _chat.id if _chat else None
+            if _chat_id:
+                await memttlcache.set(
+                    state.bot_last_reply_key(_chat_id),
+                    bot_reply,
+                    ttl=300,
+                )
     except Exception as e:
         logger.error(f"Error replying message: {e.__class__.__name__} - {e}")
 
 
 class StreamingOutput:
-    STREAM_EDIT_INTERVAL = 0.8
+    STREAM_EDIT_INTERVAL = 1.5
     CHAT_ACTION_INTERVAL = 4.5
     MAX_MESSAGE_LENGTH = 4000
     MAX_EDIT_COUNT = 20
@@ -105,9 +114,9 @@ class StreamingOutput:
         self.client = client
         self.message = message
         self.current_text = ""
+        self._last_sent_text = ""
         self.reply_message: pyrogram.types.Message | None = None
         self.last_edit_time = 0.0
-        self.last_chat_action_time = 0.0
         self.edit_count = 0
         self.start_time = 0.0
         self.is_group_chat = message.chat and message.chat.type in (
@@ -116,14 +125,18 @@ class StreamingOutput:
         )
         self.user = message.sender_chat or message.from_user
         self._chat_action_task: asyncio.Task | None = None
-        self._stop_chat_action = False
+        self._edit_task: asyncio.Task | None = None
+        self._start_task: asyncio.Task | None = None
+        self._stop = False
 
     async def _keep_typing_action(self):
-        while not self._stop_chat_action:
+        while not self._stop:
             try:
-                if self.message.chat:
+                chat = self.message.chat
+                chat_id = chat.id if chat else None
+                if chat_id:
                     await self.client.send_chat_action(
-                        chat_id=self.message.chat.id,
+                        chat_id=chat_id,
                         action=pyrogram.enums.ChatAction.TYPING,
                     )
                 await asyncio.sleep(self.CHAT_ACTION_INTERVAL)
@@ -148,82 +161,94 @@ class StreamingOutput:
             return False
         return True
 
-    async def _send_or_edit(self, text: str, force_new: bool = False):
-        if not text.strip():
+    async def _do_edit(self, text: str):
+        if not self.reply_message:
             return
-        if not self._is_within_limits():
-            return
-        if force_new or self.reply_message is None:
-            self._stop_chat_action = False
-            if self._chat_action_task is None or self._chat_action_task.done():
-                self._chat_action_task = asyncio.create_task(self._keep_typing_action())
-            self.reply_message = await self.message.reply_text(
+        try:
+            await self.reply_message.edit_text(
                 text[: self.MAX_MESSAGE_LENGTH],
                 parse_mode=pyrogram.enums.ParseMode.DISABLED,
             )
-            self.current_text = text
+            self._last_sent_text = text
+            self.last_edit_time = asyncio.get_event_loop().time()
             self.edit_count += 1
-            if self.reply_message and self.is_group_chat and self.user and self.user.id:
-                bot_reply = datatype.BotLastReply(
-                    message_id=self.reply_message.id,
-                    reply_to_user_id=self.user.id,
-                    reply_to_message_id=self.message.id,
-                    reply_text=text,
-                    original_user_message=self.message.text
-                    or self.message.caption
-                    or "",
-                    timestamp=datetime.now().timestamp(),
-                )
-                await memttlcache.set(
-                    state.bot_last_reply_key(self.message.chat.id),
-                    bot_reply,
-                    ttl=300,
-                )
-        else:
-            current_time = asyncio.get_event_loop().time()
-            if text == self.current_text:
-                return
-            if (current_time - self.last_edit_time < self.STREAM_EDIT_INTERVAL) and len(
-                text
-            ) < self.MAX_MESSAGE_LENGTH * 0.8:
-                return
-            try:
-                await self.reply_message.edit_text(
-                    text[: self.MAX_MESSAGE_LENGTH],
-                    parse_mode=pyrogram.enums.ParseMode.DISABLED,
-                )
-                self.current_text = text
-                self.last_edit_time = current_time
-                self.edit_count += 1
-            except pyrogram.errors.exceptions.bad_request_400.MessageNotModified:
-                pass
-            except pyrogram.errors.exceptions.bad_request_400.MessageTooLong:
-                await self._send_or_edit(text, force_new=True)
+        except pyrogram.errors.exceptions.bad_request_400.MessageNotModified:
+            self._last_sent_text = text
+        except pyrogram.errors.exceptions.bad_request_400.MessageTooLong:
+            await self._send_new_message(text)
+        except Exception as e:
+            logger.error(f"Error editing message: {e.__class__.__name__} - {e}")
+
+    async def _send_new_message(self, text: str):
+        self.reply_message = await self.message.reply_text(
+            text[: self.MAX_MESSAGE_LENGTH],
+            parse_mode=pyrogram.enums.ParseMode.DISABLED,
+        )
+        self._last_sent_text = text
+        self.last_edit_time = asyncio.get_event_loop().time()
+        self.edit_count += 1
+
+    async def _edit_loop(self):
+        while not self._stop:
+            await asyncio.sleep(self.STREAM_EDIT_INTERVAL)
+            if self._stop:
+                break
+            if not self._is_within_limits():
+                break
+            text = self.current_text
+            if not text.strip() or text == self._last_sent_text:
+                continue
+            await self._do_edit(text)
+
+    async def _start(self):
+        await self._send_new_message(self.current_text)
+        self._edit_task = asyncio.create_task(self._edit_loop())
 
     async def append_delta(self, delta: str):
         if not delta:
             return
         self.current_text += delta
-        await self._send_or_edit(self.current_text)
+        if self.start_time == 0.0 and self.current_text.strip():
+            self.start_time = asyncio.get_event_loop().time()
+            self._stop = False
+            if self._chat_action_task is None or self._chat_action_task.done():
+                self._chat_action_task = asyncio.create_task(self._keep_typing_action())
+            self._start_task = asyncio.create_task(self._start())
 
     async def finalize(self):
-        self._stop_chat_action = True
-        if self._chat_action_task and not self._chat_action_task.done():
-            self._chat_action_task.cancel()
-            try:
-                await self._chat_action_task
-            except asyncio.CancelledError:
-                pass
+        self._stop = True
+        if self._start_task and not self._start_task.done():
+            await self._start_task
+        for task in (self._chat_action_task, self._edit_task):
+            if task and not task.done():
+                task.cancel()
+                try:
+                    await task
+                except asyncio.CancelledError:
+                    pass
         if self.reply_message and self.current_text:
-            try:
-                await self.reply_message.edit_text(
-                    self.current_text[: self.MAX_MESSAGE_LENGTH],
-                    parse_mode=pyrogram.enums.ParseMode.DISABLED,
+            text = self.current_text
+            if text != self._last_sent_text:
+                await self._do_edit(text)
+            elif not self.reply_message:
+                await self._send_new_message(text)
+        if self.reply_message and self.is_group_chat and self.user and self.user.id:
+            bot_reply = datatype.BotLastReply(
+                message_id=self.reply_message.id,
+                reply_to_user_id=self.user.id,
+                reply_to_message_id=self.message.id,
+                reply_text=self.current_text,
+                original_user_message=self.message.text or self.message.caption or "",
+                timestamp=datetime.now().timestamp(),
+            )
+            chat = self.message.chat
+            chat_id = chat.id if chat else None
+            if chat_id:
+                await memttlcache.set(
+                    state.bot_last_reply_key(chat_id),
+                    bot_reply,
+                    ttl=300,
                 )
-            except pyrogram.errors.exceptions.bad_request_400.MessageNotModified:
-                pass
-            except Exception as e:
-                logger.error(f"Error finalizing message: {e.__class__.__name__} - {e}")
 
 
 def get_history_text(message_history: list[ModelMessage]) -> str:

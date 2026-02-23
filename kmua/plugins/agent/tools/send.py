@@ -30,8 +30,9 @@ async def send_message(
     poll_allows_multiple_answers: bool = False,
     schedule_time: str | None = None,
 ) -> SendResult:
-    """Send a message to the current chat. Supports text, media (via URL), polls,
+    """Send a message to the current chat proactively. Supports text, media (via URL), polls,
     stickers, and scheduled delivery.
+    This tool is not needed for normal replies; it should only be used when you need to actively send a message.
 
     Args:
         type: Message type. One of:
