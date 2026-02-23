@@ -193,7 +193,7 @@ Bot回复: {bot_reply.reply_text}
         if append_prompt:
             ctx_info.append_prompt = append_prompt
         instructions += f"\n\n{ctx_info.to_text()}\n"
-        follow_up_prompt = await utils.get_input_prompt(
+        follow_up_prompt, _ = await utils.get_input_prompt(
             client, message, include_nearby=0, ctx=ctx_info
         )
         async with agent.iter(
