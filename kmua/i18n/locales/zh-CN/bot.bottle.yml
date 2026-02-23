@@ -19,6 +19,7 @@ bot:
       not_found: 没有找到这个瓶子呢
       seek_result: 这个瓶子是由 {sender} 在 {created_at} 扔进大海的哦
       pick_disabled_in_chat: 这里不允许捡漂流瓶哦
+      pick_failed: 你在海边徘徊许久, 大海回馈你的是一个异常
       reply_prompt: 请选择回复方式
       reply_waiting: 请直接回复这条瓶子消息来回复
       reply_sent: 你的回信已经被送出去了💌
