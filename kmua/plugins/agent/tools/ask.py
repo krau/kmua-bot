@@ -75,6 +75,9 @@ async def ask_user(
         The user's answer as a plain string (the text of the chosen option),
         or a message explaining why no answer was received.
     """
+    logger.debug(
+        f"ask_user called with question='{question}' and options={options} for user_id={ctx.deps.user_id} in chat_id={ctx.deps.chat_id}"
+    )
     if not options or len(options) < 2:
         raise ModelRetry("Provide at least 2 options.")
     if len(options) > 5:

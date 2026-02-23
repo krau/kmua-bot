@@ -2,6 +2,7 @@ from pydantic import BaseModel
 from pydantic_ai import RunContext
 
 from kmua import database
+from kmua.logger import logger
 from kmua.plugins.agent import datatype
 
 
@@ -46,6 +47,9 @@ async def search_group_memory(
     返回:
         一个字符串列表, 每个字符串是一个记忆条目. 如果没有找到任何记忆, 返回空列表.
     """
+    logger.debug(
+        f"search_group_memory called with query='{query}' for chat_id={ctx.deps.chat_id}"
+    )
     if not ctx.deps.powermemory:
         return []
     results = await ctx.deps.powermemory.search(

@@ -54,6 +54,9 @@ async def send_message(
     Returns:
         A SendResult indicating success or failure.
     """
+    logger.debug(
+        f"send_message called with type={type} for user_id={ctx.deps.user_id} in chat_id={ctx.deps.chat_id}"
+    )
     if ctx.deps.message is None or ctx.deps.chat_id is None:
         return SendResult(success=False, message="Message context is unavailable.")
 
@@ -168,7 +171,7 @@ async def send_message(
         raise
     except Exception as e:
         logger.error(f"send_message failed (type={type}): {e.__class__.__name__}: {e}")
-        return SendResult(success=False, message=f"{e.__class__.__name__}: {e}")
+        raise ModelRetry(f"Failed to send message: {e.__class__.__name__}: {e}")
 
     return SendResult(success=True)
 
