@@ -124,14 +124,20 @@ class StreamingOutput:
             pyrogram.enums.ChatType.GROUP,
         )
         self.user = message.sender_chat or message.from_user
-        self._chat_action_task: asyncio.Task | None = None
         self._edit_task: asyncio.Task | None = None
         self._start_task: asyncio.Task | None = None
         self._stop = False
+        self._chat_action_task = asyncio.create_task(self._keep_typing_action())
 
     async def _keep_typing_action(self):
+        first = True
         while not self._stop:
             try:
+                if not first:
+                    await asyncio.sleep(self.CHAT_ACTION_INTERVAL)
+                    if self._stop:
+                        break
+                first = False
                 chat = self.message.chat
                 chat_id = chat.id if chat else None
                 if chat_id:
@@ -139,7 +145,6 @@ class StreamingOutput:
                         chat_id=chat_id,
                         action=pyrogram.enums.ChatAction.TYPING,
                     )
-                await asyncio.sleep(self.CHAT_ACTION_INTERVAL)
             except asyncio.CancelledError:
                 break
             except Exception as e:
