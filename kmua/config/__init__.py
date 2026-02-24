@@ -108,7 +108,7 @@ class _AppConfig(pydantic.BaseModel):
     agent_image_edit_api_key: str | None = None
     # sticker semantic memory
     agent_sticker_memory: bool = False
-    agent_sticker_memory_sample_rate = 0.5
+    agent_sticker_memory_sample_rate: float = 0.5
     agent_sticker_db_path: str = "data/sticker_vec.db"
     agent_sticker_ttl: int = 86400 * 7
     agent_sticker_description_model: str | None = None
