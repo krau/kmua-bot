@@ -5,7 +5,8 @@ import pyrogram
 from pydantic_ai import ModelRetry, RunContext
 from pydantic_ai.messages import BinaryContent, ModelRequest, UserPromptPart
 
-from kmua.common import memstore
+from kmua.common import memttlcache
+from kmua.config import app_config
 from kmua.logger import logger
 from kmua.services import image_gen
 
@@ -22,14 +23,19 @@ class ImageOperationResult:
 async def _find_image_in_history(
     ctx: RunContext[datatype.ContextDeps],
 ) -> tuple[bytes, str] | None:
-    """checks memstore for the last edited image first, then falls
-    back to scanning the pydantic-ai message history."""
-    cached: tuple[bytes, str] | None = await memstore.get(
-        state.last_edited_image_key(ctx.deps.user_id)
+    file_id: str | None = await memttlcache.get(
+        state.last_edited_image_key(ctx.deps.chat_id, ctx.deps.user_id)
     )
-    if cached is not None:
-        logger.debug("edit_image: using last edited image from memstore")
-        return cached
+    if file_id is not None:
+        logger.debug("edit_image: downloading last edited image via file_id from cache")
+        try:
+            file_obj = await ctx.deps.client.download_media(
+                message=file_id, in_memory=True
+            )
+            if isinstance(file_obj, BytesIO):
+                return file_obj.getvalue(), "image/png"
+        except Exception as e:
+            logger.warning(f"edit_image: failed to download cached file_id: {e}")
 
     for msg in reversed(ctx.deps.history):
         if not isinstance(msg, ModelRequest):
@@ -217,7 +223,7 @@ async def edit_image(
             message=f"Image editing failed: {result.error}",
         )
     try:
-        await ctx.deps.client.send_photo(
+        sent = await ctx.deps.client.send_photo(
             chat_id=ctx.deps.chat_id,
             photo=BytesIO(result.data),
             reply_parameters=pyrogram.types.ReplyParameters(
@@ -230,10 +236,12 @@ async def edit_image(
             success=False,
             message=f"Image was edited but could not be sent: {e.__class__.__name__}",
         )
-    await memstore.set(
-        state.last_edited_image_key(ctx.deps.user_id),
-        (result.data, "image/png"),
-    )
+    if sent and sent.photo:
+        await memttlcache.set(
+            state.last_edited_image_key(ctx.deps.chat_id, ctx.deps.user_id),
+            sent.photo.file_id,
+            ttl=app_config.cachettl_agent_history,
+        )
     return ImageOperationResult(
         success=True,
         revised_prompt=result.revised_prompt,

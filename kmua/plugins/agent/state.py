@@ -36,5 +36,5 @@ def group_memory_update_key(chat_id: int) -> str:
     return f"group_memory_last_update:{chat_id}"
 
 
-def last_edited_image_key(user_id: int) -> str:
-    return f"agent_last_edited_image:{user_id}"
+def last_edited_image_key(chat_id: int, user_id: int) -> str:
+    return f"agent_last_edited_image_fileid:{chat_id}:{user_id}"
