@@ -12,6 +12,7 @@ from pydantic_ai.providers.openai import OpenAIProvider
 from pyrogram import filters
 from pyrogram.client import Client as PyrogramClient
 
+from kmua import common
 from kmua.config import app_config
 from kmua.logger import logger
 
@@ -152,16 +153,15 @@ async def _process_sticker(
     mime_type = "video/webm" if sticker.is_video else "image/webp"
     description = await _get_description(image_bytes, mime_type)
     if not description:
-        logger.debug(f"sticker {file_unique_id}: no description generated, skipping")
+        logger.warning(f"sticker {file_unique_id}: no description generated, skipping")
         return
 
     embedding = await get_embedding(description)
     if not embedding:
-        logger.debug(f"sticker {file_unique_id}: no embedding generated, skipping")
+        logger.warning(f"sticker {file_unique_id}: no embedding generated, skipping")
         return
 
     await sticker_vec.upsert(file_unique_id, file_id, chat_id, description, embedding)
-    logger.debug(f"sticker {file_unique_id} stored for chat {chat_id}: {description!r}")
 
 
 _sticker_filter = filters.sticker & (filters.group) & ~filters.bot
@@ -178,6 +178,8 @@ async def on_sticker(client: PyrogramClient, message: pyrogram.types.Message) ->
         return
     chat = message.chat
     if chat is None or chat.id is None:
+        return
+    if not common.random_chance(app_config.agent_sticker_memory_sample_rate):
         return
 
     asyncio.create_task(_process_sticker(client, sticker, chat.id))
