@@ -322,17 +322,20 @@ async def summarize_history(
     messages: list[ModelMessage],
     messages_threshold: int = app_config.agent_messages_threshold,
 ) -> list[ModelMessage]:
-    token_trigger = _should_compress_by_tokens(messages)
-    count_trigger = len(messages) > messages_threshold
-
-    if not token_trigger and not count_trigger:
-        return messages
-
-    logger.debug(
-        f"Summarizing history: total messages={len(messages)}, "
-        f"messages_threshold={messages_threshold}, "
-        f"token_trigger={token_trigger}, count_trigger={count_trigger}"
-    )
+    if app_config.agent_context_window_tokens:
+        if not _should_compress_by_tokens(messages):
+            return messages
+        logger.debug(
+            f"Summarizing history: total messages={len(messages)}, "
+            f"token_trigger=True (tokens>={int(app_config.agent_context_window_tokens * app_config.agent_context_compress_ratio)})"
+        )
+    else:
+        if len(messages) <= messages_threshold:
+            return messages
+        logger.debug(
+            f"Summarizing history: total messages={len(messages)}, "
+            f"count_trigger=True (threshold={messages_threshold})"
+        )
     try:
         messages_to_summarize = messages[:-1]
         current_user_message = messages[-1:]

@@ -56,9 +56,11 @@ async def history_processor(
         summary,
         ttl=app_config.cachettl_agent_history,
     )
-    should_update_memory = len(messages) >= app_config.agent_messages_threshold
-    if not should_update_memory and app_config.agent_context_window_tokens:
-        should_update_memory = utils._should_compress_by_tokens(messages)
+    should_update_memory = (
+        utils._should_compress_by_tokens(messages)
+        if app_config.agent_context_window_tokens
+        else len(messages) >= app_config.agent_messages_threshold
+    )
     if should_update_memory:
         try:
             history_text = utils.get_history_text(messages)
