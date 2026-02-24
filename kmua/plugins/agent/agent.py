@@ -270,6 +270,7 @@ async def wake_agent(client: PyrogramClient, message: pyrogram.types.Message):
         user_message_text = message.text or message.caption or ""
         if user_message_text:
             logger.debug(f"User {user.id} prompt: {user_message_text}")
+        await utils.cache_user_image(message, chat_id, user.id)
         try:
             use_model = multimodal_model if needs_multimodal else model
             if app_config.agent_streaming:

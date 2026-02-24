@@ -39,6 +39,35 @@ def get_agent_affection_prompt(rank: float) -> str | None:
     return None
 
 
+def _extract_image_file_id(message: pyrogram.types.Message) -> str | None:
+    if message.photo:
+        return message.photo.file_id
+    if (
+        message.document
+        and message.document.mime_type
+        and message.document.mime_type.startswith("image/")
+    ):
+        return message.document.file_id
+    return None
+
+
+async def cache_user_image(
+    message: pyrogram.types.Message,
+    chat_id: int,
+    user_id: int,
+) -> None:
+    file_id = _extract_image_file_id(message)
+    if file_id is None and message.reply_to_message:
+        file_id = _extract_image_file_id(message.reply_to_message)
+    if file_id is None:
+        return
+    await memttlcache.set(
+        state.last_user_image_key(chat_id, user_id),
+        file_id,
+        ttl=app_config.cachettl_agent_history,
+    )
+
+
 async def reply_output(
     client: PyrogramClient, message: pyrogram.types.Message, text: str
 ):

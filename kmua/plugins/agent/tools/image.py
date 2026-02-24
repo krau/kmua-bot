@@ -23,19 +23,24 @@ class ImageOperationResult:
 async def _find_image_in_history(
     ctx: RunContext[datatype.ContextDeps],
 ) -> tuple[bytes, str] | None:
-    file_id: str | None = await memttlcache.get(
-        state.last_edited_image_key(ctx.deps.chat_id, ctx.deps.user_id)
-    )
-    if file_id is not None:
-        logger.debug("edit_image: downloading last edited image via file_id from cache")
+    for cache_key in (
+        state.last_user_image_key(ctx.deps.chat_id, ctx.deps.user_id),
+        state.last_edited_image_key(ctx.deps.chat_id, ctx.deps.user_id),
+    ):
+        file_id: str | None = await memttlcache.get(cache_key)
+        if file_id is None:
+            continue
         try:
             file_obj = await ctx.deps.client.download_media(
                 message=file_id, in_memory=True
             )
             if isinstance(file_obj, BytesIO):
-                return file_obj.getvalue(), "image/png"
+                logger.debug(f"edit_image: found image via cache key={cache_key!r}")
+                return file_obj.getvalue(), "image/jpeg"
         except Exception as e:
-            logger.warning(f"edit_image: failed to download cached file_id: {e}")
+            logger.warning(
+                f"edit_image: failed to download cached file_id from {cache_key!r}: {e}"
+            )
 
     for msg in reversed(ctx.deps.history):
         if not isinstance(msg, ModelRequest):
@@ -122,17 +127,11 @@ async def edit_image(
 ) -> ImageOperationResult:
     """Edit or modify an image provided by the user and send the result to the chat.
 
-    Use this tool when the user has sent an image (in the current message or in the
-    message being replied to) and asks you to modify, edit, transform or alter it in
-    some way based on their description.
-
-    The image to edit is taken automatically from the current conversation context
-    (the photo in the user's message, the message it replies to, or the most recent
-    image from the conversation history).
+    Use this tool when the user has sent an image and asks you to modify, edit,
+    transform or alter it in some way based on their description.
 
     Args:
-        prompt: Detailed description of what changes to make to the image, or what
-            the resulting image should look like after editing.
+        prompt: Detailed description of what changes to make to the image.
         size: Output image dimensions. Defaults to "1024x1024".
 
     Returns:
@@ -149,6 +148,13 @@ async def edit_image(
         return ImageOperationResult(
             success=False, message="Current message context is unavailable."
         )
+
+    logger.debug(
+        f"edit_image called: chat_id={ctx.deps.chat_id}, user_id={ctx.deps.user_id}, prompt={prompt[:100]}"
+    )
+
+    image_bytes: bytes | None = None
+    mime_type: str = "image/jpeg"
 
     source_message: pyrogram.types.Message | None = None
     if ctx.deps.message.photo:
@@ -168,10 +174,6 @@ async def edit_image(
         and ctx.deps.message.reply_to_message.document.mime_type.startswith("image/")
     ):
         source_message = ctx.deps.message.reply_to_message
-
-    logger.debug(
-        f"edit_image called: chat_id={ctx.deps.chat_id}, user_id={ctx.deps.user_id}, prompt={prompt[:100]}"
-    )
 
     if source_message is not None:
         try:
@@ -205,11 +207,15 @@ async def edit_image(
         if history_image is None:
             return ImageOperationResult(
                 success=False,
-                message="No image found in the current message, the message being replied to, or the recent conversation history. Please send an image to edit.",
+                message=(
+                    "No image found in the current message, the message being "
+                    "replied to, or the recent conversation history. "
+                    "Please send an image to edit."
+                ),
             )
         image_bytes, mime_type = history_image
-        logger.debug("edit_image: using image from conversation history")
 
+    assert image_bytes is not None
     result = await edit_client.edit(
         prompt=prompt,
         image_data=image_bytes,
