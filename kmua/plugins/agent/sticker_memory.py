@@ -1,5 +1,4 @@
 import asyncio
-import shutil
 from io import BytesIO
 
 import pyrogram
@@ -20,9 +19,6 @@ from . import sticker_vec
 
 embedder: Embedder | None = None
 _description_agent: Agent[None, str] | None = None
-
-_FFMPEG = shutil.which("ffmpeg")
-
 
 if app_config.agent_sticker_memory:
     _embed_api_key = app_config.agent_sticker_embed_api_key or app_config.agent_api_key
@@ -73,40 +69,12 @@ async def get_embedding(text: str) -> list[float] | None:
         return None
 
 
-async def _webm_first_frame(webm_bytes: bytes) -> bytes | None:
-    """Extract first frame from a WEBM video as WebP using ffmpeg."""
-    if _FFMPEG is None:
-        return None
-    try:
-        proc = await asyncio.create_subprocess_exec(
-            _FFMPEG,
-            "-i",
-            "pipe:0",
-            "-vframes",
-            "1",
-            "-f",
-            "webp",
-            "pipe:1",
-            stdin=asyncio.subprocess.PIPE,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.DEVNULL,
-        )
-        stdout, _ = await proc.communicate(input=webm_bytes)
-        if proc.returncode != 0 or not stdout:
-            logger.error(f"ffmpeg frame extraction failed (rc={proc.returncode})")
-            return None
-        return stdout
-    except Exception as e:
-        logger.error(f"ffmpeg error: {e.__class__.__name__}: {e}")
-        return None
-
-
 async def _get_description(image_bytes: bytes, mime_type: str) -> str | None:
     if _description_agent is None:
         return None
     try:
         if mime_type == "video/webm":
-            frame = await _webm_first_frame(image_bytes)
+            frame = await common.webm_first_frame(image_bytes)
             if frame is None:
                 return None
             content_part: BinaryContent = BinaryContent(
@@ -138,7 +106,7 @@ async def _process_sticker(
     if sticker.is_animated:
         return
 
-    if sticker.is_video and _FFMPEG is None:
+    if sticker.is_video and common.FFMPEG is None:
         return
 
     try:

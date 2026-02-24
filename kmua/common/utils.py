@@ -1,6 +1,12 @@
+import asyncio
 import random
+import shutil
 
 import pyrogram
+
+from kmua.logger import logger
+
+FFMPEG = shutil.which("ffmpeg")
 
 
 def get_msg_link(message: pyrogram.types.Message) -> str:
@@ -32,3 +38,31 @@ def random_chance(probability: float) -> bool:
     if probability > 1:
         return True
     return random.uniform(0, 1) < probability
+
+
+async def webm_first_frame(webm_bytes: bytes) -> bytes | None:
+    """Extract first frame from a WEBM video as WebP using ffmpeg."""
+    if FFMPEG is None:
+        return None
+    try:
+        proc = await asyncio.create_subprocess_exec(
+            FFMPEG,
+            "-i",
+            "pipe:0",
+            "-vframes",
+            "1",
+            "-f",
+            "webp",
+            "pipe:1",
+            stdin=asyncio.subprocess.PIPE,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.DEVNULL,
+        )
+        stdout, _ = await proc.communicate(input=webm_bytes)
+        if proc.returncode != 0 or not stdout:
+            logger.error(f"ffmpeg frame extraction failed (rc={proc.returncode})")
+            return None
+        return stdout
+    except Exception as e:
+        logger.error(f"ffmpeg error: {e.__class__.__name__}: {e}")
+        return None

@@ -628,6 +628,41 @@ async def get_input_prompt(
                                         media_type=document.mime_type,
                                     )
                                 )
+                case pyrogram.enums.MessageMediaType.STICKER:
+                    sticker = media_message.sticker
+                    if (
+                        sticker
+                        and sticker.file_id
+                        and "photo" in app_config.agent_multimodal_inputs
+                    ):
+                        if sticker.is_animated:
+                            pass
+                        elif sticker.is_video:
+                            sticker_file = await client.download_media(
+                                message=sticker.file_id, in_memory=True
+                            )
+                            if isinstance(sticker_file, BytesIO):
+                                frame = await common.webm_first_frame(
+                                    sticker_file.getvalue()
+                                )
+                                if frame:
+                                    contents.append(
+                                        BinaryContent(
+                                            data=frame,
+                                            media_type="image/webp",
+                                        )
+                                    )
+                        else:
+                            sticker_file = await client.download_media(
+                                message=sticker.file_id, in_memory=True
+                            )
+                            if isinstance(sticker_file, BytesIO):
+                                contents.append(
+                                    BinaryContent(
+                                        data=sticker_file.getvalue(),
+                                        media_type="image/webp",
+                                    )
+                                )
         return contents
 
     user_prompt: list[UserContent] = []
@@ -694,15 +729,15 @@ async def get_input_prompt(
             )
 
     # 最后追加当前消息（带 ctx），并检测是否含有需要多模态理解的媒体
-    len_before = len(user_prompt)
-    user_prompt.extend(
-        await build_contents_from_message(
-            message, ctx_text=str(ctx) if ctx else None, include_media=True
-        )
-    )
+    # len_before = len(user_prompt)
+    # user_prompt.extend(
+    #     await build_contents_from_message(
+    #         message, ctx_text=str(ctx) if ctx else None, include_media=True
+    #     )
+    # )
     needs_multimodal = any(
         isinstance(item, (ImageUrl, AudioUrl, DocumentUrl, VideoUrl, BinaryContent))
-        for item in user_prompt[len_before:]
+        for item in user_prompt
     )
 
     return user_prompt, needs_multimodal
