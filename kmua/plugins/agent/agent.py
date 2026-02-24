@@ -124,6 +124,7 @@ if app_config.agent:
                 prepare=tools.prepare_group_tools,
             ),
             tools.send_anime_photo,
+            tools.send_reaction,
             Tool(
                 tools.search_group_memory,
                 prepare=tools.prepare_powermem_tool,

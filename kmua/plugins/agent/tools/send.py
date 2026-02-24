@@ -275,4 +275,30 @@ async def send_sticker(
     return SendResult(success=True, message=f"Sent sticker: {description}")
 
 
-__all__ = ["send_message", "send_sticker"]
+async def send_reaction(
+    ctx: RunContext[datatype.ContextDeps],
+    emoji: str,
+) -> SendResult:
+    """Send a reaction (emoji) to the user's message.
+
+    Args:
+        emoji: The emoji to react with, e.g. "🥰", "❤️", "😡".
+
+    Returns:
+        A SendResult indicating success or failure.
+    """
+    if ctx.deps.message is None:
+        return SendResult(success=False, message="Message context is unavailable.")
+    try:
+        await ctx.deps.client.send_reaction(
+            chat_id=ctx.deps.chat_id,
+            message_id=ctx.deps.message.id,
+            emoji=emoji,
+        )
+    except Exception as e:
+        logger.error(f"send_reaction error: {e.__class__.__name__}: {e}")
+        raise ModelRetry(f"Failed to send reaction: {e.__class__.__name__}: {e}")
+    return SendResult(success=True)
+
+
+__all__ = ["send_message", "send_reaction", "send_sticker"]
