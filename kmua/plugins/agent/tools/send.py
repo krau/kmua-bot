@@ -9,7 +9,7 @@ from pydantic_ai import ModelRetry, RunContext
 from kmua import common
 from kmua.logger import logger
 
-from .. import datatype
+from .. import datatype, sticker_memory, sticker_vec
 
 
 @dataclass
@@ -228,4 +228,51 @@ async def _schedule(
     )
 
 
-__all__ = ["send_message"]
+async def send_sticker(
+    ctx: RunContext[datatype.ContextDeps],
+    query: str,
+) -> SendResult:
+    """Search for a semantically matching sticker from this group's sticker memory and send it.
+
+    Args:
+        query: Natural language description of the desired sticker, e.g. "happy excited cat",
+               "sad crying", "thumbs up approval".
+        k: How many candidates to retrieve; the closest match is sent. Default 1.
+
+    Returns:
+        A SendResult indicating success or failure.
+    """
+    if ctx.deps.chat_id is None or ctx.deps.message is None:
+        return SendResult(success=False, message="Message context is unavailable.")
+
+    if sticker_memory.embedder is None:
+        return SendResult(success=False, message="Sticker memory is not configured.")
+
+    embedding = await sticker_memory.get_embedding(query)
+    if embedding is None:
+        raise ModelRetry("Failed to embed query.")
+
+    results = await sticker_vec.search(ctx.deps.chat_id, embedding, k=1)
+    if not results:
+        raise ModelRetry("No matching sticker found in this group's sticker memory.")
+
+    file_id, description, distance = results[0]
+    logger.debug(
+        f"send_sticker: query={query!r} -> description={description!r} distance={distance:.4f}"
+    )
+    try:
+        await ctx.deps.client.send_sticker(
+            chat_id=ctx.deps.chat_id,
+            sticker=file_id,
+            reply_parameters=pyrogram.types.ReplyParameters(
+                message_id=ctx.deps.message.id,
+            ),
+        )
+    except Exception as e:
+        logger.error(f"send_sticker send error: {e.__class__.__name__}: {e}")
+        raise ModelRetry(f"Failed to send sticker: {e.__class__.__name__}: {e}")
+
+    return SendResult(success=True, message=f"Sent sticker: {description}")
+
+
+__all__ = ["send_message", "send_sticker"]

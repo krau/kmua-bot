@@ -141,6 +141,10 @@ if app_config.agent:
                 tools.webfetch,
                 prepare=tools.prepare_configurable_tools,
             ),
+            Tool(
+                tools.send_sticker,
+                prepare=tools.prepare_sticker_tool,
+            ),
         ],
         deps_type=datatype.ContextDeps,
         history_processors=[history_processor],

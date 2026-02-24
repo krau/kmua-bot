@@ -106,6 +106,22 @@ class _AppConfig(pydantic.BaseModel):
     agent_image_edit_model: str | None = None
     agent_image_edit_provider_url: str | None = None
     agent_image_edit_api_key: str | None = None
+    # sticker semantic memory
+    agent_sticker_memory: bool = False
+    agent_sticker_db_path: str = "data/sticker_vec.db"
+    agent_sticker_ttl: int = 86400 * 7
+    agent_sticker_description_model: str | None = None
+    agent_sticker_embed_model: str = "text-embedding-3-small"
+    agent_sticker_embed_provider_url: str | None = None
+    agent_sticker_embed_api_key: str | None = None
+    agent_sticker_embed_dimensions: int = 1024
+    agent_sticker_description_prompt: str = (
+        "Describe what emotion, mood, or meaning this sticker conveys in 1-2 sentences. "
+        "Focus on how it would typically be used in a conversation — "
+        "e.g. expressing joy, sarcasm, agreement, frustration, or affection. "
+        "Be concise and specific."
+    )
+
     # experimental, maybe removed in the future
     agent_whitelist_mode: bool = False
     agent_whitelist: list[int] = []

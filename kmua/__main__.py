@@ -12,6 +12,7 @@ from kmua.bot.client import client
 from kmua.config import app_config
 from kmua.database import db
 from kmua.logger import logger
+from kmua.plugins.agent import sticker_vec
 
 
 def _get_commands_hash(commands_dict: dict[str, list[BotCommand]]) -> str:
@@ -180,6 +181,10 @@ async def init_bot(client: Client = client):
         logger.debug("Bot commands set and cached")
 
     common.jobqueue.add_daily_job("cleanup", jobs.cleanup, hour=4)
+
+    if app_config.agent_sticker_memory:
+        await sticker_vec.init()
+        logger.debug("Sticker vector DB initialized")
 
     # 添加定时更换 bot 头像任务
     if app_config.avatar_change_enabled:

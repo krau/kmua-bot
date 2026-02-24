@@ -4,7 +4,7 @@ from pydantic_ai.tools import ToolDefinition
 from kmua import common
 from kmua.config import app_config
 from kmua.logger import logger
-from kmua.plugins.agent import datatype
+from kmua.plugins.agent import datatype, sticker_memory
 from kmua.services import btts, image_gen
 
 
@@ -79,3 +79,15 @@ async def prepare_image_edit_tools(
     if image_gen.image_edit_client is not None:
         return tool_def
     return None
+
+
+async def prepare_sticker_tool(
+    ctx: RunContext[datatype.ContextDeps], tool_def: ToolDefinition
+) -> ToolDefinition | None:
+    if not app_config.agent_sticker_memory:
+        return None
+    if sticker_memory.embedder is None:
+        return None
+    if ctx.deps.chat_id is None or ctx.deps.chat_id >= -100:
+        return None
+    return tool_def

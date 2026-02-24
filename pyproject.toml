@@ -33,6 +33,7 @@ dependencies = [
     "redis>=6.2.0",
     "sketchbook-py==0.2.1",
     "sqlalchemy[asyncio]>=2.0.41",
+    "sqlite-vec>=0.1.6",
     "tgcrypto>=1.2.5",
     "ujson>=5.11.0",
     "uvloop>=0.21.0",
