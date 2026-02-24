@@ -535,14 +535,12 @@ async def get_input_prompt(
     smart text model is not swapped out just because unrelated media exists nearby.
     """
 
-    # 公共的单条消息提取逻辑：与原函数一致
+    # 公共的单条消息提取逻辑：只获取当前消息本身的媒体，不获取回复消息的媒体
     def get_media_and_message(
         m: pyrogram.types.Message,
     ) -> tuple[pyrogram.enums.MessageMediaType | None, pyrogram.types.Message | None]:
         if m.media:
             return m.media, m
-        if m.reply_to_message and m.reply_to_message.media:
-            return m.reply_to_message.media, m.reply_to_message
         return None, None
 
     async def build_contents_from_message(
@@ -666,33 +664,35 @@ async def get_input_prompt(
         return contents
 
     user_prompt: list[UserContent] = []
+    seen_msg_ids: set[int] = set()
 
     # 处理回复消息链：从当前消息向上追溯
     reply_chain: list[pyrogram.types.Message] = []
     current = message
-    while current.reply_to_message and len(reply_chain) < 10:  # 最多10条消息链
+    while current.reply_to_message and len(reply_chain) < 10:
         reply_chain.append(current.reply_to_message)
         current = current.reply_to_message
-    reply_chain.reverse()  # 反转，使其按时间顺序排列
+    reply_chain.reverse()
 
     # include_nearby > 0 时，先追加前面 N 条消息（从旧到新）
     if include_nearby and include_nearby > 0 and message.chat and message.chat.id:
-        # 构建需要获取的消息ID列表
         message_ids = []
         base_id = message.id
         for i in range(include_nearby):
-            mid = base_id - (i + 1)
+            mid = base_id - i - 1
             if mid > 0:
                 message_ids.append(mid)
-        message_ids.reverse()  # 反转以按时间顺序获取
+        message_ids.reverse()
 
         if message_ids:
-            # 从缓存中获取消息对象，未命中则从API获取
-            prev_msgs = await common.tgmethod.get_cached_messages_objects(
+            prev_msgs = await common.get_cached_messages_objects(
                 message.chat.id, message_ids
             )
             media_count = 0
             for prev_msg in prev_msgs:
+                if prev_msg.id in seen_msg_ids:
+                    continue
+                seen_msg_ids.add(prev_msg.id)
                 sender_name = "未知用户"
                 if prev_msg.from_user:
                     sender_name = prev_msg.from_user.first_name or "未知用户"
@@ -706,7 +706,7 @@ async def get_input_prompt(
                 user_prompt.extend(
                     await build_contents_from_message(
                         prev_msg,
-                        f"[群聊上下文 - {sender_name}]",
+                        f"[群聊消息|发送者:{sender_name}|消息ID:{prev_msg.id}]",
                         include_media=include_media,
                     )
                 )
@@ -714,6 +714,9 @@ async def get_input_prompt(
     # 处理回复消息链，只在最后一条消息中包含媒体
     if reply_chain:
         for idx, reply_msg in enumerate(reply_chain):
+            if reply_msg.id in seen_msg_ids:
+                continue
+            seen_msg_ids.add(reply_msg.id)
             is_last = idx == len(reply_chain) - 1
             sender_name = "未知用户"
             if reply_msg.from_user:
@@ -723,18 +726,17 @@ async def get_input_prompt(
             user_prompt.extend(
                 await build_contents_from_message(
                     reply_msg,
-                    f"[回复链消息 - {sender_name}]",
+                    f"[被引用的消息|发送者:{sender_name}|消息ID:{reply_msg.id}]",
                     include_media=is_last,
                 )
             )
 
     # 最后追加当前消息（带 ctx），并检测是否含有需要多模态理解的媒体
-    # len_before = len(user_prompt)
-    # user_prompt.extend(
-    #     await build_contents_from_message(
-    #         message, ctx_text=str(ctx) if ctx else None, include_media=True
-    #     )
-    # )
+    user_prompt.extend(
+        await build_contents_from_message(
+            message, ctx_text=str(ctx) if ctx else None, include_media=True
+        )
+    )
     needs_multimodal = any(
         isinstance(item, (ImageUrl, AudioUrl, DocumentUrl, VideoUrl, BinaryContent))
         for item in user_prompt

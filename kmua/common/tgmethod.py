@@ -85,13 +85,15 @@ async def get_cached_messages_objects(
     chat_id: int, message_ids: list[int]
 ) -> list[pyrogram.types.Message]:
     """Get multiple cached message objects, fetching from API if not in cache."""
-    cached_messages: list[pyrogram.types.Message] = []
+    cached_messages: dict[int, pyrogram.types.Message] = {}
     to_fetch_ids: list[int] = []
 
     for msg_id in message_ids:
+        if msg_id in cached_messages:
+            continue
         cached = await get_cached_message_object(chat_id, msg_id)
         if cached:
-            cached_messages.append(cached)
+            cached_messages[msg_id] = cached
         else:
             to_fetch_ids.append(msg_id)
 
@@ -110,13 +112,13 @@ async def get_cached_messages_objects(
             for msg in fetched:
                 if msg:
                     await cache_message_object(msg)
-                    cached_messages.append(msg)
+                    cached_messages[msg.id] = msg
         except Exception as e:
             logger.debug(f"Failed to fetch messages from API: {e}")
 
-    # Sort by message_id to maintain order
-    cached_messages.sort(key=lambda x: x.id)
-    return cached_messages
+    result = list(cached_messages.values())
+    result.sort(key=lambda x: x.id)
+    return result
 
 
 @dataclass
