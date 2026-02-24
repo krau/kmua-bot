@@ -128,7 +128,7 @@ async def record_memory(client: Client, message: pyrogram.types.Message):
         chat_config = await database.get_chat_config(chat.id)
         if not chat_config.group_memory_enabled:
             return
-        
+
         group_messages: list[GroupMessage] = await memttlcache.get(
             state.group_messages_key(chat.id), []
         )

@@ -48,8 +48,6 @@ if app_config.agent_powermem_config is not None:
 async def history_processor(
     ctx: RunContext[datatype.ContextDeps], messages: list[ModelMessage]
 ) -> list[ModelMessage]:
-    # 总结历史+更新记忆
-    # processor 会在消息发送给模型之前被调用
     assert summary_agent is not None, "summary_agent is not initialized"
     assert memory_agent is not None, "memory_agent is not initialized"
     summary = await utils.summarize_history(summary_agent, messages)
@@ -58,7 +56,10 @@ async def history_processor(
         summary,
         ttl=app_config.cachettl_agent_history,
     )
-    if len(messages) >= app_config.agent_messages_threshold:
+    should_update_memory = len(messages) >= app_config.agent_messages_threshold
+    if not should_update_memory and app_config.agent_context_window_tokens:
+        should_update_memory = utils._should_compress_by_tokens(messages)
+    if should_update_memory:
         try:
             history_text = utils.get_history_text(messages)
             await utils.update_user_memory(memory_agent, history_text, ctx.deps.user_id)

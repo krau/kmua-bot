@@ -78,6 +78,8 @@ class _AppConfig(pydantic.BaseModel):
     agent_provider_url: str = "https://api.openai.com/v1"
     agent_api_key: str = ""
     agent_messages_threshold: int = 20
+    agent_context_window_tokens: int = 0
+    agent_context_compress_ratio: float = 0.8
     agent_multimodal: bool = True
     agent_streaming: bool = True
     agent_multimodal_inputs: list[str] = [

@@ -19,7 +19,7 @@ from pydantic_ai import (
     UserPromptPart,
     VideoUrl,
 )
-from pydantic_ai.messages import ModelMessage, ModelRequest
+from pydantic_ai.messages import ModelMessage, ModelRequest, ModelResponse
 from pyrogram.client import Client as PyrogramClient
 
 from kmua import affection, common
@@ -292,24 +292,46 @@ def get_history_text(message_history: list[ModelMessage]) -> str:
     return message_text
 
 
+def get_history_token_count(messages: list[ModelMessage]) -> int:
+    total = 0
+    for msg in messages:
+        if isinstance(msg, ModelResponse):
+            usage = msg.usage
+            total += usage.total_tokens
+    return total
+
+
+def _should_compress_by_tokens(messages: list[ModelMessage]) -> bool:
+    window = app_config.agent_context_window_tokens
+    if not window:
+        return False
+    ratio = app_config.agent_context_compress_ratio
+    threshold_tokens = int(window * ratio)
+    current_tokens = get_history_token_count(messages)
+    if current_tokens > 0 and current_tokens >= threshold_tokens:
+        logger.debug(
+            f"Token-based compression triggered: {current_tokens} >= {threshold_tokens} "
+            f"({ratio:.0%} of {window} window)"
+        )
+        return True
+    return False
+
+
 async def summarize_history(
     summary_agent: Agent,
     messages: list[ModelMessage],
     messages_threshold: int = app_config.agent_messages_threshold,
 ) -> list[ModelMessage]:
-    # multimodal_content_count = 0
-    # for msg in messages:
-    #     for part in msg.parts:
-    #         if part.part_kind == "user-prompt" and not isinstance(part.content, str):
-    #             for content in part.content:
-    #                 if not isinstance(content, str):
-    #                     multimodal_content_count += 1
-    # # 有3条及以上多模态内容时, 强制总结历史消息
-    if len(messages) <= messages_threshold:
+    token_trigger = _should_compress_by_tokens(messages)
+    count_trigger = len(messages) > messages_threshold
+
+    if not token_trigger and not count_trigger:
         return messages
 
     logger.debug(
-        f"Summarizing history: total messages={len(messages)}, messages_threshold={messages_threshold}"
+        f"Summarizing history: total messages={len(messages)}, "
+        f"messages_threshold={messages_threshold}, "
+        f"token_trigger={token_trigger}, count_trigger={count_trigger}"
     )
     try:
         messages_to_summarize = messages[:-1]
@@ -335,7 +357,6 @@ async def summarize_history(
             f"Error summarizing history with agent: {e.__class__.__name__} - {e}"
         )
         filtered_messages = filter_tool_return_if_needed(messages[-messages_threshold:])
-
         result_messages = []
         for msg in filtered_messages:
             if msg.kind != "request":
