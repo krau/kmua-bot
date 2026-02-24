@@ -381,8 +381,11 @@ async def wake_agent(client: PyrogramClient, message: pyrogram.types.Message):
                 f"{i18n.t('bot.msg.agent.errors.too_fast', locale=lang)}\n<code>{e}</code>",
                 parse_mode=pyrogram.enums.ParseMode.HTML,
             )
-        except pydantic_ai.exceptions.ModelHTTPError as e:
-            logger.exception(f"Agent HTTP error: {e}")
+        except (
+            pydantic_ai.exceptions.ModelHTTPError
+            or pydantic_ai.exceptions.ModelAPIError
+        ) as e:
+            logger.error(f"Agent HTTP error: {e.__class__.__name__}: {e}")
             if e.status_code == 400:
                 await message.reply_text(
                     i18n.t("bot.msg.agent.errors.model_http_400", locale=lang)
@@ -394,10 +397,10 @@ async def wake_agent(client: PyrogramClient, message: pyrogram.types.Message):
                     )
                 )
         except Exception as e:
-            logger.exception(f"Agent run error: {e.__class__.__name__} - {e}")
+            logger.error(f"Agent run error: {e.__class__.__name__} - {e}")
             await message.reply_text(
                 i18n.t("bot.msg.agent.errors.interrupted", locale=lang).format(
-                    error=f"{e.__class__.__name__}: {e}"
+                    error=f"{e.__class__.__name__}"
                 )
             )
     finally:
