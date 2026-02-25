@@ -12,9 +12,7 @@ _REPLY_INTENT_PREFIX = "bottle_reply_intent:"
 async def base_filter_func(_, __, message: pyrogram.types.Message) -> bool:
     if not message:
         return False
-    text = message.text or message.caption
-    if not text or len(text.strip()) == 0:
-        return False
+    text = message.text or message.caption or ""
     if (
         message.entities is not None
         and message.entities[0].type == pyrogram.enums.MessageEntityType.BOT_COMMAND

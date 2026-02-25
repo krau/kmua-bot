@@ -9,7 +9,7 @@ from kmua.config import app_config
 
 
 @pyrogram.Client.on_message(
-    pyrogram.filters.sticker & pyrogram.filters.private, group=0
+    pyrogram.filters.sticker & pyrogram.filters.private, group=1
 )
 async def handle_sticker(client: pyrogram.Client, message: pyrogram.types.Message):
     sticker = message.sticker
