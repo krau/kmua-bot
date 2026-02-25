@@ -352,8 +352,14 @@ async def wake_agent(client: PyrogramClient, message: pyrogram.types.Message):
                                                 )
                             elif Agent.is_call_tools_node(node):
                                 # Tool call node - finalize current streaming output
-                                # so subsequent output goes to a new message
-                                if streaming_output is not None:
+                                # so subsequent output goes to a new message.
+                                # Only do this when there are actual tool calls,
+                                # since pure-text responses also go through this node.
+                                has_tool_calls = any(
+                                    part.part_kind == "tool-call"
+                                    for part in node.model_response.parts
+                                )
+                                if has_tool_calls and streaming_output is not None:
                                     await streaming_output.finalize()
                                     streaming_output = None
                             elif Agent.is_end_node(node):
