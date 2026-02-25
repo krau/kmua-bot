@@ -150,13 +150,10 @@ if app_config.agent:
         ],
         deps_type=datatype.ContextDeps,
         history_processors=[history_processor],
-        retries=3,
+        retries=5,
     )
-    summary_agent = Agent(
-        model=model, system_prompt=app_config.agent_summary_prompt, retries=3
-    )
+    summary_agent = Agent(model=model, system_prompt=app_config.agent_summary_prompt)
     memory_agent = Agent(
-        retries=3,
         model=model,
         output_type=datatype.UserMemoryResult,
         system_prompt=app_config.agent_memory_prompt,
