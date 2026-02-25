@@ -350,6 +350,12 @@ async def wake_agent(client: PyrogramClient, message: pyrogram.types.Message):
                                                 await streaming_output.append_delta(
                                                     event.delta.content_delta
                                                 )
+                            elif Agent.is_call_tools_node(node):
+                                # Tool call node - finalize current streaming output
+                                # so subsequent output goes to a new message
+                                if streaming_output is not None:
+                                    await streaming_output.finalize()
+                                    streaming_output = None
                             elif Agent.is_end_node(node):
                                 assert agent_run.result is not None, (
                                     "Agent run ended without result"
