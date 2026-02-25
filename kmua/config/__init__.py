@@ -65,6 +65,7 @@ class _AppConfig(pydantic.BaseModel):
 
     # agent
     agent: bool = False
+    agent_group_context_nearby_message_count: int = 0
     agent_reflection_post_interval: int = 86400 * 3
     agent_follow_up: bool = True
     agent_cross_group_memory: bool = False
