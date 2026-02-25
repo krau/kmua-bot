@@ -1,4 +1,5 @@
 import asyncio
+import mimetypes
 import random
 from collections import defaultdict
 from datetime import datetime
@@ -659,10 +660,13 @@ async def get_input_prompt(
                     if (
                         document
                         and document.file_id
-                        and document.mime_type
                         and document.file_size <= 10 * 1024 * 1024
                     ):
-                        if document.mime_type in app_config.agent_multimodal_inputs:
+                        mime_type = document.mime_type
+                        if not mime_type:
+                            thetype, _ = mimetypes.guess_type(document.file_name)
+                            mime_type = thetype or "application/octet-stream"
+                        if mime_type in app_config.agent_multimodal_inputs:
                             doc_file = await client.download_media(
                                 message=document.file_id, in_memory=True
                             )
@@ -670,7 +674,7 @@ async def get_input_prompt(
                                 contents.append(
                                     BinaryContent(
                                         data=doc_file.getvalue(),
-                                        media_type=document.mime_type,
+                                        media_type=mime_type,
                                     )
                                 )
                         elif (
