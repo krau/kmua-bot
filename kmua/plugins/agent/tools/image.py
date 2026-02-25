@@ -91,9 +91,6 @@ async def generate_image(
         return ImageOperationResult(
             success=False, message="Current message context is unavailable."
         )
-    logger.debug(
-        f"generate_image called: chat_id={ctx.deps.chat_id}, user_id={ctx.deps.user_id}, prompt={prompt[:100]}"
-    )
     await ctx.deps.client.send_chat_action(
         chat_id=ctx.deps.chat_id,
         action=pyrogram.enums.chat_action.ChatAction.UPLOAD_PHOTO,
@@ -152,11 +149,6 @@ async def edit_image(
         return ImageOperationResult(
             success=False, message="Current message context is unavailable."
         )
-
-    logger.debug(
-        f"edit_image called: chat_id={ctx.deps.chat_id}, user_id={ctx.deps.user_id}, prompt={prompt[:100]}"
-    )
-
     image_bytes: bytes | None = None
     mime_type: str = "image/jpeg"
 

@@ -42,7 +42,7 @@ async def buy_gift(client: Client, message: types.Message):
     )
 
 
-@Client.on_callback_query(filters.regex(r"^buygift:(\d+):(.+):(.+)$"), group=1)
+@Client.on_callback_query(filters.regex(r"^buygift:(\d+):(.+):(.+)$"), group=0)
 async def handle_buy_gift_callback(client: Client, callback_query: types.CallbackQuery):
     data = callback_query.data
     if data is None:
@@ -205,7 +205,7 @@ async def send_gift(client: Client, message: types.Message):
     )
 
 
-@Client.on_callback_query(filters.regex(r"^sendgift_page:.+$"), group=1)
+@Client.on_callback_query(filters.regex(r"^sendgift_page:.+$"), group=0)
 async def handle_send_gift_page_callback(
     client: Client, callback_query: types.CallbackQuery
 ):

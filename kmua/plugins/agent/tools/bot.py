@@ -1,7 +1,6 @@
 import datetime
 import random
 from dataclasses import dataclass
-from hashlib import md5
 from typing import Literal
 
 import pyrogram
@@ -52,9 +51,6 @@ async def send_anime_photo(
     Returns:
         An AnimePhotoResult dataclass containing the result of the operation.
     """
-    logger.debug(
-        f"send_anime_photo called with chat_id: {ctx.deps.chat_id}, user_id: {ctx.deps.user_id}, keyword: {keyword}"
-    )
     if ctx.deps.message is None or ctx.deps.message.id is None:
         return AnimePhotoResult(
             success=False, message="Current message context is unavailable."
@@ -229,10 +225,6 @@ async def get_history_messages(
         raise ModelRetry(
             "Invalid direction. Use 'latest', 'before', 'after', or 'between'."
         )
-
-    logger.debug(
-        f"get_history_messages called: direction={direction}, start_id={start_id}, end_id={end_id}, chat_id={chat_id}"
-    )
     try:
         msgs = await common.get_messages_with_cache(
             chat_id=chat_id, message_ids=list(range(start_id, end_id)), replies=1
@@ -275,9 +267,6 @@ async def search_messages(
     if count <= 0 or count > 200:
         raise ModelRetry("Count must be between 1 and 200, inclusive.")
     chat_id = int(str(ctx.deps.chat_id).removeprefix("-100"))
-    logger.debug(
-        f"search_messages called with chat_id: {chat_id}, query: {query}, count: {count}, user_id: {user_id}"
-    )
     resp, err = await btts.btts_client.search(
         query=query,
         chat_id=chat_id,
@@ -311,50 +300,3 @@ async def search_messages(
     if not messages:
         return "No messages found matching the query."
     return messages
-
-
-async def schedule_message(
-    ctx: RunContext[datatype.ContextDeps],
-    message: str,
-    schedule_time: str,
-) -> str | None:
-    """Schedule a message to be sent at a specific time,
-    can be used to send reminders or scheduled announcements
-
-    Arguments:
-        message: text message to be sent.
-        schedule_time: ISO 8601 formatted string representing the time to send the message,
-            Example: "2025-06-04T15:00:00+08:00"
-
-    Returns:
-        None if successful, or an error message string.
-    """
-    logger.debug(
-        f"schedule_message called with chat_id: {ctx.deps.chat_id}, user_id: {ctx.deps.user_id}, message: {message}, schedule_time: {schedule_time}"
-    )
-    try:
-        schedule_datetime = datetime.datetime.fromisoformat(schedule_time)
-    except ValueError as e:
-        raise ModelRetry(
-            f"Invalid schedule_time format. Use ISO 8601 format, e.g., '2025-06-04T15:00:00+08:00'.\nError: {e}"
-        )
-    if schedule_datetime < datetime.datetime.now(datetime.UTC):
-        raise ModelRetry("Schedule time must be in the future.")
-    try:
-
-        async def _send_scheduled_message():
-            try:
-                await ctx.deps.message.reply(text=message)
-            except Exception as e:
-                logger.error(
-                    f"Failed to send scheduled message: {e.__class__.__name__}:{e}"
-                )
-
-        common.jobqueue.add_onetime_job(
-            f"agent_schedule_message:{ctx.deps.chat_id}:{ctx.deps.user_id}:{schedule_datetime.timestamp()}:{md5(message.encode()).hexdigest()}",
-            run_date=schedule_datetime,
-            func=_send_scheduled_message,
-        )
-    except Exception as e:
-        logger.error(f"Error scheduling message: {e.__class__.__name__}:{e}")
-        return f"Error scheduling message: {e.__class__.__name__}"

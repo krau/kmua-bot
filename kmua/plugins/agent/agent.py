@@ -302,7 +302,9 @@ async def wake_agent(client: PyrogramClient, message: pyrogram.types.Message):
         )
         user_message_text = message.text or message.caption or ""
         if user_message_text:
-            logger.debug(f"User {user.id} prompt: {user_message_text}")
+            logger.debug(
+                f"User {user.id} wake agent in Chat {chat.id}: {user_message_text}"
+            )
         await utils.cache_user_image(message, chat_id, user.id)
         try:
             use_model = multimodal_model if needs_multimodal else model
@@ -355,14 +357,17 @@ async def wake_agent(client: PyrogramClient, message: pyrogram.types.Message):
                                                         event.delta.content_delta
                                                     )
                                 elif Agent.is_call_tools_node(node):
-                                    # Tool call node - finalize current streaming output
-                                    # so subsequent output goes to a new message.
-                                    # Only do this when there are actual tool calls,
-                                    # since pure-text responses also go through this node.
-                                    has_tool_calls = any(
-                                        part.part_kind == "tool-call"
-                                        for part in node.model_response.parts
-                                    )
+                                    # Log tool calls
+                                    has_tool_calls = False
+                                    for part in node.model_response.parts:
+                                        if part.part_kind == "tool-call":
+                                            has_tool_calls = True
+                                            args_str = (
+                                                str(part.args) if part.args else ""
+                                            )
+                                            logger.debug(
+                                                f"Tool call for user {user.id} in chat {chat.id}: {part.tool_name}({args_str[:200]}...)"
+                                            )
                                     if has_tool_calls and streaming_output is not None:
                                         await streaming_output.finalize()
                                         streaming_output = None
@@ -418,8 +423,19 @@ async def wake_agent(client: PyrogramClient, message: pyrogram.types.Message):
                         replied = False
                         async for node in agent_run:
                             if Agent.is_call_tools_node(node):
+                                # Log tool calls
                                 for part in node.model_response.parts:
-                                    if part.part_kind == "text" and part.content:
+                                    if part.part_kind == "tool-call":
+                                        args_str = str(part.args) if part.args else ""
+                                        if len(args_str) > 200:
+                                            logger.debug(
+                                                f"Tool call: {part.tool_name}({args_str[:200]}...)"
+                                            )
+                                        else:
+                                            logger.debug(
+                                                f"Tool call: {part.tool_name}({args_str})"
+                                            )
+                                    elif part.part_kind == "text" and part.content:
                                         await utils.reply_output(
                                             client, message, part.content
                                         )

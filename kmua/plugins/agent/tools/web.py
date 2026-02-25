@@ -135,7 +135,6 @@ async def webfetch(ctx: RunContext[datatype.ContextDeps], url: str) -> WebFetchR
     Args:
         url: Full URL to fetch (http:// or https://).
     """
-    logger.debug(f"webfetch called with url={url} by user_id={ctx.deps.user_id}")
     if not url.startswith(("http://", "https://")):
         raise ModelRetry("URL must start with http:// or https://")
     try:

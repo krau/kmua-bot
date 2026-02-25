@@ -43,9 +43,6 @@ async def send_media(
     Returns:
         A SendResult indicating success or failure.
     """
-    logger.debug(
-        f"send_media called with type={type} for user_id={ctx.deps.user_id} in chat_id={ctx.deps.chat_id}"
-    )
     if ctx.deps.message is None or ctx.deps.chat_id is None:
         return SendResult(success=False, message="Message context is unavailable.")
 
@@ -192,9 +189,6 @@ async def send_poll(
     Returns:
         A SendResult indicating success or failure.
     """
-    logger.debug(
-        f"send_poll called for user_id={ctx.deps.user_id} in chat_id={ctx.deps.chat_id}"
-    )
     if ctx.deps.message is None or ctx.deps.chat_id is None:
         return SendResult(success=False, message="Message context is unavailable.")
 

@@ -167,8 +167,14 @@ async def resume_ask(
                 replied = False
                 async for node in agent_run:
                     if Agent.is_call_tools_node(node):
+                        # Log tool calls
                         for part in node.model_response.parts:
-                            if part.part_kind == "text" and part.content:
+                            if part.part_kind == "tool-call":
+                                args_str = str(part.args) if part.args else ""
+                                logger.debug(
+                                    f"Tool call: {part.tool_name}({args_str[:200]}...)"
+                                )
+                            elif part.part_kind == "text" and part.content:
                                 await utils.reply_output(client, message, part.content)
                                 replied = True
                     elif Agent.is_end_node(node):
@@ -213,9 +219,6 @@ async def ask_user(
     Returns:
         The user's answer as a plain string (the text of the chosen option).
     """
-    logger.debug(
-        f"ask_user called with question='{question}' and options={options} for user_id={ctx.deps.user_id} in chat_id={ctx.deps.chat_id}"
-    )
     if not options or len(options) < 2:
         raise ModelRetry("Provide at least 2 options.")
     if len(options) > 5:

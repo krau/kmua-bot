@@ -3,7 +3,6 @@ from pydantic import BaseModel
 from pydantic_ai import ModelRetry, RunContext
 
 from kmua import database
-from kmua.logger import logger
 from kmua.plugins.agent import datatype
 
 
@@ -76,9 +75,6 @@ async def search_group_memory(
         A list of matching memory entries as strings. Returns an empty list if
         no relevant memories are found.
     """
-    logger.debug(
-        f"search_group_memory called with query='{query}' for chat_id={ctx.deps.chat_id}"
-    )
     if not ctx.deps.powermemory:
         return []
     results = await ctx.deps.powermemory.search(
