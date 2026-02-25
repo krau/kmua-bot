@@ -44,11 +44,10 @@ class AnimePhotoResult:
 async def send_anime_photo(
     ctx: RunContext[datatype.ContextDeps], keyword: str = ""
 ) -> AnimePhotoResult:
-    """Get and send anime photos (some users call it setu/涩图).
-    [NOTE] DO NOT repeatly call this function in a short time.
+    """Get and send anime photos (or called it setu/涩图).
 
     Args:
-        keyword: Optional keyword to search for specific anime photos, max length is 100 characters.
+        keyword: Optional keyword to search for specific anime photos.
 
     Returns:
         An AnimePhotoResult dataclass containing the result of the operation.
