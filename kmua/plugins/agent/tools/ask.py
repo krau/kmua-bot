@@ -11,7 +11,6 @@ from pydantic_ai import (
 )
 from pydantic_ai.messages import ModelMessage
 from pyrogram.client import Client
-from pyrogram.enums.chat_action import ChatAction
 from pyrogram.types import CallbackQuery
 
 from kmua import common, database, i18n
@@ -163,29 +162,29 @@ async def resume_ask(
 
     await common.memstore.set(state.waiting_key(user_id), True)
     try:
-        await client.send_chat_action(chat_id=chat_id, action=ChatAction.TYPING)
-        async with _agent.iter(model=use_model, **run_kwargs) as agent_run:  # type: ignore
-            replied = False
-            async for node in agent_run:
-                if Agent.is_call_tools_node(node):
-                    for part in node.model_response.parts:
-                        if part.part_kind == "text" and part.content:
-                            await utils.reply_output(client, message, part.content)
-                            replied = True
-                elif Agent.is_end_node(node):
-                    assert agent_run.result is not None
-                    output = agent_run.result.output
-                    if isinstance(output, DeferredToolRequests):
-                        logger.info(
-                            f"Agent returned DeferredToolRequests again for user {user_id}"
-                        )
-                    elif not replied and output:
-                        await utils.reply_output(client, message, output)
-            await common.memttlcache.set(
-                state.history_key(chat_id, user_id),
-                agent_run.all_messages(),
-                ttl=app_config.cachettl_agent_history,
-            )
+        async with utils.TypingKeepAlive(client, message):
+            async with _agent.iter(model=use_model, **run_kwargs) as agent_run:  # type: ignore
+                replied = False
+                async for node in agent_run:
+                    if Agent.is_call_tools_node(node):
+                        for part in node.model_response.parts:
+                            if part.part_kind == "text" and part.content:
+                                await utils.reply_output(client, message, part.content)
+                                replied = True
+                    elif Agent.is_end_node(node):
+                        assert agent_run.result is not None
+                        output = agent_run.result.output
+                        if isinstance(output, DeferredToolRequests):
+                            logger.info(
+                                f"Agent returned DeferredToolRequests again for user {user_id}"
+                            )
+                        elif not replied and output:
+                            await utils.reply_output(client, message, output)
+                await common.memttlcache.set(
+                    state.history_key(chat_id, user_id),
+                    agent_run.all_messages(),
+                    ttl=app_config.cachettl_agent_history,
+                )
     except Exception as e:
         logger.error(f"resume_ask error: {e.__class__.__name__} - {e}")
         await message.reply_text(

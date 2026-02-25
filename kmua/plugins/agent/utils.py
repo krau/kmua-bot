@@ -128,9 +128,67 @@ async def reply_output(
         logger.error(f"Error replying message: {e.__class__.__name__} - {e}")
 
 
+class TypingKeepAlive:
+    """Maintains a typing chat action for the duration of a long-running operation.
+
+    This is a standalone context manager that keeps sending TYPING status
+    independently of StreamingOutput, so typing continues during tool calls too.
+    """
+
+    CHAT_ACTION_INTERVAL = 4
+
+    def __init__(self, client: PyrogramClient, message: pyrogram.types.Message):
+        self.client = client
+        self.message = message
+        self._stop = False
+        self._task: asyncio.Task | None = None
+
+    async def _loop(self):
+        chat = self.message.chat
+        chat_id = chat.id if chat else None
+        if not chat_id:
+            return
+        first = True
+        while not self._stop:
+            try:
+                if not first:
+                    await asyncio.sleep(self.CHAT_ACTION_INTERVAL)
+                    if self._stop:
+                        break
+                first = False
+                await self.client.send_chat_action(
+                    chat_id=chat_id,
+                    action=pyrogram.enums.ChatAction.TYPING,
+                )
+            except asyncio.CancelledError:
+                break
+            except Exception as e:
+                logger.debug(f"TypingKeepAlive: error sending chat action: {e}")
+                break
+
+    def start(self):
+        self._stop = False
+        self._task = asyncio.create_task(self._loop())
+
+    async def stop(self):
+        self._stop = True
+        if self._task and not self._task.done():
+            self._task.cancel()
+            try:
+                await self._task
+            except asyncio.CancelledError:
+                pass
+
+    async def __aenter__(self):
+        self.start()
+        return self
+
+    async def __aexit__(self, *_):
+        await self.stop()
+
+
 class StreamingOutput:
     STREAM_EDIT_INTERVAL = 1.5
-    CHAT_ACTION_INTERVAL = 4.5
     MAX_MESSAGE_LENGTH = 4000
     MAX_EDIT_COUNT = 20
     MAX_TOTAL_TIME = 120.0
@@ -156,29 +214,6 @@ class StreamingOutput:
         self._edit_task: asyncio.Task | None = None
         self._start_task: asyncio.Task | None = None
         self._stop = False
-        self._chat_action_task = asyncio.create_task(self._keep_typing_action())
-
-    async def _keep_typing_action(self):
-        first = True
-        while not self._stop:
-            try:
-                if not first:
-                    await asyncio.sleep(self.CHAT_ACTION_INTERVAL)
-                    if self._stop:
-                        break
-                first = False
-                chat = self.message.chat
-                chat_id = chat.id if chat else None
-                if chat_id:
-                    await self.client.send_chat_action(
-                        chat_id=chat_id,
-                        action=pyrogram.enums.ChatAction.TYPING,
-                    )
-            except asyncio.CancelledError:
-                break
-            except Exception as e:
-                logger.error(f"Error sending chat action: {e.__class__.__name__} - {e}")
-                break
 
     def _is_within_limits(self) -> bool:
         current_time = asyncio.get_event_loop().time()
@@ -245,21 +280,18 @@ class StreamingOutput:
         if self.start_time == 0.0 and self.current_text.strip():
             self.start_time = asyncio.get_event_loop().time()
             self._stop = False
-            if self._chat_action_task is None or self._chat_action_task.done():
-                self._chat_action_task = asyncio.create_task(self._keep_typing_action())
             self._start_task = asyncio.create_task(self._start())
 
     async def finalize(self):
         self._stop = True
         if self._start_task and not self._start_task.done():
             await self._start_task
-        for task in (self._chat_action_task, self._edit_task):
-            if task and not task.done():
-                task.cancel()
-                try:
-                    await task
-                except asyncio.CancelledError:
-                    pass
+        if self._edit_task and not self._edit_task.done():
+            self._edit_task.cancel()
+            try:
+                await self._edit_task
+            except asyncio.CancelledError:
+                pass
         if self.reply_message and self.current_text:
             text = self.current_text
             if text != self._last_sent_text:
@@ -286,7 +318,7 @@ class StreamingOutput:
 
     async def abort(self):
         self._stop = True
-        for task in (self._start_task, self._chat_action_task, self._edit_task):
+        for task in (self._start_task, self._edit_task):
             if task and not task.done():
                 task.cancel()
                 try:
