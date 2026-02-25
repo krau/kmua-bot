@@ -106,7 +106,6 @@ if app_config.agent:
         model=model,
         instructions=app_config.agent_prompt,
         tools=[
-            tools.send_message,
             Tool(tools.get_chat_info, prepare=tools.prepare_group_tools),
             Tool(tools.get_history_messages, prepare=tools.prepare_group_tools),
             Tool(
@@ -123,8 +122,6 @@ if app_config.agent:
                 tools.search_chat_in_jokes,
                 prepare=tools.prepare_group_tools,
             ),
-            tools.send_anime_photo,
-            tools.send_reaction,
             Tool(
                 tools.search_group_memory,
                 prepare=tools.prepare_powermem_tool,
@@ -137,7 +134,6 @@ if app_config.agent:
                 tools.edit_image,
                 prepare=tools.prepare_image_edit_tools,
             ),
-            tools.ask_user,
             Tool(
                 tools.webfetch,
                 prepare=tools.prepare_configurable_tools,
@@ -146,6 +142,11 @@ if app_config.agent:
                 tools.send_sticker,
                 prepare=tools.prepare_sticker_tool,
             ),
+            tools.ask_user,
+            tools.send_anime_photo,
+            tools.send_reaction,
+            tools.send_media,
+            tools.send_poll,
         ],
         deps_type=datatype.ContextDeps,
         history_processors=[history_processor],

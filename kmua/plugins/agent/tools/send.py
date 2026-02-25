@@ -18,45 +18,25 @@ class SendResult:
     message: str | None = None
 
 
-async def send_message(
+async def send_media(
     ctx: RunContext[datatype.ContextDeps],
-    type: Literal["text", "photo", "video", "audio", "document", "poll"],
+    type: Literal["photo", "video", "audio", "document"],
     text: str | None = None,
     url: str | None = None,
     caption: str | None = None,
-    poll_question: str | None = None,
-    poll_options: list[str] | None = None,
-    poll_is_anonymous: bool = True,
-    poll_allows_multiple_answers: bool = False,
     schedule_time: str | None = None,
 ) -> SendResult:
-    """Send a message to the current chat without replying to a specific message.
+    """Send a media message to the current chat.
 
     **Use this tool only when a normal return value is not appropriate**, such as:
     - Sending a scheduled/delayed message (use `schedule_time`)
-    - Proactively sending media (photo, video, audio, document) or a poll
+    - Proactively sending media (photo, video, audio, document)
     - Any situation where you need to send a non-text message type
 
-    **Do NOT use this tool just to send a plain text response.** When you want
-    to reply to the user with text, simply return the text as your response —
-    the bot will deliver it automatically. Calling this tool for a plain text
-    reply creates a duplicate message and degrades the experience.
-
     Args:
-        type: Message type. One of:
-            - "text": plain text message (avoid unless scheduling). Requires `text`.
-            - "photo": image. Requires `url` (direct image link).
-            - "video": video. Requires `url` (direct video link).
-            - "audio": audio file. Requires `url` (direct audio link).
-            - "document": generic file. Requires `url` (direct file link).
-            - "poll": poll message. Requires `poll_question` and `poll_options`.
-        text: Message text for type "text". Supports Markdown.
+        type: Message type. One of "photo", "video", "audio", "document".
         url: Direct URL for media types.
         caption: Optional caption for media messages.
-        poll_question: Question text for poll messages.
-        poll_options: List of 2-10 option strings for poll messages.
-        poll_is_anonymous: Whether the poll is anonymous (default True).
-        poll_allows_multiple_answers: Whether multiple answers are allowed (default False).
         schedule_time: Optional ISO 8601 datetime string to schedule delivery,
             e.g. "2025-06-04T15:00:00+08:00". If omitted, sends immediately.
 
@@ -64,7 +44,7 @@ async def send_message(
         A SendResult indicating success or failure.
     """
     logger.debug(
-        f"send_message called with type={type} for user_id={ctx.deps.user_id} in chat_id={ctx.deps.chat_id}"
+        f"send_media called with type={type} for user_id={ctx.deps.user_id} in chat_id={ctx.deps.chat_id}"
     )
     if ctx.deps.message is None or ctx.deps.chat_id is None:
         return SendResult(success=False, message="Message context is unavailable.")
@@ -86,18 +66,13 @@ async def send_message(
     chat_id = ctx.deps.chat_id
 
     if schedule_datetime is not None:
-        await _schedule(
+        await _schedule_media(
             ctx,
             type,
             text,
             url,
             caption,
-            poll_question,
-            poll_options,
-            poll_is_anonymous,
-            poll_allows_multiple_answers,
             schedule_datetime,
-            reply_params,
             chat_id,
         )
         return SendResult(
@@ -106,15 +81,6 @@ async def send_message(
 
     try:
         match type:
-            case "text":
-                if not text or not text.strip():
-                    raise ModelRetry("'text' is required for type 'text'.")
-                await ctx.deps.client.send_message(
-                    chat_id=chat_id,
-                    text=text,
-                    reply_parameters=reply_params,
-                )
-
             case "photo":
                 if not url:
                     raise ModelRetry("'url' is required for type 'photo'.")
@@ -155,71 +121,163 @@ async def send_message(
                     reply_parameters=reply_params,
                 )
 
-            case "poll":
-                if not poll_question or not poll_question.strip():
-                    raise ModelRetry("'poll_question' is required for type 'poll'.")
-                if not poll_options or len(poll_options) < 2:
-                    raise ModelRetry("'poll_options' must have at least 2 items.")
-                if len(poll_options) > 10:
-                    raise ModelRetry("'poll_options' must have at most 10 items.")
-                await ctx.deps.client.send_poll(
-                    chat_id=chat_id,
-                    question=poll_question,
-                    options=poll_options,
-                    is_anonymous=poll_is_anonymous,
-                    allows_multiple_answers=poll_allows_multiple_answers,
-                    reply_parameters=reply_params,
-                )
-
             case _:
                 raise ModelRetry(
-                    f"Unknown type '{type}'. Use one of: text, photo, video, audio, document, sticker, poll."
+                    f"Unknown type '{type}'. Use one of: photo, video, audio, document."
                 )
 
     except ModelRetry:
         raise
     except Exception as e:
-        logger.error(f"send_message failed (type={type}): {e.__class__.__name__}: {e}")
-        raise ModelRetry(f"Failed to send message: {e.__class__.__name__}: {e}")
+        logger.error(f"send_media failed (type={type}): {e.__class__.__name__}: {e}")
+        raise ModelRetry(f"Failed to send media: {e.__class__.__name__}: {e}")
 
     return SendResult(success=True)
 
 
-async def _schedule(
+async def _schedule_media(
     ctx: RunContext[datatype.ContextDeps],
     type: str,
     text: str | None,
     url: str | None,
     caption: str | None,
-    poll_question: str | None,
-    poll_options: list[str] | None,
-    poll_is_anonymous: bool,
-    poll_allows_multiple_answers: bool,
     schedule_datetime: datetime.datetime,
-    reply_params: pyrogram.types.ReplyParameters,
     chat_id: int,
 ) -> None:
     job_key = (
-        f"agent_send_message:{chat_id}:{ctx.deps.user_id}"
+        f"agent_send_media:{chat_id}:{ctx.deps.user_id}"
         f":{schedule_datetime.timestamp()}"
-        f":{md5((text or url or poll_question or '').encode()).hexdigest()}"
+        f":{md5((text or url or '').encode()).hexdigest()}"
     )
 
     async def _job() -> None:
-        result = await send_message(
+        result = await send_media(
             ctx=ctx,
             type=type,  # type: ignore[arg-type]
             text=text,
             url=url,
             caption=caption,
-            poll_question=poll_question,
-            poll_options=poll_options,
-            poll_is_anonymous=poll_is_anonymous,
-            poll_allows_multiple_answers=poll_allows_multiple_answers,
             schedule_time=None,
         )
         if not result.success:
-            logger.error(f"Scheduled send_message failed: {result.message}")
+            logger.error(f"Scheduled send_media failed: {result.message}")
+
+    common.jobqueue.add_onetime_job(
+        job_key,
+        run_date=schedule_datetime,
+        func=_job,
+    )
+
+
+async def send_poll(
+    ctx: RunContext[datatype.ContextDeps],
+    question: str,
+    options: list[str],
+    is_anonymous: bool = False,
+    allows_multiple_answers: bool = False,
+    schedule_time: str | None = None,
+) -> SendResult:
+    """Send a poll to the current chat.
+
+    Use this tool to create interactive polls with 2-8 options for users to vote on.
+
+    Args:
+        question: The poll question text (1-300 characters).
+        options: List of 2-8 answer options for the poll.
+        is_anonymous: Whether the poll is anonymous.
+        allows_multiple_answers: Whether users can select multiple answers.
+        schedule_time: Optional ISO 8601 datetime string to schedule delivery,
+            e.g. "2025-06-04T15:00:00+08:00". If omitted, sends immediately.
+
+    Returns:
+        A SendResult indicating success or failure.
+    """
+    logger.debug(
+        f"send_poll called for user_id={ctx.deps.user_id} in chat_id={ctx.deps.chat_id}"
+    )
+    if ctx.deps.message is None or ctx.deps.chat_id is None:
+        return SendResult(success=False, message="Message context is unavailable.")
+
+    schedule_datetime: datetime.datetime | None = None
+    if schedule_time is not None:
+        try:
+            schedule_datetime = datetime.datetime.fromisoformat(schedule_time)
+        except ValueError as e:
+            raise ModelRetry(
+                f"Invalid schedule_time format. Use ISO 8601, e.g. '2025-06-04T15:00:00+08:00'. Error: {e}"
+            )
+        if schedule_datetime < datetime.datetime.now(datetime.UTC):
+            raise ModelRetry("schedule_time must be in the future.")
+
+    reply_params = pyrogram.types.ReplyParameters(
+        message_id=ctx.deps.message.id,
+    )
+    chat_id = ctx.deps.chat_id
+
+    if not question or not question.strip():
+        raise ModelRetry("'question' is required for poll.")
+    if not options or len(options) < 2:
+        raise ModelRetry("'options' must have at least 2 items.")
+    if len(options) > 10:
+        raise ModelRetry("'options' must have at most 10 items.")
+
+    if schedule_datetime is not None:
+        await _schedule_poll(
+            ctx,
+            question,
+            options,
+            is_anonymous,
+            allows_multiple_answers,
+            schedule_datetime,
+            reply_params,
+            chat_id,
+        )
+        return SendResult(
+            success=True, message=f"Scheduled for {schedule_datetime.isoformat()}"
+        )
+
+    try:
+        await ctx.deps.client.send_poll(
+            chat_id=chat_id,
+            question=question,
+            options=options,
+            is_anonymous=is_anonymous,
+            allows_multiple_answers=allows_multiple_answers,
+            reply_parameters=reply_params,
+        )
+    except Exception as e:
+        logger.error(f"send_poll failed: {e.__class__.__name__}: {e}")
+        raise ModelRetry(f"Failed to send poll: {e.__class__.__name__}: {e}")
+
+    return SendResult(success=True)
+
+
+async def _schedule_poll(
+    ctx: RunContext[datatype.ContextDeps],
+    question: str,
+    options: list[str],
+    is_anonymous: bool,
+    allows_multiple_answers: bool,
+    schedule_datetime: datetime.datetime,
+    chat_id: int,
+) -> None:
+    job_key = (
+        f"agent_send_poll:{chat_id}:{ctx.deps.user_id}"
+        f":{schedule_datetime.timestamp()}"
+        f":{md5(question.encode()).hexdigest()}"
+    )
+
+    async def _job() -> None:
+        result = await send_poll(
+            ctx=ctx,
+            question=question,
+            options=options,
+            is_anonymous=is_anonymous,
+            allows_multiple_answers=allows_multiple_answers,
+            schedule_time=None,
+        )
+        if not result.success:
+            logger.error(f"Scheduled send_poll failed: {result.message}")
 
     common.jobqueue.add_onetime_job(
         job_key,
@@ -301,4 +359,4 @@ async def send_reaction(
     return SendResult(success=True)
 
 
-__all__ = ["send_message", "send_reaction", "send_sticker"]
+__all__ = ["send_media", "send_poll", "send_reaction", "send_sticker"]
