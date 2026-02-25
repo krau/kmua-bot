@@ -81,6 +81,7 @@ async def resume_ask(
     powermemory=None,
     user_prompt: str | list | None = None,
     needs_multimodal: bool = False,
+    user_id: int | None = None,
 ) -> None:
     """Resume agent run after getting an answer (or no answer) to a deferred ask.
 
@@ -92,6 +93,7 @@ async def resume_ask(
         powermemory: Optional PowerMemory instance.
         user_prompt: Optional new user message (can be text or multimodal content list).
         needs_multimodal: Whether to use multimodal model.
+        user_id: The user ID to use (overrides message.from_user.id). Required if message.from_user is None (e.g. callback query).
     """
 
     global _agent
@@ -99,11 +101,20 @@ async def resume_ask(
         logger.error("resume_ask: agent not set")
         return
 
-    if not message.from_user or not message.chat:
-        logger.error("resume_ask: message.from_user or message.chat is None")
+    if not message.chat:
+        logger.error("resume_ask: message.chat is None")
         return
 
-    user_id = message.from_user.id
+    # When called from a callback_query handler, message is the bot's question message,
+    # so message.from_user would be the bot itself. Use actual_user_id when provided.
+    if user_id is not None:
+        user_id = user_id
+    elif message.from_user:
+        user_id = message.from_user.id
+    else:
+        logger.error("resume_ask: cannot determine user_id")
+        return
+
     chat_id = message.chat.id
     if chat_id is None:
         logger.error("resume_ask: chat_id is None")
@@ -114,7 +125,6 @@ async def resume_ask(
     await clear_ask_state(chat_id, user_id)
 
     deferred_results = DeferredToolResults()
-    deferred_results.calls[ask_state.tool_call_id] = answer
 
     user_data = await database.get_user_by_id(user_id)
     if not user_data:
@@ -123,7 +133,17 @@ async def resume_ask(
     user_config = await database.get_user_config(user_id)
     lang = user_config.lang
 
-    # Build the agent run kwargs
+    # Build the agent run kwargs.
+    # IMPORTANT: pydantic-ai raises UserError if user_prompt is passed together with
+    # deferred_tool_results when the history already ends with unprocessed tool calls.
+    # To pass extra context (e.g. the new message the user sent instead of answering),
+    # we embed it directly into the answer string rather than as a separate user_prompt.
+    if user_prompt is not None:
+        extra_text = user_prompt if isinstance(user_prompt, str) else str(user_prompt)
+        answer = f"{answer}\n用户发送的新消息内容: {extra_text}"
+
+    deferred_results.calls[ask_state.tool_call_id] = answer
+
     run_kwargs = {
         "message_history": ask_state.history,
         "deferred_tool_results": deferred_results,
@@ -136,10 +156,6 @@ async def resume_ask(
             history=list(ask_state.history),
         ),
     }
-
-    # Include user_prompt if provided
-    if user_prompt is not None:
-        run_kwargs["user_prompt"] = user_prompt
 
     # Use multimodal model if needed
     global _model, _multimodal_model
@@ -334,12 +350,14 @@ async def _on_ask_answer(client: Client, callback_query: CallbackQuery) -> None:
         )
 
     # Use the centralized resume function
-
+    # NOTE: msg is the bot's question message, so msg.from_user would be the bot itself.
+    # We must pass the actual user via from_user override.
     await resume_ask(
         client=client,
         ask_state=state,
         answer=answer,
         message=msg,
+        user_id=expected_user_id,
     )
 
 
