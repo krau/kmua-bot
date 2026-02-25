@@ -126,7 +126,7 @@ if app_config.agent:
                 prepare=tools.prepare_message_search_tool,
             ),
             Tool(
-                tools.search_chat_in_jokes,
+                tools.send_chat_quote,
                 prepare=tools.prepare_group_tools,
             ),
             Tool(

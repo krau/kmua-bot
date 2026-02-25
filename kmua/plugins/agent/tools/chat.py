@@ -1,5 +1,6 @@
+import pyrogram.types
 from pydantic import BaseModel
-from pydantic_ai import RunContext
+from pydantic_ai import ModelRetry, RunContext
 
 from kmua import database
 from kmua.logger import logger
@@ -13,26 +14,44 @@ class ChatJoke(BaseModel):
     created_at: str
 
 
-async def search_chat_in_jokes(
-    ctx: RunContext[datatype.ContextDeps], query: str
-) -> list[ChatJoke]:
-    """Search the chat in-jokes (or called "quote"/语录)
+async def send_chat_quote(ctx: RunContext[datatype.ContextDeps], query: str) -> str:
+    """Search and send the chat in-jokes (or called "quote"/语录)
+
+    Given a query, search the database for matching quotes and send the first match.
+    The message will include a reply markup showing the source message and sender.
 
     Arguments:
         query -- The search query.
 
     Returns:
-        A list of ChatJoke objects. If no jokes found, returns an empty list.
+        A message indicating whether a quote was found and sent.
     """
-    return [
-        ChatJoke(
-            content=quote.text or "",
-            sender_id=quote.user.id,
-            sender_name=quote.user.full_name,
-            created_at=quote.created_at.isoformat(),
-        )
-        for quote in await database.get_chat_quotes(ctx.deps.chat_id, query, 10)
-    ]
+    quotes = await database.get_chat_quotes(ctx.deps.chat_id, query, 1)
+    if not quotes:
+        raise ModelRetry("No matching quotes found. Try a different query.")
+
+    quote = quotes[0]
+
+    # Build sender button text (truncate if too long)
+    user_button_text = (
+        quote.user.full_name
+        if len(quote.user.full_name) <= 16
+        else quote.user.full_name[:16] + "..."
+        if quote.user.full_name
+        else str(quote.user_id)
+    )
+
+    # Send the quote message with reply markup showing sender and source
+    await ctx.deps.client.copy_message(
+        chat_id=ctx.deps.chat_id,
+        from_chat_id=quote.chat_id,
+        message_id=quote.message_id,
+        reply_markup=pyrogram.types.InlineKeyboardMarkup(
+            [[pyrogram.types.InlineKeyboardButton(user_button_text, url=quote.link)]]
+        ),
+    )
+
+    return f"Sent quote: '{quote.text[:50] if quote.text else 'Non text content'}...' from {quote.user.full_name or quote.user_id}."
 
 
 async def search_group_memory(
