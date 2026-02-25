@@ -1,36 +1,171 @@
-import asyncio
+import dataclasses
 
 import pyrogram
-from pydantic_ai import ModelRetry, RunContext
+from pydantic_ai import (
+    CallDeferred,
+    DeferredToolRequests,
+    DeferredToolResults,
+    ModelRetry,
+    RunContext,
+)
+from pydantic_ai.messages import ModelMessage
 from pyrogram.client import Client
 from pyrogram.types import CallbackQuery
 
+from kmua import common, database, i18n
 from kmua.common import memstore
+from kmua.config import app_config
 from kmua.logger import logger
 
-from .. import datatype
+from .. import datatype, state, utils
 
-_ASK_TIMEOUT = 120
-_PENDING_KEY_PREFIX = "agent_ask_pending:"
-_OPTIONS_KEY_PREFIX = "agent_ask_options:"
+# Module-level reference to agent instance (set by agent.py)
+_agent = None
 
-
-def _pending_key(chat_id: int, user_id: int) -> str:
-    return f"{_PENDING_KEY_PREFIX}{chat_id}:{user_id}"
+_ASK_STATE_KEY_PREFIX = "agent_ask_state:"
 
 
-def _options_key(chat_id: int, user_id: int) -> str:
-    return f"{_OPTIONS_KEY_PREFIX}{chat_id}:{user_id}"
+@dataclasses.dataclass
+class AskState:
+    """State for a deferred ask operation."""
+
+    options: list[str]
+    tool_call_id: str
+    question: str
+    history: list[ModelMessage]
+
+
+def _state_key(chat_id: int, user_id: int) -> str:
+    return f"{_ASK_STATE_KEY_PREFIX}{chat_id}:{user_id}"
+
+
+async def save_ask_state(chat_id: int, user_id: int, state: AskState) -> None:
+    """Save the complete ask state."""
+    await memstore.set(_state_key(chat_id, user_id), state)
+
+
+async def get_ask_state(chat_id: int, user_id: int) -> AskState | None:
+    """Get the saved ask state."""
+    state: AskState | None = await memstore.get(_state_key(chat_id, user_id))
+    return state
+
+
+async def clear_ask_state(chat_id: int, user_id: int) -> None:
+    """Clear the ask state."""
+    await memstore.delete(_state_key(chat_id, user_id))
+
+
+def set_agent(agent) -> None:
+    """Set the agent instance reference for resume_ask."""
+    global _agent
+    _agent = agent
 
 
 async def cancel_pending_asks(chat_id: int, user_id: int) -> None:
-    future: asyncio.Future[str] | None = await memstore.get(
-        _pending_key(chat_id, user_id)
-    )
-    if future is not None and not future.done():
-        future.cancel()
-    await memstore.delete(_pending_key(chat_id, user_id))
-    await memstore.delete(_options_key(chat_id, user_id))
+    """Cancel any pending asks for the user."""
+    await clear_ask_state(chat_id, user_id)
+
+
+async def resume_ask(
+    client: Client,
+    ask_state: AskState,
+    answer: str,
+    message: pyrogram.types.Message,
+    powermemory=None,
+    user_prompt: str | None = None,
+) -> None:
+    """Resume agent run after getting an answer (or no answer) to a deferred ask.
+
+    Args:
+        client: The Pyrogram client.
+        ask_state: The AskState containing all necessary data.
+        answer: The user's answer, or a message indicating no answer.
+        message: The message object for reply context.
+        powermemory: Optional PowerMemory instance.
+        user_prompt: Optional new user message to include in the conversation.
+    """
+    from pydantic_ai import Agent
+
+    global _agent
+    if _agent is None:
+        logger.error("resume_ask: agent not set")
+        return
+
+    if not message.from_user or not message.chat:
+        logger.error("resume_ask: message.from_user or message.chat is None")
+        return
+
+    user_id = message.from_user.id
+    chat_id = message.chat.id
+    if chat_id is None:
+        logger.error("resume_ask: chat_id is None")
+        return
+
+    assert chat_id is not None  # type: ignore
+
+    await clear_ask_state(chat_id, user_id)
+
+    deferred_results = DeferredToolResults()
+    deferred_results.calls[ask_state.tool_call_id] = answer
+
+    user_data = await database.get_user_by_id(user_id)
+    if not user_data:
+        return
+
+    user_config = await database.get_user_config(user_id)
+    lang = user_config.lang
+
+    # Build the agent run kwargs
+    run_kwargs = {
+        "message_history": ask_state.history,
+        "deferred_tool_results": deferred_results,
+        "deps": datatype.ContextDeps(
+            user_id=user_id,
+            chat_id=chat_id,
+            message=message,
+            client=client,
+            powermemory=powermemory,
+            history=list(ask_state.history),
+        ),
+    }
+
+    # Include user_prompt if provided (for when user sends new message instead of answering)
+    if user_prompt is not None:
+        run_kwargs["user_prompt"] = user_prompt
+
+    await common.memstore.set(state.waiting_key(user_id), True)
+    try:
+        async with _agent.iter(**run_kwargs) as agent_run:  # type: ignore
+            replied = False
+            async for node in agent_run:
+                if Agent.is_call_tools_node(node):
+                    for part in node.model_response.parts:
+                        if part.part_kind == "text" and part.content:
+                            await utils.reply_output(client, message, part.content)
+                            replied = True
+                elif Agent.is_end_node(node):
+                    assert agent_run.result is not None
+                    output = agent_run.result.output
+                    if isinstance(output, DeferredToolRequests):
+                        logger.info(
+                            f"Agent returned DeferredToolRequests again for user {user_id}"
+                        )
+                    elif not replied and output:
+                        await utils.reply_output(client, message, output)
+            await common.memttlcache.set(
+                state.history_key(chat_id, user_id),
+                agent_run.all_messages(),
+                ttl=app_config.cachettl_agent_history,
+            )
+    except Exception as e:
+        logger.error(f"resume_ask error: {e.__class__.__name__} - {e}")
+        await message.reply_text(
+            i18n.t("bot.msg.agent.errors.interrupted", locale=lang).format(
+                error=f"{e.__class__.__name__}"
+            )
+        )
+    finally:
+        await common.memstore.delete(state.waiting_key(user_id))
 
 
 async def ask_user(
@@ -48,8 +183,7 @@ async def ask_user(
         options: 2-5 short option labels for the user to choose from.
 
     Returns:
-        The user's answer as a plain string (the text of the chosen option),
-        or a message explaining why no answer was received.
+        The user's answer as a plain string (the text of the chosen option).
     """
     logger.debug(
         f"ask_user called with question='{question}' and options={options} for user_id={ctx.deps.user_id} in chat_id={ctx.deps.chat_id}"
@@ -61,14 +195,11 @@ async def ask_user(
     if not question.strip():
         raise ModelRetry("Question must not be empty.")
     if ctx.deps.message is None or ctx.deps.chat_id is None:
-        return "Message context is unavailable."
+        raise ModelRetry("Message context is unavailable.")
 
     user_id = ctx.deps.user_id
     chat_id = ctx.deps.chat_id
-    loop = asyncio.get_event_loop()
-    future: asyncio.Future[str] = loop.create_future()
-    await memstore.set(_pending_key(chat_id, user_id), future)
-    await memstore.set(_options_key(chat_id, user_id), list(options))
+    tool_call_id = ctx.tool_call_id
 
     rows: list[list[pyrogram.types.InlineKeyboardButton]] = [
         [
@@ -90,21 +221,33 @@ async def ask_user(
             ),
         )
     except Exception as e:
-        await memstore.delete(_pending_key(chat_id, user_id))
-        await memstore.delete(_options_key(chat_id, user_id))
         logger.error(f"ask_user: failed to send question: {e.__class__.__name__}: {e}")
-        return f"Failed to send question: {e.__class__.__name__}"
+        raise ModelRetry(f"Failed to send question: {e.__class__.__name__}")
 
-    try:
-        answer = await asyncio.wait_for(asyncio.shield(future), timeout=_ASK_TIMEOUT)
-        return answer
-    except TimeoutError:
-        return "The user did not respond in time."
-    except asyncio.CancelledError:
-        return "The question was cancelled because the user started a new conversation."
-    finally:
-        await memstore.delete(_pending_key(chat_id, user_id))
-        await memstore.delete(_options_key(chat_id, user_id))
+    await memstore.set(
+        _state_key(chat_id, user_id),
+        AskState(
+            options=list(options),
+            tool_call_id=tool_call_id or "",
+            question=question,
+            history=[],  # Will be filled by agent.py when saving
+        ),
+    )
+
+    raise CallDeferred(metadata={"question": question, "options_count": len(options)})
+
+
+async def update_ask_history(
+    chat_id: int, user_id: int, history: list[ModelMessage]
+) -> None:
+    """Update the history in the ask state.
+
+    Called by agent.py when DeferredToolRequests is returned.
+    """
+    state = await get_ask_state(chat_id, user_id)
+    if state is not None:
+        state.history = list(history)
+        await save_ask_state(chat_id, user_id, state)
 
 
 @Client.on_callback_query(
@@ -124,36 +267,33 @@ async def _on_ask_answer(client: Client, callback_query: CallbackQuery) -> None:
         await callback_query.answer("这不是你的问题哦", show_alert=True)
         return
 
-    options: list[str] | None = await memstore.get(
-        _options_key(expected_chat_id, expected_user_id)
-    )
-    future: asyncio.Future[str] | None = await memstore.get(
-        _pending_key(expected_chat_id, expected_user_id)
-    )
-
-    if future is None or future.done() or options is None:
+    state = await get_ask_state(expected_chat_id, expected_user_id)
+    if state is None:
         await callback_query.answer("这条回答已经过期了哦", show_alert=True)
         return
 
+    # Immediately clear state to prevent multiple selections
+    await clear_ask_state(expected_chat_id, expected_user_id)
+
     try:
         opt_index = int(opt_id_str)
-        answer = options[opt_index]
+        answer = state.options[opt_index]
     except (ValueError, IndexError):
         await callback_query.answer("无效的选项", show_alert=True)
         return
 
-    future.set_result(answer)
     await callback_query.answer()
 
+    msg = callback_query.message
+    if msg is None:
+        logger.error("ask_answer: callback_query.message is None")
+        return
+
+    # Update keyboard to show selected option
     try:
-        msg = callback_query.message
-        chat_id = msg.chat.id if msg and msg.chat else None
-        markup = msg.reply_markup if msg else None
-        if (
-            not chat_id
-            or not msg
-            or not isinstance(markup, pyrogram.types.InlineKeyboardMarkup)
-        ):
+        chat_id = msg.chat.id if msg.chat else None
+        markup = msg.reply_markup
+        if not chat_id or not isinstance(markup, pyrogram.types.InlineKeyboardMarkup):
             return
         new_rows: list[list[pyrogram.types.InlineKeyboardButton]] = []
         for row in markup.inline_keyboard:
@@ -181,5 +321,24 @@ async def _on_ask_answer(client: Client, callback_query: CallbackQuery) -> None:
             f"ask_answer: failed to update keyboard: {e.__class__.__name__}: {e}"
         )
 
+    # Use the centralized resume function
 
-__all__ = ["ask_user", "cancel_pending_asks"]
+    await resume_ask(
+        client=client,
+        ask_state=state,
+        answer=answer,
+        message=msg,
+    )
+
+
+__all__ = [
+    "ask_user",
+    "resume_ask",
+    "AskState",
+    "save_ask_state",
+    "get_ask_state",
+    "update_ask_history",
+    "clear_ask_state",
+    "cancel_pending_asks",
+    "set_agent",
+]

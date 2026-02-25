@@ -5,7 +5,13 @@ import pydantic_ai
 import pyrogram
 from ddgs import DDGS
 from powermem import AsyncMemory
-from pydantic_ai import Agent, ModelMessage, RunContext, Tool
+from pydantic_ai import (
+    Agent,
+    DeferredToolRequests,
+    ModelMessage,
+    RunContext,
+    Tool,
+)
 from pydantic_ai.common_tools.duckduckgo import DuckDuckGoSearchTool
 from pydantic_ai.messages import (
     PartDeltaEvent,
@@ -105,6 +111,7 @@ if app_config.agent:
     agent = Agent(
         model=model,
         instructions=app_config.agent_prompt,
+        output_type=[str, DeferredToolRequests],
         tools=[
             Tool(tools.get_chat_info, prepare=tools.prepare_group_tools),
             Tool(tools.get_history_messages, prepare=tools.prepare_group_tools),
@@ -152,6 +159,7 @@ if app_config.agent:
         history_processors=[history_processor],
         retries=5,
     )
+    tools.set_agent(agent)
     summary_agent = Agent(model=model, system_prompt=app_config.agent_summary_prompt)
     memory_agent = Agent(
         model=model,
@@ -174,6 +182,7 @@ if app_config.agent:
         if not chat_id:
             return
         await common.memttlcache.delete(state.history_key(chat_id, user.id))
+        await tools.clear_ask_state(chat_id, user.id)
         await message.reply_text(
             i18n.t("bot.msg.agent.forgot", locale=user_config.lang)
         )
@@ -213,7 +222,27 @@ async def wake_agent(client: PyrogramClient, message: pyrogram.types.Message):
         return
     if await common.memstore.get(state.waiting_key(user.id)):
         return await word_reply(client, message)
-    await tools.cancel_pending_asks(chat.id, user.id)
+
+    # Check if there's a pending deferred ask
+    ask_state = await tools.get_ask_state(chat.id, user.id)
+    if ask_state is not None:
+        # Resume the deferred ask with "no answer" result
+        # Include the new user message so agent can see it
+        user_message_text = message.text or message.caption or ""
+        logger.info(
+            f"Resuming deferred ask for user {user.id} with no answer, "
+            f"user_message='{user_message_text[:50]}...'"
+        )
+        await tools.resume_ask(
+            client=client,
+            ask_state=ask_state,
+            answer="用户没有回答，而是发送了新消息",
+            message=message,
+            powermemory=powermemory,
+            user_prompt=user_message_text,
+        )
+        return
+
     await common.memstore.set(state.waiting_key(user.id), True)
     # set language
     if chat.type == pyrogram.enums.ChatType.PRIVATE:
@@ -321,12 +350,24 @@ async def wake_agent(client: PyrogramClient, message: pyrogram.types.Message):
                                 logger.debug(
                                     f"Agent run end with result: {agent_run.result.output}"
                                 )
-                                if streaming_output is not None:
-                                    await streaming_output.finalize()
-                                elif agent_run.result and agent_run.result.output:
-                                    await utils.reply_output(
-                                        client, message, agent_run.result.output
+                                output = agent_run.result.output
+                                if isinstance(output, DeferredToolRequests):
+                                    if streaming_output is not None:
+                                        await streaming_output.abort()
+                                    logger.info(
+                                        f"Agent returned DeferredToolRequests for user {user.id}"
                                     )
+                                    # Save full message history for resume
+                                    await tools.update_ask_history(
+                                        chat_id, user.id, agent_run.all_messages()
+                                    )
+                                else:
+                                    if streaming_output is not None:
+                                        await streaming_output.finalize()
+                                    elif output:
+                                        await utils.reply_output(
+                                            client, message, output
+                                        )
                         await common.memttlcache.set(
                             state.history_key(chat_id, user.id),
                             agent_run.all_messages(),
@@ -367,10 +408,13 @@ async def wake_agent(client: PyrogramClient, message: pyrogram.types.Message):
                             logger.debug(
                                 f"Agent run end with result: {agent_run.result.output}"
                             )
-                            if not replied and agent_run.result:
-                                await utils.reply_output(
-                                    client, message, agent_run.result.output
+                            output = agent_run.result.output
+                            if isinstance(output, DeferredToolRequests):
+                                logger.info(
+                                    f"Agent returned DeferredToolRequests for user {user.id}"
                                 )
+                            elif not replied and output:
+                                await utils.reply_output(client, message, output)
                     await common.memttlcache.set(
                         state.history_key(chat_id, user.id),
                         agent_run.all_messages(),
