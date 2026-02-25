@@ -94,6 +94,10 @@ async def generate_image(
     logger.debug(
         f"generate_image called: chat_id={ctx.deps.chat_id}, user_id={ctx.deps.user_id}, prompt={prompt[:100]}"
     )
+    await ctx.deps.client.send_chat_action(
+        chat_id=ctx.deps.chat_id,
+        action=pyrogram.enums.chat_action.ChatAction.UPLOAD_PHOTO,
+    )
     result = await gen_client.generate(prompt=prompt, size=size)
     if not result.success or not result.data:
         return ImageOperationResult(
@@ -216,6 +220,10 @@ async def edit_image(
         image_bytes, mime_type = history_image
 
     assert image_bytes is not None
+    await ctx.deps.client.send_chat_action(
+        chat_id=ctx.deps.chat_id,
+        action=pyrogram.enums.chat_action.ChatAction.UPLOAD_PHOTO,
+    )
     result = await edit_client.edit(
         prompt=prompt,
         image_data=image_bytes,

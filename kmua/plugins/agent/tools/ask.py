@@ -11,6 +11,7 @@ from pydantic_ai import (
 )
 from pydantic_ai.messages import ModelMessage
 from pyrogram.client import Client
+from pyrogram.enums.chat_action import ChatAction
 from pyrogram.types import CallbackQuery
 
 from kmua import common, database, i18n
@@ -146,6 +147,7 @@ async def resume_ask(
 
     await common.memstore.set(state.waiting_key(user_id), True)
     try:
+        await client.send_chat_action(chat_id=chat_id, action=ChatAction.TYPING)
         async with _agent.iter(model=use_model, **run_kwargs) as agent_run:  # type: ignore
             replied = False
             async for node in agent_run:
