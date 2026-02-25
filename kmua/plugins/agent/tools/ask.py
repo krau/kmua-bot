@@ -2,6 +2,7 @@ import dataclasses
 
 import pyrogram
 from pydantic_ai import (
+    Agent,
     CallDeferred,
     DeferredToolRequests,
     DeferredToolResults,
@@ -21,6 +22,17 @@ from .. import datatype, state, utils
 
 # Module-level reference to agent instance (set by agent.py)
 _agent = None
+_model = None
+_multimodal_model = None
+
+
+def set_agent(agent, model=None, multimodal_model=None) -> None:
+    """Set the agent instance reference for resume_ask."""
+    global _agent, _model, _multimodal_model
+    _agent = agent
+    _model = model
+    _multimodal_model = multimodal_model
+
 
 _ASK_STATE_KEY_PREFIX = "agent_ask_state:"
 
@@ -55,12 +67,6 @@ async def clear_ask_state(chat_id: int, user_id: int) -> None:
     await memstore.delete(_state_key(chat_id, user_id))
 
 
-def set_agent(agent) -> None:
-    """Set the agent instance reference for resume_ask."""
-    global _agent
-    _agent = agent
-
-
 async def cancel_pending_asks(chat_id: int, user_id: int) -> None:
     """Cancel any pending asks for the user."""
     await clear_ask_state(chat_id, user_id)
@@ -72,7 +78,8 @@ async def resume_ask(
     answer: str,
     message: pyrogram.types.Message,
     powermemory=None,
-    user_prompt: str | None = None,
+    user_prompt: str | list | None = None,
+    needs_multimodal: bool = False,
 ) -> None:
     """Resume agent run after getting an answer (or no answer) to a deferred ask.
 
@@ -82,9 +89,9 @@ async def resume_ask(
         answer: The user's answer, or a message indicating no answer.
         message: The message object for reply context.
         powermemory: Optional PowerMemory instance.
-        user_prompt: Optional new user message to include in the conversation.
+        user_prompt: Optional new user message (can be text or multimodal content list).
+        needs_multimodal: Whether to use multimodal model.
     """
-    from pydantic_ai import Agent
 
     global _agent
     if _agent is None:
@@ -129,13 +136,17 @@ async def resume_ask(
         ),
     }
 
-    # Include user_prompt if provided (for when user sends new message instead of answering)
+    # Include user_prompt if provided
     if user_prompt is not None:
         run_kwargs["user_prompt"] = user_prompt
 
+    # Use multimodal model if needed
+    global _model, _multimodal_model
+    use_model = _multimodal_model if needs_multimodal else _model
+
     await common.memstore.set(state.waiting_key(user_id), True)
     try:
-        async with _agent.iter(**run_kwargs) as agent_run:  # type: ignore
+        async with _agent.iter(model=use_model, **run_kwargs) as agent_run:  # type: ignore
             replied = False
             async for node in agent_run:
                 if Agent.is_call_tools_node(node):
@@ -272,15 +283,14 @@ async def _on_ask_answer(client: Client, callback_query: CallbackQuery) -> None:
         await callback_query.answer("这条回答已经过期了哦", show_alert=True)
         return
 
-    # Immediately clear state to prevent multiple selections
-    await clear_ask_state(expected_chat_id, expected_user_id)
-
     try:
         opt_index = int(opt_id_str)
         answer = state.options[opt_index]
     except (ValueError, IndexError):
         await callback_query.answer("无效的选项", show_alert=True)
         return
+    # Immediately clear state to prevent multiple selections
+    await clear_ask_state(expected_chat_id, expected_user_id)
 
     await callback_query.answer()
 

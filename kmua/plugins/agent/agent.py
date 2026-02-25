@@ -159,7 +159,7 @@ if app_config.agent:
         history_processors=[history_processor],
         retries=5,
     )
-    tools.set_agent(agent)
+    tools.set_agent(agent, model=model, multimodal_model=multimodal_model)
     summary_agent = Agent(model=model, system_prompt=app_config.agent_summary_prompt)
     memory_agent = Agent(
         model=model,
@@ -227,11 +227,14 @@ async def wake_agent(client: PyrogramClient, message: pyrogram.types.Message):
     ask_state = await tools.get_ask_state(chat.id, user.id)
     if ask_state is not None:
         # Resume the deferred ask with "no answer" result
-        # Include the new user message so agent can see it
+        # Include the new user message so agent can see it (with multimodal support)
+        user_prompt, needs_multimodal = await utils.get_input_prompt(
+            client, message, include_nearby=0, ctx=None
+        )
         user_message_text = message.text or message.caption or ""
         logger.info(
             f"Resuming deferred ask for user {user.id} with no answer, "
-            f"user_message='{user_message_text[:50]}...'"
+            f"user_message='{user_message_text[:50]}...', needs_multimodal={needs_multimodal}"
         )
         await tools.resume_ask(
             client=client,
@@ -239,7 +242,8 @@ async def wake_agent(client: PyrogramClient, message: pyrogram.types.Message):
             answer="用户没有回答，而是发送了新消息",
             message=message,
             powermemory=powermemory,
-            user_prompt=user_message_text,
+            user_prompt=user_prompt,
+            needs_multimodal=needs_multimodal,
         )
         return
 
