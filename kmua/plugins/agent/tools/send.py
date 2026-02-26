@@ -223,7 +223,6 @@ async def send_poll(
             is_anonymous,
             allows_multiple_answers,
             schedule_datetime,
-            reply_params,
             chat_id,
         )
         return SendResult(
@@ -324,7 +323,7 @@ async def send_sticker(
         logger.error(f"send_sticker send error: {e.__class__.__name__}: {e}")
         raise ModelRetry(f"Failed to send sticker: {e.__class__.__name__}: {e}")
 
-    return SendResult(success=True, message=f"Sent sticker: {description}")
+    return SendResult(success=True)
 
 
 async def send_reaction(
