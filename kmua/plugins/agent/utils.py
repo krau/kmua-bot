@@ -578,10 +578,6 @@ async def update_user_memory(
         )
 
 
-async def update_group_memory():
-    pass  # Placeholder for future implementation
-
-
 async def get_input_prompt(
     client: PyrogramClient,
     message: pyrogram.types.Message,

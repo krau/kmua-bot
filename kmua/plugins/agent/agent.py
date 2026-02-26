@@ -266,7 +266,7 @@ async def wake_agent(client: PyrogramClient, message: pyrogram.types.Message):
             pyrogram.enums.ChatType.GROUP,
         )
         ctx_info: datatype.ContextInfo | None = None
-        if len(history) % 4 == 0:  # 每四次对话发送一次上下文
+        if len(history) == 0:  # 只在对话开始时发送一次上下文
             ctx_info = datatype.ContextInfo(
                 user_data=datatype.UserData(
                     user_id=user.id,

@@ -180,9 +180,7 @@ class ContextInfo:
                 f"关于用户的记忆: ({self.memory_about_user.to_text(is_group_chat=self.is_group_chat)})"
             )
         if self.is_group_chat:
-            parts.append(
-                "群聊场景，请注意用户输入的消息前面可能包含其他用户的近期消息作为上下文"
-            )
+            parts.append("群聊场景, 请注意收集上下文信息")
         if self.append_prompt:
             parts.append(f"附加提示: {self.append_prompt}")
         text = "\n".join(parts)
