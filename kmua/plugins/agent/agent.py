@@ -11,13 +11,16 @@ from pydantic_ai import (
     ModelMessage,
     RunContext,
     Tool,
+    ToolReturnPart,
 )
 from pydantic_ai.common_tools.duckduckgo import DuckDuckGoSearchTool
 from pydantic_ai.messages import (
+    MULTI_MODAL_CONTENT_TYPES,
     PartDeltaEvent,
     PartStartEvent,
     TextPart,
     TextPartDelta,
+    UserPromptPart,
 )
 from pydantic_ai.models.openai import OpenAIChatModel
 from pydantic_ai.providers.openai import OpenAIProvider
@@ -306,6 +309,25 @@ async def wake_agent(client: PyrogramClient, message: pyrogram.types.Message):
         user_prompt, needs_multimodal = await utils.get_input_prompt(
             client, message, include_nearby=nearby_count, ctx=ctx_info
         )
+        if not needs_multimodal:
+            for hismsg in history:
+                for part in hismsg.parts:
+                    if isinstance(part, UserPromptPart):
+                        content = part.content
+                        if isinstance(content, list) and any(
+                            isinstance(item, MULTI_MODAL_CONTENT_TYPES)
+                            for item in content
+                        ):
+                            needs_multimodal = True
+                            break
+                    elif isinstance(part, ToolReturnPart):
+                        if part.has_content and isinstance(
+                            part.content, MULTI_MODAL_CONTENT_TYPES
+                        ):
+                            needs_multimodal = True
+                            break
+                if needs_multimodal:
+                    break
         user_message_text = message.text or message.caption or ""
         if user_message_text:
             logger.debug(

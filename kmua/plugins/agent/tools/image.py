@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from io import BytesIO
 
 import pyrogram
-from pydantic_ai import ModelRetry, RunContext
+from pydantic_ai import ModelRetry, RunContext, ToolReturn
 from pydantic_ai.messages import BinaryContent, ModelRequest, UserPromptPart
 
 from kmua.common import memttlcache
@@ -17,7 +17,6 @@ from .. import datatype, state
 class ImageOperationResult:
     success: bool
     message: str | None = None
-    revised_prompt: str | None = None
 
 
 async def _find_image_in_history(
@@ -63,7 +62,7 @@ async def generate_image(
     ctx: RunContext[datatype.ContextDeps],
     prompt: str,
     size: str = "1024x1024",
-) -> ImageOperationResult:
+) -> ToolReturn:
     """Generate an image from a text description and send it to the chat.
 
     Use this tool when the user asks you to draw, generate, create or produce an image
@@ -75,21 +74,22 @@ async def generate_image(
             descriptive as possible about subject, style, colors, composition, etc.
         size: Image dimensions. Supported values depend on the model; common options
             are "1024x1024", "1792x1024", "1024x1792". Defaults to "1024x1024".
-
-    Returns:
-        An ImageOperationResult indicating success or failure.
     """
     if not image_gen.image_gen_client:
-        return ImageOperationResult(
-            success=False, message="Image generation service is not configured."
+        return ToolReturn(
+            return_value=ImageOperationResult(
+                success=False, message="Image generation service is not configured."
+            )
         )
     gen_client = image_gen.image_gen_client
 
     if not prompt or not prompt.strip():
         raise ModelRetry("A non-empty prompt is required to generate an image.")
     if ctx.deps.message is None or ctx.deps.chat_id is None:
-        return ImageOperationResult(
-            success=False, message="Current message context is unavailable."
+        return ToolReturn(
+            return_value=ImageOperationResult(
+                success=False, message="Current message context is unavailable."
+            )
         )
     await ctx.deps.client.send_chat_action(
         chat_id=ctx.deps.chat_id,
@@ -97,10 +97,7 @@ async def generate_image(
     )
     result = await gen_client.generate(prompt=prompt, size=size)
     if not result.success or not result.data:
-        return ImageOperationResult(
-            success=False,
-            message=f"Image generation failed: {result.error}",
-        )
+        raise ModelRetry(f"Image generation failed: {result.error}")
     try:
         await ctx.deps.client.send_photo(
             chat_id=ctx.deps.chat_id,
@@ -111,13 +108,18 @@ async def generate_image(
         )
     except Exception as e:
         logger.error(f"Failed to send generated image: {e.__class__.__name__}: {e}")
-        return ImageOperationResult(
-            success=False,
-            message=f"Image was generated but could not be sent: {e.__class__.__name__}",
+        return ToolReturn(
+            return_value=ImageOperationResult(
+                success=False,
+                message=f"Image was generated but could not be sent: {e.__class__.__name__}",
+            )
         )
-    return ImageOperationResult(
-        success=True,
-        revised_prompt=result.revised_prompt,
+    return ToolReturn(
+        return_value="Image generated successfully.",
+        content=[
+            f"Generated image based on prompt: {prompt!r}",
+            BinaryContent(data=result.data, media_type="image/png"),
+        ],
     )
 
 
