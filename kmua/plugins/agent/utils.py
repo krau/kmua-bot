@@ -659,10 +659,22 @@ async def get_input_prompt(
                         and document.file_size <= 10 * 1024 * 1024
                     ):
                         mime_type = document.mime_type
+                        # .txt tg 返回的是 'text/plain; charset=utf-8'
+                        # markdown 返回的却是 'text/markdown'...
                         if not mime_type:
                             thetype, _ = mimetypes.guess_type(document.file_name)
                             mime_type = thetype or "application/octet-stream"
-                        if mime_type in app_config.agent_multimodal_inputs:
+                        if mime_type.split(";")[0] in ("text/plain", "text/markdown"):
+                            doc_file = await client.download_media(
+                                message=document.file_id, in_memory=True
+                            )
+                            if isinstance(doc_file, BytesIO):
+                                try:
+                                    text = doc_file.getvalue().decode("utf-8")
+                                    contents.append(text)
+                                except UnicodeDecodeError:
+                                    pass
+                        elif mime_type in app_config.agent_multimodal_inputs:
                             doc_file = await client.download_media(
                                 message=document.file_id, in_memory=True
                             )

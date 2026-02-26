@@ -87,8 +87,6 @@ class _AppConfig(pydantic.BaseModel):
         "photo",
         # "video",
         # "application/pdf",
-        "text/plain",
-        "text/markdown",
     ]
     agent_extra_tools: list[str] = ["duckduckgo_search", "webfetch"]
     # crawl4ai API server for JS-rendered pages (e.g. docker run crawl4ai)
