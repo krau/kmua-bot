@@ -1,17 +1,15 @@
-from datetime import datetime
-
 import pyrogram
 from pydantic import BaseModel, Field
 from pydantic_ai import Agent, ModelMessage
 from pyrogram.client import Client as PyrogramClient
 
-from kmua import affection, common, database, enums
+from kmua import common, database, enums
 from kmua.common.memory_store import memttlcache
 from kmua.config import app_config
 from kmua.logger import logger
 from kmua.plugins.agent import datatype, state, utils
 
-from .agent import agent, powermemory, small_model
+from .agent import agent, model, multimodal_model, powermemory, small_model
 
 
 class RelevanceCheck(BaseModel):
@@ -171,61 +169,39 @@ Bot回复: {bot_reply.reply_text}
 现在又有用户[{user_data.full_name}]对这个话题继续讨论，请自然地参与对话。
 """
         )
-        ctx_info = datatype.ContextInfo(
-            user_data=datatype.UserData(
-                user_id=user.id,
-                full_name=user_data.full_name,
-                username=user_data.username,
-                config={"lang": user_data.user_config.lang}
-                if user_data.user_config
-                else None,
-            ),
-            chat_type=chat.type.name if chat.type else None,
-            msg_id=message.id,
-            current_time=datetime.now().isoformat(),
+        ctx_info = await utils.build_ctx_info(
+            message=message,
+            user=user,
+            user_data=user_data,
+            history=history,
             is_group_chat=True,
         )
-        memory = await memttlcache.get(state.memory_key(user.id))
-        if memory and isinstance(memory, datatype.ChatMemoryy):
-            ctx_info.memory_about_user = memory
-        affection_rank = await affection.get_affection_rank(user.id)
-        append_prompt = utils.get_agent_affection_prompt(affection_rank)
-        if append_prompt:
-            ctx_info.append_prompt = append_prompt
-        instructions += f"\n\n{ctx_info.to_text()}\n"
+        if ctx_info:
+            instructions += f"\n\n{ctx_info.to_text()}\n"
         follow_up_prompt, _ = await utils.get_input_prompt(
             client, message, include_nearby=0, ctx=ctx_info
         )
-        async with agent.iter(
+        await utils.run_agent(
+            agent_instance=agent,
+            client=client,
+            message=message,
+            user_id=user.id,
+            chat_id=chat.id,
             instructions=instructions,
             user_prompt=follow_up_prompt,
-            message_history=history,
+            history=history,
             deps=datatype.ContextDeps(
                 user_id=user.id,
                 chat_id=chat.id,
                 message=message,
                 client=client,
                 powermemory=powermemory,
+                history=history,
             ),
-        ) as agent_run:
-            repiled = False
-            async for node in agent_run:
-                if Agent.is_call_tools_node(node):
-                    for part in node.model_response.parts:
-                        if part.part_kind == "text" and part.content:
-                            await utils.reply_output(client, message, part.content)
-                            repiled = True
-                elif Agent.is_end_node(node):
-                    assert agent_run.result is not None, (
-                        "Agent run ended without result"
-                    )
-                    logger.debug(
-                        f"Agent follow up run end with result: {agent_run.result.output}"
-                    )
-                    if not repiled and agent_run.result:
-                        await utils.reply_output(
-                            client, message, agent_run.result.output
-                        )
+            multimodal_model=multimodal_model,
+            model=model,
+            lang=chat_config.lang,
+        )
 
     except Exception as e:
         logger.exception(

@@ -1,7 +1,5 @@
 import asyncio
-from datetime import datetime
 
-import pydantic_ai
 import pyrogram
 from ddgs import DDGS
 from powermem import AsyncMemory
@@ -11,23 +9,14 @@ from pydantic_ai import (
     ModelMessage,
     RunContext,
     Tool,
-    ToolReturnPart,
 )
 from pydantic_ai.common_tools.duckduckgo import DuckDuckGoSearchTool
-from pydantic_ai.messages import (
-    MULTI_MODAL_CONTENT_TYPES,
-    PartDeltaEvent,
-    PartStartEvent,
-    TextPart,
-    TextPartDelta,
-    UserPromptPart,
-)
 from pydantic_ai.models.openai import OpenAIChatModel
 from pydantic_ai.providers.openai import OpenAIProvider
 from pyrogram import filters
 from pyrogram.client import Client as PyrogramClient
 
-from kmua import affection, common, database, i18n
+from kmua import common, database, i18n
 from kmua.config import app_config
 from kmua.logger import logger
 from kmua.services import manyacg
@@ -46,7 +35,6 @@ powermemory = None
 if app_config.agent_powermem_config is not None:
     # for group memory, the key is f"group_{chat_id}"
     powermemory = AsyncMemory(app_config.agent_powermem_config)
-
     async def _init_powermem():
         assert powermemory is not None
         await powermemory.initialize()
@@ -274,249 +262,49 @@ async def wake_agent(client: PyrogramClient, message: pyrogram.types.Message):
             if app_config.agent_group_prompt
             else app_config.agent_prompt
         )
-        ctx_info: datatype.ContextInfo | None = None
-        if len(history) == 0:  # 只在对话开始时发送一次上下文
-            ctx_info = datatype.ContextInfo(
-                user_data=datatype.UserData(
-                    user_id=user.id,
-                    full_name=user_data.full_name,
-                    username=user_data.username,
-                    config={"lang": user_data.user_config.lang}
-                    if user_data.user_config
-                    else None,
-                ),
-                chat_type=chat.type.name if chat.type else None,
-                msg_id=message.id,
-                current_time=datetime.now().isoformat(),
-                is_group_chat=is_group_chat,
-            )
-            if reply_to := message.reply_to_message:
-                ctx_info.reply_to_msg_id = reply_to.id
-                ctx_info.reply_to_msg_text = reply_to.text or reply_to.caption
-            memory = await common.memttlcache.get(state.memory_key(user.id))
-            if memory and isinstance(memory, datatype.ChatMemoryy):
-                ctx_info.memory_about_user = memory
-            affection_rank = await affection.get_affection_rank(user_data.id)
-            append_prompt = utils.get_agent_affection_prompt(affection_rank)
-            if append_prompt:
-                ctx_info.append_prompt = append_prompt
+        ctx_info = await utils.build_ctx_info(
+            message=message,
+            user=user,
+            user_data=user_data,
+            history=history,
+            is_group_chat=is_group_chat,
+        )
+        if ctx_info:
             instructions += f"\n\n{ctx_info.to_text()}\n"
         # 在群聊场景中获取附近消息作为上下文
         # [TODO] 好像自动添加附近消息反而效果不好了
         nearby_count = (
             app_config.agent_group_context_nearby_message_count if is_group_chat else 0
         )
-        user_prompt, needs_multimodal = await utils.get_input_prompt(
+        user_prompt, _ = await utils.get_input_prompt(
             client, message, include_nearby=nearby_count, ctx=ctx_info
         )
-        if not needs_multimodal:
-            for hismsg in history:
-                for part in hismsg.parts:
-                    if isinstance(part, UserPromptPart):
-                        content = part.content
-                        if isinstance(content, list) and any(
-                            isinstance(item, MULTI_MODAL_CONTENT_TYPES)
-                            for item in content
-                        ):
-                            needs_multimodal = True
-                            break
-                    elif isinstance(part, ToolReturnPart):
-                        if part.has_content and isinstance(
-                            part.content, MULTI_MODAL_CONTENT_TYPES
-                        ):
-                            needs_multimodal = True
-                            break
-                if needs_multimodal:
-                    break
         user_message_text = message.text or message.caption or ""
         if user_message_text:
             logger.debug(
                 f"User {user.id} wake agent in Chat {chat.id}: {user_message_text}"
             )
         await utils.cache_user_image(message, chat_id, user.id)
-        try:
-            use_model = multimodal_model if needs_multimodal else model
-            async with utils.TypingKeepAlive(client, message):
-                if app_config.agent_streaming:
-                    streaming_output: utils.StreamingOutput | None = None
-                    try:
-                        async with agent.iter(
-                            instructions=instructions,
-                            model=use_model,
-                            user_prompt=user_prompt,
-                            message_history=history,
-                            deps=datatype.ContextDeps(
-                                user_id=user.id,
-                                chat_id=chat_id,
-                                message=message,
-                                client=client,
-                                powermemory=powermemory,
-                                history=history,
-                            ),  # type: ignore
-                        ) as agent_run:
-                            async for node in agent_run:
-                                if Agent.is_model_request_node(node):
-                                    async with node.stream(
-                                        agent_run.ctx
-                                    ) as request_stream:
-                                        async for event in request_stream:
-                                            if isinstance(event, PartStartEvent):
-                                                if isinstance(event.part, TextPart):
-                                                    if streaming_output is None:
-                                                        streaming_output = (
-                                                            utils.StreamingOutput(
-                                                                client, message
-                                                            )
-                                                        )
-                                                    await streaming_output.append_delta(
-                                                        event.part.content
-                                                    )
-                                            elif isinstance(event, PartDeltaEvent):
-                                                if isinstance(
-                                                    event.delta, TextPartDelta
-                                                ):
-                                                    if streaming_output is None:
-                                                        streaming_output = (
-                                                            utils.StreamingOutput(
-                                                                client, message
-                                                            )
-                                                        )
-                                                    await streaming_output.append_delta(
-                                                        event.delta.content_delta
-                                                    )
-                                elif Agent.is_call_tools_node(node):
-                                    # Log tool calls
-                                    has_tool_calls = False
-                                    for part in node.model_response.parts:
-                                        if part.part_kind == "tool-call":
-                                            has_tool_calls = True
-                                            args_str = (
-                                                str(part.args) if part.args else ""
-                                            )
-                                            logger.debug(
-                                                f"Tool call for user {user.id} in chat {chat.id}: {part.tool_name}({args_str[:200]}...)"
-                                            )
-                                    if has_tool_calls and streaming_output is not None:
-                                        await streaming_output.finalize()
-                                        streaming_output = None
-                                elif Agent.is_end_node(node):
-                                    assert agent_run.result is not None, (
-                                        "Agent run ended without result"
-                                    )
-                                    logger.debug(
-                                        f"Agent run end with result: {agent_run.result.output}"
-                                    )
-                                    output = agent_run.result.output
-                                    if isinstance(output, DeferredToolRequests):
-                                        if streaming_output is not None:
-                                            await streaming_output.abort()
-                                        logger.info(
-                                            f"Agent returned DeferredToolRequests for user {user.id}"
-                                        )
-                                        # Save full message history for resume
-                                        await tools.update_ask_history(
-                                            chat_id, user.id, agent_run.all_messages()
-                                        )
-                                    else:
-                                        if streaming_output is not None:
-                                            await streaming_output.finalize()
-                                        elif output:
-                                            await utils.reply_output(
-                                                client, message, output
-                                            )
-                            await common.memttlcache.set(
-                                state.history_key(chat_id, user.id),
-                                agent_run.all_messages(),
-                                ttl=app_config.cachettl_agent_history,
-                            )
-                    except Exception:
-                        if streaming_output is not None:
-                            await streaming_output.abort()
-                        raise
-                else:
-                    async with agent.iter(
-                        instructions=instructions,
-                        model=use_model,
-                        user_prompt=user_prompt,
-                        message_history=history,
-                        deps=datatype.ContextDeps(
-                            user_id=user.id,
-                            chat_id=chat_id,
-                            message=message,
-                            client=client,
-                            powermemory=powermemory,
-                            history=history,
-                        ),  # type: ignore
-                    ) as agent_run:
-                        replied = False
-                        async for node in agent_run:
-                            if Agent.is_call_tools_node(node):
-                                # Log tool calls
-                                for part in node.model_response.parts:
-                                    if part.part_kind == "tool-call":
-                                        args_str = str(part.args) if part.args else ""
-                                        if len(args_str) > 200:
-                                            logger.debug(
-                                                f"Tool call: {part.tool_name}({args_str[:200]}...)"
-                                            )
-                                        else:
-                                            logger.debug(
-                                                f"Tool call: {part.tool_name}({args_str})"
-                                            )
-                                    elif part.part_kind == "text" and part.content:
-                                        await utils.reply_output(
-                                            client, message, part.content
-                                        )
-                                        replied = True
-                            elif Agent.is_end_node(node):
-                                assert agent_run.result is not None, (
-                                    "Agent run ended without result"
-                                )
-                                logger.debug(
-                                    f"Agent run end with result: {agent_run.result.output}"
-                                )
-                                output = agent_run.result.output
-                                if isinstance(output, DeferredToolRequests):
-                                    logger.info(
-                                        f"Agent returned DeferredToolRequests for user {user.id}"
-                                    )
-                                elif not replied and output:
-                                    await utils.reply_output(client, message, output)
-                        await common.memttlcache.set(
-                            state.history_key(chat_id, user.id),
-                            agent_run.all_messages(),
-                            ttl=app_config.cachettl_agent_history,
-                        )
-        except TypeError as e:
-            # https://github.com/pydantic/pydantic-ai/issues/527
-            # https://github.com/pydantic/pydantic-ai/issues/1813
-            # https://github.com/pydantic/pydantic-ai/issues/1746
-            logger.exception(f"Agent run error: {e}")
-            await message.reply_text(
-                f"{i18n.t('bot.msg.agent.errors.too_fast', locale=lang)}\n<code>{e}</code>",
-                parse_mode=pyrogram.enums.ParseMode.HTML,
-            )
-        except (
-            pydantic_ai.exceptions.ModelHTTPError
-            or pydantic_ai.exceptions.ModelAPIError
-        ) as e:
-            logger.error(f"Agent HTTP error: {e.__class__.__name__}: {e}")
-            if e.status_code == 400:
-                await message.reply_text(
-                    i18n.t("bot.msg.agent.errors.model_http_400", locale=lang)
-                )
-            else:
-                await message.reply_text(
-                    i18n.t("bot.msg.agent.errors.model_http", locale=lang).format(
-                        code=e.status_code
-                    )
-                )
-        except Exception as e:
-            logger.error(f"Agent run error: {e.__class__.__name__} - {e}")
-            await message.reply_text(
-                i18n.t("bot.msg.agent.errors.interrupted", locale=lang).format(
-                    error=f"{e.__class__.__name__}"
-                )
-            )
+        await utils.run_agent(
+            agent_instance=agent,
+            client=client,
+            message=message,
+            user_id=user.id,
+            chat_id=chat_id,
+            instructions=instructions,
+            user_prompt=user_prompt,
+            history=history,
+            deps=datatype.ContextDeps(
+                user_id=user.id,
+                chat_id=chat_id,
+                message=message,
+                client=client,
+                powermemory=powermemory,
+                history=history,
+            ),  # type: ignore
+            multimodal_model=multimodal_model,
+            model=model,
+            lang=lang,
+        )
     finally:
         await common.memstore.delete(state.waiting_key(user.id))
