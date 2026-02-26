@@ -160,11 +160,11 @@ if app_config.agent:
         retries=5,
     )
     tools.set_agent(agent, model=model, multimodal_model=multimodal_model)
-    summary_agent = Agent(model=model, system_prompt=app_config.agent_summary_prompt)
+    summary_agent = Agent(model=model, instructions=app_config.agent_summary_prompt)
     memory_agent = Agent(
         model=model,
         output_type=datatype.UserMemoryResult,
-        system_prompt=app_config.agent_memory_prompt,
+        instructions=app_config.agent_memory_prompt,
     )
 
     @PyrogramClient.on_message(pyrogram.filters.command("forget"), group=0)
@@ -260,10 +260,16 @@ async def wake_agent(client: PyrogramClient, message: pyrogram.types.Message):
         history: list[ModelMessage] = await common.memttlcache.get(
             state.history_key(chat_id, user.id), []
         )
-        instructions = app_config.agent_prompt
         is_group_chat = chat.type in (
             pyrogram.enums.ChatType.SUPERGROUP,
             pyrogram.enums.ChatType.GROUP,
+        )
+        instructions = (
+            app_config.agent_prompt
+            if not is_group_chat
+            else app_config.agent_group_prompt
+            if app_config.agent_group_prompt
+            else app_config.agent_prompt
         )
         ctx_info: datatype.ContextInfo | None = None
         if len(history) == 0:  # 只在对话开始时发送一次上下文
