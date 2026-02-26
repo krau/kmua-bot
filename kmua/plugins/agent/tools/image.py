@@ -126,7 +126,7 @@ async def generate_image(
 async def edit_image(
     ctx: RunContext[datatype.ContextDeps],
     prompt: str,
-) -> ImageOperationResult:
+) -> ToolReturn:
     """Edit or modify an image provided by the user and send the result to the chat.
 
     Use this tool when the user has sent an image and asks you to modify, edit,
@@ -134,19 +134,21 @@ async def edit_image(
 
     Args:
         prompt: Detailed description of what changes to make to the image.
-    Returns:
-        An ImageOperationResult indicating success or failure.
     """
     if not image_gen.image_edit_client:
-        return ImageOperationResult(
-            success=False, message="Image editing service is not configured."
+        return ToolReturn(
+            return_value=ImageOperationResult(
+                success=False, message="Image editing service is not configured."
+            )
         )
     edit_client = image_gen.image_edit_client
     if not prompt or not prompt.strip():
         raise ModelRetry("A non-empty prompt is required to edit an image.")
     if ctx.deps.message is None or ctx.deps.chat_id is None:
-        return ImageOperationResult(
-            success=False, message="Current message context is unavailable."
+        return ToolReturn(
+            return_value=ImageOperationResult(
+                success=False, message="Current message context is unavailable."
+            )
         )
     image_bytes: bytes | None = None
     mime_type: str = "image/jpeg"
@@ -185,28 +187,34 @@ async def edit_image(
                 message=file_id, in_memory=True
             )
             if not isinstance(file_obj, BytesIO):
-                return ImageOperationResult(
-                    success=False, message="Failed to download source image."
+                return ToolReturn(
+                    return_value=ImageOperationResult(
+                        success=False, message="Failed to download source image."
+                    )
                 )
             image_bytes = file_obj.getvalue()
         except Exception as e:
             logger.error(
                 f"Failed to download source image: {e.__class__.__name__}: {e}"
             )
-            return ImageOperationResult(
-                success=False,
-                message=f"Failed to download source image: {e.__class__.__name__}",
+            return ToolReturn(
+                return_value=ImageOperationResult(
+                    success=False,
+                    message=f"Failed to download source image: {e.__class__.__name__}",
+                )
             )
     else:
         history_image = await _find_image_in_history(ctx)
         if history_image is None:
-            return ImageOperationResult(
-                success=False,
-                message=(
-                    "No image found in the current message, the message being "
-                    "replied to, or the recent conversation history. "
-                    "Please send an image to edit."
-                ),
+            return ToolReturn(
+                return_value=ImageOperationResult(
+                    success=False,
+                    message=(
+                        "No image found in the current message, the message being "
+                        "replied to, or the recent conversation history. "
+                        "Please send an image to edit."
+                    ),
+                )
             )
         image_bytes, mime_type = history_image
 
@@ -222,9 +230,11 @@ async def edit_image(
         image_mime_type=mime_type,
     )
     if not result.success or not result.data:
-        return ImageOperationResult(
-            success=False,
-            message=f"Image editing failed: {result.error}",
+        return ToolReturn(
+            return_value=ImageOperationResult(
+                success=False,
+                message=f"Image editing failed: {result.error}",
+            )
         )
     try:
         sent = await ctx.deps.client.send_photo(
@@ -236,9 +246,11 @@ async def edit_image(
         )
     except Exception as e:
         logger.error(f"Failed to send edited image: {e.__class__.__name__}: {e}")
-        return ImageOperationResult(
-            success=False,
-            message=f"Image was edited but could not be sent: {e.__class__.__name__}",
+        return ToolReturn(
+            return_value=ImageOperationResult(
+                success=False,
+                message=f"Image was edited but could not be sent: {e.__class__.__name__}",
+            )
         )
     if sent and sent.photo:
         await memttlcache.set(
@@ -246,6 +258,10 @@ async def edit_image(
             sent.photo.file_id,
             ttl=app_config.cachettl_agent_history,
         )
-    return ImageOperationResult(
-        success=True,
+    return ToolReturn(
+        return_value=f"Image edited successfully based on prompt: {prompt!r}",
+        content=[
+            f"Edited image based on prompt: {prompt!r}",
+            BinaryContent(data=result.data, media_type="image/png"),
+        ],
     )
