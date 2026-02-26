@@ -205,6 +205,39 @@ async def get_input_prompt(
         current = current.reply_to_message
     reply_chain.reverse()
 
+    # 检测回复链是否是 bot 与用户交替对话的历史记录（已存在于 message history 中）。
+    # 判定规则：链上奇数位置（bot 发送，回复用户）和偶数位置（用户发送，回复 bot）
+    # 交替出现，遍历完整链（短链）或连续满足条件达到深度 6（长链）即判定成立。
+    # 判定成立时截断为只保留最后一条（用户直接回复的那条 bot 消息），避免与
+    # message history 重复。
+    _HISTORY_CHAIN_CHECK_DEPTH = 6
+    bot_id = client.me.id if client.me else None
+    if bot_id is not None and len(reply_chain) >= 2:
+        # reply_chain 已是从旧到新排列。
+        # 从新到旧遍历更直观：reply_chain[-1] 是用户直接回复的消息（应为 bot 发的），
+        # reply_chain[-2] 是再上一条（应为用户发的），以此类推。
+        is_history_chain = True
+        check_depth = 0
+        # 从链尾（最新）往前，成对检查 [bot消息, 用户消息]
+        for i in range(len(reply_chain) - 1, 0, -2):
+            bot_msg = reply_chain[i]  # 较新，应为 bot 发送
+            user_msg = reply_chain[i - 1]  # 较旧，应为用户发送
+            bot_msg_is_bot = (
+                bot_msg.from_user is not None and bot_msg.from_user.id == bot_id
+            )
+            user_msg_is_user = (
+                user_msg.from_user is None or user_msg.from_user.id != bot_id
+            )
+            if not bot_msg_is_bot or not user_msg_is_user:
+                is_history_chain = False
+                break
+            check_depth += 1
+            if check_depth >= _HISTORY_CHAIN_CHECK_DEPTH:
+                break  # 连续满足 6 层，视为判定成立
+        if is_history_chain:
+            # 只保留最后一条（用户直接回复的 bot 消息）
+            reply_chain = reply_chain[-1:]
+
     # include_nearby > 0 时，先追加前面 N 条消息（从旧到新）
     if include_nearby and include_nearby > 0 and message.chat and message.chat.id:
         message_ids = []
