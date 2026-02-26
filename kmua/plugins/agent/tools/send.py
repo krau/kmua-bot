@@ -4,6 +4,7 @@ from hashlib import md5
 from typing import Literal
 
 import pyrogram
+import pyrogram.errors
 from pydantic_ai import ModelRetry, RunContext
 
 from kmua import common
@@ -346,6 +347,18 @@ async def send_reaction(
             message_id=ctx.deps.message.id,
             emoji=emoji,
         )
+    except pyrogram.errors.exceptions.bad_request_400.ReactionInvalid:
+        chat = await common.get_chat_full(ctx.deps.client, ctx.deps.chat_id)
+        if chat and chat.available_reactions and chat.available_reactions.reactions:
+            emojis = [
+                r.emoji
+                for r in chat.available_reactions.reactions
+                if r.emoji is not None
+            ]
+            raise ModelRetry(
+                f"Invalid reaction emoji. This chat supports the following reactions: {', '.join(emojis)}"
+            )
+        raise ModelRetry("Invalid reaction emoji, try another one.")
     except Exception as e:
         logger.error(f"send_reaction error: {e.__class__.__name__}: {e}")
         raise ModelRetry(f"Failed to send reaction: {e.__class__.__name__}: {e}")
