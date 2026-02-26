@@ -126,7 +126,6 @@ async def generate_image(
 async def edit_image(
     ctx: RunContext[datatype.ContextDeps],
     prompt: str,
-    size: str = "1024x1024",
 ) -> ImageOperationResult:
     """Edit or modify an image provided by the user and send the result to the chat.
 
@@ -135,8 +134,6 @@ async def edit_image(
 
     Args:
         prompt: Detailed description of what changes to make to the image.
-        size: Output image dimensions. Defaults to "1024x1024".
-
     Returns:
         An ImageOperationResult indicating success or failure.
     """
@@ -223,7 +220,6 @@ async def edit_image(
         image_data=image_bytes,
         image_filename="image.jpg" if mime_type == "image/jpeg" else "image.png",
         image_mime_type=mime_type,
-        size=size,
     )
     if not result.success or not result.data:
         return ImageOperationResult(

@@ -90,7 +90,7 @@ class _ImageEditClient:
         image_filename: str = "image.png",
         image_mime_type: str = "image/png",
         mask_data: bytes | None = None,
-        size: str = "1024x1024",
+        size: str = "auto",
         n: int = 1,
     ) -> ImageEditResult:
         try:
