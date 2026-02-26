@@ -252,5 +252,4 @@ async def edit_image(
         )
     return ImageOperationResult(
         success=True,
-        revised_prompt=result.revised_prompt,
     )
