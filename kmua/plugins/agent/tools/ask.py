@@ -18,7 +18,8 @@ from kmua.common import memstore
 from kmua.config import app_config
 from kmua.logger import logger
 
-from .. import datatype, state, utils
+from .. import datatype, state
+from ..output import TypingKeepAlive, reply_output
 
 # Module-level reference to agent instance (set by agent.py)
 _agent = None
@@ -162,7 +163,7 @@ async def resume_ask(
 
     await common.memstore.set(state.waiting_key(user_id), True)
     try:
-        async with utils.TypingKeepAlive(client, message):
+        async with TypingKeepAlive(client, message):
             async with _agent.iter(model=use_model, **run_kwargs) as agent_run:  # type: ignore
                 replied = False
                 async for node in agent_run:
@@ -175,7 +176,7 @@ async def resume_ask(
                                     f"Tool call: {part.tool_name}({args_str[:200]}...)"
                                 )
                             elif part.part_kind == "text" and part.content:
-                                await utils.reply_output(client, message, part.content)
+                                await reply_output(client, message, part.content)
                                 replied = True
                     elif Agent.is_end_node(node):
                         assert agent_run.result is not None
@@ -185,7 +186,7 @@ async def resume_ask(
                                 f"Agent returned DeferredToolRequests again for user {user_id}"
                             )
                         elif not replied and output:
-                            await utils.reply_output(client, message, output)
+                            await reply_output(client, message, output)
                 await common.memttlcache.set(
                     state.history_key(chat_id, user_id),
                     agent_run.all_messages(),

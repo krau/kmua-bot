@@ -7,7 +7,8 @@ from kmua import database
 from kmua.common.memory_store import memttlcache
 from kmua.config import app_config
 from kmua.logger import logger
-from kmua.plugins.agent import datatype, utils
+from kmua.plugins.agent import datatype
+from kmua.plugins.agent.prompt import get_input_prompt
 
 from .agent import agent, model, multimodal_model
 
@@ -80,7 +81,7 @@ async def comment_channel_message(client: Client, message: pyrogram.types.Messag
         "channel_bio": channel.bio or channel.description,
         "current_time": datetime.datetime.now().strftime("%Y年%m月%d日 %H:%M:%S"),
     }
-    prompts, needs_multimodal = await utils.get_input_prompt(client, message, ctx=ctx)
+    prompts, needs_multimodal = await get_input_prompt(client, message, ctx=ctx)
     if not prompts:
         return
     logger.debug(f"Channel comment post: {message.caption or message.text}")
@@ -100,6 +101,6 @@ async def comment_channel_message(client: Client, message: pyrogram.types.Messag
         return
     logger.debug(f"Channel comment response: {resp.output}")
     await message.reply_text(
-        text=resp.output,
+        text=resp.output, # type: ignore
         reply_to_message_id=message.id,
     )

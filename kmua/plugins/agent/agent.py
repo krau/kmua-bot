@@ -22,6 +22,9 @@ from kmua.logger import logger
 from kmua.services import manyacg
 
 from . import datatype, myfilter, state, tools, utils
+from .history import get_history_text, should_compress_by_tokens, summarize_history
+from .prompt import build_ctx_info, get_input_prompt
+from .runner import run_agent
 from .simple_reply import word_reply
 
 agent = None
@@ -35,6 +38,7 @@ powermemory = None
 if app_config.agent_powermem_config is not None:
     # for group memory, the key is f"group_{chat_id}"
     powermemory = AsyncMemory(app_config.agent_powermem_config)
+
     async def _init_powermem():
         assert powermemory is not None
         await powermemory.initialize()
@@ -47,20 +51,20 @@ async def history_processor(
 ) -> list[ModelMessage]:
     assert summary_agent is not None, "summary_agent is not initialized"
     assert memory_agent is not None, "memory_agent is not initialized"
-    summary = await utils.summarize_history(summary_agent, messages)
+    summary = await summarize_history(summary_agent, messages)
     await common.memttlcache.set(
         state.history_key(ctx.deps.chat_id, ctx.deps.user_id),
         summary,
         ttl=app_config.cachettl_agent_history,
     )
     should_update_memory = (
-        utils._should_compress_by_tokens(messages)
+        should_compress_by_tokens(messages)
         if app_config.agent_context_window_tokens
         else len(messages) >= app_config.agent_messages_threshold
     )
     if should_update_memory:
         try:
-            history_text = utils.get_history_text(messages)
+            history_text = get_history_text(messages)
             await utils.update_user_memory(memory_agent, history_text, ctx.deps.user_id)
         except Exception as e:
             logger.exception(
@@ -219,7 +223,7 @@ async def wake_agent(client: PyrogramClient, message: pyrogram.types.Message):
     if ask_state is not None:
         # Resume the deferred ask with "no answer" result
         # Include the new user message so agent can see it (with multimodal support)
-        user_prompt, needs_multimodal = await utils.get_input_prompt(
+        user_prompt, needs_multimodal = await get_input_prompt(
             client, message, include_nearby=0, ctx=None
         )
         user_message_text = message.text or message.caption or ""
@@ -262,7 +266,7 @@ async def wake_agent(client: PyrogramClient, message: pyrogram.types.Message):
             if app_config.agent_group_prompt
             else app_config.agent_prompt
         )
-        ctx_info = await utils.build_ctx_info(
+        ctx_info = await build_ctx_info(
             message=message,
             user=user,
             user_data=user_data,
@@ -276,7 +280,7 @@ async def wake_agent(client: PyrogramClient, message: pyrogram.types.Message):
         nearby_count = (
             app_config.agent_group_context_nearby_message_count if is_group_chat else 0
         )
-        user_prompt, _ = await utils.get_input_prompt(
+        user_prompt, _ = await get_input_prompt(
             client, message, include_nearby=nearby_count, ctx=ctx_info
         )
         user_message_text = message.text or message.caption or ""
@@ -285,7 +289,7 @@ async def wake_agent(client: PyrogramClient, message: pyrogram.types.Message):
                 f"User {user.id} wake agent in Chat {chat.id}: {user_message_text}"
             )
         await utils.cache_user_image(message, chat_id, user.id)
-        await utils.run_agent(
+        await run_agent(
             agent_instance=agent,
             client=client,
             message=message,

@@ -8,7 +8,8 @@ from kmua import database, enums
 from kmua.common.memory_store import memttlcache
 from kmua.config import app_config
 from kmua.logger import logger
-from kmua.plugins.agent import state, utils
+from kmua.plugins.agent import state
+from kmua.plugins.agent.user_memory import update_user_memory
 
 from .agent import memory_agent, powermemory
 
@@ -98,6 +99,7 @@ async def record_memory(client: Client, message: pyrogram.types.Message):
         pyrogram.enums.ChatType.SUPERGROUP,
         pyrogram.enums.ChatType.GROUP,
     )
+
     if app_config.agent_cross_group_memory:
         user_messages: list[UserMessageGlobal] = await memttlcache.get(
             state.user_messages_global_key(user.id), []
@@ -117,7 +119,7 @@ async def record_memory(client: Client, message: pyrogram.types.Message):
             if not last_updated:
                 await memttlcache.set(last_update_key, True, ttl=3600)
                 texts = "\n".join([um.text for um in user_messages])
-                await utils.update_user_memory(memory_agent, texts, user.id)
+                await update_user_memory(memory_agent, texts, user.id)
             # 清空记录
             user_messages = []
         await memttlcache.set(

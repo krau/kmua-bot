@@ -7,7 +7,9 @@ from kmua import common, database, enums
 from kmua.common.memory_store import memttlcache
 from kmua.config import app_config
 from kmua.logger import logger
-from kmua.plugins.agent import datatype, state, utils
+from kmua.plugins.agent import datatype, state
+from kmua.plugins.agent.prompt import build_ctx_info, get_input_prompt
+from kmua.plugins.agent.runner import run_agent
 
 from .agent import agent, model, multimodal_model, powermemory, small_model
 
@@ -169,7 +171,7 @@ Bot回复: {bot_reply.reply_text}
 现在又有用户[{user_data.full_name}]对这个话题继续讨论，请自然地参与对话。
 """
         )
-        ctx_info = await utils.build_ctx_info(
+        ctx_info = await build_ctx_info(
             message=message,
             user=user,
             user_data=user_data,
@@ -178,10 +180,10 @@ Bot回复: {bot_reply.reply_text}
         )
         if ctx_info:
             instructions += f"\n\n{ctx_info.to_text()}\n"
-        follow_up_prompt, _ = await utils.get_input_prompt(
+        follow_up_prompt, _ = await get_input_prompt(
             client, message, include_nearby=0, ctx=ctx_info
         )
-        await utils.run_agent(
+        await run_agent(
             agent_instance=agent,
             client=client,
             message=message,
