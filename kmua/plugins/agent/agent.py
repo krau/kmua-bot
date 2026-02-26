@@ -129,6 +129,10 @@ if app_config.agent:
                 prepare=tools.prepare_powermem_tool,
             ),
             Tool(
+                tools.update_group_memory,
+                prepare=tools.prepare_powermem_tool,
+            ),
+            Tool(
                 tools.generate_image,
                 prepare=tools.prepare_image_gen_tools,
             ),
