@@ -11,7 +11,7 @@ from pydantic_ai.providers.openai import OpenAIProvider
 from pyrogram import filters
 from pyrogram.client import Client as PyrogramClient
 
-from kmua import common
+from kmua import common, database
 from kmua.config import app_config
 from kmua.logger import logger
 
@@ -141,13 +141,14 @@ async def on_sticker(client: PyrogramClient, message: pyrogram.types.Message) ->
         return
     if embedder is None or _description_agent is None:
         return
+    chat = message.chat
+    if not chat or not chat.id:
+        return
     sticker = message.sticker
     if sticker is None:
         return
-    chat = message.chat
-    if chat is None or chat.id is None:
-        return
     if not common.random_chance(app_config.agent_sticker_memory_sample_rate):
         return
-
+    if not (await database.get_chat_config(chat.id)).ai_reply:
+        return
     asyncio.create_task(_process_sticker(client, sticker, chat.id))
