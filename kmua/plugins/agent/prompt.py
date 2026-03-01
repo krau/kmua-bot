@@ -296,9 +296,21 @@ async def get_input_prompt(
             )
 
     # 最后追加当前消息（带 ctx），并检测是否含有需要多模态理解的媒体
+    sender = message.sender_chat or message.from_user
+    sender_name: str = (
+        (
+            getattr(sender, "first_name", None)
+            or getattr(sender, "title", None)
+            or "未知用户"
+        )
+        if sender
+        else "未知用户"
+    )
+    current_msg_label = f"[当前消息|发送者:{sender_name}|消息ID:{message.id}]"
+    ctx_text = f"{current_msg_label}\n{ctx}" if ctx else current_msg_label
     user_prompt.extend(
         await build_contents_from_message(
-            message, ctx_text=str(ctx) if ctx else None, include_media=True
+            message, ctx_text=ctx_text, include_media=True
         )
     )
     needs_multimodal = any(
