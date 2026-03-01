@@ -16,7 +16,7 @@ from pydantic_ai.messages import (
 )
 from pyrogram.client import Client as PyrogramClient
 
-from kmua.common.memory_store import memstore
+from kmua.common.memory_store import memstore, memttlcache
 from kmua.config import app_config
 from kmua.i18n import i18n
 from kmua.logger import logger
