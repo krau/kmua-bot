@@ -77,6 +77,11 @@ async def _cross_memory_filter_func(
         config = await database.get_chat_config(chat.id)
         if not config.ai_reply:
             return False
+        # 如果两种记忆功能都没启用，则不需要触发 handler
+        if not app_config.agent_cross_group_memory and not (
+            app_config.agent_group_memory and config.group_memory_enabled
+        ):
+            return False
     return True
 
 
@@ -126,7 +131,7 @@ async def record_memory(client: Client, message: pyrogram.types.Message):
             state.user_messages_global_key(user.id), user_messages, ttl=86400 * 7
         )
     if app_config.agent_group_memory and powermemory is not None and in_group:
-        # 检查群组配置是否启用了群组记忆
+        # 利用缓存的 chat config，避免重复 DB 查询
         chat_config = await database.get_chat_config(chat.id)
         if not chat_config.group_memory_enabled:
             return
