@@ -42,3 +42,8 @@ def last_edited_image_key(chat_id: int, user_id: int) -> str:
 
 def last_user_image_key(chat_id: int, user_id: int) -> str:
     return f"agent_last_user_image_fileid:{chat_id}:{user_id}"
+
+
+def chat_model_override_key(chat_id: int) -> str:
+    """Per-chat model override: stores the model name string, or None for default."""
+    return f"agent_chat_model_override:{chat_id}"

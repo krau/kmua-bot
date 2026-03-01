@@ -24,7 +24,7 @@ from kmua.services import manyacg
 from . import datatype, myfilter, state, tools, utils
 from .history import get_history_text, should_compress_by_tokens, summarize_history
 from .prompt import build_ctx_info, get_input_prompt
-from .runner import run_agent
+from .runner import get_chat_model_override, run_agent, set_chat_model_override
 from .simple_reply import word_reply
 
 agent = None
@@ -185,6 +185,51 @@ if app_config.agent:
         await message.reply_text(
             i18n.t("bot.msg.agent.forgot", locale=user_config.lang)
         )
+
+    @PyrogramClient.on_message(pyrogram.filters.command("model"), group=0)
+    async def set_model_command(
+        client: PyrogramClient, message: pyrogram.types.Message
+    ):
+        user = message.from_user
+        if not user or not user.id:
+            return
+        db_user = await database.get_user_by_id(user.id)
+        if not db_user:
+            return
+        if not db_user.is_bot_global_admin and user.id not in app_config.owners:
+            return
+        chat_id = message.chat.id if message.chat else None
+        if not chat_id:
+            return
+        args = message.text.split(maxsplit=1) if message.text else []
+        model_name = args[1].strip() if len(args) > 1 else None
+
+        current = await get_chat_model_override(chat_id)
+        if model_name:
+            await set_chat_model_override(chat_id, model_name)
+            prev = current or app_config.agent_model
+            await message.reply_text(
+                f"Model for this chat set to <code>{model_name}</code> "
+                f"(was: <code>{prev}</code>).",
+                parse_mode=pyrogram.enums.ParseMode.HTML,
+            )
+            logger.info(
+                f"Admin {user.id} set model override for chat {chat_id}: "
+                f"{prev!r} → {model_name!r}"
+            )
+        else:
+            await set_chat_model_override(chat_id, None)
+            prev = current or app_config.agent_model
+            await message.reply_text(
+                f"Model for this chat reset to global default "
+                f"<code>{app_config.agent_model}</code> "
+                f"(was: <code>{prev}</code>).",
+                parse_mode=pyrogram.enums.ParseMode.HTML,
+            )
+            logger.info(
+                f"Admin {user.id} reset model override for chat {chat_id} "
+                f"(was: {current!r})"
+            )
 
 
 _filter = (

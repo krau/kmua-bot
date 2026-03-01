@@ -18,7 +18,7 @@ from .prompt import (
     get_agent_affection_prompt,
     get_input_prompt,
 )
-from .runner import run_agent
+from .runner import get_chat_model_override, run_agent, set_chat_model_override
 from .user_memory import update_user_memory
 
 __all__ = [
@@ -39,6 +39,8 @@ __all__ = [
     "get_agent_affection_prompt",
     # runner
     "run_agent",
+    "get_chat_model_override",
+    "set_chat_model_override",
     # memory
     "update_user_memory",
     # local
