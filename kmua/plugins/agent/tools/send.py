@@ -365,4 +365,83 @@ async def send_reaction(
     return SendResult(success=True)
 
 
-__all__ = ["send_media", "send_poll", "send_reaction", "send_sticker"]
+async def send_text(
+    ctx: RunContext[datatype.ContextDeps],
+    text: str,
+    reply_to_message_id: int | None = None,
+    schedule_time: str | None = None,
+) -> SendResult:
+    """Send a plain-text message to the current chat.
+
+    **Do NOT use this tool to reply to the user's message in a normal turn.**
+    Just return the text directly as your output instead — it is faster and cleaner.
+
+    Only call this tool when you need to:
+    - Send **additional** messages beyond your main reply (e.g. a follow-up or
+      a separate message after sending media).
+    - Schedule a **delayed** message via `schedule_time`.
+
+    Args:
+        text: The message text to send.
+        reply_to_message_id: Optional message ID to reply to. If omitted, sends as a new message.
+        schedule_time: Optional ISO 8601 datetime string for delayed delivery,
+            e.g. "2025-06-04T15:00:00+08:00". If omitted, sends immediately.
+
+    Returns:
+        A SendResult indicating success or failure.
+    """
+    if ctx.deps.message is None or ctx.deps.chat_id is None:
+        return SendResult(success=False, message="Message context is unavailable.")
+
+    schedule_datetime: datetime.datetime | None = None
+    if schedule_time is not None:
+        try:
+            schedule_datetime = datetime.datetime.fromisoformat(schedule_time)
+        except ValueError as e:
+            raise ModelRetry(
+                f"Invalid schedule_time format. Use ISO 8601, e.g. '2025-06-04T15:00:00+08:00'. Error: {e}"
+            )
+        if schedule_datetime < datetime.datetime.now(datetime.UTC):
+            raise ModelRetry("schedule_time must be in the future.")
+
+    chat_id = ctx.deps.chat_id
+    reply_params = (
+        pyrogram.types.ReplyParameters(message_id=reply_to_message_id)
+        if reply_to_message_id
+        else None
+    )
+
+    if schedule_datetime is not None:
+        job_key = (
+            f"agent_send_text:{chat_id}:{ctx.deps.user_id}"
+            f":{schedule_datetime.timestamp()}"
+            f":{md5(text.encode()).hexdigest()}"
+        )
+
+        async def _job() -> None:
+            try:
+                await ctx.deps.client.send_message(
+                    chat_id=chat_id, text=text, reply_parameters=reply_params
+                )
+            except Exception as e:
+                logger.error(f"Scheduled send_text failed: {e.__class__.__name__}: {e}")
+
+        common.jobqueue.add_onetime_job(job_key, run_date=schedule_datetime, func=_job)
+        return SendResult(
+            success=True, message=f"Scheduled for {schedule_datetime.isoformat()}"
+        )
+
+    try:
+        await ctx.deps.client.send_message(
+            chat_id=chat_id,
+            text=text,
+            reply_parameters=reply_params,
+        )
+    except Exception as e:
+        logger.error(f"send_text failed: {e.__class__.__name__}: {e}")
+        raise ModelRetry(f"Failed to send text: {e.__class__.__name__}: {e}")
+
+    return SendResult(success=True)
+
+
+__all__ = ["send_media", "send_poll", "send_reaction", "send_sticker", "send_text"]

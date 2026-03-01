@@ -147,6 +147,7 @@ if app_config.agent:
             ),
             tools.send_media,
             tools.send_poll,
+            tools.send_text,
         ],
         deps_type=datatype.ContextDeps,
         history_processors=[history_processor],
