@@ -38,7 +38,7 @@ async def set_chat_model_override(
     if model_spec is None:
         await memttlcache.delete(key)
     else:
-        await memttlcache.set(key, model_spec)
+        await memttlcache.set(key, model_spec, 0) # no expiration, stays until changed or cleared
 
 
 async def run_agent(
