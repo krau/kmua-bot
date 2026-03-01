@@ -20,7 +20,12 @@ from kmua.logger import logger
 from kmua.services import manyacg
 
 from . import datatype, myfilter, provider, state, tools, utils
-from .history import get_history_text, should_compress_by_tokens, summarize_history
+from .history import (
+    get_history_text,
+    should_compress_by_tokens,
+    summarize_history,
+    truncate_multimodal,
+)
 from .prompt import build_ctx_info, get_input_prompt
 from .runner import (
     get_chat_model_override,
@@ -54,6 +59,8 @@ async def history_processor(
     assert summary_agent is not None, "summary_agent is not initialized"
     assert memory_agent is not None, "memory_agent is not initialized"
     summary = await summarize_history(summary_agent, messages)
+    if app_config.agent_multimodal_max_items > 0:
+        summary = truncate_multimodal(summary, app_config.agent_multimodal_max_items)
     await common.memttlcache.set(
         state.history_key(ctx.deps.chat_id, ctx.deps.user_id),
         summary,

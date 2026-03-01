@@ -1,7 +1,13 @@
 from collections import defaultdict
 
-from pydantic_ai import Agent, UserPromptPart
-from pydantic_ai.messages import ModelMessage, ModelRequest, ModelResponse
+from pydantic_ai import Agent, UserContent, UserPromptPart
+from pydantic_ai.messages import (
+    MULTI_MODAL_CONTENT_TYPES,
+    ModelMessage,
+    ModelRequest,
+    ModelResponse,
+    ToolReturnPart,
+)
 
 from kmua.config import app_config
 from kmua.i18n import i18n
@@ -161,3 +167,78 @@ async def summarize_history(
                 result_messages.append(new_msg)
 
         return result_messages
+
+
+def truncate_multimodal(
+    messages: list[ModelMessage], max_items: int
+) -> list[ModelMessage]:
+    """Strip multimodal content from the oldest ModelRequest entries until the total
+    multimodal item count in messages is at most max_items.
+
+    Handles both UserPromptPart (list content) and ToolReturnPart (single value),
+    mirroring the checks in check_needs_multimodal. Replaced items become plain-text
+    placeholders so message structure remains valid.
+    """
+    if max_items <= 0:
+        return messages
+
+    def _count(msgs: list[ModelMessage]) -> int:
+        total = 0
+        for msg in msgs:
+            if not isinstance(msg, ModelRequest):
+                continue
+            for part in msg.parts:
+                if isinstance(part, UserPromptPart) and isinstance(part.content, list):
+                    total += sum(
+                        1
+                        for item in part.content
+                        if isinstance(item, MULTI_MODAL_CONTENT_TYPES)
+                    )
+                elif isinstance(part, ToolReturnPart) and isinstance(
+                    part.content, MULTI_MODAL_CONTENT_TYPES
+                ):
+                    total += 1
+        return total
+
+    to_remove = _count(messages) - max_items
+    if to_remove <= 0:
+        return messages
+
+    new_messages: list[ModelMessage] = list(messages)
+    for i, msg in enumerate(new_messages):
+        if to_remove <= 0:
+            break
+        if not isinstance(msg, ModelRequest):
+            continue
+        new_parts = list(msg.parts)
+        changed = False
+        for j, part in enumerate(new_parts):
+            if to_remove <= 0:
+                break
+            if isinstance(part, UserPromptPart) and isinstance(part.content, list):
+                new_content: list[UserContent] = []
+                for item in part.content:
+                    if to_remove > 0 and isinstance(item, MULTI_MODAL_CONTENT_TYPES):
+                        new_content.append("[multimodal content removed]")
+                        to_remove -= 1
+                    else:
+                        new_content.append(item)
+                new_parts[j] = UserPromptPart(
+                    content=new_content, timestamp=part.timestamp
+                )
+                changed = True
+            elif isinstance(part, ToolReturnPart) and isinstance(
+                part.content, MULTI_MODAL_CONTENT_TYPES
+            ):
+                new_parts[j] = ToolReturnPart(
+                    tool_name=part.tool_name,
+                    content="[multimodal content removed]",
+                    tool_call_id=part.tool_call_id,
+                    timestamp=part.timestamp,
+                )
+                to_remove -= 1
+                changed = True
+        if changed:
+            new_messages[i] = ModelRequest(parts=new_parts)
+
+    return new_messages
