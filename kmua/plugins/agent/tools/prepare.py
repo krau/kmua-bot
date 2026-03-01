@@ -4,7 +4,7 @@ from pydantic_ai.tools import ToolDefinition
 from kmua import common
 from kmua.config import app_config
 from kmua.logger import logger
-from kmua.plugins.agent import datatype, sticker_memory
+from kmua.plugins.agent import datatype, state, sticker_memory
 from kmua.services import btts, image_gen
 
 
@@ -81,13 +81,45 @@ async def prepare_image_edit_tools(
     return None
 
 
-async def prepare_sticker_tool(
+async def prepare_periodic_sticker(
     ctx: RunContext[datatype.ContextDeps], tool_def: ToolDefinition
 ) -> ToolDefinition | None:
+    """Show send_sticker only when sticker memory is available; force-call hint on threshold turns."""
     if not app_config.agent_sticker_memory:
         return None
     if sticker_memory.embedder is None:
         return None
     if ctx.deps.chat_id is None or ctx.deps.chat_id >= -100:
         return None
+    interval = app_config.agent_periodic_sticker_interval
+    if interval <= 0:
+        return tool_def
+    counter: int = await common.memstore.get(
+        state.periodic_sticker_counter_key(ctx.deps.chat_id, ctx.deps.user_id), 0
+    )
+    if counter % interval == 0 and counter > 0:
+        tool_def.description = (
+            (tool_def.description or "")
+            + "\n\n**YOU MUST call this tool exactly once in this turn.** "
+            "Pick the query that best fits the current mood or topic."
+        )
+    return tool_def
+
+
+async def prepare_periodic_reaction(
+    ctx: RunContext[datatype.ContextDeps], tool_def: ToolDefinition
+) -> ToolDefinition | None:
+    """Show send_reaction always; force-call hint on threshold turns."""
+    interval = app_config.agent_periodic_reaction_interval
+    if interval <= 0:
+        return tool_def
+    counter: int = await common.memstore.get(
+        state.periodic_reaction_counter_key(ctx.deps.chat_id, ctx.deps.user_id), 0
+    )
+    if counter % interval == 0 and counter > 0:
+        tool_def.description = (
+            (tool_def.description or "")
+            + "\n\n**YOU MUST call this tool exactly once in this turn.** "
+            "Choose an emoji that reflects your genuine reaction to the user's message."
+        )
     return tool_def

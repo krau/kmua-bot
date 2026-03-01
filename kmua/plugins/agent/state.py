@@ -47,3 +47,13 @@ def last_user_image_key(chat_id: int, user_id: int) -> str:
 def chat_model_override_key(chat_id: int, role: str = "main") -> str:
     """Per-chat model override key. role: 'main' | 'multimodal' | 'small' (or any future role)."""
     return f"agent_chat_model_override:{role}:{chat_id}"
+
+
+def periodic_sticker_counter_key(chat_id: int, user_id: int) -> str:
+    """Conversation counter for periodic sticker forcing."""
+    return f"agent_periodic_sticker_counter:{chat_id}:{user_id}"
+
+
+def periodic_reaction_counter_key(chat_id: int, user_id: int) -> str:
+    """Conversation counter for periodic reaction forcing."""
+    return f"agent_periodic_reaction_counter:{chat_id}:{user_id}"

@@ -133,6 +133,11 @@ class _AppConfig(pydantic.BaseModel):
         "Be concise and specific."
     )
 
+    # Periodic sticker / reaction: force-inject the tool hint every N conversations.
+    # 0 = disabled.
+    agent_periodic_sticker_interval: int = 7
+    agent_periodic_reaction_interval: int = 7
+
     # experimental, maybe removed in the future
     agent_whitelist_mode: bool = False
     agent_whitelist: list[int] = []

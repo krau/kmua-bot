@@ -130,11 +130,14 @@ if app_config.agent:
             ),
             Tool(
                 tools.send_sticker,
-                prepare=tools.prepare_sticker_tool,
+                prepare=tools.prepare_periodic_sticker,
             ),
             tools.ask_user,
             tools.send_anime_photo,
-            tools.send_reaction,
+            Tool(
+                tools.send_reaction,
+                prepare=tools.prepare_periodic_reaction,
+            ),
             tools.send_media,
             tools.send_poll,
         ],
@@ -461,5 +464,21 @@ async def wake_agent(client: PyrogramClient, message: pyrogram.types.Message):
             model=model,
             lang=lang,
         )
+        # Increment periodic counters after each completed conversation turn.
+        if app_config.agent_periodic_sticker_interval > 0:
+            sticker_ctr: int = await common.memstore.get(
+                state.periodic_sticker_counter_key(chat_id, user.id), 0
+            )
+            await common.memstore.set(
+                state.periodic_sticker_counter_key(chat_id, user.id), sticker_ctr + 1
+            )
+        if app_config.agent_periodic_reaction_interval > 0:
+            reaction_ctr: int = await common.memstore.get(
+                state.periodic_reaction_counter_key(chat_id, user.id), 0
+            )
+            await common.memstore.set(
+                state.periodic_reaction_counter_key(chat_id, user.id),
+                reaction_ctr + 1,
+            )
     finally:
         await common.memstore.delete(state.waiting_key(user.id))
