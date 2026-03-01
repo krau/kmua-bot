@@ -44,6 +44,9 @@ class _MemTTLCache:
             self.cache = SimpleMemoryCache()  # type: ignore
 
     async def set(self, key: str, value: Any, ttl: int = 60) -> None:
+        if ttl <= 0:
+            await self.cache.set(key, value)
+            return
         await self.cache.set(key, value, ttl=ttl)
 
     async def get(self, key: str, default: Any = None) -> Any:
