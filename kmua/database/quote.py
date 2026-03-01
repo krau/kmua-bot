@@ -1,4 +1,3 @@
-import random
 from collections.abc import Sequence
 
 import sqlalchemy
@@ -82,32 +81,18 @@ async def get_chat_random_quote(
 ) -> Quote | None:
     assert session is not None
 
+    conditions: list = [Quote.chat_id == chat_id]
     if with_text:
-        count_stmt = sqlalchemy.select(sqlalchemy.func.count()).where(
-            sqlalchemy.and_(
-                Quote.chat_id == chat_id,
-                Quote.text.is_not(None),
-            )
-        )
-    else:
-        count_stmt = sqlalchemy.select(sqlalchemy.func.count()).where(
-            Quote.chat_id == chat_id
-        )
-    result = await session.execute(count_stmt)
-    count = result.scalar_one()
+        conditions.append(Quote.text.is_not(None))
 
-    if count == 0:
-        return None
-
-    random_offset = random.randint(0, count - 1)
-    quote_stmt = (
+    stmt = (
         sqlalchemy.select(Quote)
         .options(sqlalchemy.orm.selectinload(Quote.user))
-        .where(Quote.chat_id == chat_id)
-        .offset(random_offset)
+        .where(*conditions)
+        .order_by(sqlalchemy.func.random())
         .limit(1)
     )
-    result = await session.execute(quote_stmt)
+    result = await session.execute(stmt)
     return result.scalar_one_or_none()
 
 
