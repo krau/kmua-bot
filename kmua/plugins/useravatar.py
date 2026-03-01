@@ -17,7 +17,7 @@ async def refresh_user_avatar(client: pyrogram.Client, message: pyrogram.types.M
     db_user = await database.get_user_by_id(user.id)
     if not db_user:
         return
-    await common.memttlcache.set(_lock_key(user.id), True)
+    await common.memttlcache.set(_lock_key(user.id), True, ttl=300)
     refreshing_msg = await message.reply_text(
         i18n.t("bot.msg.refreshing_avatar", locale=db_user.user_config.lang)
     )
