@@ -16,7 +16,7 @@ from pydantic_ai.messages import (
 )
 from pyrogram.client import Client as PyrogramClient
 
-from kmua.common.memory_store import memttlcache
+from kmua.common.memory_store import memstore
 from kmua.config import app_config
 from kmua.i18n import i18n
 from kmua.logger import logger
@@ -27,7 +27,7 @@ from kmua.plugins.agent.prompt import check_needs_multimodal
 
 async def get_chat_model_override(chat_id: int, role: str = "main") -> str | None:
     """Return the per-chat model override spec for the given role, or None if not set."""
-    return await memttlcache.get(state.chat_model_override_key(chat_id, role))
+    return await memstore.get(state.chat_model_override_key(chat_id, role))
 
 
 async def set_chat_model_override(
@@ -36,9 +36,9 @@ async def set_chat_model_override(
     """Set (or clear, when model_spec is None) the per-chat model override for the given role."""
     key = state.chat_model_override_key(chat_id, role)
     if model_spec is None:
-        await memttlcache.delete(key)
+        await memstore.delete(key)
     else:
-        await memttlcache.set(key, model_spec, 0) # no expiration, stays until changed or cleared
+        await memstore.set(key, model_spec)
 
 
 async def run_agent(
