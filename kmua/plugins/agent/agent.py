@@ -11,8 +11,6 @@ from pydantic_ai import (
     Tool,
 )
 from pydantic_ai.common_tools.duckduckgo import DuckDuckGoSearchTool
-from pydantic_ai.models.openai import OpenAIChatModel
-from pydantic_ai.providers.openai import OpenAIProvider
 from pyrogram import filters
 from pyrogram.client import Client as PyrogramClient
 
@@ -21,7 +19,7 @@ from kmua.config import app_config
 from kmua.logger import logger
 from kmua.services import manyacg
 
-from . import datatype, myfilter, state, tools, utils
+from . import datatype, myfilter, provider, state, tools, utils
 from .history import get_history_text, should_compress_by_tokens, summarize_history
 from .prompt import build_ctx_info, get_input_prompt
 from .runner import get_chat_model_override, run_agent, set_chat_model_override
@@ -74,34 +72,16 @@ async def history_processor(
 
 
 if app_config.agent:
-    model = OpenAIChatModel(
-        model_name=app_config.agent_model,
-        provider=OpenAIProvider(
-            base_url=app_config.agent_provider_url,
-            api_key=app_config.agent_api_key,
-        ),
-    )
+    model = provider.make_chat_model(app_config.agent_model)
     multimodal_model = (
         model
         if not app_config.agent_model_multimodal
-        else OpenAIChatModel(
-            model_name=app_config.agent_model_multimodal,
-            provider=OpenAIProvider(
-                base_url=app_config.agent_provider_url,
-                api_key=app_config.agent_api_key,
-            ),
-        )
+        else provider.make_chat_model(app_config.agent_model_multimodal)
     )
     small_model = (
         model
         if not app_config.agent_model_small
-        else OpenAIChatModel(
-            model_name=app_config.agent_model_small,
-            provider=OpenAIProvider(
-                base_url=app_config.agent_provider_url,
-                api_key=app_config.agent_api_key,
-            ),
-        )
+        else provider.make_chat_model(app_config.agent_model_small)
     )
     agent = Agent(
         model=model,

@@ -5,9 +5,6 @@ import pyrogram
 import pyrogram.types
 from pydantic_ai import Agent, BinaryContent, Embedder
 from pydantic_ai.embeddings import EmbeddingSettings
-from pydantic_ai.embeddings.openai import OpenAIEmbeddingModel
-from pydantic_ai.models.openai import OpenAIChatModel
-from pydantic_ai.providers.openai import OpenAIProvider
 from pyrogram import filters
 from pyrogram.client import Client as PyrogramClient
 
@@ -15,44 +12,22 @@ from kmua import common, database
 from kmua.config import app_config
 from kmua.logger import logger
 
-from . import sticker_vec
+from . import provider, sticker_vec
 
 embedder: Embedder | None = None
 _description_agent: Agent[None, str] | None = None
 
 if app_config.agent_sticker_memory:
-    _embed_api_key = app_config.agent_sticker_embed_api_key or app_config.agent_api_key
-    _embed_base_url = (
-        app_config.agent_sticker_embed_provider_url or app_config.agent_provider_url
-    )
     embedder = Embedder(
-        OpenAIEmbeddingModel(
-            app_config.agent_sticker_embed_model,
-            provider=OpenAIProvider(
-                base_url=_embed_base_url,
-                api_key=_embed_api_key,
-            ),
-        ),
+        provider.make_embed_model(app_config.agent_sticker_embed_model),
         settings=EmbeddingSettings(
             dimensions=app_config.agent_sticker_embed_dimensions
         ),
     )
 
-    _desc_model_name = (
-        app_config.agent_sticker_description_model or app_config.agent_model
-    )
-    _desc_api_key = app_config.agent_sticker_embed_api_key or app_config.agent_api_key
-    _desc_base_url = (
-        app_config.agent_sticker_embed_provider_url or app_config.agent_provider_url
-    )
+    _desc_spec = app_config.agent_sticker_description_model or app_config.agent_model
     _description_agent = Agent(
-        model=OpenAIChatModel(
-            model_name=_desc_model_name,
-            provider=OpenAIProvider(
-                base_url=_desc_base_url,
-                api_key=_desc_api_key,
-            ),
-        ),
+        model=provider.make_chat_model(_desc_spec),
         output_type=str,
         retries=2,
     )
@@ -78,10 +53,10 @@ async def _get_description(image_bytes: bytes, mime_type: str) -> str | None:
             if frame is None:
                 return None
             content_part: BinaryContent = BinaryContent(
-                data=frame, media_type="image/webp"
+                data=frame, media_type="image/webp" # type: ignore
             )
         else:
-            content_part = BinaryContent(data=image_bytes, media_type=mime_type)
+            content_part = BinaryContent(data=image_bytes, media_type=mime_type) # type: ignore
         result = await _description_agent.run(
             [content_part, app_config.agent_sticker_description_prompt]
         )

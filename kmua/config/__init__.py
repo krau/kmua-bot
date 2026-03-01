@@ -6,6 +6,13 @@ import pydantic
 from dynaconf import Dynaconf
 
 
+class ProviderConfig(pydantic.BaseModel):
+    """Named AI provider: base URL + API key pair."""
+
+    url: str = "https://api.openai.com/v1"
+    key: str = ""
+
+
 class _AppConfig(pydantic.BaseModel):
     # base config
     token: str
@@ -73,11 +80,21 @@ class _AppConfig(pydantic.BaseModel):
     agent_powermem_config_path: str | None = None
     agent_powermem_config: dict[str, Any] | None = None
     agent_powermem_custom_fact_extraction_prompt: str | None = None
-    agent_model: str = "gpt-5.1"
-    agent_model_multimodal: str | None = None
-    agent_model_small: str | None = None
-    agent_provider_url: str = "https://api.openai.com/v1"
-    agent_api_key: str = ""
+    # Named providers: keys are provider names, values are {url, api_key}.
+    # The "default" provider is used when a model spec has no explicit provider prefix.
+    # Example:
+    #   [agent_providers.openai]
+    #   url = "https://api.openai.com/v1"
+    #   api_key = "sk-..."
+    #   [agent_providers.local]
+    #   url = "http://localhost:11434/v1"
+    #   api_key = "ollama"
+    agent_providers: dict[str, ProviderConfig] = {"default": ProviderConfig()}
+    # Model specs use the format "provider/model_name" or just "model_name"
+    # (bare name uses the "default" provider).
+    agent_model: str = "default/gpt-4.1"
+    agent_model_multimodal: str | None = None  # falls back to agent_model if unset
+    agent_model_small: str | None = None  # falls back to agent_model if unset
     agent_messages_threshold: int = 20
     agent_context_window_tokens: int = 0
     agent_context_compress_ratio: float = 0.8
@@ -94,27 +111,21 @@ class _AppConfig(pydantic.BaseModel):
     agent_crawl_api_url: str | None = None
     agent_crawl_api_token: str | None = None
     agent_crawl_api_timeout: int = 60
-    # image generation model (OpenAI-compatible /images/generations API)
-    # if not set, the generate_image tool will be disabled
+    # Image generation/editing: "provider/model" spec.
+    # Generation client is disabled when unset.
     agent_image_gen_model: str | None = None
-    agent_image_gen_provider_url: str | None = None
-    agent_image_gen_api_key: str | None = None
-    # image editing model (OpenAI-compatible /images/edits API)
-    # if not set, falls back to the generation model config above;
-    # set explicitly when using a different model/endpoint for editing
+    # Edit client falls back to gen model/provider when unset.
     agent_image_edit_model: str | None = None
-    agent_image_edit_provider_url: str | None = None
-    agent_image_edit_api_key: str | None = None
-    # sticker semantic memory
+    # Sticker semantic memory
     agent_sticker_memory: bool = False
     agent_sticker_memory_sample_rate: float = 0.5
     agent_sticker_db_path: str = "data/sticker_vec.db"
     agent_sticker_ttl: int = 86400 * 7
-    agent_sticker_description_model: str | None = None
-    agent_sticker_embed_model: str = "text-embedding-3-small"
-    agent_sticker_embed_provider_url: str | None = None
-    agent_sticker_embed_api_key: str | None = None
+    # Embedding model spec: "provider/model". Falls back to agent_model provider.
+    agent_sticker_embed_model: str = "default/text-embedding-3-small"
     agent_sticker_embed_dimensions: int = 1024
+    # Description model spec. Falls back to agent_model when unset.
+    agent_sticker_description_model: str | None = None
     agent_sticker_description_prompt: str = (
         "Describe what emotion, mood, or meaning this sticker conveys in 1-2 sentences. "
         "Focus on how it would typically be used in a conversation — "

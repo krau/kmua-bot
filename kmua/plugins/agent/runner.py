@@ -14,47 +14,33 @@ from pydantic_ai.messages import (
     TextPart,
     TextPartDelta,
 )
-from pydantic_ai.models.openai import OpenAIChatModel
-from pydantic_ai.providers.openai import OpenAIProvider
 from pyrogram.client import Client as PyrogramClient
 
 from kmua.common.memory_store import memttlcache
 from kmua.config import app_config
 from kmua.i18n import i18n
 from kmua.logger import logger
-from kmua.plugins.agent import state
+from kmua.plugins.agent import provider, state
 from kmua.plugins.agent.output import StreamingOutput, TypingKeepAlive, reply_output
 from kmua.plugins.agent.prompt import check_needs_multimodal
 
 
-def _make_model(model_name: str) -> OpenAIChatModel:
-    """Construct an OpenAIChatModel using the global provider settings."""
-    return OpenAIChatModel(
-        model_name=model_name,
-        provider=OpenAIProvider(
-            base_url=app_config.agent_provider_url,
-            api_key=app_config.agent_api_key,
-        ),
-    )
-
-
 async def get_chat_model_override(chat_id: int) -> str | None:
-    """Return the per-chat model override name, or None if not set."""
+    """Return the per-chat model override spec, or None if not set."""
     return await memttlcache.get(state.chat_model_override_key(chat_id))
 
 
-async def set_chat_model_override(chat_id: int, model_name: str | None) -> None:
+async def set_chat_model_override(chat_id: int, model_spec: str | None) -> None:
     """Set (or clear) the per-chat model override.
 
-    Pass model_name=None to reset to the global default.
-    Stored without TTL so it persists until the bot restarts.
+    Pass model_spec=None to reset to the global default.
+    Stored without TTL — persists until the bot restarts.
     """
     key = state.chat_model_override_key(chat_id)
-    if model_name is None:
+    if model_spec is None:
         await memttlcache.delete(key)
     else:
-        # No TTL — intentionally lives until restart
-        await memttlcache.set(key, model_name)
+        await memttlcache.set(key, model_spec)
 
 
 async def run_agent(
@@ -84,7 +70,7 @@ async def run_agent(
     # Apply per-chat model override if set
     override_name = await get_chat_model_override(chat_id)
     if override_name:
-        use_model = _make_model(override_name)
+        use_model = provider.make_chat_model(override_name)
     else:
         use_model = multimodal_model if needs_multimodal else model
 

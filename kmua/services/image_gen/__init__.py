@@ -7,6 +7,7 @@ from openai import AsyncOpenAI
 
 from kmua.config import app_config
 from kmua.logger import logger
+from kmua.plugins.agent import provider
 
 
 @dataclass
@@ -128,28 +129,21 @@ class _ImageEditClient:
 image_gen_client: _ImageGenerationClient | None = None
 image_edit_client: _ImageEditClient | None = None
 
-if (
-    app_config.agent_image_gen_model
-    and app_config.agent_image_gen_provider_url
-    and app_config.agent_image_gen_api_key
-):
+if app_config.agent_image_gen_model:
+    _gen_args = provider.make_openai_client_args(app_config.agent_image_gen_model)
     image_gen_client = _ImageGenerationClient(
-        api_key=app_config.agent_image_gen_api_key,
-        base_url=app_config.agent_image_gen_provider_url,
-        model=app_config.agent_image_gen_model,
+        api_key=_gen_args["api_key"],
+        base_url=_gen_args["base_url"],
+        model=_gen_args["model"],
     )
 
-_edit_model = app_config.agent_image_edit_model or app_config.agent_image_gen_model
-_edit_url = (
-    app_config.agent_image_edit_provider_url or app_config.agent_image_gen_provider_url
-)
-_edit_key = app_config.agent_image_edit_api_key or app_config.agent_image_gen_api_key
-
-if _edit_model and _edit_url and _edit_key:
+    # Edit client: use agent_image_edit_model if set, else fall back to gen model
+    _edit_spec = app_config.agent_image_edit_model or app_config.agent_image_gen_model
+    _edit_args = provider.make_openai_client_args(_edit_spec)
     image_edit_client = _ImageEditClient(
-        api_key=_edit_key,
-        base_url=_edit_url,
-        model=_edit_model,
+        api_key=_edit_args["api_key"],
+        base_url=_edit_args["base_url"],
+        model=_edit_args["model"],
     )
 
 __all__ = [
