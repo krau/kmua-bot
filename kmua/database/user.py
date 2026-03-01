@@ -14,6 +14,10 @@ from kmua.config import runtime_config
 from .db import with_session, with_tx
 from .models import UserChatAssociation, UserConfig, UserData
 
+# 本地内存缓存：记录已同步到 DB 的用户快照，避免每条消息触发重复 upsert
+# key: user_id, value: (username, full_name, is_bot, is_real_user)
+_upsert_user_cache: dict[int, tuple] = {}
+
 
 @with_session
 async def count_users(session: AsyncSession | None = None) -> int:
@@ -67,6 +71,13 @@ async def upsert_user(
 
     if full_name is None:
         raise ValueError("user.full_name must not be None")
+
+    # 检查缓存：如果数据没有变化，直接从 DB 读取并返回，避免触发写事务
+    cache_data = (username, full_name, is_bot, is_real_user)
+    if _upsert_user_cache.get(user.id) == cache_data:
+        cached = await session.get(UserData, user.id)
+        if cached is not None:
+            return cached
 
     if runtime_config.db_is_postgres:
         stmt = (
@@ -144,14 +155,17 @@ async def upsert_user(
             user_data.full_name = full_name
             user_data.is_bot = is_bot or False
             user_data.is_real_user = is_real_user
+        _upsert_user_cache[user.id] = cache_data
         return user_data
 
     result = await session.execute(stmt)
     user_data = result.scalars().first()
     if user_data is not None:
+        _upsert_user_cache[user.id] = cache_data
         return user_data
     data = await session.get(UserData, user.id)
     assert data is not None
+    _upsert_user_cache[user.id] = cache_data
     return data
 
 
