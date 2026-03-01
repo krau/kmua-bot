@@ -6,10 +6,18 @@ import sqlalchemy.dialects.sqlite
 from pyrogram.types import Chat
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from kmua.common.memory_store import memttlcache
 from kmua.config import runtime_config
 
 from .db import with_session, with_tx
 from .models import ChatConfig, ChatData
+
+# 本地内存缓存：记录已同步到 DB 的群组快照，避免每条消息触发重复 upsert
+# key: chat_id, value: (title, username)
+_upsert_chat_cache: dict[int, tuple] = {}
+
+_CHAT_CONFIG_CACHE_TTL = 300  # 5 分钟
+_CHAT_CONFIG_CACHE_PREFIX = "chat_config:"
 
 
 @with_session
@@ -25,11 +33,22 @@ async def count_chats(session: AsyncSession | None = None) -> int:
 async def upsert_chat(chat: Chat, session: AsyncSession | None = None) -> ChatData:
     assert session is not None
 
+    if chat.id is None:
+        raise ValueError("chat.id must not be None")
+    chat_id: int = chat.id
+
+    # 检查缓存：如果数据没有变化，直接从 DB 读取并返回，避免触发写事务
+    cache_data = (chat.title, chat.username)
+    if _upsert_chat_cache.get(chat_id) == cache_data:
+        cached = await session.get(ChatData, chat_id)
+        if cached is not None:
+            return cached
+
     if runtime_config.db_is_postgres:
         stmt = (
             sqlalchemy.dialects.postgresql.insert(ChatData)
             .values(
-                id=chat.id,
+                id=chat_id,
                 title=chat.title,
                 username=chat.username,
             )
@@ -46,7 +65,7 @@ async def upsert_chat(chat: Chat, session: AsyncSession | None = None) -> ChatDa
         stmt = (
             sqlalchemy.dialects.mysql.insert(ChatData)
             .values(
-                id=chat.id,
+                id=chat_id,
                 title=chat.title,
                 username=chat.username,
             )
@@ -60,7 +79,7 @@ async def upsert_chat(chat: Chat, session: AsyncSession | None = None) -> ChatDa
         stmt = (
             sqlalchemy.dialects.sqlite.insert(ChatData)
             .values(
-                id=chat.id,
+                id=chat_id,
                 title=chat.title,
                 username=chat.username,
             )
@@ -74,10 +93,10 @@ async def upsert_chat(chat: Chat, session: AsyncSession | None = None) -> ChatDa
             .returning(ChatData)
         )
     else:
-        chat_data = await session.get(ChatData, chat.id)
+        chat_data = await session.get(ChatData, chat_id)
         if chat_data is None:
             chat_data = ChatData(
-                id=chat.id,
+                id=chat_id,
                 title=chat.title,
                 username=chat.username,
             )
@@ -85,15 +104,18 @@ async def upsert_chat(chat: Chat, session: AsyncSession | None = None) -> ChatDa
         else:
             chat_data.title = chat.title or ""
             chat_data.username = chat.username
+        _upsert_chat_cache[chat_id] = cache_data
         return chat_data
 
     result = await session.execute(stmt)
     chat_data = result.scalars().first()
     if chat_data is not None:
+        _upsert_chat_cache[chat_id] = cache_data
         return chat_data
 
-    data = await session.get(ChatData, chat.id)
+    data = await session.get(ChatData, chat_id)
     assert data is not None
+    _upsert_chat_cache[chat_id] = cache_data
     return data
 
 
@@ -111,17 +133,40 @@ async def get_chat_by_id(
 
 async def get_chat_config(chat: int | ChatData | Chat) -> ChatConfig:
     if isinstance(chat, ChatData):
-        return chat.chat_config
+        config = chat.chat_config
+        await memttlcache.set(
+            f"{_CHAT_CONFIG_CACHE_PREFIX}{chat.id}", config, _CHAT_CONFIG_CACHE_TTL
+        )
+        return config
+
+    chat_id: int
+    if isinstance(chat, Chat):
+        if chat.id is None:
+            raise ValueError("chat.id must not be None")
+        chat_id = chat.id
+    elif isinstance(chat, int):
+        chat_id = chat
+    else:
+        raise TypeError("chat must be int, ChatData or Chat")
+
+    cached = await memttlcache.get(f"{_CHAT_CONFIG_CACHE_PREFIX}{chat_id}")
+    if cached is not None:
+        return cached
+
     chat_data: ChatData | None = None
     if isinstance(chat, Chat):
         chat_data = await upsert_chat(chat)
-    elif isinstance(chat, int):
-        chat_data = await get_chat_by_id(chat)
     else:
-        raise TypeError("chat must be int, ChatData or Chat")
+        chat_data = await get_chat_by_id(chat_id)
+
     if chat_data is None:
         raise ValueError("Chat not found")
-    return chat_data.chat_config
+
+    config = chat_data.chat_config
+    await memttlcache.set(
+        f"{_CHAT_CONFIG_CACHE_PREFIX}{chat_id}", config, _CHAT_CONFIG_CACHE_TTL
+    )
+    return config
 
 
 @with_tx
@@ -134,6 +179,8 @@ async def update_chat_config(
     if isinstance(chat, ChatData):
         chat_id = chat.id
     elif isinstance(chat, Chat):
+        if chat.id is None:
+            raise ValueError("chat.id must not be None")
         chat_id = chat.id
     elif isinstance(chat, int):
         chat_id = chat
@@ -144,7 +191,7 @@ async def update_chat_config(
     if chat_data is None:
         if isinstance(chat, Chat):
             chat_data = ChatData(
-                id=chat.id,
+                id=chat_id,
                 title=chat.title,
                 username=chat.username,
             )
@@ -153,4 +200,10 @@ async def update_chat_config(
         else:
             raise ValueError(f"Chat with id {chat_id} not found")
     chat_data.chat_config = config
+
+    # 立即更新缓存，使新配置对后续请求即时生效
+    await memttlcache.set(
+        f"{_CHAT_CONFIG_CACHE_PREFIX}{chat_id}", config, _CHAT_CONFIG_CACHE_TTL
+    )
+
     return chat_data.chat_config
