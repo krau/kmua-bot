@@ -1,5 +1,3 @@
-import random
-
 import sqlalchemy
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -11,13 +9,13 @@ from kmua.database.models import Bottle, BottleReply, UserData
 @with_tx
 async def pick_random_bottle(session: AsyncSession | None = None) -> Bottle | None:
     assert session is not None, "Session must be provided"
-    total_bottles = await count_bottles(session)
-    if total_bottles == 0:
-        return None
-    random_offset = random.randint(0, total_bottles - 1)
-    random_bottle_stmt = sqlalchemy.select(Bottle).offset(random_offset).limit(1)
+    random_bottle_stmt = (
+        sqlalchemy.select(Bottle).order_by(sqlalchemy.func.random()).limit(1)
+    )
     result = await session.execute(random_bottle_stmt)
-    bottle = result.scalar_one()
+    bottle = result.scalar_one_or_none()
+    if bottle is None:
+        return None
     await increment_bottle_picks(bottle.id, session)
     return bottle
 
