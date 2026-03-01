@@ -1,3 +1,5 @@
+from typing import Any
+
 import pyrogram
 from pydantic import BaseModel, Field
 from pydantic_ai import Agent, ModelMessage
@@ -7,9 +9,12 @@ from kmua import common, database, enums
 from kmua.common.memory_store import memttlcache
 from kmua.config import app_config
 from kmua.logger import logger
-from kmua.plugins.agent import datatype, state
+from kmua.plugins.agent import datatype, provider, state
 from kmua.plugins.agent.prompt import build_ctx_info, get_input_prompt
-from kmua.plugins.agent.runner import run_agent
+from kmua.plugins.agent.runner import (
+    get_chat_model_override,
+    run_agent,
+)
 
 from .agent import agent, model, multimodal_model, powermemory, small_model
 
@@ -20,12 +25,27 @@ class RelevanceCheck(BaseModel):
 
 
 if small_model:
-    relevance_check_agent = Agent(
+    _default_relevance_check_agent = Agent(
         model=small_model,
         output_type=RelevanceCheck,
         system_prompt="你是一个对话相关性判断助手。判断用户的新消息是否是对之前对话的延续。",
         retries=2,
     )
+else:
+    _default_relevance_check_agent = None
+
+
+def _make_relevance_check_agent(override_model_spec: str | None) -> Any:
+    """Return a relevance-check agent using the per-chat small model override if set,
+    otherwise fall back to the module-level default (which uses the global small_model)."""
+    if override_model_spec:
+        return Agent(
+            model=provider.make_chat_model(override_model_spec),
+            output_type=RelevanceCheck,
+            system_prompt="你是一个对话相关性判断助手。判断用户的新消息是否是对之前对话的延续。",
+            retries=2,
+        )
+    return _default_relevance_check_agent
 
 
 async def _follow_up_filter_func(
@@ -33,7 +53,7 @@ async def _follow_up_filter_func(
 ) -> bool:
     if not app_config.agent or not app_config.agent_follow_up:
         return False
-    if not relevance_check_agent:
+    if not _default_relevance_check_agent:
         return False
     if not message or not message.chat:
         return False
@@ -139,10 +159,14 @@ Bot回复: {bot_reply.reply_text}
 - 新消息与原先话题必须存在明显的关联性才算相关, 如果不能确定, 一律判定为不相关
 """
     try:
+        small_model_override = await get_chat_model_override(chat.id, "small")
+        relevance_check_agent = _make_relevance_check_agent(small_model_override)
+        if not relevance_check_agent:
+            return
         relevance_result = await relevance_check_agent.run(
             user_prompt=relevance_check_prompt,
         )
-        if not relevance_result.output.relevance:
+        if not relevance_result.output.relevance:  # type: ignore[union-attr]
             return
     except Exception as e:
         logger.error(
@@ -150,7 +174,7 @@ Bot回复: {bot_reply.reply_text}
         )
         return
     logger.info(
-        f"Detected follow-up message {message.id} (reason: {relevance_result.output.reason})"
+        f"Detected follow-up message {message.id} (reason: {relevance_result.output.reason})"  # type: ignore[union-attr]
     )
     if await common.memstore.get(state.waiting_key(user.id)):
         return

@@ -25,18 +25,16 @@ from kmua.plugins.agent.output import StreamingOutput, TypingKeepAlive, reply_ou
 from kmua.plugins.agent.prompt import check_needs_multimodal
 
 
-async def get_chat_model_override(chat_id: int) -> str | None:
-    """Return the per-chat model override spec, or None if not set."""
-    return await memttlcache.get(state.chat_model_override_key(chat_id))
+async def get_chat_model_override(chat_id: int, role: str = "main") -> str | None:
+    """Return the per-chat model override spec for the given role, or None if not set."""
+    return await memttlcache.get(state.chat_model_override_key(chat_id, role))
 
 
-async def set_chat_model_override(chat_id: int, model_spec: str | None) -> None:
-    """Set (or clear) the per-chat model override.
-
-    Pass model_spec=None to reset to the global default.
-    Stored without TTL — persists until the bot restarts.
-    """
-    key = state.chat_model_override_key(chat_id)
+async def set_chat_model_override(
+    chat_id: int, model_spec: str | None, role: str = "main"
+) -> None:
+    """Set (or clear, when model_spec is None) the per-chat model override for the given role."""
+    key = state.chat_model_override_key(chat_id, role)
     if model_spec is None:
         await memttlcache.delete(key)
     else:
@@ -68,11 +66,17 @@ async def run_agent(
     needs_multimodal = check_needs_multimodal(user_prompt, history)
 
     # Apply per-chat model override if set
-    override_name = await get_chat_model_override(chat_id)
+    override_name = await get_chat_model_override(chat_id, "main")
     if override_name:
         use_model = provider.make_chat_model(override_name)
     else:
-        use_model = multimodal_model if needs_multimodal else model
+        multimodal_override = await get_chat_model_override(chat_id, "multimodal")
+        effective_multimodal = (
+            provider.make_chat_model(multimodal_override)
+            if multimodal_override
+            else multimodal_model
+        )
+        use_model = effective_multimodal if needs_multimodal else model
 
     try:
         async with TypingKeepAlive(client, message):
