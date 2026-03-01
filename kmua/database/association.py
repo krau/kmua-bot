@@ -13,6 +13,8 @@ from kmua.config import app_config, runtime_config
 from .db import AsyncSessionFactory, with_session, with_tx
 from .models import ChatData, UserChatAssociation, UserData
 
+_association_cache: set[tuple[int, int]] = set()
+
 
 @with_session
 async def count_associations(session: AsyncSession | None = None):
@@ -30,6 +32,12 @@ async def add_association_in_chat(
     session: AsyncSession | None = None,
 ) -> UserChatAssociation | None:
     assert session is not None
+
+    # 如果已知该 association 存在，跳过 upsert 直接返回
+    cache_pair = (user.id, chat.id)
+    if cache_pair in _association_cache:
+        return await session.get(UserChatAssociation, (user.id, chat.id))
+
     if runtime_config.db_is_postgres:
         stmt = (
             sqlalchemy.dialects.postgresql.insert(UserChatAssociation)
@@ -65,6 +73,7 @@ async def add_association_in_chat(
         )
     else:
         if data := await session.get(UserChatAssociation, (user.id, chat.id)):
+            _association_cache.add(cache_pair)
             return data
         member = UserChatAssociation(
             user_id=user.id,
@@ -72,10 +81,12 @@ async def add_association_in_chat(
             waifu_id=waifu.id if waifu else None,
         )
         session.add(member)
+        _association_cache.add(cache_pair)
         return member
 
     result = await session.execute(stmt)
     association = result.scalars().first()
+    _association_cache.add(cache_pair)
     if association is not None:
         return association
     return await session.get(UserChatAssociation, (user.id, chat.id))
@@ -126,7 +137,10 @@ async def remove_association(
     )
     result = await session.execute(stmt)
     deleted = result.scalars().first()
-    return deleted is not None
+    if deleted is not None:
+        _association_cache.discard((user_id, chat_id))
+        return True
+    return False
 
 
 @with_session
