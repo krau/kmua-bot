@@ -155,6 +155,11 @@ if app_config.agent:
         history_processors=[history_processor],
         retries=5,
     )
+
+    @agent.instructions
+    async def _dynamic_instructions(ctx: RunContext[datatype.ContextDeps]) -> str:
+        return ctx.deps.instructions
+
     tools.set_agent(agent, model=model, multimodal_model=multimodal_model)
     summary_agent = Agent(model=model, instructions=app_config.agent_summary_prompt)
     memory_agent = Agent(
@@ -527,8 +532,6 @@ async def wake_agent(client: PyrogramClient, message: pyrogram.types.Message):
             history=history,
             is_group_chat=is_group_chat,
         )
-        if ctx_info:
-            instructions += f"\n\n{ctx_info.to_text()}\n"
         # 在群聊场景中获取附近消息作为上下文
         # [TODO] 好像自动添加附近消息反而效果不好了
         nearby_count = (
@@ -544,12 +547,12 @@ async def wake_agent(client: PyrogramClient, message: pyrogram.types.Message):
             )
         await utils.cache_user_image(message, chat_id, user.id)
         await run_agent(
-            agent_instance=agent,
+            agi=agent,
+            additional_instructions=ctx_info.to_text() if ctx_info else None,
             client=client,
             message=message,
             user_id=user.id,
             chat_id=chat_id,
-            instructions=instructions,
             user_prompt=user_prompt,
             history=history,
             deps=datatype.ContextDeps(
@@ -557,6 +560,7 @@ async def wake_agent(client: PyrogramClient, message: pyrogram.types.Message):
                 chat_id=chat_id,
                 message=message,
                 client=client,
+                instructions=instructions,
                 powermemory=powermemory,
                 history=history,
             ),  # type: ignore

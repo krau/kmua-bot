@@ -135,6 +135,7 @@ class ContextDeps:
     user_id: int
     chat_id: int
     message: Message
+    instructions: str = ""
     powermemory: AsyncMemory | None = None
     history: list[ModelMessage] = field(default_factory=list)
 

@@ -57,18 +57,18 @@ async def set_chat_prompt_override(chat_id: int, prompt: str | None) -> None:
 
 
 async def run_agent(
-    agent_instance: Agent[Any, Any],
+    agi: Agent[Any, Any],
     client: PyrogramClient,
     message: pyrogram.types.Message,
     user_id: int,
     chat_id: int,
-    instructions: str,
     user_prompt: list[UserContent],
     history: list[ModelMessage],
     deps: Any,
     multimodal_model: Any,
     model: Any,
     lang: str,
+    additional_instructions: str | None = None,
 ) -> None:
     """Run the agent with full streaming/non-streaming support, history saving,
     TypingKeepAlive and unified error handling.
@@ -98,9 +98,9 @@ async def run_agent(
             if app_config.agent_streaming:
                 streaming_output: StreamingOutput | None = None
                 try:
-                    async with agent_instance.iter(
-                        instructions=instructions,
+                    async with agi.iter(
                         model=use_model,
+                        instructions=additional_instructions,
                         user_prompt=user_prompt,
                         message_history=history,
                         deps=deps,
@@ -172,10 +172,10 @@ async def run_agent(
                         await streaming_output.abort()
                     raise
             else:
-                async with agent_instance.iter(
-                    instructions=instructions,
+                async with agi.iter(
                     model=use_model,
                     user_prompt=user_prompt,
+                    instructions=additional_instructions,
                     message_history=history,
                     deps=deps,
                 ) as agent_run:

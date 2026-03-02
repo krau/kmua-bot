@@ -178,22 +178,19 @@ Bot回复: {bot_reply.reply_text}
     )
     if await common.memstore.get(state.waiting_key(user.id)):
         return
-    await common.memstore.set(state.waiting_key(user.id), True)
-    await message.reply_chat_action(pyrogram.enums.ChatAction.TYPING)
-
     try:
+        await common.memstore.set(state.waiting_key(user.id), True)
+        await message.reply_chat_action(pyrogram.enums.ChatAction.TYPING)
+        instructions = (
+            app_config.agent_group_prompt
+            if app_config.agent_group_prompt
+            else app_config.agent_prompt
+        )
+        chat_prompt = await memttlcache.get(state.chat_prompt_override_key(chat.id))
+        if chat_prompt:
+            instructions = chat_prompt
         history: list[ModelMessage] = await memttlcache.get(
             state.history_key(chat.id, user.id), []
-        )
-        instructions = (
-            app_config.agent_prompt
-            + f"""
-场景信息: 在群聊中刚才有用户与你进行了对话，内容如下:
-用户[{reply_to_user.full_name}]: {bot_reply.original_user_message}
-你的回复: {bot_reply.reply_text}
----
-现在又有用户[{user_data.full_name}]对这个话题继续讨论，请自然地参与对话。
-"""
         )
         ctx_info = await build_ctx_info(
             message=message,
@@ -202,18 +199,24 @@ Bot回复: {bot_reply.reply_text}
             history=history,
             is_group_chat=True,
         )
-        if ctx_info:
-            instructions += f"\n\n{ctx_info.to_text()}\n"
         follow_up_prompt, _ = await get_input_prompt(
             client, message, include_nearby=0, ctx=None
         )
+        addtional_instructions = ctx_info.to_text() if ctx_info else ""
+        addtional_instructions += f"""
+场景信息: 在群聊中刚才有用户与你进行了对话，内容如下:
+用户[{reply_to_user.full_name}]: {bot_reply.original_user_message}
+你的回复: {bot_reply.reply_text}
+---
+现在又有用户[{user_data.full_name}]对这个话题继续讨论，请自然地参与对话。
+"""
         await run_agent(
-            agent_instance=agent,
+            agi=agent,
+            additional_instructions=addtional_instructions,
             client=client,
             message=message,
             user_id=user.id,
             chat_id=chat.id,
-            instructions=instructions,
             user_prompt=follow_up_prompt,
             history=history,
             deps=datatype.ContextDeps(
@@ -221,6 +224,7 @@ Bot回复: {bot_reply.reply_text}
                 chat_id=chat.id,
                 message=message,
                 client=client,
+                instructions=instructions,
                 powermemory=powermemory,
                 history=history,
             ),
