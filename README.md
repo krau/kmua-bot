@@ -92,6 +92,13 @@ demo: [@kmuav2bot](https://t.me/kmuav2bot)
                     <sub><b>leafmoes</b></sub>
                 </a>
             </td>
+            <td align="center">
+                <a href="https://github.com/AHCorn">
+                    <img src="https://avatars.githubusercontent.com/u/42889600?v=4" width="100;" alt="AHCorn"/>
+                    <br />
+                    <sub><b>安和</b></sub>
+                </a>
+            </td>
 		</tr>
 	<tbody>
 </table>
