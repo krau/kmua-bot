@@ -95,105 +95,51 @@ async def run_agent(
 
     try:
         async with TypingKeepAlive(client, message):
-            # run/iter `instructions=` are additive; use override(...) to replace.
-            with agent_instance.override(instructions=instructions):
-                if app_config.agent_streaming:
-                    streaming_output: StreamingOutput | None = None
-                    try:
-                        async with agent_instance.iter(
-                            model=use_model,
-                            user_prompt=user_prompt,
-                            message_history=history,
-                            deps=deps,
-                        ) as agent_run:
-                            async for node in agent_run:
-                                if Agent.is_model_request_node(node):
-                                    async with node.stream(
-                                        agent_run.ctx
-                                    ) as request_stream:
-                                        async for event in request_stream:
-                                            if isinstance(event, PartStartEvent):
-                                                if isinstance(event.part, TextPart):
-                                                    if streaming_output is None:
-                                                        streaming_output = StreamingOutput(
-                                                            client, message
-                                                        )
-                                                    await streaming_output.append_delta(
-                                                        event.part.content
-                                                    )
-                                            elif isinstance(event, PartDeltaEvent):
-                                                if isinstance(event.delta, TextPartDelta):
-                                                    if streaming_output is None:
-                                                        streaming_output = StreamingOutput(
-                                                            client, message
-                                                        )
-                                                    await streaming_output.append_delta(
-                                                        event.delta.content_delta
-                                                    )
-                                elif Agent.is_call_tools_node(node):
-                                    has_tool_calls = False
-                                    for part in node.model_response.parts:
-                                        if part.part_kind == "tool-call":
-                                            has_tool_calls = True
-                                            args_str = str(part.args) if part.args else ""
-                                            logger.debug(
-                                                f"Tool call for user {user_id} in chat {chat_id}: "
-                                                f"{part.tool_name}({args_str[:200]}...)"
-                                            )
-                                    if has_tool_calls and streaming_output is not None:
-                                        await streaming_output.finalize()
-                                        streaming_output = None
-                                elif Agent.is_end_node(node):
-                                    assert agent_run.result is not None, (
-                                        "Agent run ended without result"
-                                    )
-                                    logger.debug(
-                                        f"Agent run end with result: {agent_run.result.output}"
-                                    )
-                                    output = agent_run.result.output
-                                    if isinstance(output, DeferredToolRequests):
-                                        if streaming_output is not None:
-                                            await streaming_output.abort()
-                                        logger.info(
-                                            f"Agent returned DeferredToolRequests for user {user_id}"
-                                        )
-                                        await tools.update_ask_history(
-                                            chat_id, user_id, agent_run.all_messages()
-                                        )
-                                    else:
-                                        if streaming_output is not None:
-                                            await streaming_output.finalize()
-                                        elif output:
-                                            await reply_output(client, message, output)
-                            await memttlcache.set(
-                                state.history_key(chat_id, user_id),
-                                agent_run.all_messages(),
-                                ttl=app_config.cachettl_agent_history,
-                            )
-                    except Exception:
-                        if streaming_output is not None:
-                            await streaming_output.abort()
-                        raise
-                else:
+            if app_config.agent_streaming:
+                streaming_output: StreamingOutput | None = None
+                try:
                     async with agent_instance.iter(
+                        instructions=instructions,
                         model=use_model,
                         user_prompt=user_prompt,
                         message_history=history,
                         deps=deps,
                     ) as agent_run:
-                        replied = False
                         async for node in agent_run:
-                            if Agent.is_call_tools_node(node):
+                            if Agent.is_model_request_node(node):
+                                async with node.stream(agent_run.ctx) as request_stream:
+                                    async for event in request_stream:
+                                        if isinstance(event, PartStartEvent):
+                                            if isinstance(event.part, TextPart):
+                                                if streaming_output is None:
+                                                    streaming_output = StreamingOutput(
+                                                        client, message
+                                                    )
+                                                await streaming_output.append_delta(
+                                                    event.part.content
+                                                )
+                                        elif isinstance(event, PartDeltaEvent):
+                                            if isinstance(event.delta, TextPartDelta):
+                                                if streaming_output is None:
+                                                    streaming_output = StreamingOutput(
+                                                        client, message
+                                                    )
+                                                await streaming_output.append_delta(
+                                                    event.delta.content_delta
+                                                )
+                            elif Agent.is_call_tools_node(node):
+                                has_tool_calls = False
                                 for part in node.model_response.parts:
                                     if part.part_kind == "tool-call":
+                                        has_tool_calls = True
                                         args_str = str(part.args) if part.args else ""
                                         logger.debug(
-                                            f"Tool call: {part.tool_name}"
-                                            f"({args_str[:200]}{'...' if len(args_str) > 200 else ''})"
+                                            f"Tool call for user {user_id} in chat {chat_id}: "
+                                            f"{part.tool_name}({args_str[:200]}...)"
                                         )
-                                    elif part.part_kind == "text" and part.content:
-                                        await reply_output(client, message, part.content)
-                                        replied = True
+                                if has_tool_calls and streaming_output is not None:
+                                    await streaming_output.finalize()
+                                    streaming_output = None
                             elif Agent.is_end_node(node):
                                 assert agent_run.result is not None, (
                                     "Agent run ended without result"
@@ -203,16 +149,68 @@ async def run_agent(
                                 )
                                 output = agent_run.result.output
                                 if isinstance(output, DeferredToolRequests):
+                                    if streaming_output is not None:
+                                        await streaming_output.abort()
                                     logger.info(
                                         f"Agent returned DeferredToolRequests for user {user_id}"
                                     )
-                                elif not replied and output:
-                                    await reply_output(client, message, output)
+                                    await tools.update_ask_history(
+                                        chat_id, user_id, agent_run.all_messages()
+                                    )
+                                else:
+                                    if streaming_output is not None:
+                                        await streaming_output.finalize()
+                                    elif output:
+                                        await reply_output(client, message, output)
                         await memttlcache.set(
                             state.history_key(chat_id, user_id),
                             agent_run.all_messages(),
                             ttl=app_config.cachettl_agent_history,
                         )
+                except Exception:
+                    if streaming_output is not None:
+                        await streaming_output.abort()
+                    raise
+            else:
+                async with agent_instance.iter(
+                    instructions=instructions,
+                    model=use_model,
+                    user_prompt=user_prompt,
+                    message_history=history,
+                    deps=deps,
+                ) as agent_run:
+                    replied = False
+                    async for node in agent_run:
+                        if Agent.is_call_tools_node(node):
+                            for part in node.model_response.parts:
+                                if part.part_kind == "tool-call":
+                                    args_str = str(part.args) if part.args else ""
+                                    logger.debug(
+                                        f"Tool call: {part.tool_name}"
+                                        f"({args_str[:200]}{'...' if len(args_str) > 200 else ''})"
+                                    )
+                                elif part.part_kind == "text" and part.content:
+                                    await reply_output(client, message, part.content)
+                                    replied = True
+                        elif Agent.is_end_node(node):
+                            assert agent_run.result is not None, (
+                                "Agent run ended without result"
+                            )
+                            logger.debug(
+                                f"Agent run end with result: {agent_run.result.output}"
+                            )
+                            output = agent_run.result.output
+                            if isinstance(output, DeferredToolRequests):
+                                logger.info(
+                                    f"Agent returned DeferredToolRequests for user {user_id}"
+                                )
+                            elif not replied and output:
+                                await reply_output(client, message, output)
+                    await memttlcache.set(
+                        state.history_key(chat_id, user_id),
+                        agent_run.all_messages(),
+                        ttl=app_config.cachettl_agent_history,
+                    )
     except TypeError as e:
         # https://github.com/pydantic/pydantic-ai/issues/527
         # https://github.com/pydantic/pydantic-ai/issues/1813
