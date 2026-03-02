@@ -57,3 +57,8 @@ def periodic_sticker_counter_key(chat_id: int, user_id: int) -> str:
 def periodic_reaction_counter_key(chat_id: int, user_id: int) -> str:
     """Conversation counter for periodic reaction forcing."""
     return f"agent_periodic_reaction_counter:{chat_id}:{user_id}"
+
+
+def chat_prompt_override_key(chat_id: int) -> str:
+    """Per-chat system prompt override. Replaces the default prompt for this chat."""
+    return f"agent_chat_prompt_override:{chat_id}"

@@ -29,8 +29,10 @@ from .history import (
 from .prompt import build_ctx_info, get_input_prompt
 from .runner import (
     get_chat_model_override,
+    get_chat_prompt_override,
     run_agent,
     set_chat_model_override,
+    set_chat_prompt_override,
 )
 from .simple_reply import word_reply
 
@@ -374,6 +376,63 @@ if app_config.agent:
                     f"(was: {current!r})"
                 )
 
+    @PyrogramClient.on_message(pyrogram.filters.command("prompt"), group=0)
+    async def set_prompt_command(
+        client: PyrogramClient, message: pyrogram.types.Message
+    ):
+        user = message.from_user
+        if not user or not user.id:
+            return
+        db_user = await database.get_user_by_id(user.id)
+        if not db_user:
+            return
+        if not db_user.is_bot_global_admin and user.id not in app_config.owners:
+            return
+        chat_id = message.chat.id if message.chat else None
+        if not chat_id:
+            return
+
+        # Split only on the first whitespace to capture the full prompt text
+        args = message.text.split(maxsplit=1) if message.text else []
+        prompt_text = args[1].strip() if len(args) >= 2 else None
+
+        current = await get_chat_prompt_override(chat_id)
+
+        if prompt_text is None:
+            # /prompt — show status
+            if current:
+                status = "Custom prompt is <b>active</b> for this chat."
+            else:
+                status = "Using <b>default</b> prompt for this chat."
+            await message.reply_text(
+                f"{status}\n\nUsage:\n"
+                "<code>/prompt &lt;text&gt;</code> — set custom prompt\n"
+                "<code>/prompt reset</code> — restore default",
+                parse_mode=pyrogram.enums.ParseMode.HTML,
+            )
+        elif prompt_text.lower() == "reset":
+            # /prompt reset — clear override
+            await set_chat_prompt_override(chat_id, None)
+            await message.reply_text(
+                "Prompt for this chat reset to default.",
+                parse_mode=pyrogram.enums.ParseMode.HTML,
+            )
+            logger.info(
+                f"Admin {user.id} reset prompt override for chat {chat_id} "
+                f"(had custom: {current is not None})"
+            )
+        else:
+            # /prompt <text> — set override
+            await set_chat_prompt_override(chat_id, prompt_text)
+            await message.reply_text(
+                "Custom prompt set for this chat.",
+                parse_mode=pyrogram.enums.ParseMode.HTML,
+            )
+            logger.info(
+                f"Admin {user.id} set prompt override for chat {chat_id} "
+                f"(replaced existing: {current is not None})"
+            )
+
 
 _filter = (
     myfilter.base_filter
@@ -458,6 +517,9 @@ async def wake_agent(client: PyrogramClient, message: pyrogram.types.Message):
             if app_config.agent_group_prompt
             else app_config.agent_prompt
         )
+        prompt_override = await get_chat_prompt_override(chat_id)
+        if prompt_override:
+            instructions = prompt_override
         ctx_info = await build_ctx_info(
             message=message,
             user=user,

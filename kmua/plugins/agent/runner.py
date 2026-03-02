@@ -42,6 +42,20 @@ async def set_chat_model_override(
         await memttlcache.set(key, model_spec)
 
 
+async def get_chat_prompt_override(chat_id: int) -> str | None:
+    """Return the per-chat system prompt override, or None if not set."""
+    return await memttlcache.get(state.chat_prompt_override_key(chat_id))
+
+
+async def set_chat_prompt_override(chat_id: int, prompt: str | None) -> None:
+    """Set (or clear, when prompt is None) the per-chat system prompt override."""
+    key = state.chat_prompt_override_key(chat_id)
+    if prompt is None:
+        await memttlcache.delete(key)
+    else:
+        await memttlcache.set(key, prompt)
+
+
 async def run_agent(
     agent_instance: Any,
     client: PyrogramClient,
