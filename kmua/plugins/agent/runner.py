@@ -57,7 +57,7 @@ async def set_chat_prompt_override(chat_id: int, prompt: str | None) -> None:
 
 
 async def run_agent(
-    agent_instance: Any,
+    agent_instance: Agent[Any, Any],
     client: PyrogramClient,
     message: pyrogram.types.Message,
     user_id: int,

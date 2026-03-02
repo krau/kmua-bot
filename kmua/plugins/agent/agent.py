@@ -98,7 +98,7 @@ if app_config.agent:
     )
     agent = Agent(
         model=model,
-        instructions=app_config.agent_prompt,
+        # instructions=app_config.agent_prompt,
         output_type=[str, DeferredToolRequests],
         tools=[
             Tool(tools.get_chat_info, prepare=tools.prepare_group_tools),
