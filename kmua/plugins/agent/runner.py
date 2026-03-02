@@ -15,6 +15,7 @@ from pydantic_ai.messages import (
     TextPartDelta,
 )
 from pyrogram.client import Client as PyrogramClient
+from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
 from kmua.common.memory_store import memttlcache
 from kmua.config import app_config
@@ -213,7 +214,17 @@ async def run_agent(
         status_code = getattr(e, "status_code", None)
         if status_code == 400:
             await message.reply_text(
-                i18n.t("bot.msg.agent.errors.model_http_400", locale=lang)
+                i18n.t("bot.msg.agent.errors.model_http_400", locale=lang),
+                reply_markup=InlineKeyboardMarkup(
+                    [
+                        [
+                            InlineKeyboardButton(
+                                i18n.t("bot.button.agent.clear_history", locale=lang),
+                                callback_data=f"agent_clear_history:{chat_id}:{user_id}",
+                            )
+                        ]
+                    ]
+                ),
             )
         elif status_code:
             await message.reply_text(
@@ -225,7 +236,17 @@ async def run_agent(
             await message.reply_text(
                 i18n.t("bot.msg.agent.errors.interrupted", locale=lang).format(
                     error=f"{e.__class__.__name__}"
-                )
+                ),
+                reply_markup=InlineKeyboardMarkup(
+                    [
+                        [
+                            InlineKeyboardButton(
+                                i18n.t("bot.button.agent.clear_history", locale=lang),
+                                callback_data=f"agent_clear_history:{chat_id}:{user_id}",
+                            )
+                        ]
+                    ]
+                ),
             )
     except Exception as e:
         logger.error(f"Agent run error: {e.__class__.__name__} - {e}")

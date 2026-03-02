@@ -371,3 +371,5 @@ bot:
       cancel_reply: Cancel
       destroy_bottle_after_reply: Destroy Bottle
       keep_bottle_after_reply: Return to Sea
+    agent:
+      clear_history: Clear History

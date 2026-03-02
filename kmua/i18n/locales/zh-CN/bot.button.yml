@@ -54,3 +54,5 @@ bot:
     manyacg:
       detail: 详情
       original: 原图
+    agent:
+      clear_history: 记忆清除

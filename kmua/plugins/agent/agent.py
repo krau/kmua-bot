@@ -181,6 +181,36 @@ if app_config.agent:
             i18n.t("bot.msg.agent.forgot", locale=user_config.lang)
         )
 
+    @PyrogramClient.on_callback_query(
+        pyrogram.filters.regex(r"^agent_clear_history:(-?\d+):(\d+)$"), group=0
+    )
+    async def on_clear_history_callback(
+        client: PyrogramClient, callback_query: pyrogram.types.CallbackQuery
+    ):
+        data = str(callback_query.data)
+        parts = data.split(":")
+        target_chat_id = int(parts[1])
+        target_user_id = int(parts[2])
+
+        caller = callback_query.from_user
+        if not caller or caller.id != target_user_id:
+            await callback_query.answer(show_alert=True)
+            return
+
+        user_config = await database.get_user_config(caller.id)
+        lang = user_config.lang
+
+        await common.memttlcache.delete(
+            state.history_key(target_chat_id, target_user_id)
+        )
+        await tools.clear_ask_state(target_chat_id, target_user_id)
+
+        await callback_query.answer(
+            i18n.t("bot.msg.agent.forgot", locale=lang), show_alert=False
+        )
+        if callback_query.message:
+            await callback_query.message.edit_reply_markup(reply_markup=None)  # type: ignore
+
     @PyrogramClient.on_message(pyrogram.filters.command("model"), group=0)
     async def set_model_command(
         client: PyrogramClient, message: pyrogram.types.Message
