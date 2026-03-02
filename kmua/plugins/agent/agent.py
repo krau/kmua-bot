@@ -535,7 +535,7 @@ async def wake_agent(client: PyrogramClient, message: pyrogram.types.Message):
             app_config.agent_group_context_nearby_message_count if is_group_chat else 0
         )
         user_prompt, _ = await get_input_prompt(
-            client, message, include_nearby=nearby_count, ctx=ctx_info
+            client, message, include_nearby=nearby_count, ctx=None
         )
         user_message_text = message.text or message.caption or ""
         if user_message_text:

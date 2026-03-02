@@ -205,7 +205,7 @@ Bot回复: {bot_reply.reply_text}
         if ctx_info:
             instructions += f"\n\n{ctx_info.to_text()}\n"
         follow_up_prompt, _ = await get_input_prompt(
-            client, message, include_nearby=0, ctx=ctx_info
+            client, message, include_nearby=0, ctx=None
         )
         await run_agent(
             agent_instance=agent,
