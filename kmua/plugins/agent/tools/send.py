@@ -18,6 +18,17 @@ class SendResult:
     success: bool
     message: str | None = None
 
+    def text(self) -> str:
+        if self.success:
+            msg = "发送成功"
+            if self.message:
+                msg = f"{msg}, 提示信息: {self.message}"
+            return msg
+        msg = "发送失败"
+        if self.message:
+            msg = f"{msg}, 错误信息: {self.message}"
+        return msg
+
 
 async def send_media(
     ctx: RunContext[datatype.ContextDeps],
@@ -26,7 +37,7 @@ async def send_media(
     url: str | None = None,
     caption: str | None = None,
     schedule_time: str | None = None,
-) -> SendResult:
+) -> str:
     """Send a media message to the current chat.
 
     **Use this tool only when a normal return value is not appropriate**, such as:
@@ -45,7 +56,9 @@ async def send_media(
         A SendResult indicating success or failure.
     """
     if ctx.deps.message is None or ctx.deps.chat_id is None:
-        return SendResult(success=False, message="Message context is unavailable.")
+        return SendResult(
+            success=False, message="Message context is unavailable."
+        ).text()
 
     schedule_datetime: datetime.datetime | None = None
     if schedule_time is not None:
@@ -75,7 +88,7 @@ async def send_media(
         )
         return SendResult(
             success=True, message=f"Scheduled for {schedule_datetime.isoformat()}"
-        )
+        ).text()
 
     try:
         match type:
@@ -130,7 +143,7 @@ async def send_media(
         logger.error(f"send_media failed (type={type}): {e.__class__.__name__}: {e}")
         raise ModelRetry(f"Failed to send media: {e.__class__.__name__}: {e}")
 
-    return SendResult(success=True)
+    return SendResult(success=True).text()
 
 
 async def _schedule_media(
@@ -157,8 +170,7 @@ async def _schedule_media(
             caption=caption,
             schedule_time=None,
         )
-        if not result.success:
-            logger.error(f"Scheduled send_media failed: {result.message}")
+        logger.info(f"Scheduled send_media result: {result}")
 
     common.jobqueue.add_onetime_job(
         job_key,
@@ -174,7 +186,7 @@ async def send_poll(
     is_anonymous: bool = False,
     allows_multiple_answers: bool = False,
     schedule_time: str | None = None,
-) -> SendResult:
+) -> str:
     """Send a poll to the current chat.
 
     Use this tool to create interactive polls with 2-8 options for users to vote on.
@@ -191,7 +203,9 @@ async def send_poll(
         A SendResult indicating success or failure.
     """
     if ctx.deps.message is None or ctx.deps.chat_id is None:
-        return SendResult(success=False, message="Message context is unavailable.")
+        return SendResult(
+            success=False, message="Message context is unavailable."
+        ).text()
 
     schedule_datetime: datetime.datetime | None = None
     if schedule_time is not None:
@@ -228,7 +242,7 @@ async def send_poll(
         )
         return SendResult(
             success=True, message=f"Scheduled for {schedule_datetime.isoformat()}"
-        )
+        ).text()
 
     try:
         await ctx.deps.client.send_poll(
@@ -243,7 +257,7 @@ async def send_poll(
         logger.error(f"send_poll failed: {e.__class__.__name__}: {e}")
         raise ModelRetry(f"Failed to send poll: {e.__class__.__name__}: {e}")
 
-    return SendResult(success=True)
+    return SendResult(success=True).text()
 
 
 async def _schedule_poll(
@@ -270,8 +284,7 @@ async def _schedule_poll(
             allows_multiple_answers=allows_multiple_answers,
             schedule_time=None,
         )
-        if not result.success:
-            logger.error(f"Scheduled send_poll failed: {result.message}")
+        logger.info(f"Scheduled send_poll result: {result}")
 
     common.jobqueue.add_onetime_job(
         job_key,
@@ -283,11 +296,11 @@ async def _schedule_poll(
 async def send_sticker(
     ctx: RunContext[datatype.ContextDeps],
     query: str,
-) -> SendResult:
-    """Search for a semantically matching sticker from this group's sticker memory and send it.
+) -> str:
+    """Search for a semantically matching sticker and send it.
 
     Args:
-        query: Natural language description of the desired sticker, e.g. "happy excited cat",
+        query: Natural language description of the desired sticker, e.g. "happy excited",
                "sad crying", "thumbs up approval".
         k: How many candidates to retrieve; the closest match is sent. Default 1.
 
@@ -295,10 +308,14 @@ async def send_sticker(
         A SendResult indicating success or failure.
     """
     if ctx.deps.chat_id is None or ctx.deps.message is None:
-        return SendResult(success=False, message="Message context is unavailable.")
+        return SendResult(
+            success=False, message="Message context is unavailable."
+        ).text()
 
     if sticker_memory.embedder is None:
-        return SendResult(success=False, message="Sticker memory is not configured.")
+        return SendResult(
+            success=False, message="Sticker memory is not configured."
+        ).text()
 
     embedding = await sticker_memory.get_embedding(query)
     if embedding is None:
@@ -324,13 +341,13 @@ async def send_sticker(
         logger.error(f"send_sticker send error: {e.__class__.__name__}: {e}")
         raise ModelRetry(f"Failed to send sticker: {e.__class__.__name__}: {e}")
 
-    return SendResult(success=True)
+    return SendResult(success=True).text()
 
 
 async def send_reaction(
     ctx: RunContext[datatype.ContextDeps],
     emoji: str,
-) -> SendResult:
+) -> str:
     """Send a reaction (emoji) to the user's message.
 
     Args:
@@ -340,7 +357,9 @@ async def send_reaction(
         A SendResult indicating success or failure.
     """
     if ctx.deps.message is None:
-        return SendResult(success=False, message="Message context is unavailable.")
+        return SendResult(
+            success=False, message="Message context is unavailable."
+        ).text()
     try:
         await ctx.deps.client.send_reaction(
             chat_id=ctx.deps.chat_id,
@@ -362,7 +381,7 @@ async def send_reaction(
     except Exception as e:
         logger.error(f"send_reaction error: {e.__class__.__name__}: {e}")
         raise ModelRetry(f"Failed to send reaction: {e.__class__.__name__}: {e}")
-    return SendResult(success=True)
+    return SendResult(success=True).text()
 
 
 async def send_text(
@@ -370,7 +389,7 @@ async def send_text(
     text: str,
     reply_to_message_id: int | None = None,
     schedule_time: str | None = None,
-) -> SendResult:
+) -> str:
     """Send a plain-text message to the current chat.
 
     **Do NOT use this tool to reply to the user's message in a normal turn.**
@@ -391,7 +410,9 @@ async def send_text(
         A SendResult indicating success or failure.
     """
     if ctx.deps.message is None or ctx.deps.chat_id is None:
-        return SendResult(success=False, message="Message context is unavailable.")
+        return SendResult(
+            success=False, message="Message context is unavailable."
+        ).text()
 
     schedule_datetime: datetime.datetime | None = None
     if schedule_time is not None:
@@ -429,7 +450,7 @@ async def send_text(
         common.jobqueue.add_onetime_job(job_key, run_date=schedule_datetime, func=_job)
         return SendResult(
             success=True, message=f"Scheduled for {schedule_datetime.isoformat()}"
-        )
+        ).text()
 
     try:
         await ctx.deps.client.send_message(
@@ -441,7 +462,7 @@ async def send_text(
         logger.error(f"send_text failed: {e.__class__.__name__}: {e}")
         raise ModelRetry(f"Failed to send text: {e.__class__.__name__}: {e}")
 
-    return SendResult(success=True)
+    return SendResult(success=True).text()
 
 
 __all__ = ["send_media", "send_poll", "send_reaction", "send_sticker", "send_text"]
