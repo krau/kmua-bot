@@ -21,7 +21,7 @@ from kmua.common.memory_store import memttlcache
 from kmua.config import app_config
 from kmua.i18n import i18n
 from kmua.logger import logger
-from kmua.plugins.agent import provider, state
+from kmua.plugins.agent import provider, state, tools
 from kmua.plugins.agent.output import StreamingOutput, TypingKeepAlive, reply_output
 from kmua.plugins.agent.prompt import check_needs_multimodal
 
@@ -76,7 +76,6 @@ async def run_agent(
     This is the single source of truth for agent execution shared by both
     the normal wake flow and the follow-up flow.
     """
-    from kmua.plugins.agent import tools
 
     needs_multimodal = check_needs_multimodal(user_prompt, history)
 
