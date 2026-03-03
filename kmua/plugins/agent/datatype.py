@@ -138,6 +138,7 @@ class ContextDeps:
     instructions: str = ""
     powermemory: AsyncMemory | None = None
     history: list[ModelMessage] = field(default_factory=list)
+    tools_called_this_turn: set[str] = field(default_factory=set)
 
 
 @dataclass

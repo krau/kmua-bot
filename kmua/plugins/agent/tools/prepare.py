@@ -97,7 +97,11 @@ async def prepare_periodic_sticker(
     counter: int = await common.memstore.get(
         state.periodic_sticker_counter_key(ctx.deps.chat_id, ctx.deps.user_id), 0
     )
-    if counter % interval == 0 and counter > 0:
+    if (
+        counter % interval == 0
+        and counter > 0
+        and "send_sticker" not in ctx.deps.tools_called_this_turn
+    ):
         tool_def.description = (
             (tool_def.description or "")
             + "\n\n**YOU MUST call this tool exactly once in this turn.** "
@@ -116,7 +120,11 @@ async def prepare_periodic_reaction(
     counter: int = await common.memstore.get(
         state.periodic_reaction_counter_key(ctx.deps.chat_id, ctx.deps.user_id), 0
     )
-    if counter % interval == 0 and counter > 0:
+    if (
+        counter % interval == 0
+        and counter > 0
+        and "send_reaction" not in ctx.deps.tools_called_this_turn
+    ):
         tool_def.description = (
             (tool_def.description or "")
             + "\n\n**YOU MUST call this tool exactly once in this turn.** "

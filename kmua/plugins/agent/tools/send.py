@@ -340,7 +340,9 @@ async def send_sticker(
     except Exception as e:
         logger.error(f"send_sticker send error: {e.__class__.__name__}: {e}")
         raise ModelRetry(f"Failed to send sticker: {e.__class__.__name__}: {e}")
-
+    # Mark as already called this turn so prepare_periodic_sticker suppresses
+    # the "MUST call" hint for any further steps within the same agent run.
+    ctx.deps.tools_called_this_turn.add("send_sticker")
     return SendResult(success=True).text()
 
 
@@ -381,6 +383,9 @@ async def send_reaction(
     except Exception as e:
         logger.error(f"send_reaction error: {e.__class__.__name__}: {e}")
         raise ModelRetry(f"Failed to send reaction: {e.__class__.__name__}: {e}")
+    # Mark as already called this turn so prepare_periodic_reaction suppresses
+    # the "MUST call" hint for any further steps within the same agent run.
+    ctx.deps.tools_called_this_turn.add("send_reaction")
     return SendResult(success=True).text()
 
 
