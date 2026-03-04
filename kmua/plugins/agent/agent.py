@@ -231,31 +231,60 @@ if app_config.agent:
             return
         if not db_user.is_bot_global_admin and user.id not in app_config.owners:
             return
-        chat_id = message.chat.id if message.chat else None
-        if not chat_id:
+        current_chat_id = message.chat.id if message.chat else None
+        if not current_chat_id:
             return
-        args = message.text.split(maxsplit=2) if message.text else []
+        raw_args = message.text.split() if message.text else []
+        # Remove the command itself ("/model")
+        raw_args = raw_args[1:]
 
-        # Subcommand dispatch: /model [main|multimodal|small] [model_spec]
-        # /model                  → show current overrides
-        # /model <spec>           → set both main and multimodal to spec
-        # /model main [spec]      → set/reset main model only
-        # /model multimodal [spec]→ set/reset multimodal model only
-        # /model small [spec]     → set/reset small model only
+        # --- Parse optional @<chat_id> target prefix ---
+        # If the first argument starts with '@' followed by digits (possibly negative),
+        # it specifies the target chat. Otherwise, the current chat is used.
+        target_chat_id = current_chat_id
+        target_chat_label: str | None = None  # Human-readable label for the target chat
+        if raw_args and raw_args[0].startswith("@"):
+            maybe_id = raw_args[0][1:]  # strip the '@'
+            # Allow negative IDs (group/supergroup chats start with '-')
+            if maybe_id.lstrip("-").isdigit() and maybe_id not in ("", "-"):
+                target_chat_id = int(maybe_id)
+                raw_args = raw_args[1:]
+                # Try to resolve a human-readable title for the target chat
+                try:
+                    tg_chat = await client.get_chat(target_chat_id)
+                    if hasattr(tg_chat, "title") and tg_chat.title:
+                        target_chat_label = f"{tg_chat.title} ({target_chat_id})"
+                    elif hasattr(tg_chat, "first_name") and tg_chat.first_name:
+                        target_chat_label = f"{tg_chat.first_name} ({target_chat_id})"
+                except Exception:
+                    pass
+                if not target_chat_label:
+                    target_chat_label = str(target_chat_id)
+
+        is_remote = target_chat_id != current_chat_id
+        chat_display = target_chat_label or str(target_chat_id)
+        chat_desc = f"chat <code>{chat_display}</code>" if is_remote else "this chat"
+
+        # Subcommand dispatch: /model [@chat_id] [main|multimodal|small] [model_spec]
+        # /model [@chat_id]                  → show current overrides
+        # /model [@chat_id] <spec>           → set both main and multimodal to spec
+        # /model [@chat_id] main [spec]      → set/reset main model only
+        # /model [@chat_id] multimodal [spec]→ set/reset multimodal model only
+        # /model [@chat_id] small [spec]     → set/reset small model only
 
         SUBCOMMANDS = {"main", "multimodal", "small"}
 
         subcommand: str | None = None
         model_name: str | None = None
 
-        if len(args) == 1:
-            # /model  → show current overrides
+        if len(raw_args) == 0:
+            # /model  or  /model @chat_id  → show current overrides
             subcommand = None
             model_name = None
-        elif len(args) == 2:
-            arg1 = args[1].strip()
+        elif len(raw_args) == 1:
+            arg1 = raw_args[0].strip()
             if arg1 in SUBCOMMANDS:
-                # /model main  /model multimodal  /model small  → reset that model
+                # /model [main|multimodal|small]  → reset that model
                 subcommand = arg1
                 model_name = None
             else:
@@ -263,29 +292,30 @@ if app_config.agent:
                 subcommand = "both"
                 model_name = arg1
         else:
-            # len >= 3
-            arg1 = args[1].strip()
+            # len >= 2
+            arg1 = raw_args[0].strip()
             if arg1 in SUBCOMMANDS:
                 subcommand = arg1
-                model_name = args[2].strip()
+                model_name = " ".join(raw_args[1:]).strip()
             else:
                 # Unrecognised, treat whole remainder as both main+multimodal spec
                 subcommand = "both"
-                model_name = " ".join(args[1:]).strip()
+                model_name = " ".join(raw_args).strip()
 
         # --- No subcommand: show current state ---
         if subcommand is None:
-            cur_main = await get_chat_model_override(chat_id, "main")
-            cur_mm = await get_chat_model_override(chat_id, "multimodal")
-            cur_small = await get_chat_model_override(chat_id, "small")
+            cur_main = await get_chat_model_override(target_chat_id, "main")
+            cur_mm = await get_chat_model_override(target_chat_id, "multimodal")
+            cur_small = await get_chat_model_override(target_chat_id, "small")
             lines = [
-                "<b>Current model overrides for this chat:</b>",
+                f"<b>Current model overrides for {chat_desc}:</b>",
                 f"  main:       <code>{cur_main or '(global default: ' + app_config.agent_model + ')'}</code>",
                 f"  multimodal: <code>{cur_mm or '(global default: ' + (app_config.agent_model_multimodal or app_config.agent_model) + ')'}</code>",
                 f"  small:      <code>{cur_small or '(global default: ' + (app_config.agent_model_small or app_config.agent_model) + ')'}</code>",
                 "",
-                "Usage: <code>/model [main|multimodal|small] [model_spec]</code>",
+                "Usage: <code>/model [@chat_id] [main|multimodal|small] [model_spec]</code>",
                 "Omit model_spec to reset to global default.",
+                "Omit @chat_id to target the current chat.",
             ]
             await message.reply_text(
                 "\n".join(lines),
@@ -296,109 +326,110 @@ if app_config.agent:
         # --- Handle both main+multimodal (no subcommand given) ---
         if subcommand == "both":
             prev_main = (
-                await get_chat_model_override(chat_id, "main") or app_config.agent_model
+                await get_chat_model_override(target_chat_id, "main")
+                or app_config.agent_model
             )
-            prev_mm = await get_chat_model_override(chat_id, "multimodal") or (
+            prev_mm = await get_chat_model_override(target_chat_id, "multimodal") or (
                 app_config.agent_model_multimodal or app_config.agent_model
             )
-            await set_chat_model_override(chat_id, model_name, "main")
-            await set_chat_model_override(chat_id, model_name, "multimodal")
+            await set_chat_model_override(target_chat_id, model_name, "main")
+            await set_chat_model_override(target_chat_id, model_name, "multimodal")
             await message.reply_text(
-                f"Main and multimodal model for this chat set to <code>{model_name}</code> "
+                f"Main and multimodal model for {chat_desc} set to <code>{model_name}</code> "
                 f"(was: main=<code>{prev_main}</code>, multimodal=<code>{prev_mm}</code>).",
                 parse_mode=pyrogram.enums.ParseMode.HTML,
             )
             logger.info(
-                f"Admin {user.id} set main+multimodal model override for chat {chat_id}: "
+                f"Admin {user.id} set main+multimodal model override for chat {target_chat_id}: "
                 f"main {prev_main!r} → {model_name!r}, multimodal {prev_mm!r} → {model_name!r}"
             )
 
         # --- Handle main model only ---
         elif subcommand == "main":
-            current = await get_chat_model_override(chat_id, "main")
+            current = await get_chat_model_override(target_chat_id, "main")
             if model_name:
-                await set_chat_model_override(chat_id, model_name, "main")
+                await set_chat_model_override(target_chat_id, model_name, "main")
                 prev = current or app_config.agent_model
                 await message.reply_text(
-                    f"Main model for this chat set to <code>{model_name}</code> "
+                    f"Main model for {chat_desc} set to <code>{model_name}</code> "
                     f"(was: <code>{prev}</code>).",
                     parse_mode=pyrogram.enums.ParseMode.HTML,
                 )
                 logger.info(
-                    f"Admin {user.id} set main model override for chat {chat_id}: "
+                    f"Admin {user.id} set main model override for chat {target_chat_id}: "
                     f"{prev!r} → {model_name!r}"
                 )
             else:
-                await set_chat_model_override(chat_id, None, "main")
+                await set_chat_model_override(target_chat_id, None, "main")
                 prev = current or app_config.agent_model
                 await message.reply_text(
-                    f"Main model for this chat reset to global default "
+                    f"Main model for {chat_desc} reset to global default "
                     f"<code>{app_config.agent_model}</code> "
                     f"(was: <code>{prev}</code>).",
                     parse_mode=pyrogram.enums.ParseMode.HTML,
                 )
                 logger.info(
-                    f"Admin {user.id} reset main model override for chat {chat_id} "
+                    f"Admin {user.id} reset main model override for chat {target_chat_id} "
                     f"(was: {current!r})"
                 )
 
         # --- Handle multimodal model only ---
         elif subcommand == "multimodal":
-            current = await get_chat_model_override(chat_id, "multimodal")
+            current = await get_chat_model_override(target_chat_id, "multimodal")
             global_default = app_config.agent_model_multimodal or app_config.agent_model
             if model_name:
-                await set_chat_model_override(chat_id, model_name, "multimodal")
+                await set_chat_model_override(target_chat_id, model_name, "multimodal")
                 prev = current or global_default
                 await message.reply_text(
-                    f"Multimodal model for this chat set to <code>{model_name}</code> "
+                    f"Multimodal model for {chat_desc} set to <code>{model_name}</code> "
                     f"(was: <code>{prev}</code>).",
                     parse_mode=pyrogram.enums.ParseMode.HTML,
                 )
                 logger.info(
-                    f"Admin {user.id} set multimodal model override for chat {chat_id}: "
+                    f"Admin {user.id} set multimodal model override for chat {target_chat_id}: "
                     f"{prev!r} → {model_name!r}"
                 )
             else:
-                await set_chat_model_override(chat_id, None, "multimodal")
+                await set_chat_model_override(target_chat_id, None, "multimodal")
                 prev = current or global_default
                 await message.reply_text(
-                    f"Multimodal model for this chat reset to global default "
+                    f"Multimodal model for {chat_desc} reset to global default "
                     f"<code>{global_default}</code> "
                     f"(was: <code>{prev}</code>).",
                     parse_mode=pyrogram.enums.ParseMode.HTML,
                 )
                 logger.info(
-                    f"Admin {user.id} reset multimodal model override for chat {chat_id} "
+                    f"Admin {user.id} reset multimodal model override for chat {target_chat_id} "
                     f"(was: {current!r})"
                 )
 
         # --- Handle small model only ---
         elif subcommand == "small":
-            current = await get_chat_model_override(chat_id, "small")
+            current = await get_chat_model_override(target_chat_id, "small")
             global_default = app_config.agent_model_small or app_config.agent_model
             if model_name:
-                await set_chat_model_override(chat_id, model_name, "small")
+                await set_chat_model_override(target_chat_id, model_name, "small")
                 prev = current or global_default
                 await message.reply_text(
-                    f"Small model for this chat set to <code>{model_name}</code> "
+                    f"Small model for {chat_desc} set to <code>{model_name}</code> "
                     f"(was: <code>{prev}</code>).",
                     parse_mode=pyrogram.enums.ParseMode.HTML,
                 )
                 logger.info(
-                    f"Admin {user.id} set small model override for chat {chat_id}: "
+                    f"Admin {user.id} set small model override for chat {target_chat_id}: "
                     f"{prev!r} → {model_name!r}"
                 )
             else:
-                await set_chat_model_override(chat_id, None, "small")
+                await set_chat_model_override(target_chat_id, None, "small")
                 prev = current or global_default
                 await message.reply_text(
-                    f"Small model for this chat reset to global default "
+                    f"Small model for {chat_desc} reset to global default "
                     f"<code>{global_default}</code> "
                     f"(was: <code>{prev}</code>).",
                     parse_mode=pyrogram.enums.ParseMode.HTML,
                 )
                 logger.info(
-                    f"Admin {user.id} reset small model override for chat {chat_id} "
+                    f"Admin {user.id} reset small model override for chat {target_chat_id} "
                     f"(was: {current!r})"
                 )
 
