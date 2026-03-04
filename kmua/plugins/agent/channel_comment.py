@@ -9,7 +9,7 @@ from kmua.config import app_config
 from kmua.logger import logger
 from kmua.plugins.agent import datatype
 from kmua.plugins.agent.prompt import get_input_prompt
-from kmua.plugins.agent.runner import get_chat_prompt_override
+from kmua.plugins.agent.runner import get_chat_prompt_override, run_agent
 
 from .agent import agent, model, multimodal_model
 
@@ -76,14 +76,14 @@ async def comment_channel_message(client: Client, message: pyrogram.types.Messag
     if not await _is_first_media_in_group(message):
         return
     # 构建 instructions：base prompt → per-chat override → ctx 信息
-    base_instructions = (
+    instructions = (
         app_config.agent_group_prompt
         if app_config.agent_group_prompt
         else app_config.agent_prompt
     )
     prompt_override = await get_chat_prompt_override(chat.id)
     if prompt_override:
-        base_instructions = prompt_override
+        instructions = prompt_override
     ctx_parts = [
         "任务类型: 频道评论",
         f"频道名称: {channel.title}",
@@ -91,30 +91,29 @@ async def comment_channel_message(client: Client, message: pyrogram.types.Messag
         f"当前时间: {datetime.datetime.now().strftime('%Y年%m月%d日 %H:%M:%S')}",
         f"任务描述: {app_config.agent_channel_comment_prompt}",
     ]
-    instructions = "\n".join(ctx_parts)
+    instructions += "\n\n" + "\n".join(ctx_parts)
 
-    prompts, needs_multimodal = await get_input_prompt(client, message, ctx=None)
+    prompts, _ = await get_input_prompt(client, message, ctx=None)
     if not prompts:
         return
     logger.debug(f"Channel comment post: {message.caption or message.text}")
-    use_model = multimodal_model if needs_multimodal else model
-    resp = await agent.run(
-        model=use_model,
-        instructions=instructions,
+    lang = (await database.get_chat_config(chat.id)).lang
+    await run_agent(
+        agi=agent,
+        client=client,
+        message=message,
+        user_id=channel.id,
+        chat_id=chat.id,
         user_prompt=prompts,
+        history=[],
         deps=datatype.ContextDeps(
             client=client,
             user_id=channel.id,
             chat_id=chat.id,
-            instructions=base_instructions,
             message=message,
+            instructions=instructions,
         ),
-    )
-    if not resp or not resp.output:
-        logger.debug("No response from agent for channel comment.")
-        return
-    logger.debug(f"Channel comment response: {resp.output}")
-    await message.reply_text(
-        text=resp.output,  # type: ignore
-        reply_to_message_id=message.id,
+        multimodal_model=multimodal_model,
+        model=model,
+        lang=lang,
     )

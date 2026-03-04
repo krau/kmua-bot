@@ -293,7 +293,7 @@ async def send_sticker(
     Args:
         query: Natural language description of the desired sticker, e.g. "happy excited",
                "sad crying", "thumbs up approval".
-               
+
     Returns:
         A SendResult indicating success or failure.
     """
