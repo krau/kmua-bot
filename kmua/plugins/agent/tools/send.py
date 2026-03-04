@@ -33,17 +33,11 @@ class SendResult:
 async def send_media(
     ctx: RunContext[datatype.ContextDeps],
     type: Literal["photo", "video", "audio", "document"],
-    text: str | None = None,
-    url: str | None = None,
+    url: str,
     caption: str | None = None,
     schedule_time: str | None = None,
 ) -> str:
     """Send a media message to the current chat.
-
-    **Use this tool only when a normal return value is not appropriate**, such as:
-    - Sending a scheduled/delayed message (use `schedule_time`)
-    - Proactively sending media (photo, video, audio, document)
-    - Any situation where you need to send a non-text message type
 
     Args:
         type: Message type. One of "photo", "video", "audio", "document".
@@ -80,7 +74,6 @@ async def send_media(
         await _schedule_media(
             ctx,
             type,
-            text,
             url,
             caption,
             schedule_datetime,
@@ -149,8 +142,7 @@ async def send_media(
 async def _schedule_media(
     ctx: RunContext[datatype.ContextDeps],
     type: str,
-    text: str | None,
-    url: str | None,
+    url: str,
     caption: str | None,
     schedule_datetime: datetime.datetime,
     chat_id: int,
@@ -158,14 +150,13 @@ async def _schedule_media(
     job_key = (
         f"agent_send_media:{chat_id}:{ctx.deps.user_id}"
         f":{schedule_datetime.timestamp()}"
-        f":{md5((text or url or '').encode()).hexdigest()}"
+        f":{md5((url).encode()).hexdigest()}"
     )
 
     async def _job() -> None:
         result = await send_media(
             ctx=ctx,
             type=type,  # type: ignore[arg-type]
-            text=text,
             url=url,
             caption=caption,
             schedule_time=None,
@@ -302,8 +293,7 @@ async def send_sticker(
     Args:
         query: Natural language description of the desired sticker, e.g. "happy excited",
                "sad crying", "thumbs up approval".
-        k: How many candidates to retrieve; the closest match is sent. Default 1.
-
+               
     Returns:
         A SendResult indicating success or failure.
     """
