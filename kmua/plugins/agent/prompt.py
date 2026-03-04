@@ -70,6 +70,32 @@ async def get_input_prompt(
             contents.append(text_part)
 
         media, media_message = get_media_and_message(msg)
+
+        # Poll: pure-text representation, no multimodal config required
+        if (
+            media == pyrogram.enums.MessageMediaType.POLL
+            and media_message
+            and media_message.poll
+        ):
+            poll = media_message.poll
+            poll_type = "quiz" if poll.type == pyrogram.enums.PollType.QUIZ else "poll"
+            poll_status = "closed" if poll.is_closed else "active"
+            lines = [
+                f"[{poll_type}|{poll_status}"
+                f"|voters:{poll.total_voter_count}"
+                f"{'|multiple_choice' if poll.allows_multiple_answers else ''}"
+                f"{'|anonymous' if poll.is_anonymous else ''}]",
+                f"Q: {poll.question}",
+            ]
+            for i, opt in enumerate(poll.options or []):
+                marker = ""
+                if poll.correct_option_id is not None and i == poll.correct_option_id:
+                    marker = " ✓"
+                lines.append(f"  {i + 1}. {opt.text} ({opt.voter_count} votes){marker}")
+            if poll.explanation:
+                lines.append(f"Explanation: {poll.explanation}")
+            contents.append("\n".join(lines))
+
         if media and media_message and app_config.agent_multimodal and include_media:
             match media:
                 case pyrogram.enums.MessageMediaType.PHOTO:
