@@ -22,6 +22,7 @@ from kmua.config import app_config
 from kmua.i18n import i18n
 from kmua.logger import logger
 from kmua.plugins.agent import provider, state, tools
+from kmua.plugins.agent.datatype import SilentOutput
 from kmua.plugins.agent.output import StreamingOutput, TypingKeepAlive, reply_output
 from kmua.plugins.agent.prompt import check_needs_multimodal
 
@@ -156,6 +157,12 @@ async def run_agent(
                                     await tools.update_ask_history(
                                         chat_id, user_id, agent_run.all_messages()
                                     )
+                                elif isinstance(output, SilentOutput):
+                                    if streaming_output is not None:
+                                        await streaming_output.abort()
+                                    logger.debug(
+                                        f"Agent returned SilentOutput for user {user_id} — no reply sent"
+                                    )
                                 else:
                                     if streaming_output is not None:
                                         await streaming_output.finalize()
@@ -202,6 +209,10 @@ async def run_agent(
                             if isinstance(output, DeferredToolRequests):
                                 logger.info(
                                     f"Agent returned DeferredToolRequests for user {user_id}"
+                                )
+                            elif isinstance(output, SilentOutput):
+                                logger.debug(
+                                    f"Agent returned SilentOutput for user {user_id} — no reply sent"
                                 )
                             elif not replied and output:
                                 await reply_output(client, message, output)
