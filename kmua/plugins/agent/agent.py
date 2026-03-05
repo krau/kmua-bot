@@ -99,7 +99,7 @@ if app_config.agent:
     agent = Agent(
         model=model,
         # instructions=app_config.agent_prompt,
-        output_type=[str, DeferredToolRequests, datatype.SilentOutput],
+        output_type=[str, DeferredToolRequests, datatype.EndResult],
         tools=[
             Tool(tools.get_chat_info, prepare=tools.prepare_group_tools),
             Tool(tools.get_history_messages, prepare=tools.prepare_group_tools),

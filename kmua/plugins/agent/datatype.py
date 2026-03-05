@@ -129,16 +129,8 @@ class UserMemoryResult(BaseModel):
         return affection_change
 
 
-class SilentOutput(BaseModel):
-    """Output type signalling that the agent has finished its task silently.
-
-    Return this instead of a text string when the response has already been
-    delivered via a tool call (e.g. send_sticker, send_media, send_reaction,
-    send_anime_photo, generate_image, etc.) and there is nothing more to say.
-    Returning this ends the agent run immediately without sending any additional
-    message to the chat.
-    """
-    pass
+class EndResult(BaseModel):
+    reason: str | None = Field(description="结束原因")
 
 
 @dataclass
