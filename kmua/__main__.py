@@ -1,3 +1,7 @@
+import uvloop
+
+uvloop.install()
+
 import hashlib
 import json
 
