@@ -1,3 +1,4 @@
+import asyncio
 import struct
 import time
 from collections.abc import AsyncGenerator
@@ -12,6 +13,9 @@ from kmua.logger import logger
 
 _DB_PATH: Path | None = None
 _INITIALIZED = False
+
+# 批量处理配置
+_EVICT_BATCH_SIZE = 100  # 每次清理的最大记录数
 
 
 def _db_path() -> Path:
@@ -61,14 +65,16 @@ def _pack(vector: list[float]) -> bytes:
 
 
 async def _lazy_evict(db: aiosqlite.Connection) -> None:
+    """清理过期贴纸记录，分批处理避免阻塞事件循环。"""
     ttl = app_config.agent_sticker_ttl
     if ttl <= 0:
         return
     cutoff = int(time.time()) - ttl
-    rows = list(
-        await db.execute_fetchall(
-            "SELECT id FROM stickers WHERE last_seen < ?", (cutoff,)
-        )
+
+    # 使用 LIMIT 分批查询，避免一次加载过多数据
+    rows = await db.execute_fetchall(
+        "SELECT id FROM stickers WHERE last_seen < ? LIMIT ?",
+        (cutoff, _EVICT_BATCH_SIZE),
     )
     if not rows:
         return
@@ -81,16 +87,20 @@ async def _lazy_evict(db: aiosqlite.Connection) -> None:
     await db.commit()
     logger.debug(f"sticker_vec: evicted {len(expired_ids)} expired stickers")
 
+    # 如果清理了满批次的记录，给其他任务一个运行机会
+    if len(expired_ids) >= _EVICT_BATCH_SIZE:
+        await asyncio.sleep(0)
+
 
 async def exists(file_unique_id: str, chat_id: int) -> bool:
     async with _connect() as db:
-        rows = list(
-            await db.execute_fetchall(
-                "SELECT 1 FROM stickers WHERE file_unique_id = ? AND chat_id = ?",
-                (file_unique_id, chat_id),
-            )
+        # 使用 fetchone 更高效，避免不必要的列表转换
+        cursor = await db.execute(
+            "SELECT 1 FROM stickers WHERE file_unique_id = ? AND chat_id = ? LIMIT 1",
+            (file_unique_id, chat_id),
         )
-        return len(rows) > 0
+        row = await cursor.fetchone()
+        return row is not None
 
 
 async def upsert(
@@ -103,14 +113,14 @@ async def upsert(
     async with _connect() as db:
         await _lazy_evict(db)
         now = int(time.time())
-        existing = list(
-            await db.execute_fetchall(
-                "SELECT id FROM stickers WHERE file_unique_id = ? AND chat_id = ?",
-                (file_unique_id, chat_id),
-            )
+        # 使用 fetchone 替代 execute_fetchall + list，减少阻塞
+        cursor = await db.execute(
+            "SELECT id FROM stickers WHERE file_unique_id = ? AND chat_id = ? LIMIT 1",
+            (file_unique_id, chat_id),
         )
+        existing = await cursor.fetchone()
         if existing:
-            row_id = existing[0][0]
+            row_id = existing[0]
             await db.execute(
                 "UPDATE stickers SET file_id=?, description=?, last_seen=? WHERE id=?",
                 (file_id, description, now, row_id),
@@ -153,9 +163,9 @@ async def search(
     """Return up to k results as (file_id, description, distance)."""
     async with _connect() as db:
         await _lazy_evict(db)
-        rows = list(
-            await db.execute_fetchall(
-                """
+        # execute_fetchall 已经返回列表，不需要额外的 list() 转换
+        rows = await db.execute_fetchall(
+            """
             SELECT s.file_id, s.description, e.distance
             FROM sticker_embeddings e
             JOIN stickers s ON s.id = e.rowid
@@ -163,7 +173,7 @@ async def search(
                   AND e.rowid IN (SELECT id FROM stickers WHERE chat_id = ?)
             ORDER BY e.distance
             """,
-                (_pack(embedding), k, chat_id),
-            )
+            (_pack(embedding), k, chat_id),
         )
+        # rows 已经是 list，直接切片避免重复列表操作
         return [(r[0], r[1], r[2]) for r in rows[:k]]

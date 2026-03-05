@@ -53,13 +53,27 @@ async def _get_description(image_bytes: bytes, mime_type: str) -> str | None:
             if frame is None:
                 return None
             content_part: BinaryContent = BinaryContent(
-                data=frame, media_type="image/webp" # type: ignore
+                data=frame,
+                media_type="image/webp",  # type: ignore
             )
         else:
-            content_part = BinaryContent(data=image_bytes, media_type=mime_type) # type: ignore
-        result = await _description_agent.run(
+            content_part = BinaryContent(data=image_bytes, media_type=mime_type)  # type: ignore
+
+        # 使用超时控制防止模型调用阻塞事件循环（贴纸描述使用小模型超时）
+        timeout = app_config.agent_small_model_timeout
+        coro = _description_agent.run(
             [content_part, app_config.agent_sticker_description_prompt]
         )
+
+        if timeout > 0:
+            try:
+                result = await asyncio.wait_for(coro, timeout=timeout)
+            except TimeoutError:
+                logger.warning(f"sticker description timed out after {timeout}s")
+                return None
+        else:
+            result = await coro
+
         return result.output
     except Exception as e:
         logger.error(f"sticker description error: {e.__class__.__name__}: {e}")
@@ -85,10 +99,20 @@ async def _process_sticker(
         return
 
     try:
-        raw = await client.download_media(file_id, in_memory=True)  # type: ignore[assignment]
+        # 使用超时控制防止下载大文件阻塞事件循环
+        timeout = app_config.agent_download_timeout
+        if timeout > 0:
+            raw = await asyncio.wait_for(
+                client.download_media(file_id, in_memory=True), timeout=timeout
+            )
+        else:
+            raw = await client.download_media(file_id, in_memory=True)
         if not isinstance(raw, BytesIO):
             return
         image_bytes = raw.getvalue()
+    except TimeoutError:
+        logger.warning(f"sticker download timed out for {file_unique_id}")
+        return
     except Exception as e:
         logger.error(f"sticker download error: {e.__class__.__name__}: {e}")
         return

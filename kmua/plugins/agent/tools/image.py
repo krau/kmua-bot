@@ -1,3 +1,4 @@
+import asyncio
 from dataclasses import dataclass
 from io import BytesIO
 
@@ -11,6 +12,40 @@ from kmua.logger import logger
 from kmua.services import image_gen
 
 from .. import datatype, state
+
+
+async def _download_with_timeout(
+    client,
+    file_id: str,
+    timeout: int | None = None,
+) -> BytesIO | None:
+    """Download media with optional timeout.
+
+    Args:
+        client: Pyrogram client
+        file_id: File ID to download
+        timeout: Timeout in seconds (None means use config default)
+
+    Returns:
+        BytesIO or None if failed/timed out
+    """
+    timeout_val = timeout if timeout is not None else app_config.agent_download_timeout
+
+    try:
+        if timeout_val > 0:
+            result = await asyncio.wait_for(
+                client.download_media(message=file_id, in_memory=True),
+                timeout=timeout_val,
+            )
+        else:
+            result = await client.download_media(message=file_id, in_memory=True)
+        return result if isinstance(result, BytesIO) else None
+    except TimeoutError:
+        logger.warning(f"Download timed out for file_id: {file_id[:20]}...")
+        return None
+    except Exception as e:
+        logger.debug(f"Download failed: {e.__class__.__name__}: {e}")
+        return None
 
 
 @dataclass
@@ -29,17 +64,10 @@ async def _find_image_in_history(
         file_id: str | None = await memttlcache.get(cache_key)
         if file_id is None:
             continue
-        try:
-            file_obj = await ctx.deps.client.download_media(
-                message=file_id, in_memory=True
-            )
-            if isinstance(file_obj, BytesIO):
-                logger.debug(f"edit_image: found image via cache key={cache_key!r}")
-                return file_obj.getvalue(), "image/jpeg"
-        except Exception as e:
-            logger.warning(
-                f"edit_image: failed to download cached file_id from {cache_key!r}: {e}"
-            )
+        file_obj = await _download_with_timeout(ctx.deps.client, file_id)
+        if file_obj:
+            logger.debug(f"edit_image: found image via cache key={cache_key!r}")
+            return file_obj.getvalue(), "image/jpeg"
 
     for msg in reversed(ctx.deps.history):
         if not isinstance(msg, ModelRequest):
@@ -173,36 +201,24 @@ async def edit_image(
         source_message = ctx.deps.message.reply_to_message
 
     if source_message is not None:
-        try:
-            if source_message.photo:
-                file_id = source_message.photo.file_id
-                mime_type = "image/jpeg"
-            else:
-                doc = source_message.document
-                assert doc is not None
-                file_id = doc.file_id
-                mime_type = doc.mime_type or "image/png"
+        if source_message.photo:
+            file_id = source_message.photo.file_id
+            mime_type = "image/jpeg"
+        else:
+            doc = source_message.document
+            assert doc is not None
+            file_id = doc.file_id
+            mime_type = doc.mime_type or "image/png"
 
-            file_obj = await ctx.deps.client.download_media(
-                message=file_id, in_memory=True
-            )
-            if not isinstance(file_obj, BytesIO):
-                return ToolReturn(
-                    return_value=ImageOperationResult(
-                        success=False, message="Failed to download source image."
-                    )
-                )
-            image_bytes = file_obj.getvalue()
-        except Exception as e:
-            logger.error(
-                f"Failed to download source image: {e.__class__.__name__}: {e}"
-            )
+        file_obj = await _download_with_timeout(ctx.deps.client, file_id)
+        if file_obj is None:
             return ToolReturn(
                 return_value=ImageOperationResult(
                     success=False,
-                    message=f"Failed to download source image: {e.__class__.__name__}",
+                    message="Failed to download source image (timeout or error).",
                 )
             )
+        image_bytes = file_obj.getvalue()
     else:
         history_image = await _find_image_in_history(ctx)
         if history_image is None:

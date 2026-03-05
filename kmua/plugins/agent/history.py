@@ -1,4 +1,6 @@
+import asyncio
 from collections import defaultdict
+from typing import Any
 
 from pydantic_ai import Agent, UserContent, UserPromptPart
 from pydantic_ai.messages import (
@@ -12,6 +14,37 @@ from pydantic_ai.messages import (
 from kmua.config import app_config
 from kmua.i18n import i18n
 from kmua.logger import logger
+
+
+async def _run_agent_with_timeout(
+    agent: Agent,
+    user_prompt: str,
+    timeout: int | None = None,
+    message_history: list | None = None,
+) -> Any:
+    """Run agent with optional timeout to prevent blocking event loop.
+
+    Args:
+        agent: The agent to run
+        user_prompt: The prompt to send
+        timeout: Timeout in seconds (None means use config default, 0 means no timeout)
+        message_history: Optional message history
+    """
+    timeout_val = timeout if timeout is not None else app_config.agent_model_timeout
+
+    coro = agent.run(
+        user_prompt=user_prompt,
+        message_history=message_history or [],
+    )
+
+    if timeout_val > 0:
+        try:
+            return await asyncio.wait_for(coro, timeout=timeout_val)
+        except TimeoutError:
+            logger.warning(f"Agent run timed out after {timeout_val}s")
+            raise
+    else:
+        return await coro
 
 
 def get_history_text(message_history: list[ModelMessage]) -> str:
@@ -130,8 +163,10 @@ async def summarize_history(
 
         message_text = get_history_text(messages_to_summarize)
 
-        summary_result = await summary_agent.run(
+        summary_result = await _run_agent_with_timeout(
+            summary_agent,
             user_prompt=f"{i18n.t('bot.msg.agent.summary_prompt', locale=app_config.lang)}: {message_text}",
+            timeout=app_config.agent_model_timeout,
             message_history=[],
         )
         logger.debug(f"Agent summarize: {summary_result.output}")

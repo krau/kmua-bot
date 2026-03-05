@@ -6,6 +6,7 @@ from pydantic_ai import Agent, ModelRetry
 
 from kmua import affection
 from kmua.common.memory_store import memttlcache
+from kmua.config import app_config
 from kmua.logger import logger
 from kmua.plugins.agent import datatype, state
 
@@ -43,10 +44,23 @@ async def update_user_memory(
         old_memory = await memttlcache.get(f"user_memory_{user_id}")
         if old_memory and isinstance(old_memory, datatype.ChatMemoryy):
             message_text = f"根据已有的记忆和新的聊天消息, 更新对用户的记忆, 并决定对用户的好感变化.\n旧的记忆: {old_memory}\n新的聊天消息: {message_text}"
-        memory_result = await agent.run(
+
+        # 使用超时控制防止模型调用阻塞事件循环
+        timeout = app_config.agent_model_timeout
+        coro = agent.run(
             output_type=datatype.UserMemoryResult,
             user_prompt=f"根据以下聊天消息, 总结出关于用户的重要信息, 并决定对用户的好感变化:\n {message_text}",
         )
+
+        if timeout > 0:
+            try:
+                memory_result = await asyncio.wait_for(coro, timeout=timeout)
+            except TimeoutError:
+                logger.warning(f"update_user_memory timed out for user {user_id}")
+                return  # 超时后静默返回，不影响主流程
+        else:
+            memory_result = await coro
+
         logger.debug(f"Agent memory history: {memory_result.output}")
         result = memory_result.output
         try:

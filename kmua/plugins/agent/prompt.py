@@ -1,3 +1,4 @@
+import asyncio
 import mimetypes
 from datetime import datetime
 from io import BytesIO
@@ -24,7 +25,47 @@ from pyrogram.client import Client as PyrogramClient
 from kmua import affection, common
 from kmua.common.memory_store import memttlcache
 from kmua.config import app_config
+from kmua.logger import logger
 from kmua.plugins.agent import datatype, state
+
+
+async def _download_media_with_timeout(
+    client: PyrogramClient,
+    file_id: str,
+    timeout: int | None = None,
+) -> BytesIO | None:
+    """Download media with optional timeout to prevent long blocking.
+
+    Args:
+        client: Pyrogram client
+        file_id: File ID to download
+        timeout: Timeout in seconds (None means use config default, 0 means no timeout)
+
+    Returns:
+        BytesIO object or None if download failed/timed out
+    """
+    timeout_val = timeout if timeout is not None else app_config.agent_download_timeout
+
+    try:
+        if timeout_val > 0:
+            result = await asyncio.wait_for(
+                client.download_media(message=file_id, in_memory=True),
+                timeout=timeout_val,
+            )
+        else:
+            result = await client.download_media(message=file_id, in_memory=True)
+
+        if isinstance(result, BytesIO):
+            return result
+        return None
+    except TimeoutError:
+        logger.warning(
+            f"Download timed out after {timeout_val}s for file_id: {file_id[:20]}..."
+        )
+        return None
+    except Exception as e:
+        logger.debug(f"Download failed: {e.__class__.__name__}: {e}")
+        return None
 
 
 def get_agent_affection_prompt(rank: float) -> str | None:
@@ -105,10 +146,10 @@ async def get_input_prompt(
                         and photo
                         and photo.file_id
                     ):
-                        photo_file = await client.download_media(
-                            message=photo.file_id, in_memory=True
+                        photo_file = await _download_media_with_timeout(
+                            client, photo.file_id
                         )
-                        if isinstance(photo_file, BytesIO):
+                        if photo_file:
                             contents.append(
                                 BinaryContent(
                                     data=photo_file.getvalue(),
@@ -125,10 +166,10 @@ async def get_input_prompt(
                         and video.file_size <= 20 * 1024 * 1024
                     ):
                         if "video" in app_config.agent_multimodal_inputs:
-                            video_file = await client.download_media(
-                                message=video.file_id, in_memory=True
+                            video_file = await _download_media_with_timeout(
+                                client, video.file_id
                             )
-                            if isinstance(video_file, BytesIO):
+                            if video_file:
                                 contents.append(
                                     BinaryContent(
                                         data=video_file.getvalue(),
@@ -149,20 +190,20 @@ async def get_input_prompt(
                             thetype, _ = mimetypes.guess_type(document.file_name)
                             mime_type = thetype or "application/octet-stream"
                         if mime_type.split(";")[0] in ("text/plain", "text/markdown"):
-                            doc_file = await client.download_media(
-                                message=document.file_id, in_memory=True
+                            doc_file = await _download_media_with_timeout(
+                                client, document.file_id
                             )
-                            if isinstance(doc_file, BytesIO):
+                            if doc_file:
                                 try:
                                     text = doc_file.getvalue().decode("utf-8")
                                     contents.append(text)
                                 except UnicodeDecodeError:
                                     pass
                         elif mime_type in app_config.agent_multimodal_inputs:
-                            doc_file = await client.download_media(
-                                message=document.file_id, in_memory=True
+                            doc_file = await _download_media_with_timeout(
+                                client, document.file_id
                             )
-                            if isinstance(doc_file, BytesIO):
+                            if doc_file:
                                 contents.append(
                                     BinaryContent(
                                         data=doc_file.getvalue(),
@@ -173,10 +214,10 @@ async def get_input_prompt(
                             document.mime_type.startswith("image/")
                             and "photo" in app_config.agent_multimodal_inputs
                         ):
-                            doc_file = await client.download_media(
-                                message=document.file_id, in_memory=True
+                            doc_file = await _download_media_with_timeout(
+                                client, document.file_id
                             )
-                            if isinstance(doc_file, BytesIO):
+                            if doc_file:
                                 contents.append(
                                     BinaryContent(
                                         data=doc_file.getvalue(),
@@ -193,10 +234,10 @@ async def get_input_prompt(
                         if sticker.is_animated:
                             pass
                         elif sticker.is_video:
-                            sticker_file = await client.download_media(
-                                message=sticker.file_id, in_memory=True
+                            sticker_file = await _download_media_with_timeout(
+                                client, sticker.file_id
                             )
-                            if isinstance(sticker_file, BytesIO):
+                            if sticker_file:
                                 frame = await common.webm_first_frame(
                                     sticker_file.getvalue()
                                 )
@@ -208,10 +249,10 @@ async def get_input_prompt(
                                         )
                                     )
                         else:
-                            sticker_file = await client.download_media(
-                                message=sticker.file_id, in_memory=True
+                            sticker_file = await _download_media_with_timeout(
+                                client, sticker.file_id
                             )
-                            if isinstance(sticker_file, BytesIO):
+                            if sticker_file:
                                 contents.append(
                                     BinaryContent(
                                         data=sticker_file.getvalue(),

@@ -8,6 +8,11 @@ from kmua.logger import logger
 
 FFMPEG = shutil.which("ffmpeg")
 
+# 最大 WEBM 文件大小 (10MB) - 超过此大小将跳过处理以避免阻塞
+MAX_WEBM_SIZE = 10 * 1024 * 1024
+# WEBM 处理超时 (秒)
+WEBM_PROCESS_TIMEOUT = 10
+
 
 def get_msg_link(message: pyrogram.types.Message) -> str:
     try:
@@ -41,9 +46,22 @@ def random_chance(probability: float) -> bool:
 
 
 async def webm_first_frame(webm_bytes: bytes) -> bytes | None:
-    """Extract first frame from a WEBM video as WebP using ffmpeg."""
+    """Extract first frame from a WEBM video as WebP using ffmpeg.
+
+    Args:
+        webm_bytes: Raw WEBM file bytes
+
+    Returns:
+        WebP bytes of first frame, or None if failed
+    """
     if FFMPEG is None:
         return None
+
+    # 检查文件大小，避免处理过大文件
+    if len(webm_bytes) > MAX_WEBM_SIZE:
+        logger.debug(f"WEBM file too large ({len(webm_bytes)} bytes), skipping")
+        return None
+
     try:
         proc = await asyncio.create_subprocess_exec(
             FFMPEG,
@@ -58,7 +76,24 @@ async def webm_first_frame(webm_bytes: bytes) -> bytes | None:
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.DEVNULL,
         )
-        stdout, _ = await proc.communicate(input=webm_bytes)
+
+        # 使用 wait_for 添加超时控制
+        try:
+            stdout, _ = await asyncio.wait_for(
+                proc.communicate(input=webm_bytes), timeout=WEBM_PROCESS_TIMEOUT
+            )
+        except TimeoutError:
+            logger.warning(
+                f"ffmpeg frame extraction timed out after {WEBM_PROCESS_TIMEOUT}s"
+            )
+            # 终止超时进程
+            try:
+                proc.kill()
+                await proc.wait()
+            except Exception:
+                pass
+            return None
+
         if proc.returncode != 0 or not stdout:
             logger.error(f"ffmpeg frame extraction failed (rc={proc.returncode})")
             return None

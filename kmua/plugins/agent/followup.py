@@ -1,4 +1,4 @@
-from typing import Any
+import asyncio
 
 import pyrogram
 from pydantic import BaseModel, Field
@@ -26,7 +26,7 @@ class RelevanceCheck(BaseModel):
 
 if small_model:
     _default_relevance_check_agent = Agent(
-        model=small_model,
+        model=small_model or model,
         output_type=RelevanceCheck,
         system_prompt="你是一个对话相关性判断助手。判断用户的新消息是否是对之前对话的延续。",
         retries=2,
@@ -35,7 +35,9 @@ else:
     _default_relevance_check_agent = None
 
 
-def _make_relevance_check_agent(override_model_spec: str | None) -> Any:
+def _make_relevance_check_agent(
+    override_model_spec: str | None,
+) -> Agent[None, RelevanceCheck] | None:
     """Return a relevance-check agent using the per-chat small model override if set,
     otherwise fall back to the module-level default (which uses the global small_model)."""
     if override_model_spec:
@@ -163,9 +165,22 @@ Bot回复: {bot_reply.reply_text}
         relevance_check_agent = _make_relevance_check_agent(small_model_override)
         if not relevance_check_agent:
             return
-        relevance_result = await relevance_check_agent.run(
+
+        # 使用小模型超时控制防止相关性检查阻塞事件循环
+        timeout = app_config.agent_small_model_timeout
+        coro = relevance_check_agent.run(
             user_prompt=relevance_check_prompt,
         )
+
+        if timeout > 0:
+            try:
+                relevance_result = await asyncio.wait_for(coro, timeout=timeout)
+            except TimeoutError:
+                logger.warning(f"Follow-up relevance check timed out after {timeout}s")
+                return
+        else:
+            relevance_result = await coro
+
         if not relevance_result.output.relevance:  # type: ignore[union-attr]
             return
     except Exception as e:
