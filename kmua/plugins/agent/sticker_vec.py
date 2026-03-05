@@ -64,17 +64,50 @@ def _pack(vector: list[float]) -> bytes:
     return struct.pack(f"{len(vector)}f", *vector)
 
 
-async def _lazy_evict(db: aiosqlite.Connection) -> None:
-    """清理过期贴纸记录，分批处理避免阻塞事件循环。"""
+async def _lazy_evict(db: aiosqlite.Connection, chat_id: int | None = None) -> None:
+    """清理过期贴纸记录，分批处理避免阻塞事件循环。
+
+    智能清理策略：当聊天室的贴纸数量少于配置的阈值时，保留所有贴纸不逐出。
+    这确保小群聊不会频繁丢失贴纸记忆。
+
+    Args:
+        db: 数据库连接
+        chat_id: 可选的聊天室ID，用于检查该聊天室的贴纸数量
+    """
     ttl = app_config.agent_sticker_ttl
     if ttl <= 0:
         return
+
+    min_keep = app_config.agent_sticker_min_keep_count
+
+    # 如果指定了 chat_id，检查该聊天室的贴纸总数
+    if chat_id is not None and min_keep > 0:
+        count_cursor = await db.execute(
+            "SELECT COUNT(*) FROM stickers WHERE chat_id = ?", (chat_id,)
+        )
+        count_row = await count_cursor.fetchone()
+        total_count = count_row[0] if count_row else 0
+
+        if total_count < min_keep:
+            logger.debug(
+                f"sticker_vec: skip eviction for chat {chat_id}, "
+                f"total stickers ({total_count}) < threshold ({min_keep})"
+            )
+            return
+
     cutoff = int(time.time()) - ttl
+
+    # 构建查询条件
+    where_clause = "last_seen < ?"
+    params: list = [cutoff, _EVICT_BATCH_SIZE]
+    if chat_id is not None:
+        where_clause = "last_seen < ? AND chat_id = ?"
+        params = [cutoff, chat_id, _EVICT_BATCH_SIZE]
 
     # 使用 LIMIT 分批查询，避免一次加载过多数据
     rows = await db.execute_fetchall(
-        "SELECT id FROM stickers WHERE last_seen < ? LIMIT ?",
-        (cutoff, _EVICT_BATCH_SIZE),
+        f"SELECT id FROM stickers WHERE {where_clause} LIMIT ?",
+        params,
     )
     if not rows:
         return
@@ -111,7 +144,7 @@ async def upsert(
     embedding: list[float],
 ) -> None:
     async with _connect() as db:
-        await _lazy_evict(db)
+        await _lazy_evict(db, chat_id)
         now = int(time.time())
         # 使用 fetchone 替代 execute_fetchall + list，减少阻塞
         cursor = await db.execute(
@@ -162,8 +195,7 @@ async def search(
 ) -> list[tuple[str, str, float]]:
     """Return up to k results as (file_id, description, distance)."""
     async with _connect() as db:
-        await _lazy_evict(db)
-        # execute_fetchall 已经返回列表，不需要额外的 list() 转换
+        await _lazy_evict(db, chat_id)
         rows = await db.execute_fetchall(
             """
             SELECT s.file_id, s.description, e.distance
@@ -175,5 +207,9 @@ async def search(
             """,
             (_pack(embedding), k, chat_id),
         )
-        # rows 已经是 list，直接切片避免重复列表操作
-        return [(r[0], r[1], r[2]) for r in rows[:k]]
+        result = []
+        for i, r in enumerate(rows):
+            if i >= k:
+                break
+            result.append((r[0], r[1], r[2]))
+        return result

@@ -129,6 +129,7 @@ class _AppConfig(pydantic.BaseModel):
     agent_sticker_memory_sample_rate: float = 0.5
     agent_sticker_db_path: str = "data/sticker_vec.db"
     agent_sticker_ttl: int = 86400 * 7
+    agent_sticker_min_keep_count: int = 100  # 少于此数量时不逐出过期贴纸
     # Embedding model spec: "provider/model". Falls back to agent_model provider.
     agent_sticker_embed_model: str = "default/text-embedding-3-small"
     agent_sticker_embed_dimensions: int = 1024
