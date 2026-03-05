@@ -135,7 +135,7 @@ async def run_agent(
                                         args_str = str(part.args) if part.args else ""
                                         logger.debug(
                                             f"Tool call for user {user_id} in chat {chat_id}: "
-                                            f"{part.tool_name}({args_str[:200]}...)"
+                                            f"{part.tool_name}({args_str})"
                                         )
                                 if has_tool_calls and streaming_output is not None:
                                     await streaming_output.finalize()
@@ -240,7 +240,9 @@ async def run_agent(
                     [
                         [
                             InlineKeyboardButton(
-                                i18n.t("bot.button.agent.clear_history", locale=lang),
+                                text=i18n.t(
+                                    "bot.button.agent.clear_history", locale=lang
+                                ),
                                 callback_data=f"agent_clear_history:{chat_id}:{user_id}",
                             )
                         ]
@@ -262,7 +264,9 @@ async def run_agent(
                     [
                         [
                             InlineKeyboardButton(
-                                i18n.t("bot.button.agent.clear_history", locale=lang),
+                                text=i18n.t(
+                                    "bot.button.agent.clear_history", locale=lang
+                                ),
                                 callback_data=f"agent_clear_history:{chat_id}:{user_id}",
                             )
                         ]
