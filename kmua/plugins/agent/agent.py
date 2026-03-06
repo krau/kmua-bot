@@ -524,7 +524,7 @@ async def wake_agent(client: PyrogramClient, message: pyrogram.types.Message):
     if not user_data:
         return
     if await common.memstore.get(state.waiting_key(user.id)):
-        return await word_reply(client, message)
+        return await message.reply_text("Thinking...")
 
     # Check if there's a pending deferred ask
     ask_state = await tools.get_ask_state(chat.id, user.id)
