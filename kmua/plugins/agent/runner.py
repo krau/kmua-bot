@@ -161,15 +161,17 @@ async def run_agent(
                                     if streaming_output is not None:
                                         await streaming_output.abort()
                                 else:
-                                    if streaming_output is not None:
+                                    # Check final_result first before sending anything
+                                    if output == "final_result":
+                                        if streaming_output is not None:
+                                            await streaming_output.abort()
+                                        logger.warning(
+                                            f"The stupid agent returned 'final_result' as text🤡 for user {user_id}"
+                                        )
+                                    elif streaming_output is not None:
                                         await streaming_output.finalize()
                                     elif output:
-                                        if output == "final_result":
-                                            logger.warning(
-                                                f"The stupid agent returned 'final_result' as text🤡 for user {user_id}"
-                                            )
-                                        else:
-                                            await reply_output(client, message, output)
+                                        await reply_output(client, message, output)
                         await memttlcache.set(
                             state.history_key(chat_id, user_id),
                             agent_run.all_messages(),
