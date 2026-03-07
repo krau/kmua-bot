@@ -164,7 +164,12 @@ async def run_agent(
                                     if streaming_output is not None:
                                         await streaming_output.finalize()
                                     elif output:
-                                        await reply_output(client, message, output)
+                                        if output == "final_result":
+                                            logger.warning(
+                                                f"The stupid agent returned 'final_result' as text🤡 for user {user_id}"
+                                            )
+                                        else:
+                                            await reply_output(client, message, output)
                         await memttlcache.set(
                             state.history_key(chat_id, user_id),
                             agent_run.all_messages(),
@@ -203,13 +208,17 @@ async def run_agent(
                                 f"Agent run end with result: {agent_run.result.output}"
                             )
                             output = agent_run.result.output
-                            if isinstance(output, DeferredToolRequests):
+                            if output == "final_result":
+                                logger.warning(
+                                    f"The stupid agent returned 'final_result' as text🤡 for user {user_id}"
+                                )
+                            elif isinstance(output, DeferredToolRequests):
                                 logger.info(
                                     f"Agent returned DeferredToolRequests for user {user_id}"
                                 )
                             elif isinstance(output, EndTurn):
                                 logger.debug(
-                                    f"Agent returned SilentOutput for user {user_id} — no reply sent"
+                                    f"Agent returned EndTurn for user {user_id}"
                                 )
                             elif not replied and output:
                                 await reply_output(client, message, output)
