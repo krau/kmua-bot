@@ -189,7 +189,7 @@ async def get_input_prompt(
                         if not mime_type:
                             thetype, _ = mimetypes.guess_type(document.file_name)
                             mime_type = thetype or "application/octet-stream"
-                        if mime_type.split(";")[0] in ("text/plain", "text/markdown"):
+                        if mime_type.split(";")[0].startswith("text/"):
                             doc_file = await _download_media_with_timeout(
                                 client, document.file_id
                             )
