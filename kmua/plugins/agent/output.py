@@ -11,6 +11,7 @@ from pyrogram.client import Client as PyrogramClient
 from kmua.common.memory_store import memttlcache
 from kmua.logger import logger
 from kmua.plugins.agent import datatype, state
+from kmua.plugins.agent.markdown_to_html import safe_md_to_telegram_html
 
 
 async def reply_output(
@@ -46,9 +47,32 @@ async def reply_output(
         last_chunk = ""
         for chunk in chunks:
             await message.reply_chat_action(pyrogram.enums.ChatAction.TYPING)
-            reply_msg = await message.reply_text(
-                chunk, parse_mode=pyrogram.enums.ParseMode.DISABLED
-            )
+
+            # Convert markdown to Telegram HTML with fallback
+            html_chunk, success = safe_md_to_telegram_html(chunk)
+            if success:
+                parse_mode = pyrogram.enums.ParseMode.HTML
+                send_text = html_chunk
+            else:
+                # Fallback to plain text if HTML conversion failed
+                parse_mode = pyrogram.enums.ParseMode.DISABLED
+                send_text = chunk
+
+            try:
+                reply_msg = await message.reply_text(send_text, parse_mode=parse_mode)
+            except Exception as e:
+                # If HTML sending failed, fallback to plain text
+                if parse_mode == pyrogram.enums.ParseMode.HTML:
+                    logger.debug(f"HTML send failed, falling back to plain text: {e}")
+                    try:
+                        reply_msg = await message.reply_text(
+                            chunk, parse_mode=pyrogram.enums.ParseMode.DISABLED
+                        )
+                    except Exception as e2:
+                        logger.error(f"Plain text send also failed: {e2}")
+                        raise
+                else:
+                    raise
             last_reply_msg = reply_msg
             last_chunk = chunk
             await asyncio.sleep(random.uniform(0.721, 3.9))
@@ -179,6 +203,8 @@ class StreamingOutput:
         if not self.reply_message:
             return
         try:
+            # During streaming, we keep using plain text to avoid broken HTML
+            # HTML conversion will be done at finalize stage
             await self.reply_message.edit_text(
                 text[: self.MAX_MESSAGE_LENGTH],
                 parse_mode=pyrogram.enums.ParseMode.DISABLED,
@@ -194,10 +220,36 @@ class StreamingOutput:
             logger.error(f"Error editing message: {e.__class__.__name__} - {e}")
 
     async def _send_new_message(self, text: str):
-        self.reply_message = await self.message.reply_text(
-            text[: self.MAX_MESSAGE_LENGTH],
-            parse_mode=pyrogram.enums.ParseMode.DISABLED,
-        )
+        # Convert to HTML for initial message too
+        html_text, success = safe_md_to_telegram_html(text)
+        if success:
+            send_text = html_text
+            parse_mode = pyrogram.enums.ParseMode.HTML
+        else:
+            send_text = text
+            parse_mode = pyrogram.enums.ParseMode.DISABLED
+
+        try:
+            self.reply_message = await self.message.reply_text(
+                send_text[: self.MAX_MESSAGE_LENGTH],
+                parse_mode=parse_mode,
+            )
+        except Exception as e:
+            # Fallback to plain text if HTML fails
+            if parse_mode == pyrogram.enums.ParseMode.HTML:
+                logger.debug(
+                    f"HTML send failed in streaming, falling back to plain: {e}"
+                )
+                try:
+                    self.reply_message = await self.message.reply_text(
+                        text[: self.MAX_MESSAGE_LENGTH],
+                        parse_mode=pyrogram.enums.ParseMode.DISABLED,
+                    )
+                except Exception as e2:
+                    logger.error(f"Plain text send also failed in streaming: {e2}")
+                    raise
+            else:
+                raise
         self._last_sent_text = text
         self.last_edit_time = asyncio.get_event_loop().time()
         self.edit_count += 1
@@ -239,8 +291,40 @@ class StreamingOutput:
                 pass
         if self.reply_message and self.current_text:
             text = self.current_text
-            if text != self._last_sent_text:
-                await self._do_edit(text)
+            # Convert final text to HTML for better formatting
+            html_text, success = safe_md_to_telegram_html(text)
+            if success:
+                send_text = html_text
+                parse_mode = pyrogram.enums.ParseMode.HTML
+            else:
+                send_text = text
+                parse_mode = pyrogram.enums.ParseMode.DISABLED
+
+            if (
+                text != self._last_sent_text
+                or parse_mode == pyrogram.enums.ParseMode.HTML
+            ):
+                try:
+                    await self.reply_message.edit_text(
+                        send_text[: self.MAX_MESSAGE_LENGTH],
+                        parse_mode=parse_mode,
+                    )
+                    self._last_sent_text = text
+                except pyrogram.errors.exceptions.bad_request_400.MessageNotModified:
+                    pass
+                except Exception as e:
+                    # If HTML edit fails, try plain text
+                    if parse_mode == pyrogram.enums.ParseMode.HTML:
+                        logger.debug(f"HTML finalize edit failed, trying plain: {e}")
+                        try:
+                            await self.reply_message.edit_text(
+                                text[: self.MAX_MESSAGE_LENGTH],
+                                parse_mode=pyrogram.enums.ParseMode.DISABLED,
+                            )
+                        except Exception as e2:
+                            logger.error(f"Plain text finalize edit also failed: {e2}")
+                    else:
+                        logger.error(f"Error editing final message: {e}")
             elif not self.reply_message:
                 await self._send_new_message(text)
         if self.reply_message and self.is_group_chat and self.user and self.user.id:
