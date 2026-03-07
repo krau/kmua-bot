@@ -2,11 +2,12 @@ import random
 
 import pyrogram
 import zhconv
+from pyrogram.client import Client
 
 from kmua import database, i18n, resources
 
 
-async def word_reply(client: pyrogram.Client, message: pyrogram.types.Message):
+async def word_reply(client: Client, message: pyrogram.types.Message):
     user = message.from_user
     if not user:
         return
