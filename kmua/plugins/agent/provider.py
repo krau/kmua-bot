@@ -1,9 +1,11 @@
 from pydantic_ai.embeddings import EmbeddingSettings
 from pydantic_ai.embeddings.openai import OpenAIEmbeddingModel
-from pydantic_ai.models.openai import OpenAIChatModel
 from pydantic_ai.providers.openai import OpenAIProvider
 
 from kmua.config import ProviderConfig, app_config
+
+# Import video-capable model
+from .video_model import VideoCapableOpenAIChatModel
 
 
 def _parse_spec(spec: str) -> tuple[str, str]:
@@ -32,10 +34,14 @@ def _make_openai_provider(provider_name: str) -> OpenAIProvider:
     return OpenAIProvider(base_url=cfg.url, api_key=cfg.key)
 
 
-def make_chat_model(spec: str) -> OpenAIChatModel:
-    """Build an OpenAIChatModel from a 'provider/model' spec."""
+def make_chat_model(spec: str) -> VideoCapableOpenAIChatModel:
+    """Build a VideoCapableOpenAIChatModel from a 'provider/model' spec.
+
+    Uses VideoCapableOpenAIChatModel to support video content via data URIs,
+    which is necessary because the standard OpenAIChatModel rejects video BinaryContent.
+    """
     provider_name, model_name = _parse_spec(spec)
-    return OpenAIChatModel(
+    return VideoCapableOpenAIChatModel(
         model_name=model_name,
         provider=_make_openai_provider(provider_name),
     )
