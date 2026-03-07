@@ -232,46 +232,34 @@ async def run_agent(
         pydantic_ai.exceptions.ModelAPIError,
     ) as e:
         logger.error(f"Agent HTTP error: {e.__class__.__name__}: {e}")
+        markup = InlineKeyboardMarkup(
+            [
+                [
+                    InlineKeyboardButton(
+                        text=i18n.t("bot.button.agent.clear_history", locale=lang),
+                        callback_data=f"agent_clear_history:{chat_id}:{user_id}",
+                    )
+                ]
+            ]
+        )
         status_code = getattr(e, "status_code", None)
         if status_code == 400:
             await message.reply_text(
                 i18n.t("bot.msg.agent.errors.model_http_400", locale=lang),
-                reply_markup=InlineKeyboardMarkup(
-                    [
-                        [
-                            InlineKeyboardButton(
-                                text=i18n.t(
-                                    "bot.button.agent.clear_history", locale=lang
-                                ),
-                                callback_data=f"agent_clear_history:{chat_id}:{user_id}",
-                            )
-                        ]
-                    ]
-                ),
+                reply_markup=markup,
             )
         elif status_code:
             await message.reply_text(
                 i18n.t("bot.msg.agent.errors.model_http", locale=lang).format(
                     code=status_code
-                )
+                ),
             )
         else:
             await message.reply_text(
                 i18n.t("bot.msg.agent.errors.interrupted", locale=lang).format(
                     error=f"{e.__class__.__name__}"
                 ),
-                reply_markup=InlineKeyboardMarkup(
-                    [
-                        [
-                            InlineKeyboardButton(
-                                text=i18n.t(
-                                    "bot.button.agent.clear_history", locale=lang
-                                ),
-                                callback_data=f"agent_clear_history:{chat_id}:{user_id}",
-                            )
-                        ]
-                    ]
-                ),
+                reply_markup=markup,
             )
     except Exception as e:
         logger.error(f"Agent run error: {e.__class__.__name__} - {e}")
