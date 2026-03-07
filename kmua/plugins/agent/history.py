@@ -1,8 +1,13 @@
 import asyncio
 from collections import defaultdict
-from typing import Any
 
-from pydantic_ai import Agent, UserContent, UserPromptPart
+from pydantic_ai import (
+    Agent,
+    AgentRunResult,
+    SystemPromptPart,
+    UserContent,
+    UserPromptPart,
+)
 from pydantic_ai.messages import (
     MULTI_MODAL_CONTENT_TYPES,
     ModelMessage,
@@ -21,7 +26,7 @@ async def _run_agent_with_timeout(
     user_prompt: str,
     timeout: int | None = None,
     message_history: list | None = None,
-) -> Any:
+) -> AgentRunResult[str]:
     """Run agent with optional timeout to prevent blocking event loop.
 
     Args:
@@ -170,18 +175,18 @@ async def summarize_history(
             message_history=[],
         )
         logger.debug(f"Agent summarize: {summary_result.output}")
-        parts = [UserPromptPart(summary_result.output)]
+        parts: list = [SystemPromptPart(summary_result.output)]
         if current_user_message[0].kind == "request":
             for part in current_user_message[0].parts:
                 if part.part_kind == "user-prompt":
                     parts.append(part)
                 # [TODO] handle tool call parts
-
         return [ModelRequest(parts=parts)]
     except Exception as e:
         logger.exception(
             f"Error summarizing history with agent: {e.__class__.__name__} - {e}"
         )
+        logger.warning("Falling back to filtered messages due to error.")
         filtered_messages = filter_tool_return_if_needed(messages[-messages_threshold:])
         result_messages = []
         for msg in filtered_messages:
