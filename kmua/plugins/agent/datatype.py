@@ -129,8 +129,8 @@ class UserMemoryResult(BaseModel):
         return affection_change
 
 
-class EndResult(BaseModel):
-    reason: str | None = Field(description="结束原因")
+class EndTurn(BaseModel):
+    pass
 
 
 @dataclass
