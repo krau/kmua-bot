@@ -176,6 +176,46 @@ async def get_input_prompt(
                                         media_type=video.mime_type,
                                     )
                                 )
+                case pyrogram.enums.MessageMediaType.AUDIO:
+                    audio = media_message.audio
+                    if (
+                        audio
+                        and audio.file_id
+                        and audio.mime_type
+                        and audio.file_size
+                        and audio.file_size <= 10 * 1024 * 1024
+                    ):
+                        if "audio" in app_config.agent_multimodal_inputs:
+                            audio_file = await _download_media_with_timeout(
+                                client, audio.file_id
+                            )
+                            if audio_file:
+                                contents.append(
+                                    BinaryContent(
+                                        data=audio_file.getvalue(),
+                                        media_type=audio.mime_type,
+                                    )
+                                )
+                case pyrogram.enums.MessageMediaType.VOICE:
+                    voice = media_message.voice
+                    if (
+                        voice
+                        and voice.file_id
+                        and voice.mime_type
+                        and voice.file_size
+                        and voice.file_size <= 10 * 1024 * 1024
+                    ):
+                        if "audio" in app_config.agent_multimodal_inputs:
+                            voice_file = await _download_media_with_timeout(
+                                client, voice.file_id
+                            )
+                            if voice_file:
+                                contents.append(
+                                    BinaryContent(
+                                        data=voice_file.getvalue(),
+                                        media_type=voice.mime_type,
+                                    )
+                                )
                 case pyrogram.enums.MessageMediaType.DOCUMENT:
                     document = media_message.document
                     if (
