@@ -196,12 +196,20 @@ async def run_agent(
                                 if part.part_kind == "tool-call":
                                     args_str = str(part.args) if part.args else ""
                                     logger.debug(
-                                        f"Tool call: {part.tool_name}"
-                                        f"({args_str[:200]}{'...' if len(args_str) > 200 else ''})"
+                                        f"Tool call for user {user_id} in chat {chat_id}: "
+                                        f"{part.tool_name}({args_str})"
                                     )
                                 elif part.part_kind == "text" and part.content:
-                                    await reply_output(client, message, part.content)
-                                    replied = True
+                                    # Check if content is final_result before sending
+                                    if part.content == "final_result":
+                                        logger.warning(
+                                            f"The stupid agent returned 'final_result' as text🤡 for user {user_id}"
+                                        )
+                                    else:
+                                        await reply_output(
+                                            client, message, part.content
+                                        )
+                                        replied = True
                         elif Agent.is_end_node(node):
                             assert agent_run.result is not None, (
                                 "Agent run ended without result"
