@@ -261,7 +261,7 @@ class StreamingOutput:
                     ttl=300,
                 )
 
-    async def abort(self, delete_message: bool = False):
+    async def abort(self):
         self._stop = True
         for task in (self._start_task, self._edit_task):
             if task and not task.done():
@@ -270,9 +270,3 @@ class StreamingOutput:
                     await task
                 except asyncio.CancelledError:
                     pass
-        # Delete the sent message if requested (e.g., for final_result suppression)
-        if delete_message and self.reply_message:
-            try:
-                await self.reply_message.delete()
-            except Exception as e:
-                logger.debug(f"Failed to delete aborted message: {e}")

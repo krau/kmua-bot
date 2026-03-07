@@ -164,10 +164,7 @@ async def run_agent(
                                     # Check final_result first before sending anything
                                     if output == "final_result":
                                         if streaming_output is not None:
-                                            # Delete the partial message that may have been sent
-                                            await streaming_output.abort(
-                                                delete_message=True
-                                            )
+                                            await streaming_output.abort()
                                         logger.warning(
                                             f"The stupid agent returned 'final_result' as text🤡 for user {user_id}"
                                         )
