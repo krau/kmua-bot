@@ -17,16 +17,18 @@ def md_to_telegram_html(text: str) -> str:
     """Convert Markdown to Telegram HTML.
 
     Supported Markdown:
+    - # Heading -> <b>Heading</b>
     - **bold** or __bold__ -> <b>bold</b>
     - *italic* or _italic_ -> <i>italic</i>
-    - __underline__ -> <u>underline</u>
     - ~~strikethrough~~ -> <s>strikethrough</s>
-    - ||spoiler|| -> <tg-spoiler>spoiler</tg-spoiler>
-    - [link](url) -> <a href="url">link</a>
     - `inline code` -> <code>inline code</code>
     - ```code block``` or ```lang\ncode``` -> <pre> or <pre><code class="language-lang">
+    - [link](url) -> <a href="url">link</a>
     - > quote -> <blockquote>quote</blockquote>
-    - >> expandable quote -> <blockquote expandable>quote</blockquote>
+    - - item / * item / + item -> • item
+    - 1. item -> 1. item
+    - --- / *** -> ——————
+    - bare URLs -> <a href="url">url</a>
 
     Returns:
         Telegram HTML formatted text.
@@ -34,157 +36,208 @@ def md_to_telegram_html(text: str) -> str:
     if not text:
         return ""
 
-    # Store code blocks and inline code to protect them from markdown parsing
-    code_blocks: list[str] = []
-    inline_codes: list[str] = []
-
-    def store_code_block(match: re.Match) -> str:
-        code_blocks.append(match.group(0))
-        return f"\x00CODEBLOCK{len(code_blocks) - 1}\x00"
-
-    def store_inline_code(match: re.Match) -> str:
-        inline_codes.append(match.group(0))
-        return f"\x00INLINECODE{len(inline_codes) - 1}\x00"
-
-    # Protect code blocks (```...```)
-    text = re.sub(r"```(\w+)?\n(.*?)```", store_code_block, text, flags=re.DOTALL)
-
-    # Protect inline code (`...`)
-    text = re.sub(r"`([^`]+)`", store_inline_code, text)
-
-    # Process blockquotes first (must be at line start)
     lines = text.split("\n")
-    result_lines = []
-    in_quote = False
-    in_expandable = False
-    quote_lines = []
+    result = []
+    i = 0
 
-    for line in lines:
-        # Check for expandable quote (>>)
-        if line.startswith(">> "):
-            if not in_quote:
-                in_quote = True
-                in_expandable = True
-                quote_lines = [line[3:]]
-            else:
-                quote_lines.append(line[3:])
-        # Check for regular quote (>)
-        elif line.startswith("> "):
-            if not in_quote:
-                in_quote = True
-                in_expandable = False
-                quote_lines = [line[2:]]
-            else:
-                quote_lines.append(line[2:])
-        else:
-            if in_quote:
-                # Close the quote block
-                quote_content = "\n".join(quote_lines)
-                quote_content = _escape_html(quote_content)
-                if in_expandable:
-                    result_lines.append(
-                        f"<blockquote expandable>{quote_content}</blockquote>"
-                    )
-                else:
-                    result_lines.append(f"<blockquote>{quote_content}</blockquote>")
-                in_quote = False
-                in_expandable = False
-                quote_lines = []
-            result_lines.append(line)
+    while i < len(lines):
+        line = lines[i]
 
-    # Close any remaining quote block
-    if in_quote:
-        quote_content = "\n".join(quote_lines)
-        quote_content = _escape_html(quote_content)
-        if in_expandable:
-            result_lines.append(f"<blockquote expandable>{quote_content}</blockquote>")
-        else:
-            result_lines.append(f"<blockquote>{quote_content}</blockquote>")
-
-    text = "\n".join(result_lines)
-
-    # Process spoilers (||text||) - must be before other patterns
-    text = re.sub(
-        r"\|\|([^|]+)\|\|",
-        lambda m: f"<tg-spoiler>{_escape_html(m.group(1))}</tg-spoiler>",
-        text,
-    )
-
-    # Process strikethrough (~~text~~)
-    text = re.sub(r"~~([^~]+)~~", lambda m: f"<s>{_escape_html(m.group(1))}</s>", text)
-
-    # Process bold (**text** or __text__)
-    # Must be before italic to avoid conflicts
-    text = re.sub(
-        r"\*\*([^*]+)\*\*", lambda m: f"<b>{_escape_html(m.group(1))}</b>", text
-    )
-    text = re.sub(r"__([^_]+)__", lambda m: f"<b>{_escape_html(m.group(1))}</b>", text)
-
-    # Process underline (__text__) - only if not already processed as bold
-    # Actually, Telegram uses <u> for underline, let's use different pattern
-    # Using ++text++ for underline to avoid conflict
-    text = re.sub(
-        r"\+\+([^+]+)\+\+", lambda m: f"<u>{_escape_html(m.group(1))}</u>", text
-    )
-
-    # Process italic (*text* or _text_)
-    # Must be after bold
-    text = re.sub(
-        r"(?<!\*)\*(?!\*)([^*]+)(?<!\*)\*(?!\*)",
-        lambda m: f"<i>{_escape_html(m.group(1))}</i>",
-        text,
-    )
-    text = re.sub(
-        r"(?<!_)_(?!_)([^_]+)(?<!_)_(?!_)",
-        lambda m: f"<i>{_escape_html(m.group(1))}</i>",
-        text,
-    )
-
-    # Process links [text](url)
-    def process_link(match: re.Match) -> str:
-        link_text = match.group(1)
-        url = match.group(2)
-        # Escape link text
-        link_text = _escape_html(link_text)
-        return f'<a href="{url}">{link_text}</a>'
-
-    text = re.sub(r"\[([^\]]+)\]\(([^)]+)\)", process_link, text)
-
-    # Restore inline code
-    for i, code in enumerate(inline_codes):
-        # Extract content without backticks
-        content = code[1:-1]
-        # Escape HTML in code
-        content = _escape_html(content)
-        text = text.replace(f"\x00INLINECODE{i}\x00", f"<code>{content}</code>")
-
-    # Restore code blocks
-    for i, code in enumerate(code_blocks):
-        match = re.match(r"```(\w+)?\n(.*?)```", code, re.DOTALL)
-        if match:
-            lang = match.group(1) or ""
-            content = match.group(2)
-            # Escape HTML in code
-            content = _escape_html(content)
+        # Fenced code block
+        if line.startswith("```"):
+            lang = line[3:].strip()
+            code_lines = []
+            i += 1
+            while i < len(lines) and not lines[i].startswith("```"):
+                code_lines.append(lines[i])
+                i += 1
+            i += 1  # consume closing ```
+            code = "\n".join(code_lines)
             if lang:
-                text = text.replace(
-                    f"\x00CODEBLOCK{i}\x00",
-                    f'<pre><code class="language-{lang}">{content}</code></pre>',
+                result.append(
+                    f'<pre><code class="language-{_escape_html(lang)}">{_escape_html(code)}</code></pre>'
                 )
             else:
-                text = text.replace(f"\x00CODEBLOCK{i}\x00", f"<pre>{content}</pre>")
+                result.append(f"<pre>{_escape_html(code)}</pre>")
+            continue
 
-    # Escape remaining HTML characters in plain text parts
-    # Split by HTML tags and escape only text parts
-    parts = re.split(r"(<[^>]+>)", text)
+        # Heading
+        if line.startswith("#"):
+            level = 0
+            while level < len(line) and line[level] == "#":
+                level += 1
+            heading_text = line[level:].strip()
+            result.append(f"<b>{_render_inline(heading_text)}</b>")
+            i += 1
+            continue
+
+        # Horizontal rule
+        stripped = line.strip()
+        if _is_horizontal_rule(stripped):
+            result.append("——————")
+            i += 1
+            continue
+
+        # Blockquote
+        if line.startswith(">"):
+            bq_lines = []
+            while i < len(lines) and lines[i].startswith(">"):
+                bq_lines.append(lines[i][1:].lstrip())
+                i += 1
+            inner = md_to_telegram_html("\n".join(bq_lines))
+            result.append(f"<blockquote>{inner}</blockquote>")
+            continue
+
+        # Unordered list item
+        if len(stripped) >= 2 and stripped[0] in "-*+" and stripped[1] == " ":
+            text = stripped[2:].strip()
+            result.append(f"• {_render_inline(text)}")
+            i += 1
+            continue
+
+        # Ordered list item
+        m = re.match(r"^(\d+)\.\s+(.+)$", stripped)
+        if m:
+            num = m.group(1)
+            text = m.group(2)
+            result.append(f"{_escape_html(num)}. {_render_inline(text)}")
+            i += 1
+            continue
+
+        # Blank line
+        if not stripped:
+            result.append("")
+            i += 1
+            continue
+
+        # Paragraph / inline
+        result.append(_render_inline(line))
+        i += 1
+
+    return "\n".join(result).rstrip("\n")
+
+
+def _render_inline(s: str) -> str:
+    """Convert inline Markdown markup to Telegram HTML."""
     result = []
-    for i, part in enumerate(parts):
-        if i % 2 == 0:  # Text part (not a tag)
-            result.append(_escape_html(part))
-        else:  # HTML tag
-            result.append(part)
+    pos = 0
+
+    while pos < len(s):
+        # Inline code
+        if s[pos] == "`":
+            end = s.find("`", pos + 1)
+            if end >= 0:
+                code = s[pos + 1 : end]
+                result.append(f"<code>{_escape_html(code)}</code>")
+                pos = end + 1
+                continue
+
+        # Bold: **text**
+        if pos + 1 < len(s) and s[pos : pos + 2] == "**":
+            end = s.find("**", pos + 2)
+            if end >= 0:
+                inner = s[pos + 2 : end]
+                result.append(f"<b>{_render_inline(inner)}</b>")
+                pos = end + 2
+                continue
+
+        # Bold: __text__
+        if pos + 1 < len(s) and s[pos : pos + 2] == "__":
+            end = s.find("__", pos + 2)
+            if end >= 0:
+                inner = s[pos + 2 : end]
+                result.append(f"<b>{_render_inline(inner)}</b>")
+                pos = end + 2
+                continue
+
+        # Italic: *text*
+        if s[pos] == "*":
+            end = s.find("*", pos + 1)
+            if end >= 0:
+                inner = s[pos + 1 : end]
+                result.append(f"<i>{_render_inline(inner)}</i>")
+                pos = end + 1
+                continue
+
+        # Italic: _text_
+        if s[pos] == "_":
+            end = s.find("_", pos + 1)
+            if end >= 0:
+                inner = s[pos + 1 : end]
+                result.append(f"<i>{_render_inline(inner)}</i>")
+                pos = end + 1
+                continue
+
+        # Strikethrough: ~~text~~
+        if pos + 1 < len(s) and s[pos : pos + 2] == "~~":
+            end = s.find("~~", pos + 2)
+            if end >= 0:
+                inner = s[pos + 2 : end]
+                result.append(f"<s>{_render_inline(inner)}</s>")
+                pos = end + 2
+                continue
+
+        # Hyperlink: [text](url)
+        if s[pos] == "[":
+            m = re.match(r"^\[([^\]]*)\]\(([^)]*)\)", s[pos:])
+            if m:
+                link_text = m.group(1)
+                href = m.group(2)
+                result.append(
+                    f'<a href="{_escape_html(href)}">{_render_inline(link_text)}</a>'
+                )
+                pos += len(m.group(0))
+                continue
+
+        # Auto-link bare URLs
+        if s[pos : pos + 7] == "http://" or s[pos : pos + 8] == "https://":
+            end = _url_end(s, pos)
+            url = s[pos:end]
+            result.append(f'<a href="{_escape_html(url)}">{_escape_html(url)}</a>')
+            pos = end
+            continue
+
+        # Special HTML chars
+        ch = s[pos]
+        if ch == "&":
+            result.append("&amp;")
+        elif ch == "<":
+            result.append("&lt;")
+        elif ch == ">":
+            result.append("&gt;")
+        else:
+            result.append(ch)
+        pos += 1
 
     return "".join(result)
+
+
+def _is_horizontal_rule(s: str) -> bool:
+    """Check if line is a horizontal rule (---, ***, ___)."""
+    if len(s) < 3:
+        return False
+    ch = s[0]
+    if ch not in "-*_":
+        return False
+    for c in s:
+        if c != ch and c != " ":
+            return False
+    return True
+
+
+def _url_end(s: str, pos: int) -> int:
+    """Find the end of a URL starting at pos."""
+    i = pos
+    while i < len(s):
+        c = s[i]
+        if c in " \t\n\r":
+            break
+        # Strip trailing punctuation
+        if i > pos and c in ".,)]":
+            if i + 1 >= len(s) or s[i + 1] in " \n\t":
+                break
+        i += 1
+    return i
 
 
 def safe_md_to_telegram_html(text: str) -> tuple[str, bool]:
