@@ -130,7 +130,7 @@ class UserMemoryResult(BaseModel):
 
 
 class EndTurn(BaseModel):
-    pass
+    reason: str = Field(description="结束原因")
 
 
 @dataclass
