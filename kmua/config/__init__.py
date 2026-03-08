@@ -315,4 +315,46 @@ def _get_runtime_config() -> _InternalConfig:
 
 runtime_config = _get_runtime_config()
 
-__all__ = ["app_config"]
+
+def reload_config() -> tuple[bool, str, list[str]]:
+    """Reload configuration from settings files.
+
+    Returns:
+        (success, message, changed_fields) tuple.
+    """
+    try:
+        _settings.reload()
+        new_config = _get_typed_config(_AppConfig)
+
+        # Validate critical fields haven't changed
+        critical_fields = ["token", "db_url", "api_id", "api_hash", "session_name"]
+        for field in critical_fields:
+            if getattr(new_config, field) != getattr(app_config, field):
+                return False, f"Cannot reload: {field} changed (requires restart)", []
+
+        # Reload powermem config if path is set
+        if new_config.agent_powermem_config_path:
+            with open(new_config.agent_powermem_config_path, encoding="utf-8") as f:
+                new_config.agent_powermem_config = json.load(f)
+            if new_config.agent_powermem_config is None:
+                return False, "Loaded powermem_config is None", []
+            if new_config.agent_powermem_custom_fact_extraction_prompt is not None:
+                new_config.agent_powermem_config["custom_fact_extraction_prompt"] = (
+                    new_config.agent_powermem_custom_fact_extraction_prompt
+                )
+
+        # Diff and update app_config in-place to preserve references
+        changed: list[str] = []
+        for field in _AppConfig.model_fields:
+            old_val = getattr(app_config, field)
+            new_val = getattr(new_config, field)
+            if old_val != new_val:
+                changed.append(field)
+            setattr(app_config, field, new_val)
+
+        return True, "Configuration reloaded successfully", changed
+    except Exception as e:
+        return False, f"Reload failed: {e}", []
+
+
+__all__ = ["app_config", "reload_config"]

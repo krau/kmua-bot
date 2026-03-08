@@ -27,3 +27,4 @@ bot:
     botdemote: 取消 bot 管理员
     help: 帮助|更多功能
     randmyavatar: 立刻更换 bot 头像
+    reload: 重载配置文件
