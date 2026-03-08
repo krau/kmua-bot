@@ -167,6 +167,7 @@ if app_config.agent:
         model=model,
         output_type=datatype.UserMemoryResult,
         instructions=app_config.agent_memory_prompt,
+        retries=5,
     )
 
     @PyrogramClient.on_message(pyrogram.filters.command("forget"), group=0)
