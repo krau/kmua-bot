@@ -21,7 +21,7 @@ class CommentResult(BaseModel):
     comment: str = Field(description="评论内容")
     poll_question: str | None = Field(default=None, description="投票问题")
     poll_options: list[str] | None = Field(
-        default=None, description="投票选项", le=10, ge=2
+        default=None, description="投票选项", min_length=2, max_length=10
     )
     poll_is_anonymous: bool = Field(default=True, description="投票是否匿名")
 
