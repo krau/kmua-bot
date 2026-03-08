@@ -345,6 +345,8 @@ async def get_input_prompt(
             # 只保留最后一条（用户直接回复的 bot 消息）
             reply_chain = reply_chain[-1:]
 
+    has_reply = bool(reply_chain)
+
     # include_nearby > 0 时，先追加前面 N 条消息（从旧到新）
     if include_nearby and include_nearby > 0 and message.chat and message.chat.id:
         message_ids = []
@@ -359,7 +361,11 @@ async def get_input_prompt(
             prev_msgs = await common.get_cached_messages_objects(
                 message.chat.id, message_ids
             )
-            media_count = 0
+            closest_media_msg: pyrogram.types.Message | None = None
+            for prev_msg in reversed(prev_msgs):
+                if prev_msg.media and not closest_media_msg:
+                    closest_media_msg = prev_msg
+                    break
             for prev_msg in prev_msgs:
                 if prev_msg.id in seen_msg_ids:
                     continue
@@ -369,11 +375,11 @@ async def get_input_prompt(
                     sender_name = prev_msg.from_user.first_name or "未知用户"
                 elif prev_msg.sender_chat:
                     sender_name = prev_msg.sender_chat.title or "未知频道"
-                include_media = True
-                if media_count >= 2:
-                    include_media = False
-                if prev_msg.media:
-                    media_count += 1
+                include_media = (
+                    not has_reply
+                    and closest_media_msg is not None
+                    and prev_msg.id == closest_media_msg.id
+                )
                 user_prompt.extend(
                     await build_contents_from_message(
                         prev_msg,
@@ -382,13 +388,13 @@ async def get_input_prompt(
                     )
                 )
 
-    # 处理回复消息链，只在最后一条消息中包含媒体
+    # 处理回复消息链，只在最后一条（当前消息直接回复的）中包含媒体
     if reply_chain:
+        last_idx = len(reply_chain) - 1
         for idx, reply_msg in enumerate(reply_chain):
             if reply_msg.id in seen_msg_ids:
                 continue
             seen_msg_ids.add(reply_msg.id)
-            is_last = idx == len(reply_chain) - 1
             sender_name = "未知用户"
             if reply_msg.from_user:
                 sender_name = reply_msg.from_user.first_name or "未知用户"
@@ -398,7 +404,7 @@ async def get_input_prompt(
                 await build_contents_from_message(
                     reply_msg,
                     f"[被引用的消息|发送者:{sender_name}|消息ID:{reply_msg.id}]",
-                    include_media=is_last,
+                    include_media=(idx == last_idx),
                 )
             )
 
