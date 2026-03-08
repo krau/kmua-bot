@@ -1,17 +1,32 @@
 import datetime
 
 import pyrogram
+from pydantic import BaseModel, Field
+from pydantic_ai import Agent
 from pyrogram.client import Client
 
 from kmua import database
 from kmua.common.memory_store import memttlcache
 from kmua.config import app_config
 from kmua.logger import logger
-from kmua.plugins.agent import datatype
+from kmua.plugins.agent import provider
+from kmua.plugins.agent.output import TypingKeepAlive, reply_output
 from kmua.plugins.agent.prompt import get_input_prompt
-from kmua.plugins.agent.runner import get_chat_prompt_override, run_agent
+from kmua.plugins.agent.runner import get_chat_model_override, get_chat_prompt_override
 
-from .agent import agent, model, multimodal_model
+from .agent import model, multimodal_model
+
+
+class CommentResult(BaseModel):
+    comment: str = Field(description="评论内容")
+    poll_question: str | None = Field(default=None, description="投票问题")
+    poll_options: list[str] | None = Field(
+        default=None, description="投票选项", le=10, ge=2
+    )
+    poll_is_anonymous: bool = Field(default=True, description="投票是否匿名")
+
+
+comment_agent = Agent(model=model, output_type=CommentResult, retries=5)
 
 
 async def _is_first_media_in_group(message: pyrogram.types.Message) -> bool:
@@ -50,7 +65,7 @@ async def channel_comment_filter_func(_, __, message: pyrogram.types.Message):
         return False
     if not message.automatic_forward:
         return False
-    if agent is None:
+    if comment_agent is None:
         return False
     if not app_config.agent:
         return False
@@ -93,27 +108,41 @@ async def comment_channel_message(client: Client, message: pyrogram.types.Messag
     ]
     instructions += "\n\n" + "\n".join(ctx_parts)
 
-    prompts, _ = await get_input_prompt(client, message, ctx=None)
+    prompts, needs_multimodal = await get_input_prompt(client, message, ctx=None)
     if not prompts:
         return
     logger.debug(f"Channel comment post: {message.caption or message.text}")
-    lang = (await database.get_chat_config(chat.id)).lang
-    await run_agent(
-        agi=agent,
-        client=client,
-        message=message,
-        user_id=channel.id,
-        chat_id=chat.id,
-        user_prompt=prompts,
-        history=[],
-        deps=datatype.ContextDeps(
-            client=client,
-            user_id=channel.id,
-            chat_id=chat.id,
-            message=message,
-            instructions=instructions,
-        ),
-        multimodal_model=multimodal_model,
-        model=model,
-        lang=lang,
-    )
+    if needs_multimodal:
+        override_name = await get_chat_model_override(chat.id, "multimodal")
+    else:
+        override_name = await get_chat_model_override(chat.id, "main")
+    if override_name:
+        use_model = provider.make_chat_model(override_name)
+    else:
+        use_model = multimodal_model if needs_multimodal else model
+    try:
+        async with TypingKeepAlive(client, message):
+            result = await comment_agent.run(
+                model=use_model,
+                instructions=instructions,
+                user_prompt=prompts,
+            )
+            output = result.output
+            if output.comment:
+                await reply_output(client, message, output.comment)
+            if (
+                output.poll_question
+                and output.poll_options
+                and len(output.poll_options) >= 2
+            ):
+                await client.send_poll(
+                    chat_id=chat.id,
+                    question=output.poll_question,
+                    options=output.poll_options,
+                    is_anonymous=output.poll_is_anonymous,
+                    reply_parameters=pyrogram.types.ReplyParameters(
+                        message_id=message.id
+                    ),
+                )
+    except Exception as e:
+        logger.error(f"Channel comment error: {e.__class__.__name__} - {e}")
