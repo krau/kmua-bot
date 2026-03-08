@@ -9,6 +9,7 @@ from kmua.logger import logger
 _BOTTLE_MSG_PREFIX = "bottle_msg:"
 _REPLY_INTENT_PREFIX = "bottle_reply_intent:"
 _REPLY_COOLDOWN_PREFIX = "bottle_reply_cooldown:"
+_BOTTLE_BAN_PREFIX = "bottle_ban:"
 
 
 async def _bottle_reply_filter(_, client: Client, message: types.Message) -> bool:
@@ -54,6 +55,8 @@ async def throw_bottle(client: Client, message: types.Message):
     bottle_message = message.reply_to_message or message
     sender = message.sender_chat or message.from_user
     if not sender or not sender.id:
+        return
+    if await memttlcache.get(f"{_BOTTLE_BAN_PREFIX}{sender.id}"):
         return
     file_id = None
     media_type = None
@@ -155,6 +158,9 @@ async def pick_bottle(client: Client, message: types.Message):
 
     user = message.sender_chat or message.from_user
     if not user or not user.id:
+        return
+    if await memttlcache.get(f"{_BOTTLE_BAN_PREFIX}{user.id}"):
+        await message.reply_text(i18n.t("bot.msg.bottle.banned", locale=lang))
         return
     bot_username = client.me.username if client.me else None
     if bot_username is None:
@@ -877,3 +883,34 @@ async def handle_reply_keep_bottle_callback(
         )
     else:
         await callback_query.answer(i18n.t("bot.msg.bottle.bottle_kept", locale=lang))
+
+
+@Client.on_message(filters.command("banseapest"), group=0)
+async def ban_sea_pest(client: Client, message: types.Message):
+    user = message.from_user
+    if not user or not user.id:
+        return
+    db_user = await database.get_user_by_id(user.id)
+    if not db_user or not db_user.is_bot_global_admin:
+        await message.reply_text(
+            i18n.t("bot.msg.bottle.ban_no_permission", locale="zh-CN")
+        )
+        return
+    if not message.command or len(message.command) < 2:
+        await message.reply_text("用法: /banseapest <user_id> [天数]")
+        return
+    try:
+        target_user_id = int(message.command[1])
+        days = int(message.command[2]) if len(message.command) > 2 else 97
+    except ValueError:
+        await message.reply_text("用户ID和天数必须是数字")
+        return
+    count = await database.delete_bottles_by_sender(target_user_id)
+    await memttlcache.set(
+        f"{_BOTTLE_BAN_PREFIX}{target_user_id}", True, ttl=days * 86400
+    )
+    await message.reply_text(
+        i18n.t("bot.msg.bottle.ban_success", locale="zh-CN").format(
+            user_id=target_user_id, count=count
+        )
+    )

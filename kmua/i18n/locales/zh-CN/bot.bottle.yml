@@ -38,6 +38,8 @@ bot:
       reply_too_fast: 回信发送太频繁了，请稍后再试~
       reply_bottle_not_found: 这个瓶子已经消失在大海中了
       reply_sender_not_found: 瓶子的主人已经消失在大海中了
+      ban_success: "已封禁用户 {user_id}, 删除了 {count} 个瓶子"
+      ban_no_permission: 你没有权限使用此命令
   button:
     bottle:
       throw_back: 扔回大海

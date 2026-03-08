@@ -147,3 +147,21 @@ async def get_bottle_replies(
     )
     result = await session.execute(stmt)
     return list(result.scalars().all())
+
+
+@with_tx
+async def delete_bottles_by_sender(
+    sender_id: int, session: AsyncSession | None = None
+) -> int:
+    assert session is not None
+    count_stmt = (
+        sqlalchemy.select(sqlalchemy.func.count())
+        .select_from(Bottle)
+        .where(Bottle.sender_id == sender_id)
+    )
+    count_result = await session.execute(count_stmt)
+    count = count_result.scalar() or 0
+    if count > 0:
+        delete_stmt = sqlalchemy.delete(Bottle).where(Bottle.sender_id == sender_id)
+        await session.execute(delete_stmt)
+    return count
