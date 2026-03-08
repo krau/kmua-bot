@@ -84,17 +84,28 @@ async def start(client: Client, message: Message):
             return
         sender_user = await database.get_user_by_id(bottle.sender_id)
         sender_mention = await common.mention_html(sender_user)
+        requester = await database.get_user_by_id(message.from_user.id)
+        is_admin = requester is not None and requester.is_bot_global_admin
+        if is_admin:
+            seek_text = i18n.t(
+                "bot.msg.bottle.seek_result_admin",
+                locale=lang,
+            ).format(
+                sender=sender_mention,
+                created_at=html.escape(bottle.created_at.strftime("%Y-%m-%d %H:%M:%S")),
+                sender_id=bottle.sender_id,
+            )
+        else:
+            seek_text = i18n.t(
+                "bot.msg.bottle.seek_result",
+                locale=lang,
+            ).format(
+                sender=sender_mention,
+                created_at=html.escape(bottle.created_at.strftime("%Y-%m-%d %H:%M:%S")),
+            )
         try:
             await message.reply(
-                text=i18n.t(
-                    "bot.msg.bottle.seek_result",
-                    locale=lang,
-                ).format(
-                    sender=sender_mention,
-                    created_at=html.escape(
-                        bottle.created_at.strftime("%Y-%m-%d %H:%M:%S")
-                    ),
-                ),
+                text=seek_text,
                 parse_mode=ParseMode.HTML,
             )
         except Exception as e:
