@@ -11,6 +11,11 @@ class ProviderConfig(pydantic.BaseModel):
 
     url: str = "https://api.openai.com/v1"
     key: str = ""
+    type: str = "chat_completions"
+    """API compatibility type. Supported values:
+    - "chat_completions": OpenAI Chat Completions API (default, broadly compatible)
+    - "responses": OpenAI Responses API (newer OpenAI-native API)
+    """
 
 
 class _AppConfig(pydantic.BaseModel):
