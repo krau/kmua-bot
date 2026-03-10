@@ -29,6 +29,116 @@ from kmua.logger import logger
 from kmua.plugins.agent import datatype, state
 
 
+def _utf16_len(s: str) -> int:
+    """Return the UTF-16 code unit length of a Python str (surrogates counted as 2)."""
+    return sum(2 if ord(c) > 0xFFFF else 1 for c in s)
+
+
+def _utf16_slice(s: str, start: int, end: int) -> str:
+    """Slice *s* by UTF-16 code unit offsets [start, end)."""
+    result: list[str] = []
+    pos = 0
+    for ch in s:
+        if pos >= end:
+            break
+        width = 2 if ord(ch) > 0xFFFF else 1
+        if pos >= start:
+            result.append(ch)
+        pos += width
+    return "".join(result)
+
+
+def entities_to_markdown(
+    text: str,
+    entities: list[pyrogram.types.MessageEntity] | None,
+) -> str:
+    """Flatten Telegram message entities into a Markdown-like string.
+
+    Supported conversions:
+    - TEXT_LINK      → [label](url)
+    - TEXT_MENTION   → [name](tg://user?id=...)
+    - BOLD           → **text**
+    - ITALIC         → _text_
+    - CODE           → `text`
+    - PRE            → ```lang\\ntext\\n```
+    - STRIKETHROUGH  → ~~text~~
+    - SPOILER        → ||text||
+    - BLOCKQUOTE     → > text  (per line)
+
+    All other entity types are left as plain text.
+    Overlapping/nested entities are handled by processing them in offset order
+    and tracking the current UTF-16 cursor.
+    """
+    if not entities:
+        return text
+
+    E = pyrogram.enums.MessageEntityType
+
+    # Sort by offset ascending, then by length descending so larger spans
+    # come first when two entities start at the same offset.
+    sorted_entities = sorted(entities, key=lambda e: (e.offset, -e.length))
+
+    parts: list[str] = []
+    # UTF-16 cursor tracking
+    cursor: int = 0  # current position in UTF-16 code units
+    total_utf16 = _utf16_len(text)
+
+    for entity in sorted_entities:
+        e_start = entity.offset
+        e_end = entity.offset + entity.length
+
+        # Clamp to valid range
+        if e_start >= total_utf16:
+            continue
+        e_end = min(e_end, total_utf16)
+
+        # If this entity starts before our cursor it overlaps a previous one;
+        # skip to avoid corrupted markdown (overlapping is rare in practice).
+        if e_start < cursor:
+            continue
+
+        # Append literal text between cursor and this entity
+        if e_start > cursor:
+            parts.append(_utf16_slice(text, cursor, e_start))
+
+        span = _utf16_slice(text, e_start, e_end)
+
+        match entity.type:
+            case E.TEXT_LINK:
+                url = entity.url or ""
+                parts.append(f"[{span}]({url})")
+            case E.TEXT_MENTION:
+                user_id = entity.user.id if entity.user else 0
+                name = span
+                parts.append(f"[{name}](tg://user?id={user_id})")
+            case E.BOLD:
+                parts.append(f"**{span}**")
+            case E.ITALIC:
+                parts.append(f"_{span}_")
+            case E.CODE:
+                parts.append(f"`{span}`")
+            case E.PRE:
+                lang = entity.language or ""
+                parts.append(f"```{lang}\n{span}\n```")
+            case E.STRIKETHROUGH:
+                parts.append(f"~~{span}~~")
+            case E.SPOILER:
+                parts.append(f"||{span}||")
+            case E.BLOCKQUOTE:
+                quoted = "\n".join(f"> {line}" for line in span.splitlines())
+                parts.append(quoted)
+            case _:
+                parts.append(span)
+
+        cursor = e_end
+
+    # Append any remaining text after the last entity
+    if cursor < total_utf16:
+        parts.append(_utf16_slice(text, cursor, total_utf16))
+
+    return "".join(parts)
+
+
 async def _download_media_with_timeout(
     client: PyrogramClient,
     file_id: str,
@@ -106,7 +216,10 @@ async def get_input_prompt(
         include_media: bool = True,
     ) -> list[UserContent]:
         contents: list[UserContent] = []
-        text_part = f"{ctx_text or ''}\n{msg.text or msg.caption or ''}".strip()
+        raw_text = msg.text or msg.caption or ""
+        entities = msg.entities or msg.caption_entities
+        formatted_text = entities_to_markdown(raw_text, entities)
+        text_part = f"{ctx_text or ''}\n{formatted_text}".strip()
         if text_part:
             contents.append(text_part)
 
