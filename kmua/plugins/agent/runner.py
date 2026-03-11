@@ -162,7 +162,10 @@ async def run_agent(
                                         await streaming_output.abort()
                                 else:
                                     # Check final_result first before sending anything
-                                    if output == "final_result":
+                                    if (
+                                        isinstance(output, str)
+                                        and "final_result" in output
+                                    ):
                                         if streaming_output is not None:
                                             await streaming_output.abort()
                                         logger.warning(
@@ -201,7 +204,7 @@ async def run_agent(
                                     )
                                 elif part.part_kind == "text" and part.content:
                                     # Check if content is final_result before sending
-                                    if part.content == "final_result":
+                                    if "final_result" in part.content:
                                         logger.warning(
                                             f"The stupid agent returned 'final_result' as text🤡 for user {user_id}"
                                         )
@@ -218,7 +221,7 @@ async def run_agent(
                                 f"Agent run end with result: {agent_run.result.output}"
                             )
                             output = agent_run.result.output
-                            if output == "final_result":
+                            if isinstance(output, str) and "final_result" in output:
                                 logger.warning(
                                     f"The stupid agent returned 'final_result' as text🤡 for user {user_id}"
                                 )
