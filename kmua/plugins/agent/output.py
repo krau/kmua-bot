@@ -63,8 +63,12 @@ async def reply_output(
                 try:
                     reply_msg = await message.reply_text(plain_chunk, entities=entities)
                 except Exception as e:
-                    logger.error(f"Send failed: {e}")
-                    raise
+                    logger.warning(f"Send failed: {e.__class__.__name__} - {e}")
+                    try:
+                        reply_msg = await message.reply_text(plain_chunk)
+                    except Exception as e:
+                        logger.error(f"Send failed: {e.__class__.__name__} - {e}")
+                        raise
                 last_reply_msg = reply_msg
                 await asyncio.sleep(random.uniform(0.721, 3.9) + len(chunk) / 600)
         if (

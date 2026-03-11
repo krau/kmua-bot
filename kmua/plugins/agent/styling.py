@@ -58,11 +58,11 @@ def convert_md(
                 "offset": e.offset,
                 "length": e.length,
             }
-            if etype == pyrogram.enums.MessageEntityType.PRE and e.language:
+            if etype == pyrogram.enums.MessageEntityType.PRE:
                 kwargs["language"] = e.language
             if etype == pyrogram.enums.MessageEntityType.BLOCKQUOTE:
                 kwargs["expandable"] = True
-            if etype == pyrogram.enums.MessageEntityType.TEXT_LINK and e.url:
+            if etype == pyrogram.enums.MessageEntityType.TEXT_LINK:
                 kwargs["url"] = e.url
             pyrogram_entities.append(pyrogram.types.MessageEntity(**kwargs))
         return plain, pyrogram_entities
