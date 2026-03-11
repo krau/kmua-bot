@@ -105,8 +105,8 @@ if app_config.agent:
             Tool(tools.get_history_messages, prepare=tools.prepare_group_tools),
             Tool(
                 DuckDuckGoSearchTool(DDGS(), max_results=3).__call__,
-                name="duckduckgo_search",
-                description="Searches DuckDuckGo for the given query and returns the results.",
+                name="websearch",
+                description="Searches on web for the given query and returns the results.",
                 prepare=tools.prepare_configurable_tools,
             ),
             Tool(
