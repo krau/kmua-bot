@@ -1,5 +1,3 @@
-"""Telegram output utilities: message sending, typing indicator, streaming."""
-
 import asyncio
 import random
 from datetime import datetime
@@ -11,7 +9,7 @@ from pyrogram.client import Client as PyrogramClient
 from kmua.common.memory_store import memttlcache
 from kmua.logger import logger
 from kmua.plugins.agent import datatype, state
-from kmua.plugins.agent.markdown_to_html import safe_md_to_telegram_html
+from kmua.plugins.agent.styling import convert_md
 
 
 async def reply_output(
@@ -27,8 +25,17 @@ async def reply_output(
     lines = [line for line in text.split("\n\n") if line.strip()]
     if not lines:
         return
+    total_plain, total_entities = convert_md(text)
+    has_block = False
+    for e in total_entities:
+        if (
+            e.type == pyrogram.enums.MessageEntityType.BLOCKQUOTE
+            or e.type == pyrogram.enums.MessageEntityType.PRE
+        ):
+            has_block = True
+            break
 
-    max_messages = 2
+    max_messages = 7
     total_sentences = len(lines)
     num_messages = min(max_messages, total_sentences)
 
@@ -44,44 +51,34 @@ async def reply_output(
         chunks.append("\n".join(part))
     try:
         last_reply_msg: pyrogram.types.Message | None = None
-        last_chunk = ""
-        for chunk in chunks:
-            await message.reply_chat_action(pyrogram.enums.ChatAction.TYPING)
+        if has_block:
+            last_reply_msg = await message.reply_text(
+                total_plain, entities=total_entities
+            )
+        else:
+            for chunk in chunks:
+                await message.reply_chat_action(pyrogram.enums.ChatAction.TYPING)
 
-            # Convert markdown to Telegram HTML with fallback
-            html_chunk, success = safe_md_to_telegram_html(chunk)
-            if success:
-                parse_mode = pyrogram.enums.ParseMode.HTML
-                send_text = html_chunk
-            else:
-                # Fallback to plain text if HTML conversion failed
-                parse_mode = pyrogram.enums.ParseMode.DISABLED
-                send_text = chunk
-
-            try:
-                reply_msg = await message.reply_text(send_text, parse_mode=parse_mode)
-            except Exception as e:
-                # If HTML sending failed, fallback to plain text
-                if parse_mode == pyrogram.enums.ParseMode.HTML:
-                    logger.debug(f"HTML send failed, falling back to plain text: {e}")
-                    try:
-                        reply_msg = await message.reply_text(
-                            chunk, parse_mode=pyrogram.enums.ParseMode.DISABLED
-                        )
-                    except Exception as e2:
-                        logger.error(f"Plain text send also failed: {e2}")
-                        raise
-                else:
+                plain_chunk, entities = convert_md(chunk)
+                try:
+                    reply_msg = await message.reply_text(plain_chunk, entities=entities)
+                except Exception as e:
+                    logger.error(f"Send failed: {e}")
                     raise
-            last_reply_msg = reply_msg
-            last_chunk = chunk
-            await asyncio.sleep(random.uniform(0.721, 3.9))
-        if last_reply_msg and is_group_chat and user and user.id:
+                last_reply_msg = reply_msg
+                await asyncio.sleep(random.uniform(0.721, 3.9) + len(chunk) / 600)
+        if (
+            last_reply_msg
+            and last_reply_msg.text
+            and is_group_chat
+            and user
+            and user.id
+        ):
             bot_reply = datatype.BotLastReply(
                 message_id=last_reply_msg.id,
                 reply_to_user_id=user.id,
                 reply_to_message_id=message.id,
-                reply_text=last_chunk,
+                reply_text=last_reply_msg.text,
                 original_user_message=message.text or message.caption or "",
                 timestamp=datetime.now().timestamp(),
             )
@@ -203,8 +200,8 @@ class StreamingOutput:
         if not self.reply_message:
             return
         try:
-            # During streaming, we keep using plain text to avoid broken HTML
-            # HTML conversion will be done at finalize stage
+            # During streaming, send plain text without entities to avoid
+            # rendering partially-formed markdown. Entities applied at finalize.
             await self.reply_message.edit_text(
                 text[: self.MAX_MESSAGE_LENGTH],
                 parse_mode=pyrogram.enums.ParseMode.DISABLED,
@@ -220,36 +217,15 @@ class StreamingOutput:
             logger.error(f"Error editing message: {e.__class__.__name__} - {e}")
 
     async def _send_new_message(self, text: str):
-        # Convert to HTML for initial message too
-        html_text, success = safe_md_to_telegram_html(text)
-        if success:
-            send_text = html_text
-            parse_mode = pyrogram.enums.ParseMode.HTML
-        else:
-            send_text = text
-            parse_mode = pyrogram.enums.ParseMode.DISABLED
-
+        plain, entities = convert_md(text)
         try:
             self.reply_message = await self.message.reply_text(
-                send_text[: self.MAX_MESSAGE_LENGTH],
-                parse_mode=parse_mode,
+                plain[: self.MAX_MESSAGE_LENGTH],
+                entities=entities,
             )
         except Exception as e:
-            # Fallback to plain text if HTML fails
-            if parse_mode == pyrogram.enums.ParseMode.HTML:
-                logger.debug(
-                    f"HTML send failed in streaming, falling back to plain: {e}"
-                )
-                try:
-                    self.reply_message = await self.message.reply_text(
-                        text[: self.MAX_MESSAGE_LENGTH],
-                        parse_mode=pyrogram.enums.ParseMode.DISABLED,
-                    )
-                except Exception as e2:
-                    logger.error(f"Plain text send also failed in streaming: {e2}")
-                    raise
-            else:
-                raise
+            logger.error(f"Send failed in streaming: {e}")
+            raise
         self._last_sent_text = text
         self.last_edit_time = asyncio.get_event_loop().time()
         self.edit_count += 1
@@ -291,40 +267,18 @@ class StreamingOutput:
                 pass
         if self.reply_message and self.current_text:
             text = self.current_text
-            # Convert final text to HTML for better formatting
-            html_text, success = safe_md_to_telegram_html(text)
-            if success:
-                send_text = html_text
-                parse_mode = pyrogram.enums.ParseMode.HTML
-            else:
-                send_text = text
-                parse_mode = pyrogram.enums.ParseMode.DISABLED
-
-            if (
-                text != self._last_sent_text
-                or parse_mode == pyrogram.enums.ParseMode.HTML
-            ):
+            plain, entities = convert_md(text)
+            if text != self._last_sent_text or entities:
                 try:
                     await self.reply_message.edit_text(
-                        send_text[: self.MAX_MESSAGE_LENGTH],
-                        parse_mode=parse_mode,
+                        plain[: self.MAX_MESSAGE_LENGTH],
+                        entities=entities,
                     )
                     self._last_sent_text = text
                 except pyrogram.errors.exceptions.bad_request_400.MessageNotModified:
                     pass
                 except Exception as e:
-                    # If HTML edit fails, try plain text
-                    if parse_mode == pyrogram.enums.ParseMode.HTML:
-                        logger.debug(f"HTML finalize edit failed, trying plain: {e}")
-                        try:
-                            await self.reply_message.edit_text(
-                                text[: self.MAX_MESSAGE_LENGTH],
-                                parse_mode=pyrogram.enums.ParseMode.DISABLED,
-                            )
-                        except Exception as e2:
-                            logger.error(f"Plain text finalize edit also failed: {e2}")
-                    else:
-                        logger.error(f"Error editing final message: {e}")
+                    logger.error(f"Error editing final message: {e}")
             elif not self.reply_message:
                 await self._send_new_message(text)
         if self.reply_message and self.is_group_chat and self.user and self.user.id:
