@@ -133,6 +133,24 @@ async def resume_ask(
     user_config = await database.get_user_config(user_id)
     lang = user_config.lang
 
+    # Check if history is available - if not, we can't resume properly
+    if not ask_state.history:
+        logger.error(
+            f"resume_ask: history is empty for user {user_id} in chat {chat_id}. "
+            "This may happen if the user responds too quickly before the deferred state is fully saved."
+        )
+        await message.reply_text(
+            i18n.t("bot.msg.agent.errors.interrupted", locale=lang).format(
+                error="会话状态异常，请重新开始对话"
+            )
+        )
+        return
+
+    logger.debug(
+        f"resume_ask: resuming for user {user_id} in chat {chat_id} "
+        f"with history length {len(ask_state.history)}, tool_call_id={ask_state.tool_call_id}"
+    )
+
     # Build the agent run kwargs.
     # IMPORTANT: pydantic-ai raises UserError if user_prompt is passed together with
     # deferred_tool_results when the history already ends with unprocessed tool calls.
@@ -256,13 +274,17 @@ async def ask_user(
         logger.error(f"ask_user: failed to send question: {e.__class__.__name__}: {e}")
         raise ModelRetry(f"Failed to send question: {e.__class__.__name__}")
 
+    # Capture the current history from deps to avoid race condition
+    # The history in deps should already include the current tool call context
+    current_history = list(ctx.deps.history) if ctx.deps.history else []
+
     await memstore.set(
         _state_key(chat_id, user_id),
         AskState(
             options=list(options),
             tool_call_id=tool_call_id or "",
             question=question,
-            history=[],  # Will be filled by agent.py when saving
+            history=current_history,  # Pre-populate with current history to avoid race condition
         ),
     )
 

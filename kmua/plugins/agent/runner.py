@@ -229,6 +229,9 @@ async def run_agent(
                                 logger.info(
                                     f"Agent returned DeferredToolRequests for user {user_id}"
                                 )
+                                await tools.update_ask_history(
+                                    chat_id, user_id, agent_run.all_messages()
+                                )
                             elif isinstance(output, EndTurn):
                                 logger.debug(
                                     f"Agent returned EndTurn for user {user_id}"
