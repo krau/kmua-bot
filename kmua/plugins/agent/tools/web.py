@@ -17,17 +17,16 @@ from kmua.logger import logger
 
 from .. import datatype
 
-MAX_CONTENT_LENGTH = 8000
+MAX_CONTENT_LENGTH = 64000
 
 _http_strategy = AsyncHTTPCrawlerStrategy(
     browser_config=HTTPCrawlerConfig(method="GET", verify_ssl=False)
 )
 
 _run_config = CrawlerRunConfig(
-    cache_mode=CacheMode.BYPASS,
+    cache_mode=CacheMode.ENABLED,
     word_count_threshold=10,
     excluded_tags=["nav", "footer", "aside", "script", "style"],
-    exclude_external_images=True,
 )
 
 
@@ -87,7 +86,6 @@ async def _fetch_crawl_api(url: str) -> WebFetchResult:
         "crawler_config": {
             "word_count_threshold": 10,
             "excluded_tags": ["nav", "footer", "aside", "script", "style"],
-            "exclude_external_images": True,
         },
     }
 
