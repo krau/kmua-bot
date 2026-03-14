@@ -168,7 +168,7 @@ if app_config.agent and app_config.agent_model:
     tools.set_agent(agent, model=model, multimodal_model=multimodal_model)
     summary_agent = Agent(model=model, instructions=app_config.agent_summary_prompt)
     memory_agent = Agent(
-        model=model,
+        model=struct_model,
         output_type=datatype.UserMemoryResult,
         instructions=app_config.agent_memory_prompt,
         retries=5,
