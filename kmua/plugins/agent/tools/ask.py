@@ -151,6 +151,16 @@ async def resume_ask(
         f"with history length {len(ask_state.history)}, tool_call_id={ask_state.tool_call_id}"
     )
 
+    # Collect all text content from history to avoid resending already-sent messages.
+    # When resuming with deferred_tool_results, the first CallToolsNode's model_response
+    # contains historical messages that have already been sent in the original run.
+    existing_texts: set[str] = set()
+    for msg in ask_state.history:
+        if hasattr(msg, "parts"):
+            for part in msg.parts:
+                if part.part_kind == "text" and part.content:
+                    existing_texts.add(part.content)
+
     # Build the agent run kwargs.
     # IMPORTANT: pydantic-ai raises UserError if user_prompt is passed together with
     # deferred_tool_results when the history already ends with unprocessed tool calls.
@@ -194,8 +204,12 @@ async def resume_ask(
                                     f"Tool call: {part.tool_name}({args_str[:200]}...)"
                                 )
                             elif part.part_kind == "text" and part.content:
-                                await reply_output(client, message, part.content)
-                                replied = True
+                                # Skip text that was already sent in the original run.
+                                # When resuming, the first CallToolsNode contains historical
+                                # messages that have already been sent.
+                                if part.content not in existing_texts:
+                                    await reply_output(client, message, part.content)
+                                    replied = True
                     elif Agent.is_end_node(node):
                         assert agent_run.result is not None
                         output = agent_run.result.output
