@@ -102,9 +102,10 @@ class _AppConfig(pydantic.BaseModel):
     agent_providers: dict[str, ProviderConfig] = {"default": ProviderConfig()}
     # Model specs use the format "provider/model_name" or just "model_name"
     # (bare name uses the "default" provider).
-    agent_model: str = "default/gpt-4.1"
+    agent_model: str | None = "default/gpt-4.1"
     agent_model_multimodal: str | None = None  # falls back to agent_model if unset
     agent_model_small: str | None = None  # falls back to agent_model if unset
+    agent_struct_model: str | None = None
     agent_messages_threshold: int = 20
     agent_context_window_tokens: int = 0
     agent_context_compress_ratio: float = 0.8

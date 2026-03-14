@@ -9,12 +9,11 @@ from kmua import database
 from kmua.common.memory_store import memttlcache
 from kmua.config import app_config
 from kmua.logger import logger
-from kmua.plugins.agent import provider
 from kmua.plugins.agent.output import TypingKeepAlive, reply_output
 from kmua.plugins.agent.prompt import get_input_prompt
-from kmua.plugins.agent.runner import get_chat_model_override, get_chat_prompt_override
+from kmua.plugins.agent.runner import get_chat_prompt_override
 
-from .agent import model, multimodal_model
+from .agent import struct_model
 
 
 class CommentResult(BaseModel):
@@ -26,7 +25,7 @@ class CommentResult(BaseModel):
     poll_is_anonymous: bool = Field(default=True, description="投票是否匿名")
 
 
-comment_agent = Agent(model=model, output_type=CommentResult, retries=5)
+comment_agent = Agent(model=struct_model, output_type=CommentResult, retries=5)
 
 
 async def _is_first_media_in_group(message: pyrogram.types.Message) -> bool:
@@ -108,22 +107,14 @@ async def comment_channel_message(client: Client, message: pyrogram.types.Messag
     ]
     instructions += "\n\n" + "\n".join(ctx_parts)
 
-    prompts, needs_multimodal = await get_input_prompt(client, message, ctx=None)
+    prompts, _ = await get_input_prompt(client, message, ctx=None)
     if not prompts:
         return
     logger.debug(f"Channel comment post: {message.caption or message.text}")
-    if needs_multimodal:
-        override_name = await get_chat_model_override(chat.id, "multimodal")
-    else:
-        override_name = await get_chat_model_override(chat.id, "main")
-    if override_name:
-        use_model = provider.make_chat_model(override_name)
-    else:
-        use_model = multimodal_model if needs_multimodal else model
     try:
         async with TypingKeepAlive(client, message):
             result = await comment_agent.run(
-                model=use_model,
+                model=struct_model,
                 instructions=instructions,
                 user_prompt=prompts,
             )

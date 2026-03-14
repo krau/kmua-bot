@@ -84,7 +84,7 @@ async def history_processor(
     return summary
 
 
-if app_config.agent:
+if app_config.agent and app_config.agent_model:
     model = provider.make_chat_model(app_config.agent_model)
     multimodal_model = (
         model
@@ -95,6 +95,11 @@ if app_config.agent:
         model
         if not app_config.agent_model_small
         else provider.make_chat_model(app_config.agent_model_small)
+    )
+    struct_model = (
+        model
+        if not app_config.agent_struct_model
+        else provider.make_chat_model(app_config.agent_struct_model)
     )
     agent = Agent(
         model=model,
@@ -224,6 +229,9 @@ if app_config.agent:
     async def set_model_command(
         client: PyrogramClient, message: pyrogram.types.Message
     ):
+        assert app_config.agent_model is not None, (
+            "Unexcepted None value for agent_model"
+        )
         user = message.from_user
         if not user or not user.id:
             return
