@@ -36,8 +36,8 @@ class _AppConfig(pydantic.BaseModel):
 
     # health check server for container monitoring
     health_check_enabled: bool = True
-    health_check_host: str = "0.0.0.0"
-    health_check_port: int = 8080
+    health_check_host: str = "localhost"
+    health_check_port: int = 8180
 
     # external services
     redis: bool = False
