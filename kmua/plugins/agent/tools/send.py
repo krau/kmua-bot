@@ -30,21 +30,27 @@ class SendResult:
         return msg
 
 
-async def send_media(
+async def schedule_message(
     ctx: RunContext[datatype.ContextDeps],
-    type: Literal["photo", "video", "audio", "document"],
-    url: str,
+    schedule_time: str,
+    text: str | None = None,
+    media_type: Literal["photo", "video", "audio", "document"] | None = None,
+    media_url: str | None = None,
     caption: str | None = None,
-    schedule_time: str | None = None,
 ) -> str:
-    """Send a media message to the current chat.
+    """Schedule a message to be sent at a specific time.
+
+    Use this tool to schedule delayed messages (text or media) for future delivery.
 
     Args:
-        type: Message type. One of "photo", "video", "audio", "document".
-        url: Direct URL for media types.
+        schedule_time: Required ISO 8601 datetime string for scheduled delivery,
+            e.g. "2025-06-04T15:00:00+08:00". Must be in the future.
+        text: The message text to send (for text messages). Either text or media
+            must be provided, but not both.
+        media_type: Media type for media messages. One of "photo", "video",
+            "audio", "document". Required if media_url is provided.
+        media_url: Direct URL for media types. Required if media_type is provided.
         caption: Optional caption for media messages.
-        schedule_time: Optional ISO 8601 datetime string to schedule delivery,
-            e.g. "2025-06-04T15:00:00+08:00". If omitted, sends immediately.
 
     Returns:
         A SendResult indicating success or failure.
@@ -54,120 +60,105 @@ async def send_media(
             success=False, message="Message context is unavailable."
         ).text()
 
-    schedule_datetime: datetime.datetime | None = None
-    if schedule_time is not None:
-        try:
-            schedule_datetime = datetime.datetime.fromisoformat(schedule_time)
-        except ValueError as e:
-            raise ModelRetry(
-                f"Invalid schedule_time format. Use ISO 8601, e.g. '2025-06-04T15:00:00+08:00'. Error: {e}"
-            )
-        if schedule_datetime < datetime.datetime.now(datetime.UTC):
-            raise ModelRetry("schedule_time must be in the future.")
+    # Validate schedule_time
+    try:
+        schedule_datetime = datetime.datetime.fromisoformat(schedule_time)
+    except ValueError as e:
+        raise ModelRetry(
+            f"Invalid schedule_time format. Use ISO 8601, e.g. '2025-06-04T15:00:00+08:00'. Error: {e}"
+        )
+    if schedule_datetime < datetime.datetime.now(datetime.UTC):
+        raise ModelRetry("schedule_time must be in the future.")
 
-    reply_params = pyrogram.types.ReplyParameters(
-        message_id=ctx.deps.message.id,
-    )
+    # Validate message content
+    has_text = text is not None and text.strip()
+    has_media = media_type is not None or media_url is not None
+
+    if has_text and has_media:
+        raise ModelRetry(
+            "Cannot provide both text and media. Use caption for media description."
+        )
+    if not has_text and not has_media:
+        raise ModelRetry("Must provide either text or media (media_type + media_url).")
+    if has_media and not media_type:
+        raise ModelRetry("media_type is required when providing media_url.")
+    if has_media and not media_url:
+        raise ModelRetry("media_url is required when providing media_type.")
+
     chat_id = ctx.deps.chat_id
 
-    if schedule_datetime is not None:
-        await _schedule_media(
-            ctx,
-            type,
-            url,
-            caption,
-            schedule_datetime,
-            chat_id,
+    if has_text:
+        # Schedule text message - capture text in local variable
+        text_content: str = text  # type: ignore[assignment]
+        job_key = (
+            f"agent_schedule_msg:{chat_id}:{ctx.deps.user_id}"
+            f":{schedule_datetime.timestamp()}"
+            f":{md5(text_content.encode()).hexdigest()}"
         )
-        return SendResult(
-            success=True, message=f"Scheduled for {schedule_datetime.isoformat()}"
-        ).text()
 
-    try:
-        match type:
-            case "photo":
-                if not url:
-                    raise ModelRetry("'url' is required for type 'photo'.")
-                await ctx.deps.client.send_photo(
-                    chat_id=chat_id,
-                    photo=url,
-                    caption=caption,  # type: ignore[arg-type]
-                    reply_parameters=reply_params,
+        async def _text_job() -> None:
+            try:
+                await ctx.deps.client.send_message(chat_id=chat_id, text=text_content)
+                logger.info("Scheduled text message sent successfully")
+            except Exception as e:
+                logger.error(
+                    f"Scheduled text message failed: {e.__class__.__name__}: {e}"
                 )
 
-            case "video":
-                if not url:
-                    raise ModelRetry("'url' is required for type 'video'.")
-                await ctx.deps.client.send_video(
-                    chat_id=chat_id,
-                    video=url,
-                    caption=caption,  # type: ignore[arg-type]
-                    reply_parameters=reply_params,
-                )
-
-            case "audio":
-                if not url:
-                    raise ModelRetry("'url' is required for type 'audio'.")
-                await ctx.deps.client.send_audio(
-                    chat_id=chat_id,
-                    audio=url,
-                    caption=caption,  # type: ignore[arg-type]
-                    reply_parameters=reply_params,
-                )
-
-            case "document":
-                if not url:
-                    raise ModelRetry("'url' is required for type 'document'.")
-                await ctx.deps.client.send_document(
-                    chat_id=chat_id,
-                    document=url,
-                    caption=caption,  # type: ignore[arg-type]
-                    reply_parameters=reply_params,
-                )
-
-            case _:
-                raise ModelRetry(
-                    f"Unknown type '{type}'. Use one of: photo, video, audio, document."
-                )
-
-    except ModelRetry:
-        raise
-    except Exception as e:
-        logger.error(f"send_media failed (type={type}): {e.__class__.__name__}: {e}")
-        raise ModelRetry(f"Failed to send media: {e.__class__.__name__}: {e}")
-
-    return SendResult(success=True).text()
-
-
-async def _schedule_media(
-    ctx: RunContext[datatype.ContextDeps],
-    type: str,
-    url: str,
-    caption: str | None,
-    schedule_datetime: datetime.datetime,
-    chat_id: int,
-) -> None:
-    job_key = (
-        f"agent_send_media:{chat_id}:{ctx.deps.user_id}"
-        f":{schedule_datetime.timestamp()}"
-        f":{md5((url).encode()).hexdigest()}"
-    )
-
-    async def _job() -> None:
-        result = await send_media(
-            ctx=ctx,
-            type=type,  # type: ignore[arg-type]
-            url=url,
-            caption=caption,
-            schedule_time=None,
+        common.jobqueue.add_onetime_job(
+            job_key, run_date=schedule_datetime, func=_text_job
         )
-        logger.info(f"Scheduled send_media result: {result}")
+    else:
+        # Schedule media message - capture variables in local scope
+        _media_type: str = media_type  # type: ignore[assignment]
+        _media_url: str = media_url  # type: ignore[assignment]
+        _caption = caption
+        job_key = (
+            f"agent_schedule_media:{chat_id}:{ctx.deps.user_id}"
+            f":{schedule_datetime.timestamp()}"
+            f":{md5(_media_url.encode()).hexdigest()}"
+        )
 
-    common.jobqueue.add_onetime_job(
-        job_key,
-        run_date=schedule_datetime,
-        func=_job,
-    )
+        async def _media_job() -> None:
+            try:
+                match _media_type:
+                    case "photo":
+                        await ctx.deps.client.send_photo(
+                            chat_id=chat_id,
+                            photo=_media_url,
+                            caption=_caption,  # type: ignore[arg-type]
+                        )
+                    case "video":
+                        await ctx.deps.client.send_video(
+                            chat_id=chat_id,
+                            video=_media_url,
+                            caption=_caption,  # type: ignore[arg-type]
+                        )
+                    case "audio":
+                        await ctx.deps.client.send_audio(
+                            chat_id=chat_id,
+                            audio=_media_url,
+                            caption=_caption,  # type: ignore[arg-type]
+                        )
+                    case "document":
+                        await ctx.deps.client.send_document(
+                            chat_id=chat_id,
+                            document=_media_url,
+                            caption=_caption,  # type: ignore[arg-type]
+                        )
+                logger.info(f"Scheduled {_media_type} message sent successfully")
+            except Exception as e:
+                logger.error(
+                    f"Scheduled {_media_type} message failed: {e.__class__.__name__}: {e}"
+                )
+
+        common.jobqueue.add_onetime_job(
+            job_key, run_date=schedule_datetime, func=_media_job
+        )
+
+    return SendResult(
+        success=True, message=f"Scheduled for {schedule_datetime.isoformat()}"
+    ).text()
 
 
 async def send_poll(
@@ -379,85 +370,4 @@ async def send_reaction(
     return SendResult(success=True).text()
 
 
-async def send_text(
-    ctx: RunContext[datatype.ContextDeps],
-    text: str,
-    reply_to_message_id: int | None = None,
-    schedule_time: str | None = None,
-) -> str:
-    """Send a plain-text message to the current chat.
-
-    **Do NOT use this tool to reply to the user's message in a normal turn.**
-    Just return the text directly as your output instead — it is faster and cleaner.
-
-    Only call this tool when you need to:
-    - Send **additional** messages beyond your main reply (e.g. a follow-up or
-      a separate message after sending media).
-    - Schedule a **delayed** message via `schedule_time`.
-
-    Args:
-        text: The message text to send.
-        reply_to_message_id: Optional message ID to reply to. If omitted, sends as a new message.
-        schedule_time: Optional ISO 8601 datetime string for delayed delivery,
-            e.g. "2025-06-04T15:00:00+08:00". If omitted, sends immediately.
-
-    Returns:
-        A SendResult indicating success or failure.
-    """
-    if ctx.deps.message is None or ctx.deps.chat_id is None:
-        return SendResult(
-            success=False, message="Message context is unavailable."
-        ).text()
-
-    schedule_datetime: datetime.datetime | None = None
-    if schedule_time is not None:
-        try:
-            schedule_datetime = datetime.datetime.fromisoformat(schedule_time)
-        except ValueError as e:
-            raise ModelRetry(
-                f"Invalid schedule_time format. Use ISO 8601, e.g. '2025-06-04T15:00:00+08:00'. Error: {e}"
-            )
-        if schedule_datetime < datetime.datetime.now(datetime.UTC):
-            raise ModelRetry("schedule_time must be in the future.")
-
-    chat_id = ctx.deps.chat_id
-    reply_params = (
-        pyrogram.types.ReplyParameters(message_id=reply_to_message_id)
-        if reply_to_message_id
-        else None
-    )
-
-    if schedule_datetime is not None:
-        job_key = (
-            f"agent_send_text:{chat_id}:{ctx.deps.user_id}"
-            f":{schedule_datetime.timestamp()}"
-            f":{md5(text.encode()).hexdigest()}"
-        )
-
-        async def _job() -> None:
-            try:
-                await ctx.deps.client.send_message(
-                    chat_id=chat_id, text=text, reply_parameters=reply_params
-                )
-            except Exception as e:
-                logger.error(f"Scheduled send_text failed: {e.__class__.__name__}: {e}")
-
-        common.jobqueue.add_onetime_job(job_key, run_date=schedule_datetime, func=_job)
-        return SendResult(
-            success=True, message=f"Scheduled for {schedule_datetime.isoformat()}"
-        ).text()
-
-    try:
-        await ctx.deps.client.send_message(
-            chat_id=chat_id,
-            text=text,
-            reply_parameters=reply_params,
-        )
-    except Exception as e:
-        logger.error(f"send_text failed: {e.__class__.__name__}: {e}")
-        raise ModelRetry(f"Failed to send text: {e.__class__.__name__}: {e}")
-
-    return SendResult(success=True).text()
-
-
-__all__ = ["send_media", "send_poll", "send_reaction", "send_sticker", "send_text"]
+__all__ = ["schedule_message", "send_poll", "send_reaction", "send_sticker"]
