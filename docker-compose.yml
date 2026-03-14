@@ -3,6 +3,8 @@ services:
     image: ghcr.io/krau/kmua-bot:v2
     container_name: kmua-bot
     restart: unless-stopped
+    ports:
+      - "8180:8180"  # Health check endpoint
     volumes:
       - ./data:/kmua/data
       - ./logs:/kmua/logs
@@ -10,3 +12,9 @@ services:
     environment:
       - TZ=Asia/Shanghai
     network_mode: host
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8180/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s  # Allow time for bot to start and connect

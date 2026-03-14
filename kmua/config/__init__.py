@@ -34,6 +34,11 @@ class _AppConfig(pydantic.BaseModel):
     fans_channel: str | int | None = None  # username or chat_id
     nickname: str = "kmua"
 
+    # health check server for container monitoring
+    health_check_enabled: bool = True
+    health_check_host: str = "0.0.0.0"
+    health_check_port: int = 8080
+
     # external services
     redis: bool = False
     redis_endpoint: str = "localhost"

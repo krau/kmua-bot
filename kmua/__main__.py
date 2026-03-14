@@ -15,6 +15,7 @@ from kmua.bot import jobs
 from kmua.bot.client import client
 from kmua.config import app_config
 from kmua.database import db
+from kmua.health import start_health_server, stop_health_server
 from kmua.logger import logger
 from kmua.plugins.agent import sticker_vec
 
@@ -218,9 +219,22 @@ async def stop_bot(client: Client = client):
 
 async def main():
     await db.init_db()
+
+    # Start health check server
+    health_runner = None
+    if app_config.health_check_enabled:
+        health_runner = await start_health_server(
+            host=app_config.health_check_host,
+            port=app_config.health_check_port,
+        )
+
     await client.start()
     await idle()
     await client.stop()  # type: ignore
+
+    # Stop health check server
+    if health_runner:
+        await stop_health_server(health_runner)
 
 
 if __name__ == "__main__":
