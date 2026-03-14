@@ -21,7 +21,7 @@ from kmua.common.memory_store import memttlcache
 from kmua.config import app_config
 from kmua.i18n import i18n
 from kmua.logger import logger
-from kmua.plugins.agent import provider, state, tools
+from kmua.plugins.agent import datatype, provider, state, tools
 from kmua.plugins.agent.datatype import EndTurn
 from kmua.plugins.agent.output import StreamingOutput, TypingKeepAlive, reply_output
 from kmua.plugins.agent.prompt import check_needs_multimodal
@@ -97,6 +97,7 @@ async def run_agent(
         async with TypingKeepAlive(client, message):
             if app_config.agent_streaming:
                 streaming_output: StreamingOutput | None = None
+                output: Any = None
                 try:
                     async with agi.iter(
                         model=use_model,
@@ -175,6 +176,34 @@ async def run_agent(
                                         await streaming_output.finalize()
                                     elif output:
                                         await reply_output(client, message, output)
+                        # Save full output for follow-up detection
+                        full_output = ""
+                        if streaming_output is not None:
+                            full_output = streaming_output.current_text
+                        elif isinstance(output, str):
+                            full_output = output
+                        if (
+                            full_output
+                            and message.chat
+                            and message.chat.type
+                            in (
+                                pyrogram.enums.ChatType.SUPERGROUP,
+                                pyrogram.enums.ChatType.GROUP,
+                            )
+                        ):
+                            # Get last reply info from existing BotLastReply if available
+                            bot_reply = await memttlcache.get(
+                                state.bot_last_reply_key(chat_id)
+                            )
+                            if bot_reply and isinstance(
+                                bot_reply, datatype.BotLastReply
+                            ):
+                                bot_reply.full_output = full_output
+                                await memttlcache.set(
+                                    state.bot_last_reply_key(chat_id),
+                                    bot_reply,
+                                    ttl=300,
+                                )
                         await memttlcache.set(
                             state.history_key(chat_id, user_id),
                             agent_run.all_messages(),
@@ -193,6 +222,8 @@ async def run_agent(
                     deps=deps,
                 ) as agent_run:
                     replied = False
+                    full_output_parts: list[str] = []
+                    output: Any = None
                     async for node in agent_run:
                         if Agent.is_call_tools_node(node):
                             for part in node.model_response.parts:
@@ -212,6 +243,7 @@ async def run_agent(
                                         await reply_output(
                                             client, message, part.content
                                         )
+                                        full_output_parts.append(part.content)
                                         replied = True
                         elif Agent.is_end_node(node):
                             assert agent_run.result is not None, (
@@ -238,6 +270,28 @@ async def run_agent(
                                 )
                             elif not replied and output:
                                 await reply_output(client, message, output)
+                                full_output_parts.append(output)
+                    # Save full output for follow-up detection
+                    full_output = "\n".join(full_output_parts)
+                    if (
+                        full_output
+                        and message.chat
+                        and message.chat.type
+                        in (
+                            pyrogram.enums.ChatType.SUPERGROUP,
+                            pyrogram.enums.ChatType.GROUP,
+                        )
+                    ):
+                        bot_reply = await memttlcache.get(
+                            state.bot_last_reply_key(chat_id)
+                        )
+                        if bot_reply and isinstance(bot_reply, datatype.BotLastReply):
+                            bot_reply.full_output = full_output
+                            await memttlcache.set(
+                                state.bot_last_reply_key(chat_id),
+                                bot_reply,
+                                ttl=300,
+                            )
                     await memttlcache.set(
                         state.history_key(chat_id, user_id),
                         agent_run.all_messages(),

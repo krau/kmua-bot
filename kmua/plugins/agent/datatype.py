@@ -203,3 +203,4 @@ class BotLastReply:
     reply_text: str
     timestamp: float
     original_user_message: str = ""  # 原始用户消息文本
+    full_output: str = ""  # 模型的完整输出内容（可能分割成多条消息发送）

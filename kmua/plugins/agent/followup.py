@@ -148,10 +148,14 @@ async def handle_follow_up_message(
         return
     # 调用AI判断相关性
     message_text = message.text or message.caption
+    # 使用 full_output（模型的完整输出）而不是 reply_text（可能只是最后一条消息）
+    bot_full_output = (
+        bot_reply.full_output if bot_reply.full_output else bot_reply.reply_text
+    )
     relevance_check_prompt = f"""
 在群聊场景中发生如下原始对话:
 用户: {bot_reply.original_user_message}
-Bot回复: {bot_reply.reply_text}
+Bot回复: {bot_full_output}
 
 现在收到了某用户发送的新消息: {message_text}
 
@@ -218,10 +222,14 @@ Bot回复: {bot_reply.reply_text}
             client, message, include_nearby=0, ctx=None
         )
         addtional_instructions = ctx_info.to_text() if ctx_info else ""
+        # 使用 full_output（模型的完整输出）而不是 reply_text
+        bot_full_output = (
+            bot_reply.full_output if bot_reply.full_output else bot_reply.reply_text
+        )
         addtional_instructions += f"""
 场景信息: 在群聊中刚才有用户与你进行了对话，内容如下:
 用户[{reply_to_user.full_name}]: {bot_reply.original_user_message}
-你的回复: {bot_reply.reply_text}
+你的回复: {bot_full_output}
 ---
 现在又有用户[{user_data.full_name}]对这个话题继续讨论，请自然地参与对话。
 """
