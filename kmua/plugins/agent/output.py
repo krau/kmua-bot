@@ -5,7 +5,6 @@ from datetime import datetime
 import pyrogram
 import pyrogram.errors
 from pyrogram.client import Client as PyrogramClient
-from pyrogram.errors.exceptions import BadRequest
 
 from kmua.common.memory_store import memttlcache
 from kmua.logger import logger
@@ -57,7 +56,7 @@ async def reply_output(
                 last_reply_msg = await message.reply_text(
                     total_plain, entities=total_entities
                 )
-            except BadRequest as e:
+            except Exception as e:
                 logger.warning(f"Send failed: {e.__class__.__name__} - {e}")
                 last_reply_msg = await message.reply_text(total_plain)
         else:
@@ -66,7 +65,7 @@ async def reply_output(
                 plain_chunk, entities = convert_md(chunk)
                 try:
                     reply_msg = await message.reply_text(plain_chunk, entities=entities)
-                except BadRequest as e:
+                except Exception as e:
                     logger.warning(f"Send failed: {e.__class__.__name__} - {e}")
                     try:
                         reply_msg = await message.reply_text(plain_chunk)
