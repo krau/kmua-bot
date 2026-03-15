@@ -167,7 +167,7 @@ async def get_history_messages(
     anchor_id: int | None = None,
     start_id: int | None = None,
     end_id: int | None = None,
-) -> list[ChatMessage] | str:
+) -> str:
     """
     Fetch historical messages from chat, can not be used in private chats.
 
@@ -183,7 +183,7 @@ async def get_history_messages(
         end_id: ending message ID (for "between" mode).
 
     Returns:
-        A list of ChatMessage or error string.
+        Formatted string of chat history or error message.
     """
     chat_id = ctx.deps.chat_id
     user_id = ctx.deps.user_id
@@ -229,17 +229,34 @@ async def get_history_messages(
         msgs = await common.get_messages_with_cache(
             chat_id=chat_id, message_ids=list(range(start_id, end_id)), replies=1
         )
-        return [
-            ChatMessage(
-                user_id=msg.user_id,
-                username=(await database.get_user_by_id(msg.user_id)).full_name  # type: ignore
-                if msg.user_id
-                else None,
-                text=msg.text,
-                time=msg.time,
+
+        if not msgs:
+            return "No messages found in the specified range."
+
+        # Format messages as readable text
+        lines = [f"Chat History ({len(msgs)} messages):\n"]
+
+        for msg in msgs:
+            if not msg.user_id:
+                continue
+
+            # Get username
+            user = await database.get_user_by_id(msg.user_id)
+            username = user.full_name if user is not None else f"User_{msg.user_id}"
+
+            # Format time (full datetime)
+            time_str = (
+                msg.time.strftime("%Y-%m-%d %H:%M:%S")
+                if msg.time
+                else "????-??-?? ??:??:??"
             )
-            for msg in msgs
-        ]
+
+            # Format message (no truncation)
+            text = msg.text if msg.text else "[media/empty]"
+
+            lines.append(f"[{time_str}] {username}: {text}")
+
+        return "\n".join(lines)
     except Exception as e:
         logger.error(f"Error fetching history messages: {e.__class__.__name__}:{e}")
         return f"Error fetching history messages: {e.__class__.__name__}"
