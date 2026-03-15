@@ -170,24 +170,12 @@ async def resume_ask(
         extra_text = user_prompt if isinstance(user_prompt, str) else str(user_prompt)
         answer = f"{answer}\n用户发送的新消息内容: {extra_text}"
 
+    # Only provide result for the current tool_call_id
+    # pydantic-ai only expects results for the specific deferred tool call
     deferred_results.calls[ask_state.tool_call_id] = answer
-
-    # Handle any other pending deferred tool calls in history
-    # This happens when user skips an ask and model asks again with a new question
-    for msg in reversed(ask_state.history):
-        if hasattr(msg, "parts"):
-            for part in msg.parts:
-                if part.part_kind == "tool-call":
-                    other_tool_id = part.tool_call_id
-                    if (
-                        other_tool_id != ask_state.tool_call_id
-                        and other_tool_id not in deferred_results.calls
-                    ):
-                        # Provide a "skip" answer for other pending asks
-                        deferred_results.calls[other_tool_id] = "[用户未选择所提供的任何选项]"
-                        logger.debug(
-                            f"Adding skip answer for other pending tool call: {other_tool_id}"
-                        )
+    logger.debug(
+        f"Providing answer for tool_call_id={ask_state.tool_call_id}: {answer}"
+    )
 
     run_kwargs = {
         "message_history": ask_state.history,
