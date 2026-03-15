@@ -32,7 +32,8 @@ class SendResult:
 
 async def schedule_message(
     ctx: RunContext[datatype.ContextDeps],
-    schedule_time: str,
+    schedule_time: str | None,
+    send_immediately: bool = False,
     text: str | None = None,
     media_type: Literal["photo", "video", "audio", "document"] | None = None,
     media_url: str | None = None,
@@ -43,8 +44,9 @@ async def schedule_message(
     Use this tool to schedule delayed messages (text or media) for future delivery.
 
     Args:
-        schedule_time: Required ISO 8601 datetime string for scheduled delivery,
+        schedule_time: ISO 8601 datetime string for scheduled delivery,
             e.g. "2025-06-04T15:00:00+08:00". Must be in the future.
+        send_immediately: If True, send the message immediately.
         text: The message text to send (for text messages). Either text or media
             must be provided, but not both.
         media_type: Media type for media messages. One of "photo", "video",
@@ -59,16 +61,20 @@ async def schedule_message(
         return SendResult(
             success=False, message="Message context is unavailable."
         ).text()
+    if not send_immediately and not schedule_time:
+        raise ModelRetry("Must provide either schedule_time or send_immediately=True")
 
-    # Validate schedule_time
-    try:
-        schedule_datetime = datetime.datetime.fromisoformat(schedule_time)
-    except ValueError as e:
-        raise ModelRetry(
-            f"Invalid schedule_time format. Use ISO 8601, e.g. '2025-06-04T15:00:00+08:00'. Error: {e}"
-        )
-    if schedule_datetime < datetime.datetime.now(datetime.UTC):
-        raise ModelRetry("schedule_time must be in the future.")
+    # Validate schedule_time if not sending immediately
+    schedule_datetime: datetime.datetime | None = None
+    if not send_immediately and schedule_time:
+        try:
+            schedule_datetime = datetime.datetime.fromisoformat(schedule_time)
+        except ValueError as e:
+            raise ModelRetry(
+                f"Invalid schedule_time format. Use ISO 8601, e.g. '2025-06-04T15:00:00+08:00'. Error: {e}"
+            )
+        if schedule_datetime < datetime.datetime.now(datetime.UTC):
+            raise ModelRetry("schedule_time must be in the future.")
 
     # Validate message content
     has_text = text is not None and text.strip()
@@ -87,78 +93,129 @@ async def schedule_message(
 
     chat_id = ctx.deps.chat_id
 
-    if has_text:
-        # Schedule text message - capture text in local variable
-        text_content: str = text  # type: ignore[assignment]
-        job_key = (
-            f"agent_schedule_msg:{chat_id}:{ctx.deps.user_id}"
-            f":{schedule_datetime.timestamp()}"
-            f":{md5(text_content.encode()).hexdigest()}"
-        )
-
-        async def _text_job() -> None:
-            try:
-                await ctx.deps.client.send_message(chat_id=chat_id, text=text_content)
-                logger.info("Scheduled text message sent successfully")
-            except Exception as e:
-                logger.error(
-                    f"Scheduled text message failed: {e.__class__.__name__}: {e}"
-                )
-
-        common.jobqueue.add_onetime_job(
-            job_key, run_date=schedule_datetime, func=_text_job
-        )
-    else:
-        # Schedule media message - capture variables in local scope
-        _media_type: str = media_type  # type: ignore[assignment]
-        _media_url: str = media_url  # type: ignore[assignment]
-        _caption = caption
-        job_key = (
-            f"agent_schedule_media:{chat_id}:{ctx.deps.user_id}"
-            f":{schedule_datetime.timestamp()}"
-            f":{md5(_media_url.encode()).hexdigest()}"
-        )
-
-        async def _media_job() -> None:
-            try:
-                match _media_type:
+    if send_immediately:
+        # Send immediately without scheduling
+        try:
+            if has_text:
+                assert text is not None
+                await ctx.deps.client.send_message(chat_id=chat_id, text=text)
+                return SendResult(success=True, message="Message sent.").text()
+            else:
+                # Send media immediately
+                assert media_type is not None
+                assert media_url is not None
+                caption = caption if caption else ""
+                match media_type:
                     case "photo":
                         await ctx.deps.client.send_photo(
                             chat_id=chat_id,
-                            photo=_media_url,
-                            caption=_caption,  # type: ignore[arg-type]
+                            photo=media_url,
+                            caption=caption,
                         )
                     case "video":
                         await ctx.deps.client.send_video(
                             chat_id=chat_id,
-                            video=_media_url,
-                            caption=_caption,  # type: ignore[arg-type]
+                            video=media_url,
+                            caption=caption,
                         )
                     case "audio":
                         await ctx.deps.client.send_audio(
                             chat_id=chat_id,
-                            audio=_media_url,
-                            caption=_caption,  # type: ignore[arg-type]
+                            audio=media_url,
+                            caption=caption,
                         )
                     case "document":
                         await ctx.deps.client.send_document(
                             chat_id=chat_id,
-                            document=_media_url,
-                            caption=_caption,  # type: ignore[arg-type]
+                            document=media_url,
+                            caption=caption,
                         )
-                logger.info(f"Scheduled {_media_type} message sent successfully")
-            except Exception as e:
-                logger.error(
-                    f"Scheduled {_media_type} message failed: {e.__class__.__name__}: {e}"
-                )
+                return SendResult(success=True, message=f"{media_type} sent.").text()
+        except Exception as e:
+            logger.error(f"Immediate send failed: {e.__class__.__name__}: {e}")
+            return SendResult(success=False, message=f"Failed to send: {e}").text()
+    else:
+        # Schedule for later delivery
+        # At this point schedule_datetime must be set (validated above)
+        assert schedule_datetime is not None
 
-        common.jobqueue.add_onetime_job(
-            job_key, run_date=schedule_datetime, func=_media_job
-        )
+        if has_text:
+            # Schedule text message - capture text in local variable
+            assert text is not None
+            text_content = text
+            job_key = (
+                f"agent_schedule_msg:{chat_id}:{ctx.deps.user_id}"
+                f":{schedule_datetime.timestamp()}"
+                f":{md5(text_content.encode()).hexdigest()}"
+            )
 
-    return SendResult(
-        success=True, message=f"Scheduled for {schedule_datetime.isoformat()}"
-    ).text()
+            async def _text_job() -> None:
+                try:
+                    await ctx.deps.client.send_message(
+                        chat_id=chat_id, text=text_content
+                    )
+                    logger.info("Scheduled text message sent successfully")
+                except Exception as e:
+                    logger.error(
+                        f"Scheduled text message failed: {e.__class__.__name__}: {e}"
+                    )
+
+            common.jobqueue.add_onetime_job(
+                job_key, run_date=schedule_datetime, func=_text_job
+            )
+        else:
+            # Schedule media message - capture variables in local scope
+            assert media_type is not None
+            assert media_url is not None
+            _media_type = media_type
+            _media_url = media_url
+            _caption = caption if caption else ""
+            job_key = (
+                f"agent_schedule_media:{chat_id}:{ctx.deps.user_id}"
+                f":{schedule_datetime.timestamp()}"
+                f":{md5(_media_url.encode()).hexdigest()}"
+            )
+
+            async def _media_job() -> None:
+                try:
+                    match _media_type:
+                        case "photo":
+                            await ctx.deps.client.send_photo(
+                                chat_id=chat_id,
+                                photo=_media_url,
+                                caption=_caption,
+                            )
+                        case "video":
+                            await ctx.deps.client.send_video(
+                                chat_id=chat_id,
+                                video=_media_url,
+                                caption=_caption,
+                            )
+                        case "audio":
+                            await ctx.deps.client.send_audio(
+                                chat_id=chat_id,
+                                audio=_media_url,
+                                caption=_caption,
+                            )
+                        case "document":
+                            await ctx.deps.client.send_document(
+                                chat_id=chat_id,
+                                document=_media_url,
+                                caption=_caption,
+                            )
+                    logger.info(f"Scheduled {_media_type} message sent successfully")
+                except Exception as e:
+                    logger.error(
+                        f"Scheduled {_media_type} message failed: {e.__class__.__name__}: {e}"
+                    )
+
+            common.jobqueue.add_onetime_job(
+                job_key, run_date=schedule_datetime, func=_media_job
+            )
+
+        return SendResult(
+            success=True, message=f"Scheduled for {schedule_datetime.isoformat()}"
+        ).text()
 
 
 async def send_poll(
