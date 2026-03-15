@@ -157,7 +157,7 @@ async def search_my_code(
     ctx: RunContext[datatype.ContextDeps],
     query: str,
     max_results: int = 20,
-) -> list[dict[str, Any]] | str:
+) -> str:
     """Search through your codebase for specific text.
 
     Use when:
@@ -173,7 +173,7 @@ async def search_my_code(
         max_results: Max number of results (1-50, default 20).
 
     Returns:
-        List of files containing the query with matching line numbers.
+        Formatted text showing matching code snippets with file paths and line numbers.
     """
     if not query or len(query) < 2:
         raise ModelRetry("Query must be at least 2 characters")
@@ -183,7 +183,32 @@ async def search_my_code(
 
     try:
         results = await search_in_files(query, max_results=max_results)
-        return results
+
+        if not results:
+            return f"No results found for '{query}'"
+
+        # Format results as readable text
+        output_parts = []
+        output_parts.append(f"Search results for '{query}' ({len(results)} files):\n")
+
+        for i, result in enumerate(results, 1):
+            file_path = result.get("file", "unknown")
+            matches = result.get("matches", [])
+            total_matches = result.get("total_matches", len(matches))
+
+            output_parts.append(f"\n{i}. {file_path} ({total_matches} matches)")
+            output_parts.append("-" * 60)
+
+            # Show first 3 matches with context
+            for j, match in enumerate(matches[:3], 1):
+                line_num = match.get("line", 0)
+                content = match.get("content", "")
+                output_parts.append(f"   Line {line_num}: {content}")
+
+            if len(matches) > 3:
+                output_parts.append(f"   ... and {len(matches) - 3} more matches")
+
+        return "\n".join(output_parts)
 
     except Exception as e:
         logger.error(f"Error searching code: {e}")
