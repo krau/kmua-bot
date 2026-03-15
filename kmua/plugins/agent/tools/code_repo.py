@@ -89,22 +89,45 @@ def _is_excluded(rel_path: Path, extra_patterns: list[str] | None = None) -> boo
 
     # Check default patterns (always excluded for security)
     for pattern in DEFAULT_EXCLUDED_PATTERNS:
-        if fnmatch.fnmatch(rel_str, pattern):
+        if _match_pattern(rel_str, pattern):
             return True
-        if pattern.endswith("/**/*"):
-            dir_pattern = pattern[:-4]
-            if rel_str.startswith(dir_pattern + "/"):
-                return True
 
     # Check extra custom patterns
     if extra_patterns:
         for pattern in extra_patterns:
-            if fnmatch.fnmatch(rel_str, pattern):
+            if _match_pattern(rel_str, pattern):
                 return True
-            if pattern.endswith("/**/*"):
-                dir_pattern = pattern[:-4]
-                if rel_str.startswith(dir_pattern + "/"):
-                    return True
+
+    return False
+
+
+def _match_pattern(rel_str: str, pattern: str) -> bool:
+    """Match a path against a pattern with proper glob support.
+
+    Supports:
+    - Standard fnmatch patterns (*, ?, [seq])
+    - /** or /**/* for matching directory and all its contents
+    """
+    # Normalize pattern
+    pattern = pattern.replace("\\", "/").rstrip("/")
+
+    # Handle /** or /**/* suffix - match directory and all its contents
+    if "/**" in pattern:
+        # Get the directory prefix before /**
+        dir_prefix = pattern.split("/**")[0]
+        # Check if path is exactly the directory or inside it
+        if rel_str == dir_prefix or rel_str.startswith(dir_prefix + "/"):
+            return True
+
+    # Standard fnmatch
+    if fnmatch.fnmatch(rel_str, pattern):
+        return True
+
+    # Also check if pattern matches as a directory prefix
+    # For patterns like "kmua/plugins/extra", match "kmua/plugins/extra/file.py"
+    if not pattern.endswith("*") and "/" in pattern:
+        if rel_str.startswith(pattern + "/"):
+            return True
 
     return False
 
@@ -390,10 +413,12 @@ async def search_in_files(query: str, max_results: int = 20) -> list[dict[str, A
                         await search_directory(entry_path)
                     else:
                         # Search in file
-                        content: str = await agent.fs.read_file(entry_path)  # type: ignore
-                        lines: list[str] = content.splitlines()
+                        from typing import cast
 
-                        file_matches = []
+                        content = cast(str, await agent.fs.read_file(entry_path))
+                        lines = content.splitlines()
+
+                        file_matches: list[dict[str, Any]] = []
                         for i, line in enumerate(lines, 1):
                             if query in line:
                                 file_matches.append(
