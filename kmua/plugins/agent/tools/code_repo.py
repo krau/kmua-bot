@@ -321,7 +321,7 @@ async def read_file(path: str, start_line: int = 1, max_lines: int = 200) -> str
         raise RuntimeError("Code repository not initialized")
 
     try:
-        content: str = await agent.fs.read_file(path) # type: ignore
+        content: str = await agent.fs.read_file(path)  # type: ignore
         lines: list[str] = content.splitlines()
 
         start_idx = start_line - 1
@@ -390,7 +390,7 @@ async def search_in_files(query: str, max_results: int = 20) -> list[dict[str, A
                         await search_directory(entry_path)
                     else:
                         # Search in file
-                        content: str = await agent.fs.read_file(entry_path) # type: ignore
+                        content: str = await agent.fs.read_file(entry_path)  # type: ignore
                         lines: list[str] = content.splitlines()
 
                         file_matches = []

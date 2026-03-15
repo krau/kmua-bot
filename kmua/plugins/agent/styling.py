@@ -58,8 +58,8 @@ def convert_md(
                 "offset": e.offset,
                 "length": e.length,
             }
-            if etype == pyrogram.enums.MessageEntityType.PRE or e.language is not None:
-                kwargs["language"] = e.language
+            if etype == pyrogram.enums.MessageEntityType.PRE:
+                kwargs["language"] = e.language if e.language is not None else ""
             if etype == pyrogram.enums.MessageEntityType.BLOCKQUOTE:
                 kwargs["expandable"] = True
             if etype == pyrogram.enums.MessageEntityType.TEXT_LINK:
