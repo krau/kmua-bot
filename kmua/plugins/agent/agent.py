@@ -169,7 +169,7 @@ if app_config.agent and app_config.agent_model:
                 prepare=tools.prepare_code_awareness_tools,
             ),
             Tool(
-                tools.get_my_project_overview,
+                tools.get_my_codebase_overview,
                 prepare=tools.prepare_code_awareness_tools,
             ),
         ],

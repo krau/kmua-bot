@@ -196,19 +196,19 @@ async def list_my_code_files(
     include_python_only: bool = True,
     max_depth: int = 3,
 ) -> DirectoryListing | str:
-    """List files and directories in the codebase.
+    """List files in the codebase. Use this to explore project structure.
 
-    Use this tool to explore the project structure and understand what
-    functionality exists in different parts of the codebase.
+    When to use:
+    - User asks what you can do -> list "kmua/plugins" directory
+    - Need to find where a feature is implemented
 
     Args:
-        path: Relative path from project root (e.g., "kmua/plugins" or "kmua/plugins/help.py").
-              Use empty string "" for root directory.
-        include_python_only: If True, only show .py files. If False, show all allowed files.
-        max_depth: Maximum depth to traverse (1-5, default 3).
+        path: Relative path from project root (e.g., "kmua/plugins"). Use "" for root.
+        include_python_only: If True (default), show only .py files.
+        max_depth: Max depth to traverse (1-5, default 3).
 
     Returns:
-        A DirectoryListing with file information, or an error message string.
+        DirectoryListing with file info, or error message.
     """
     if max_depth < 1 or max_depth > MAX_DEPTH:
         raise ModelRetry(f"max_depth must be between 1 and {MAX_DEPTH}")
@@ -333,18 +333,19 @@ async def read_my_code_file(
     start_line: int = 1,
     max_lines: int = 200,
 ) -> str:
-    """Read the contents of a code file.
+    """Read contents of a code file. Use after list_my_code_files to view implementation.
 
-    Use this tool to read implementation details of specific bot features
-    or understand how other plugins work.
+    When to use:
+    - User asks how a command/feature works
+    - Need to understand implementation details
 
     Args:
-        path: Relative path from project root (e.g., "kmua/plugins/help.py").
-        start_line: Line number to start reading from (1-indexed, default 1).
-        max_lines: Maximum number of lines to read (1-500, default 200).
+        path: Relative path (e.g., "kmua/plugins/help.py").
+        start_line: Line to start from (1-indexed, default 1).
+        max_lines: Lines to read (1-500, default 200).
 
     Returns:
-        The file contents with line numbers, or an error message.
+        File contents with line numbers.
     """
     if max_lines < 1 or max_lines > 500:
         raise ModelRetry("max_lines must be between 1 and 500")
@@ -415,18 +416,23 @@ async def search_my_code(
     file_pattern: str = "*.py",
     max_results: int = 20,
 ) -> list[dict[str, Any]] | str:
-    """Search for text in code files.
+    """Search for text in code files. Use to find where features/commands are implemented.
 
-    Use this to find where specific functionality is implemented,
-    such as command handlers or specific features.
+    When to use:
+    - User mentions a command (e.g., "/help") -> search for it
+    - Looking for a specific feature's code
+
+    Search tips:
+    - Commands: use "/command" format
+    - Features: use short keywords like "bottle", "quote"
 
     Args:
-        query: The text to search for.
-        file_pattern: Glob pattern for files to search (default "*.py").
-        max_results: Maximum number of results to return (1-50, default 20).
+        query: Text to search (min 2 chars).
+        file_pattern: File glob pattern (default "*.py").
+        max_results: Max results (1-50, default 20).
 
     Returns:
-        List of matching files with context, or an error message.
+        List of matching files with line numbers.
     """
     if not query or len(query) < 2:
         raise ModelRetry("Query must be at least 2 characters")
@@ -496,16 +502,18 @@ async def search_my_code(
     return results
 
 
-async def get_my_project_overview(
+async def get_my_codebase_overview(
     ctx: RunContext[datatype.ContextDeps],
 ) -> dict[str, Any]:
-    """Get a high-level overview of the project structure.
+    """Get high-level overview of the project. Use first when user asks what you can do.
 
-    This provides a summary of the main modules and their purposes,
-    helping the agent understand the bot's overall architecture.
+    Returns summary including:
+    - Project description
+    - List of all plugins
+    - List of available agent tools
 
     Returns:
-        Dictionary with project overview information.
+        Dict with project info, plugins list, and tools list.
     """
     overview = {
         "project_name": "kmua-bot",
@@ -559,5 +567,5 @@ __all__ = [
     "list_my_code_files",
     "read_my_code_file",
     "search_my_code",
-    "get_my_project_overview",
+    "get_my_codebase_overview",
 ]
