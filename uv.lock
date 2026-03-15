@@ -15,6 +15,18 @@ wheels = [
 ]
 
 [[package]]
+name = "agentfs-sdk"
+version = "0.6.2"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "pyturso" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/ff/bb/cda8c60a0bef9d75541db07b58bf7817c19eb8a04453b930c40118ba79de/agentfs_sdk-0.6.2.tar.gz", hash = "sha256:85da1d46048c885872d4547d4974fe6d4d11eb0d7ca2cee1f9a04054e41c3a41", size = 27677, upload-time = "2026-02-21T08:14:05.398Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/db/b4/515f99ef20bf8c684abc78d1bc52873dde7143dd39aaea022f57fc7946ad/agentfs_sdk-0.6.2-py3-none-any.whl", hash = "sha256:0bd43c1fc6244b22e8d77bf9a54d936b7f6dc1554c60f296eeee0082c56d4945", size = 19144, upload-time = "2026-02-21T08:14:04.458Z" },
+]
+
+[[package]]
 name = "aiocache"
 version = "0.12.3"
 source = { registry = "https://pypi.org/simple" }
@@ -1780,6 +1792,7 @@ name = "kmua-bot"
 version = "2.9.0"
 source = { virtual = "." }
 dependencies = [
+    { name = "agentfs-sdk" },
     { name = "aiocache", extra = ["redis"] },
     { name = "aiofiles" },
     { name = "aiomcache" },
@@ -1824,6 +1837,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "agentfs-sdk", specifier = ">=0.6.2" },
     { name = "aiocache", extras = ["redis"], specifier = ">=0.12.3" },
     { name = "aiofiles", specifier = ">=24.1.0" },
     { name = "aiomcache", specifier = ">=0.8.2" },
@@ -3336,6 +3350,19 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/36/0b/cd77011c1bc01b76404f7aba07fca18aca02a19c7626e329b40201217624/python_socks-2.8.1.tar.gz", hash = "sha256:698daa9616d46dddaffe65b87db222f2902177a2d2b2c0b9a9361df607ab3687", size = 38909, upload-time = "2026-02-16T05:24:00.745Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/15/fe/9a58cb6eec633ff6afae150ca53c16f8cc8b65862ccb3d088051efdfceb7/python_socks-2.8.1-py3-none-any.whl", hash = "sha256:28232739c4988064e725cdbcd15be194743dd23f1c910f784163365b9d7be035", size = 55087, upload-time = "2026-02-16T05:23:59.147Z" },
+]
+
+[[package]]
+name = "pyturso"
+version = "0.4.4"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "typing-extensions" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/26/11/eb759eaa18a7b19e6a7321c3fff7facc4fdaccda52088cfe957c8ff81cd1/pyturso-0.4.4.tar.gz", hash = "sha256:591ecfa37840801715d4faabae3a082b4774b7a7efe7860a32db92de2a5a8878", size = 1451696, upload-time = "2026-01-30T10:40:48.235Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/12/2e/06e10efa9fc46fa8c867f0dc0c25b4164642a72dc184465522153b067592/pyturso-0.4.4-cp313-cp313-macosx_11_0_arm64.whl", hash = "sha256:ab1793fbbd95b29ccecb680d122bc4726b674c8ec8232d4183eeb662a388e49c", size = 3985399, upload-time = "2026-01-30T10:40:28.785Z" },
+    { url = "https://files.pythonhosted.org/packages/c3/7c/17fb05bbef22f558cf7350177312abde2b8c84bd631a88bb4e92b2eac3dc/pyturso-0.4.4-cp313-cp313-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:aa9763528f126c85aabc41eab89bb06ea46f570bf9a377dd842a8d85ee46e4b2", size = 13330169, upload-time = "2026-01-30T10:40:32.076Z" },
 ]
 
 [[package]]

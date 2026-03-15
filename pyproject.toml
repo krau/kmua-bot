@@ -6,6 +6,7 @@ readme = "README.md"
 license = "AGPL-3.0"
 requires-python = "==3.13.*"
 dependencies = [
+    "agentfs-sdk>=0.6.2",
     "aiocache[redis]>=0.12.3",
     "aiofiles>=24.1.0",
     "aiomcache>=0.8.2",

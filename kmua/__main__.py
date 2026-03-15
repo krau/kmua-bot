@@ -18,6 +18,7 @@ from kmua.database import db
 from kmua.health import start_health_server, stop_health_server
 from kmua.logger import logger
 from kmua.plugins.agent import sticker_vec
+from kmua.plugins.agent.tools import init_code_repository
 
 
 def _get_commands_hash(commands_dict: dict[str, list[BotCommand]]) -> str:
@@ -81,6 +82,14 @@ async def _should_update_commands(commands_dict: dict[str, list[BotCommand]]) ->
 
 @client.on_start()
 async def init_bot(client: Client = client):
+    # Initialize code repository for agent self-awareness
+    if app_config.agent_code_awareness:
+        try:
+            await init_code_repository()
+            logger.info("Code repository initialized for agent self-awareness")
+        except Exception as e:
+            logger.error(f"Failed to initialize code repository: {e}")
+
     logger.info(i18n.t("log.initing", locale=app_config.lang))
     if not app_config.avatar_cache_dir.exists():
         app_config.avatar_cache_dir.mkdir(parents=True, exist_ok=True)
@@ -212,6 +221,17 @@ async def init_bot(client: Client = client):
 @client.on_stop()
 async def stop_bot(client: Client = client):
     logger.info(i18n.t("log.stopping", locale=app_config.lang))
+
+    # Close code repository
+    if app_config.agent_code_awareness:
+        try:
+            from kmua.plugins.agent.tools import close_code_repository
+
+            await close_code_repository()
+            logger.debug("Code repository closed")
+        except Exception as e:
+            logger.warning(f"Error closing code repository: {e}")
+
     common.jobqueue.shutdown()
     await db.close_db()
     logger.success(i18n.t("log.exit", locale=app_config.lang))

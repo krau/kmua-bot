@@ -11,3 +11,4 @@ data/**
 .secret*
 pgload/
 test.*
+.agentfs
