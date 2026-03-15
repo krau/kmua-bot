@@ -254,7 +254,7 @@ async def get_history_messages(
             # Format message (no truncation)
             text = msg.text if msg.text else "[media/empty]"
 
-            lines.append(f"[{time_str}] {username}: {text}")
+            lines.append(f"[{time_str}]<{msg.message_id}> {username}: {text}")
 
         return "\n".join(lines)
     except Exception as e:
@@ -322,9 +322,7 @@ async def search_messages(
         message_text = hit.message
 
         lines.append(f"Result {i}:")
-        lines.append(f"  Time: {time_str}")
-        lines.append(f"  User: {username}")
-        lines.append(f"  Message: {message_text}")
+        lines.append(f"  [{time_str}]<{hit.id}> {username}: {message_text}")
         lines.append("")  # Empty line between results
 
     if len(lines) == 1:  # Only header, no results
