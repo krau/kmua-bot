@@ -158,6 +158,9 @@ class _AppConfig(pydantic.BaseModel):
     agent_periodic_reaction_interval: int = 7
     # Code self-awareness: allow agent to read its own codebase to understand other features
     agent_code_awareness: bool = True
+    # Custom file patterns to exclude from code repository (in addition to default security exclusions)
+    # Example: ["*.md", "docs/**/*", "tests/**/*"]
+    agent_code_exclude_patterns: list[str] = []
 
     # experimental, maybe removed in the future
     agent_whitelist_mode: bool = False

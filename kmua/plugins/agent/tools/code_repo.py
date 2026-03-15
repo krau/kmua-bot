@@ -13,13 +13,14 @@ from typing import Any
 
 from agentfs_sdk import AgentFS, AgentFSOptions
 
+from kmua.config import app_config
 from kmua.logger import logger
 
 # Project root directory
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent.parent.parent
 
-# File patterns to exclude from the virtual filesystem
-EXCLUDED_PATTERNS = [
+# Default excluded patterns (security-sensitive, always excluded)
+DEFAULT_EXCLUDED_PATTERNS = [
     # Config files
     "settings.toml",
     "settings.dev.toml",
@@ -65,13 +66,6 @@ EXCLUDED_PATTERNS = [
     "data/**/*",
     # Lock files
     "*.lock",
-    # Documentation
-    "docs/**/*",
-    "*.md",
-    # Test files
-    "test*.py",
-    "*_test.py",
-    "tests/**/*",
 ]
 
 # Maximum file size to load (100KB)
@@ -81,26 +75,52 @@ MAX_FILE_SIZE = 100 * 1024
 _code_agentfs: AgentFS | None = None
 
 
-def _is_excluded(rel_path: Path) -> bool:
-    """Check if a relative path matches any excluded pattern."""
+def _is_excluded(rel_path: Path, extra_patterns: list[str] | None = None) -> bool:
+    """Check if a relative path matches any excluded pattern.
+
+    Args:
+        rel_path: Relative path to check
+        extra_patterns: Additional patterns to exclude (optional)
+
+    Returns:
+        True if path should be excluded
+    """
     rel_str = str(rel_path).replace("\\", "/")
 
-    for pattern in EXCLUDED_PATTERNS:
+    # Check default patterns (always excluded for security)
+    for pattern in DEFAULT_EXCLUDED_PATTERNS:
         if fnmatch.fnmatch(rel_str, pattern):
             return True
         if pattern.endswith("/**/*"):
             dir_pattern = pattern[:-4]
             if rel_str.startswith(dir_pattern + "/"):
                 return True
+
+    # Check extra custom patterns
+    if extra_patterns:
+        for pattern in extra_patterns:
+            if fnmatch.fnmatch(rel_str, pattern):
+                return True
+            if pattern.endswith("/**/*"):
+                dir_pattern = pattern[:-4]
+                if rel_str.startswith(dir_pattern + "/"):
+                    return True
+
     return False
 
 
-async def init_code_repository() -> AgentFS:
+async def init_code_repository(
+    extra_exclude_patterns: list[str] | None = None,
+) -> AgentFS:
     """Initialize the agentfs virtual filesystem with project codebase.
 
     This creates an isolated copy of the project code in agentfs,
     excluding sensitive files. The agent can only access files within
     this virtual filesystem.
+
+    Args:
+        extra_exclude_patterns: Additional file patterns to exclude (optional).
+            These are combined with the default security exclusions.
 
     Returns:
         AgentFS instance configured with the code repository.
@@ -111,6 +131,23 @@ async def init_code_repository() -> AgentFS:
         return _code_agentfs
 
     logger.info("Initializing code repository in agentfs...")
+
+    # Get custom patterns from config
+    config_patterns: list[str] = getattr(app_config, "agent_code_exclude_patterns", [])
+
+    # Combine all patterns: defaults + config + function argument
+    all_extra_patterns = list(config_patterns) if config_patterns else []
+    if extra_exclude_patterns:
+        all_extra_patterns.extend(extra_exclude_patterns)
+
+    # Remove duplicates while preserving order
+    seen = set()
+    unique_patterns = []
+    for p in all_extra_patterns:
+        if p not in seen:
+            seen.add(p)
+            unique_patterns.append(p)
+    all_extra_patterns = unique_patterns
 
     # Open agentfs with a specific ID for the codebase
     agent = await AgentFS.open(AgentFSOptions(id="kmua-codebase"))
@@ -137,8 +174,8 @@ async def init_code_repository() -> AgentFS:
         except ValueError:
             continue
 
-        # Skip excluded files
-        if _is_excluded(rel_path):
+        # Skip excluded files (default + custom patterns)
+        if _is_excluded(rel_path, all_extra_patterns):
             skipped_count += 1
             continue
 
@@ -284,8 +321,8 @@ async def read_file(path: str, start_line: int = 1, max_lines: int = 200) -> str
         raise RuntimeError("Code repository not initialized")
 
     try:
-        content = await agent.fs.read_file(path)
-        lines = content.splitlines()
+        content: str = await agent.fs.read_file(path) # type: ignore
+        lines: list[str] = content.splitlines()
 
         start_idx = start_line - 1
         if start_idx >= len(lines):
@@ -353,7 +390,7 @@ async def search_in_files(query: str, max_results: int = 20) -> list[dict[str, A
                         await search_directory(entry_path)
                     else:
                         # Search in file
-                        content: str = await agent.fs.read_file(entry_path)  # type: ignore
+                        content: str = await agent.fs.read_file(entry_path) # type: ignore
                         lines: list[str] = content.splitlines()
 
                         file_matches = []
