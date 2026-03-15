@@ -4,7 +4,7 @@ from pydantic_ai.tools import ToolDefinition
 from kmua import common
 from kmua.config import app_config
 from kmua.logger import logger
-from kmua.plugins.agent import datatype, state, sticker_memory
+from kmua.plugins.agent import datatype, state, sticker_memory, sticker_vec
 from kmua.services import btts, image_gen
 
 
@@ -84,13 +84,26 @@ async def prepare_image_edit_tools(
 async def prepare_periodic_sticker(
     ctx: RunContext[datatype.ContextDeps], tool_def: ToolDefinition
 ) -> ToolDefinition | None:
-    """Show send_sticker only when sticker memory is available; force-call hint on threshold turns."""
+    """Show send_sticker only when sticker memory has enough stickers (>=20) for the chat."""
     if not app_config.agent_sticker_memory:
         return None
     if sticker_memory.embedder is None:
         return None
     if ctx.deps.chat_id is None or ctx.deps.chat_id >= -100:
         return None
+
+    # Check if the chat has enough stickers stored (minimum 20)
+    MIN_STICKER_COUNT = 20
+    try:
+        sticker_count = await sticker_vec.count(ctx.deps.chat_id)
+        if sticker_count < MIN_STICKER_COUNT:
+            return None
+    except Exception as e:
+        logger.warning(
+            f"Failed to check sticker count for chat {ctx.deps.chat_id}: {e}"
+        )
+        return None
+
     interval = app_config.agent_periodic_sticker_interval
     if interval <= 0:
         return tool_def

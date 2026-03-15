@@ -188,6 +188,16 @@ async def touch(file_unique_id: str, chat_id: int) -> None:
         await db.commit()
 
 
+async def count(chat_id: int) -> int:
+    """Return the number of stickers stored for a chat."""
+    async with _connect() as db:
+        cursor = await db.execute(
+            "SELECT COUNT(*) FROM stickers WHERE chat_id = ?", (chat_id,)
+        )
+        row = await cursor.fetchone()
+        return row[0] if row else 0
+
+
 async def search(
     chat_id: int,
     embedding: list[float],
