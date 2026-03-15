@@ -131,3 +131,12 @@ async def prepare_periodic_reaction(
             "Choose an emoji that reflects your genuine reaction to the user's message."
         )
     return tool_def
+
+
+async def prepare_code_awareness_tools(
+    ctx: RunContext[datatype.ContextDeps], tool_def: ToolDefinition
+) -> ToolDefinition | None:
+    """Show code awareness tools only when enabled in config."""
+    if app_config.agent_code_awareness:
+        return tool_def
+    return None

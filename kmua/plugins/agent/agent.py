@@ -155,6 +155,23 @@ if app_config.agent and app_config.agent_model:
             ),
             Tool(tools.schedule_message, sequential=True),
             Tool(tools.send_poll, sequential=True),
+            # Code self-awareness tools
+            Tool(
+                tools.list_my_code_files,
+                prepare=tools.prepare_code_awareness_tools,
+            ),
+            Tool(
+                tools.read_my_code_file,
+                prepare=tools.prepare_code_awareness_tools,
+            ),
+            Tool(
+                tools.search_my_code,
+                prepare=tools.prepare_code_awareness_tools,
+            ),
+            Tool(
+                tools.get_my_project_overview,
+                prepare=tools.prepare_code_awareness_tools,
+            ),
         ],
         deps_type=datatype.ContextDeps,
         history_processors=[history_processor],
