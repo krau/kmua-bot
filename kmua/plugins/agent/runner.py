@@ -8,6 +8,7 @@ from pydantic_ai import (
     UserContent,
 )
 from pydantic_ai.messages import (
+    MULTI_MODAL_CONTENT_TYPES,
     ModelMessage,
     PartDeltaEvent,
     PartStartEvent,
@@ -245,6 +246,17 @@ async def run_agent(
                                         )
                                         full_output_parts.append(part.content)
                                         replied = True
+                        elif Agent.is_model_request_node(node):
+                            for part in node.request.parts:
+                                if part.part_kind == "tool-return":
+                                    content = part.content
+                                    if isinstance(
+                                        part.content, MULTI_MODAL_CONTENT_TYPES
+                                    ):
+                                        content = "[MULTI_MODAL]"
+                                    logger.trace(
+                                        f"Tool {part.tool_name} returned for user {user_id} in chat {chat_id}: {content}"
+                                    )
                         elif Agent.is_end_node(node):
                             assert agent_run.result is not None, (
                                 "Agent run ended without result"
