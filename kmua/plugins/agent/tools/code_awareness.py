@@ -83,7 +83,7 @@ EXCLUDED_PATTERNS = [
 MAX_FILE_SIZE = 100 * 1024
 
 # Maximum directory depth for listing
-MAX_DEPTH = 5
+MAX_DEPTH = 7
 
 # Maximum files to return in a directory listing
 MAX_FILES_PER_LISTING = 100
@@ -342,13 +342,13 @@ async def read_my_code_file(
     Args:
         path: Relative path (e.g., "kmua/plugins/help.py").
         start_line: Line to start from (1-indexed, default 1).
-        max_lines: Lines to read (1-500, default 200).
+        max_lines: Lines to read (1-1500, default 200).
 
     Returns:
         File contents with line numbers.
     """
-    if max_lines < 1 or max_lines > 500:
-        raise ModelRetry("max_lines must be between 1 and 500")
+    if max_lines < 1 or max_lines > 1500:
+        raise ModelRetry("max_lines must be between 1 and 1500")
 
     if start_line < 1:
         raise ModelRetry("start_line must be >= 1")
@@ -390,17 +390,14 @@ async def read_my_code_file(
             result_lines.append(f"... ({start_idx} lines above)")
 
         for i in range(start_idx, end_idx):
-            line_num = i + 1
             line_content = lines[i]
-            result_lines.append(f"{line_num:4d}: {line_content}")
+            result_lines.append(line_content)
 
         if end_idx < len(lines):
             remaining = len(lines) - end_idx
             result_lines.append(f"... ({remaining} lines below)")
 
-        header = (
-            f"File: {path} (lines {start_line}-{end_idx} of {len(lines)}, {size} bytes)"
-        )
+        header = f"File: {path} (lines {start_line}-{end_idx} of {len(lines)})"
         return f"{header}\n{'=' * len(header)}\n" + "\n".join(result_lines)
 
     except UnicodeDecodeError:
@@ -520,14 +517,13 @@ async def get_my_codebase_overview(
         "description": "A Telegram bot with AI agent capabilities",
         "structure": {
             "kmua/plugins/": "Main bot features and commands",
-            "kmua/plugins/agent/": "AI agent functionality (your home)",
+            "kmua/plugins/agent/": "AI agent functionality",
             "kmua/plugins/agent/tools/": "Tools available to the agent",
             "kmua/database/": "Database models and operations",
             "kmua/common/": "Shared utilities and helpers",
             "kmua/services/": "External service integrations",
             "kmua/i18n/": "Internationalization and translations",
         },
-        "key_features": [],
     }
 
     # Discover actual plugins
@@ -537,11 +533,7 @@ async def get_my_codebase_overview(
         for item in plugins_dir.iterdir():
             if item.is_dir() and not item.name.startswith("_"):
                 plugins.append(item.name)
-            elif (
-                item.is_file()
-                and item.suffix == ".py"
-                and not item.name.startswith("_")
-            ):
+            elif item.is_file() and item.suffix == ".py":
                 plugins.append(item.stem)
 
         overview["discovered_plugins"] = sorted(plugins)
@@ -551,11 +543,7 @@ async def get_my_codebase_overview(
     if agent_tools_dir.exists():
         tools = []
         for item in agent_tools_dir.iterdir():
-            if (
-                item.is_file()
-                and item.suffix == ".py"
-                and not item.name.startswith("_")
-            ):
+            if item.is_file() and item.suffix == ".py":
                 tools.append(item.stem)
         overview["agent_tools"] = sorted(tools)
 
