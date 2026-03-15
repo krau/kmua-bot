@@ -172,6 +172,23 @@ async def resume_ask(
 
     deferred_results.calls[ask_state.tool_call_id] = answer
 
+    # Handle any other pending deferred tool calls in history
+    # This happens when user skips an ask and model asks again with a new question
+    for msg in reversed(ask_state.history):
+        if hasattr(msg, "parts"):
+            for part in msg.parts:
+                if part.part_kind == "tool-call":
+                    other_tool_id = part.tool_call_id
+                    if (
+                        other_tool_id != ask_state.tool_call_id
+                        and other_tool_id not in deferred_results.calls
+                    ):
+                        # Provide a "skip" answer for other pending asks
+                        deferred_results.calls[other_tool_id] = "[用户未选择所提供的任何选项]"
+                        logger.debug(
+                            f"Adding skip answer for other pending tool call: {other_tool_id}"
+                        )
+
     run_kwargs = {
         "message_history": ask_state.history,
         "deferred_tool_results": deferred_results,
@@ -311,10 +328,24 @@ async def update_ask_history(
     """Update the history in the ask state.
 
     Called by agent.py when DeferredToolRequests is returned.
+    Also updates tool_call_id from the latest tool call in history to ensure consistency.
     """
     state = await get_ask_state(chat_id, user_id)
     if state is not None:
         state.history = list(history)
+        # Extract the latest tool_call_id from history to ensure it matches
+        # what pydantic-ai expects when resuming
+        for msg in reversed(history):
+            if hasattr(msg, "parts"):
+                for part in msg.parts:
+                    if part.part_kind == "tool-call":
+                        state.tool_call_id = part.tool_call_id
+                        logger.debug(
+                            f"Updated ask_state tool_call_id to {part.tool_call_id} for user {user_id}"
+                        )
+                        break
+                if state.tool_call_id:
+                    break
         await save_ask_state(chat_id, user_id, state)
 
 
