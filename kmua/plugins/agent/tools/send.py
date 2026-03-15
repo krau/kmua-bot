@@ -387,11 +387,14 @@ async def send_sticker(
 async def send_reaction(
     ctx: RunContext[datatype.ContextDeps],
     emoji: str,
+    target_message_id: int | None = None,
 ) -> str:
-    """Send a reaction (emoji) to the user's message.
+    """Send a reaction (emoji) to a message.
 
     Args:
         emoji: The emoji to react with, e.g. "🥰", "❤️", "😡".
+        target_message_id: Optional message ID to react to. If not provided,
+            reacts to the current user's message.
 
     Returns:
         A SendResult indicating success or failure.
@@ -400,10 +403,16 @@ async def send_reaction(
         return SendResult(
             success=False, message="Message context is unavailable."
         ).text()
+
+    # Use provided target message ID or default to current message
+    message_id = (
+        target_message_id if target_message_id is not None else ctx.deps.message.id
+    )
+
     try:
         await ctx.deps.client.send_reaction(
             chat_id=ctx.deps.chat_id,
-            message_id=ctx.deps.message.id,
+            message_id=message_id,
             emoji=emoji,
         )
     except pyrogram.errors.exceptions.bad_request_400.ReactionInvalid:
