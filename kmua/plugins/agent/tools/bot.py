@@ -267,7 +267,7 @@ async def search_messages(
     query: str,
     count: int = 20,
     user_id: int | None = None,
-) -> list[ChatMessage] | str:
+) -> str:
     """Search messages by query in the current chat.
 
     Arguments:
@@ -276,7 +276,7 @@ async def search_messages(
         count -- maximum number of messages to return (default: 20).
 
     Returns:
-        A list of ChatMessage objects if successful, or an error message string.
+        Formatted search results or error message.
     """
 
     if not btts.btts_client:
@@ -297,23 +297,37 @@ async def search_messages(
     results = resp.results
     if not results.hits:
         return "No messages found matching the query."
-    messages = []
-    for hit in results.hits:
+
+    # Format search results
+    lines = [f"🔍 Search Results for '{query}' ({len(results.hits)} matches):\n"]
+
+    for i, hit in enumerate(results.hits, 1):
         if hit.chat_id != chat_id:
             continue
         if user_id and hit.user_id != user_id:
             continue
         if not hit.message:
             continue
+
+        # Get user info
         user = await database.get_user_by_id(hit.user_id)
-        messages.append(
-            ChatMessage(
-                user_id=hit.user_id,
-                username=user.full_name if user else str(hit.user_id),
-                text=hit.message,
-                time=datetime.datetime.fromtimestamp(hit.timestamp, datetime.UTC),
-            )
-        )
-    if not messages:
+        username = user.full_name if user is not None else f"User_{hit.user_id}"
+
+        # Format time
+        time_str = datetime.datetime.fromtimestamp(
+            hit.timestamp, datetime.UTC
+        ).strftime("%Y-%m-%d %H:%M:%S")
+
+        # Format message with match highlighting
+        message_text = hit.message
+
+        lines.append(f"Result {i}:")
+        lines.append(f"  Time: {time_str}")
+        lines.append(f"  User: {username}")
+        lines.append(f"  Message: {message_text}")
+        lines.append("")  # Empty line between results
+
+    if len(lines) == 1:  # Only header, no results
         return "No messages found matching the query."
-    return messages
+
+    return "\n".join(lines)
