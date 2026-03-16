@@ -1858,7 +1858,7 @@ requires-dist = [
     { name = "orjson", specifier = ">=3.10.18" },
     { name = "pillow", specifier = ">=11.2.1" },
     { name = "pilmoji", git = "https://github.com/jay3332/pilmoji.git" },
-    { name = "powermem", specifier = "==0.4.0" },
+    { name = "powermem", specifier = ">=1.0.0" },
     { name = "pydantic", specifier = ">=2.11.4" },
     { name = "pydantic-ai", specifier = ">=1.7.0" },
     { name = "pyyaml", specifier = ">=6.0.2" },
@@ -2636,7 +2636,7 @@ wheels = [
 
 [[package]]
 name = "powermem"
-version = "0.4.0"
+version = "1.0.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "anthropic" },
@@ -2660,6 +2660,7 @@ dependencies = [
     { name = "pydantic-settings" },
     { name = "pyobvector" },
     { name = "python-dotenv" },
+    { name = "python-multipart" },
     { name = "pytz" },
     { name = "rank-bm25" },
     { name = "slowapi" },
@@ -2669,9 +2670,9 @@ dependencies = [
     { name = "vertexai" },
     { name = "zai-sdk" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/9e/0e/092ccd2a6d1f9b0c331c40c18b628c0ef37eca298abcf9814fdee6f70da8/powermem-0.4.0.tar.gz", hash = "sha256:c8feeaaec58089eeac97544f2401d2adfc11c12df76ad38b5465d85e2022c443", size = 266010, upload-time = "2026-01-20T06:56:45.388Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/7d/7a/71be1568dbb273de88b45eec5a04efb63c5d8583267d6c2473e541e33cb7/powermem-1.0.0.tar.gz", hash = "sha256:b5257b0674248adf81ec768002ea00c8c1cdfa211d299675bd42e3e22ed8cef7", size = 658112, upload-time = "2026-03-16T09:53:25.952Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/06/ae/97d6689521fc69df952a3530989d75e22f27dec7e35df4f84a051dee2ea2/powermem-0.4.0-py3-none-any.whl", hash = "sha256:827055d5c368949090c1979b7866fbad80f74e77f77577a08d74d0627163e5df", size = 362618, upload-time = "2026-01-20T06:56:43.236Z" },
+    { url = "https://files.pythonhosted.org/packages/4a/db/fe954e7d79c7480402e19bdc1691f38b18ee8351514cd33efa816034a245/powermem-1.0.0-py3-none-any.whl", hash = "sha256:df4fc8441e7e41fc9c74228fee2c1b3219b3cc61cb678e82a8cde43ad5dafb7f", size = 769113, upload-time = "2026-03-16T09:53:24.204Z" },
 ]
 
 [[package]]
