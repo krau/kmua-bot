@@ -11,5 +11,4 @@ from .db import *  # noqa: F403
 from .image import *  # noqa: F403
 from .prepare import *  # noqa: F403
 from .send import *  # noqa: F403
-from .utils import *  # noqa: F403
 from .web import *  # noqa: F403
