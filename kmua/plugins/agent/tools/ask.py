@@ -177,7 +177,15 @@ async def resume_ask(
         f"Providing answer for tool_call_id={ask_state.tool_call_id}: {answer}"
     )
 
-    # Find all other deferred tool calls in history and mark them as skipped
+    # Find all other *deferred* tool calls in history and mark them as skipped.
+    # Only tool calls without a corresponding tool-return are truly deferred;
+    # resolved tool calls must NOT be included or pydantic-ai raises UserError.
+    resolved_tool_ids: set[str] = set()
+    for msg in ask_state.history:
+        if hasattr(msg, "parts"):
+            for part in msg.parts:
+                if part.part_kind == "tool-return":
+                    resolved_tool_ids.add(part.tool_call_id)
     for msg in ask_state.history:
         if hasattr(msg, "parts"):
             for part in msg.parts:
@@ -186,8 +194,8 @@ async def resume_ask(
                     if (
                         other_tool_id != ask_state.tool_call_id
                         and other_tool_id not in deferred_results.calls
+                        and other_tool_id not in resolved_tool_ids
                     ):
-                        # This is a previous ask that was skipped
                         deferred_results.calls[other_tool_id] = (
                             "[用户选择了后续问题的选项，跳过了此问题]"
                         )
