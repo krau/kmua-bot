@@ -151,18 +151,6 @@ async def resume_ask(
         f"with history length {len(ask_state.history)}, tool_call_id={ask_state.tool_call_id}"
     )
 
-    # IMPORTANT: Re-fetch the latest ask_state before resuming
-    # This is necessary because update_ask_history may have been called
-    # if the agent made another ask_user call during the previous resume
-    latest_state = await get_ask_state(chat_id, user_id)
-    if latest_state is not None and latest_state.tool_call_id != ask_state.tool_call_id:
-        logger.warning(
-            f"ask_state tool_call_id mismatch for user {user_id}: "
-            f"expected {ask_state.tool_call_id}, got {latest_state.tool_call_id}. "
-            f"Using latest state."
-        )
-        ask_state = latest_state
-
     # Collect all text content from history to avoid resending already-sent messages.
     # When resuming with deferred_tool_results, the first CallToolsNode's model_response
     # contains historical messages that have already been sent in the original run.
@@ -328,28 +316,19 @@ async def update_ask_history(
     """Update the history in the ask state.
 
     Called by agent.py when DeferredToolRequests is returned.
-    Also updates tool_call_id from the latest tool call in history to ensure consistency.
+    Note: We do NOT update tool_call_id here because ask_user already sets it correctly.
+    Updating it from history can cause mismatch when there are multiple pending asks.
     """
     state = await get_ask_state(chat_id, user_id)
     if state is not None:
         state.history = list(history)
-        # Extract the latest tool_call_id from history to ensure it matches
-        # what pydantic-ai expects when resuming
-        # Reset tool_call_id first to find the latest one
-        latest_tool_call_id = None
-        for msg in reversed(history):
-            if hasattr(msg, "parts"):
-                for part in msg.parts:
-                    if part.part_kind == "tool-call":
-                        latest_tool_call_id = part.tool_call_id
-                        break
-                if latest_tool_call_id:
-                    break
-        if latest_tool_call_id:
-            state.tool_call_id = latest_tool_call_id
-            logger.debug(
-                f"Updated ask_state tool_call_id to {latest_tool_call_id} for user {user_id}"
-            )
+        # Do NOT update tool_call_id here - it was already set correctly by ask_user
+        # when it created this state. Updating it from history can cause issues
+        # when there are multiple ask_user calls in sequence.
+        logger.debug(
+            f"Updated ask_state history for user {user_id}, "
+            f"tool_call_id remains {state.tool_call_id}"
+        )
         await save_ask_state(chat_id, user_id, state)
 
 
