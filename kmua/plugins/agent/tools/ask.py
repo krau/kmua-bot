@@ -323,17 +323,21 @@ async def update_ask_history(
         state.history = list(history)
         # Extract the latest tool_call_id from history to ensure it matches
         # what pydantic-ai expects when resuming
+        # Reset tool_call_id first to find the latest one
+        latest_tool_call_id = None
         for msg in reversed(history):
             if hasattr(msg, "parts"):
                 for part in msg.parts:
                     if part.part_kind == "tool-call":
-                        state.tool_call_id = part.tool_call_id
-                        logger.debug(
-                            f"Updated ask_state tool_call_id to {part.tool_call_id} for user {user_id}"
-                        )
+                        latest_tool_call_id = part.tool_call_id
                         break
-                if state.tool_call_id:
+                if latest_tool_call_id:
                     break
+        if latest_tool_call_id:
+            state.tool_call_id = latest_tool_call_id
+            logger.debug(
+                f"Updated ask_state tool_call_id to {latest_tool_call_id} for user {user_id}"
+            )
         await save_ask_state(chat_id, user_id, state)
 
 
