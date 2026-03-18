@@ -151,6 +151,18 @@ async def resume_ask(
         f"with history length {len(ask_state.history)}, tool_call_id={ask_state.tool_call_id}"
     )
 
+    # IMPORTANT: Re-fetch the latest ask_state before resuming
+    # This is necessary because update_ask_history may have been called
+    # if the agent made another ask_user call during the previous resume
+    latest_state = await get_ask_state(chat_id, user_id)
+    if latest_state is not None and latest_state.tool_call_id != ask_state.tool_call_id:
+        logger.warning(
+            f"ask_state tool_call_id mismatch for user {user_id}: "
+            f"expected {ask_state.tool_call_id}, got {latest_state.tool_call_id}. "
+            f"Using latest state."
+        )
+        ask_state = latest_state
+
     # Collect all text content from history to avoid resending already-sent messages.
     # When resuming with deferred_tool_results, the first CallToolsNode's model_response
     # contains historical messages that have already been sent in the original run.
