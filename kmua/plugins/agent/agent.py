@@ -21,10 +21,9 @@ from kmua.services import manyacg
 
 from . import datatype, myfilter, provider, state, tools, utils
 from .history import (
+    CompressionConfig,
+    HistoryCompressor,
     get_history_text,
-    should_compress_by_tokens,
-    summarize_history,
-    truncate_multimodal,
 )
 from .prompt import build_ctx_info, get_input_prompt
 from .runner import (
@@ -55,33 +54,63 @@ if app_config.agent_powermem_config is not None:
     asyncio.create_task(_init_powermem())
 
 
+_history_compressor: HistoryCompressor | None = None
+
+
+def _get_history_compressor() -> HistoryCompressor:
+    """Get or create the history compressor instance."""
+    global _history_compressor
+    if _history_compressor is None:
+        config = CompressionConfig(
+            token_window=app_config.agent_context_window_tokens,
+            compress_ratio=app_config.agent_context_compress_ratio,
+            message_threshold=app_config.agent_messages_threshold,
+            recent_keep_count=app_config.agent_compression_recent_keep,
+            compress_tool_returns=app_config.agent_compression_compress_tool_returns,
+            tool_return_max_length=app_config.agent_compression_tool_return_max_length,
+            multimodal_max_items=app_config.agent_multimodal_max_items,
+            summary_timeout=app_config.agent_model_timeout,
+            use_summary=True,
+        )
+        _history_compressor = HistoryCompressor(
+            summary_agent=summary_agent,
+            config=config,
+        )
+    return _history_compressor
+
+
 async def history_processor(
     ctx: RunContext[datatype.ContextDeps], messages: list[ModelMessage]
 ) -> list[ModelMessage]:
     assert summary_agent is not None, "summary_agent is not initialized"
     assert memory_agent is not None, "memory_agent is not initialized"
-    summary = await summarize_history(summary_agent, messages)
-    if app_config.agent_multimodal_max_items > 0:
-        summary = truncate_multimodal(summary, app_config.agent_multimodal_max_items)
+
+    # Update compressor with current summary_agent (may have been reinitialized)
+    compressor = _get_history_compressor()
+    compressor.summary_agent = summary_agent
+
+    # Apply layered compression
+    result = await compressor.compress(messages)
+    compressed = result.messages
+
+    # Cache the compressed history
     await common.memttlcache.set(
         state.history_key(ctx.deps.chat_id, ctx.deps.user_id),
-        summary,
+        compressed,
         ttl=app_config.cachettl_agent_history,
     )
-    should_update_memory = (
-        should_compress_by_tokens(messages)
-        if app_config.agent_context_window_tokens
-        else len(messages) >= app_config.agent_messages_threshold
-    )
-    if should_update_memory:
+
+    # Update user memory if compression was triggered
+    if result.was_compressed:
         try:
             history_text = get_history_text(messages)
             await utils.update_user_memory(memory_agent, history_text, ctx.deps.user_id)
         except Exception as e:
-            logger.exception(
+            logger.error(
                 f"Error updating memory for user {ctx.deps.user_id}: {e.__class__.__name__} - {e}"
             )
-    return summary
+
+    return compressed
 
 
 if app_config.agent and app_config.agent_model:

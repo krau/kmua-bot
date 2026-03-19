@@ -109,6 +109,12 @@ class _AppConfig(pydantic.BaseModel):
     agent_messages_threshold: int = 20
     agent_context_window_tokens: int = 0
     agent_context_compress_ratio: float = 0.8
+    # Layered compression: number of recent messages to keep fully intact
+    agent_compression_recent_keep: int = 6
+    # Whether to compress tool return content (truncates long outputs)
+    agent_compression_compress_tool_returns: bool = True
+    # Max length for compressed tool return content
+    agent_compression_tool_return_max_length: int = 200
     agent_multimodal: bool = True
     agent_streaming: bool = True
     agent_multimodal_inputs: list[str] = [
