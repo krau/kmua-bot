@@ -85,21 +85,12 @@ async def history_processor(
     assert summary_agent is not None, "summary_agent is not initialized"
     assert memory_agent is not None, "memory_agent is not initialized"
 
-    # Check if there's a pending deferred ask - if so, skip compression
-    # to avoid breaking tool call/return pairs needed for resume_ask
-    ask_state = await tools.get_ask_state(ctx.deps.chat_id, ctx.deps.user_id)
-    if ask_state is not None:
-        logger.debug(
-            f"Skipping history compression for user {ctx.deps.user_id}: "
-            "pending deferred ask exists"
-        )
-        return messages
-
     # Update compressor with current summary_agent (may have been reinitialized)
     compressor = _get_history_compressor()
     compressor.summary_agent = summary_agent
 
     # Apply layered compression
+    # The compressor automatically preserves deferred tool calls
     result = await compressor.compress(messages)
     compressed = result.messages
 

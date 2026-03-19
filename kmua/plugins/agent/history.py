@@ -230,6 +230,39 @@ def find_safe_split_index(
     return safe_index
 
 
+def find_deferred_tool_call_index(
+    messages: Sequence[ModelMessage],
+) -> int | None:
+    """Find the index of the last message containing an unresolved (deferred) tool call.
+
+    A tool call is deferred if it has no corresponding tool-return or retry-prompt.
+    Returns the message index, or None if all tool calls are resolved.
+    """
+    call_positions: dict[str, int] = {}
+    resolved_call_ids: set[str] = set()
+
+    for idx, msg in enumerate(messages):
+        for part in msg.parts:
+            if isinstance(part, ToolCallPart):
+                call_positions[part.tool_call_id] = idx
+            elif isinstance(part, (ToolReturnPart, RetryPromptPart)):
+                if part.tool_call_id:
+                    resolved_call_ids.add(part.tool_call_id)
+
+    # Find deferred (unresolved) tool calls
+    deferred_indices = [
+        idx
+        for call_id, idx in call_positions.items()
+        if call_id not in resolved_call_ids
+    ]
+
+    if not deferred_indices:
+        return None
+
+    # Return the index of the message containing the last deferred tool call
+    return max(deferred_indices)
+
+
 def filter_incomplete_tool_pairs(
     messages: Sequence[ModelMessage],
 ) -> list[ModelMessage]:
@@ -680,6 +713,7 @@ class HistoryCompressor:
 
         Ensures tool call/return pairs are never split across layers.
         Uses find_safe_split_index to locate safe boundaries.
+        Preserves deferred tool calls and their subsequent messages.
         """
         total = len(messages)
         keep = self.config.recent_keep_count
@@ -689,6 +723,25 @@ class HistoryCompressor:
             if self.config.compress_tool_returns:
                 return compress_tool_returns(messages)
             return list(messages)
+
+        # Check for deferred (unresolved) tool calls
+        # We must preserve the deferred call and everything after it
+        deferred_idx = find_deferred_tool_call_index(messages)
+
+        # Calculate minimum keep count to include deferred tool call
+        if deferred_idx is not None:
+            # Keep at least everything from deferred_idx onwards
+            deferred_keep = total - deferred_idx
+            keep = max(keep, deferred_keep)
+            if keep >= total:
+                # Can't compress anything
+                if self.config.compress_tool_returns:
+                    return compress_tool_returns(messages)
+                return list(messages)
+            logger.debug(
+                f"Preserving deferred tool call at index {deferred_idx}, "
+                f"adjusted keep_count to {keep}"
+            )
 
         # Find safe split point between Layer 1 (recent) and older messages
         raw_split = total - keep
