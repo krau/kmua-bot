@@ -402,6 +402,8 @@ async def summarize_with_structure(
     1. Summarizes the conversation content
     2. Preserves the ModelRequest/ModelResponse structure
     3. Keeps the current user prompt intact
+
+    On failure, falls back to safe truncation that preserves tool pairs.
     """
     if len(messages) <= 1:
         return list(messages)
@@ -418,12 +420,45 @@ async def summarize_with_structure(
         logger.debug(f"Generated summary: {summary_text[:200]}...")
     except Exception as e:
         logger.warning(f"Summary generation failed: {e}")
-        # Fallback: just truncate messages
-        return list(messages[-5:])
+        # Fallback: safe truncation preserving tool pairs
+        return _safe_fallback_truncate(messages, keep_count=6)
 
     # Build structured messages
     preserved_request = last_msg if isinstance(last_msg, ModelRequest) else None
     return _build_summary_messages(summary_text, preserved_request)
+
+
+def _safe_fallback_truncate(
+    messages: Sequence[ModelMessage],
+    keep_count: int = 6,
+) -> list[ModelMessage]:
+    """Safely truncate messages preserving tool call/return pairs.
+
+    Used as fallback when summarization fails.
+    """
+    if len(messages) <= keep_count:
+        return list(messages)
+
+    # Find safe split point
+    target_index = len(messages) - keep_count
+    safe_index = find_safe_split_index(messages, target_index)
+
+    # Get messages from safe index, ensuring we keep at least a few
+    result = list(messages[safe_index:])
+
+    # If we ended up with too few messages due to pair preservation,
+    # try keeping more by moving the split point earlier
+    if len(result) < 3 and safe_index > 0:
+        safe_index = find_safe_split_index(messages, max(0, safe_index - 3))
+        result = list(messages[safe_index:])
+
+    # Compress tool returns in result if needed
+    result = compress_tool_returns(result)
+
+    # Final validation - filter out any incomplete pairs
+    result = filter_incomplete_tool_pairs(result)
+
+    return result
 
 
 # ============================================================================
@@ -571,6 +606,7 @@ class HistoryCompressor:
         """Apply layered compression to messages.
 
         Returns CompressionResult with compressed messages and metadata.
+        Always returns valid messages even if compression fails.
         """
         if not messages:
             return CompressionResult(
@@ -599,25 +635,42 @@ class HistoryCompressor:
 
         logger.info(f"Compressing history: {reason}")
 
-        # Step 1: Filter incomplete tool pairs
-        filtered = filter_incomplete_tool_pairs(messages)
+        try:
+            # Step 1: Filter incomplete tool pairs
+            filtered = filter_incomplete_tool_pairs(messages)
 
-        # Step 2: Apply layered compression
-        compressed = await self._apply_layered_compression(filtered)
+            # Step 2: Apply layered compression
+            compressed = await self._apply_layered_compression(filtered)
 
-        # Step 3: Truncate multimodal content
-        if self.config.multimodal_max_items > 0:
-            compressed = truncate_multimodal(
-                compressed, self.config.multimodal_max_items
+            # Step 3: Truncate multimodal content
+            if self.config.multimodal_max_items > 0:
+                compressed = truncate_multimodal(
+                    compressed, self.config.multimodal_max_items
+                )
+
+            # Final safety check: ensure tool pairs are still valid
+            compressed = filter_incomplete_tool_pairs(compressed)
+
+            return CompressionResult(
+                messages=compressed,
+                was_compressed=True,
+                original_count=len(messages),
+                compressed_count=len(compressed),
+                reason=reason,
             )
-
-        return CompressionResult(
-            messages=compressed,
-            was_compressed=True,
-            original_count=len(messages),
-            compressed_count=len(compressed),
-            reason=reason,
-        )
+        except Exception as e:
+            logger.error(f"Compression failed, using safe fallback: {e}")
+            # Safe fallback: just truncate keeping recent messages with valid pairs
+            fallback = _safe_fallback_truncate(
+                messages, keep_count=self.config.recent_keep_count
+            )
+            return CompressionResult(
+                messages=fallback,
+                was_compressed=True,
+                original_count=len(messages),
+                compressed_count=len(fallback),
+                reason=f"fallback after error: {e}",
+            )
 
     async def _apply_layered_compression(
         self,
