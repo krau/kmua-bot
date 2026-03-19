@@ -248,6 +248,9 @@ async def resume_ask(
                             logger.info(
                                 f"Agent returned DeferredToolRequests again for user {user_id}"
                             )
+                            await update_ask_history(
+                                chat_id, user_id, agent_run.all_messages()
+                            )
                         elif not replied and output:
                             await reply_output(client, message, output)
                 await common.memttlcache.set(
