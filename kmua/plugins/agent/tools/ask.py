@@ -170,38 +170,33 @@ async def resume_ask(
         extra_text = user_prompt if isinstance(user_prompt, str) else str(user_prompt)
         answer = f"{answer}\n用户发送的新消息内容: {extra_text}"
 
-    # Provide results for ALL deferred tool calls in history
-    # pydantic-ai requires results for all deferred tool calls, not just the current one
     deferred_results.calls[ask_state.tool_call_id] = answer
     logger.debug(
         f"Providing answer for tool_call_id={ask_state.tool_call_id}: {answer}"
     )
 
-    # Find all other *deferred* tool calls in history and mark them as skipped.
-    # Only tool calls without a corresponding tool-return are truly deferred;
-    # resolved tool calls must NOT be included or pydantic-ai raises UserError.
-    resolved_tool_ids: set[str] = set()
-    for msg in ask_state.history:
-        if hasattr(msg, "parts"):
-            for part in msg.parts:
-                if part.part_kind == "tool-return":
-                    resolved_tool_ids.add(part.tool_call_id)
-    for msg in ask_state.history:
-        if hasattr(msg, "parts"):
-            for part in msg.parts:
-                if part.part_kind == "tool-call":
-                    other_tool_id = part.tool_call_id
-                    if (
-                        other_tool_id != ask_state.tool_call_id
-                        and other_tool_id not in deferred_results.calls
-                        and other_tool_id not in resolved_tool_ids
-                    ):
-                        deferred_results.calls[other_tool_id] = (
-                            "[用户选择了后续问题的选项，跳过了此问题]"
-                        )
-                        logger.debug(
-                            f"Adding skip answer for previous deferred tool call: {other_tool_id}"
-                        )
+    # pydantic-ai validates deferred_results against tool-calls in the LAST
+    # ModelResponse only.  We must match that set exactly — no more, no less.
+    # Scanning the entire history would pick up stale deferred calls from
+    # earlier conversations or previous rounds, causing a UserError.
+    last_response = None
+    for msg in reversed(ask_state.history):
+        if hasattr(msg, "kind") and msg.kind == "response":
+            last_response = msg
+            break
+    if last_response is not None:
+        for part in last_response.parts:
+            if (
+                part.part_kind == "tool-call"
+                and part.tool_call_id != ask_state.tool_call_id
+                and part.tool_call_id not in deferred_results.calls
+            ):
+                deferred_results.calls[part.tool_call_id] = (
+                    "[用户选择了后续问题的选项，跳过了此问题]"
+                )
+                logger.debug(
+                    f"Adding skip answer for deferred tool call in last response: {part.tool_call_id}"
+                )
 
     run_kwargs = {
         "message_history": ask_state.history,
