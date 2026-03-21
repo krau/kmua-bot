@@ -1,5 +1,6 @@
 import asyncio
 import random
+import re
 from datetime import datetime
 
 import pyrogram
@@ -10,6 +11,13 @@ from kmua.common.memory_store import memttlcache
 from kmua.logger import logger
 from kmua.plugins.agent import datatype, state
 from kmua.plugins.agent.styling import convert_md
+
+_MD_SEPARATOR_RE = re.compile(r"^(?:[-*_][ \t]*){3,}$")
+
+
+def _is_markdown_separator_only_chunk(chunk: str) -> bool:
+    lines = [line.strip() for line in chunk.splitlines() if line.strip()]
+    return bool(lines) and all(_MD_SEPARATOR_RE.fullmatch(line) for line in lines)
 
 
 async def reply_output(
@@ -61,6 +69,9 @@ async def reply_output(
                 last_reply_msg = await message.reply_text(total_plain)
         else:
             for chunk in chunks:
+                # 如果只有分隔符, 则跳过
+                if _is_markdown_separator_only_chunk(chunk):
+                    continue
                 await message.reply_chat_action(pyrogram.enums.ChatAction.TYPING)
                 plain_chunk, entities = convert_md(chunk)
                 try:
