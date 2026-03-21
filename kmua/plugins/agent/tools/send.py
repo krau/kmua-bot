@@ -8,6 +8,7 @@ import pyrogram.errors
 from pydantic_ai import ModelRetry, RunContext
 
 from kmua import common
+from kmua.bot.client import client
 from kmua.logger import logger
 
 from .. import datatype, sticker_memory, sticker_vec
@@ -28,6 +29,102 @@ class SendResult:
         if self.message:
             msg = f"{msg}, 错误信息: {self.message}"
         return msg
+
+
+# Module-level job functions for APScheduler persistence
+# These are defined at module level so they can be serialized by reference
+
+
+async def _scheduled_text_job(chat_id: int, text: str) -> None:
+    """Module-level function to send scheduled text message.
+
+    Args:
+        chat_id: Target chat ID
+        text: Message text to send
+    """
+    try:
+        await client.send_message(chat_id=chat_id, text=text)
+        logger.info("Scheduled text message sent successfully")
+    except Exception as e:
+        logger.error(f"Scheduled text message failed: {e.__class__.__name__}: {e}")
+
+
+async def _scheduled_media_job(
+    chat_id: int,
+    media_type: Literal["photo", "video", "audio", "document"],
+    media_url: str,
+    caption: str,
+) -> None:
+    """Module-level function to send scheduled media message.
+
+    Args:
+        chat_id: Target chat ID
+        media_type: Type of media
+        media_url: Media URL
+        caption: Media caption
+    """
+    try:
+        match media_type:
+            case "photo":
+                await client.send_photo(
+                    chat_id=chat_id,
+                    photo=media_url,
+                    caption=caption,
+                )
+            case "video":
+                await client.send_video(
+                    chat_id=chat_id,
+                    video=media_url,
+                    caption=caption,
+                )
+            case "audio":
+                await client.send_audio(
+                    chat_id=chat_id,
+                    audio=media_url,
+                    caption=caption,
+                )
+            case "document":
+                await client.send_document(
+                    chat_id=chat_id,
+                    document=media_url,
+                    caption=caption,
+                )
+        logger.info(f"Scheduled {media_type} message sent successfully")
+    except Exception as e:
+        logger.error(
+            f"Scheduled {media_type} message failed: {e.__class__.__name__}: {e}"
+        )
+
+
+async def _scheduled_poll_job(
+    chat_id: int,
+    question: str,
+    options: list[str],
+    is_anonymous: bool,
+    allows_multiple_answers: bool,
+) -> None:
+    """Module-level function to send scheduled poll.
+
+    Args:
+        chat_id: Target chat ID
+        question: Poll question
+        options: Poll options
+        is_anonymous: Whether the poll is anonymous
+        allows_multiple_answers: Whether multiple answers are allowed
+    """
+    try:
+        from kmua.bot.client import client
+
+        await client.send_poll(
+            chat_id=chat_id,
+            question=question,
+            options=options,
+            is_anonymous=is_anonymous,
+            allows_multiple_answers=allows_multiple_answers,
+        )
+        logger.info(f"Scheduled poll sent successfully: {question[:30]}...")
+    except Exception as e:
+        logger.error(f"Scheduled poll failed: {e.__class__.__name__}: {e}")
 
 
 async def schedule_message(
@@ -140,7 +237,7 @@ async def schedule_message(
         assert schedule_datetime is not None
 
         if has_text:
-            # Schedule text message - capture text in local variable
+            # Schedule text message using module-level function
             assert text is not None
             text_content = text
             job_key = (
@@ -149,68 +246,28 @@ async def schedule_message(
                 f":{md5(text_content.encode()).hexdigest()}"
             )
 
-            async def _text_job() -> None:
-                try:
-                    await ctx.deps.client.send_message(
-                        chat_id=chat_id, text=text_content
-                    )
-                    logger.info("Scheduled text message sent successfully")
-                except Exception as e:
-                    logger.error(
-                        f"Scheduled text message failed: {e.__class__.__name__}: {e}"
-                    )
-
             common.jobqueue.add_onetime_job(
-                job_key, run_date=schedule_datetime, func=_text_job
+                job_key,
+                run_date=schedule_datetime,
+                func=_scheduled_text_job,
+                args=[chat_id, text_content],
             )
         else:
-            # Schedule media message - capture variables in local scope
+            # Schedule media message using module-level function
             assert media_type is not None
             assert media_url is not None
-            _media_type = media_type
-            _media_url = media_url
             _caption = caption if caption else ""
             job_key = (
                 f"agent_schedule_media:{chat_id}:{ctx.deps.user_id}"
                 f":{schedule_datetime.timestamp()}"
-                f":{md5(_media_url.encode()).hexdigest()}"
+                f":{md5(media_url.encode()).hexdigest()}"
             )
 
-            async def _media_job() -> None:
-                try:
-                    match _media_type:
-                        case "photo":
-                            await ctx.deps.client.send_photo(
-                                chat_id=chat_id,
-                                photo=_media_url,
-                                caption=_caption,
-                            )
-                        case "video":
-                            await ctx.deps.client.send_video(
-                                chat_id=chat_id,
-                                video=_media_url,
-                                caption=_caption,
-                            )
-                        case "audio":
-                            await ctx.deps.client.send_audio(
-                                chat_id=chat_id,
-                                audio=_media_url,
-                                caption=_caption,
-                            )
-                        case "document":
-                            await ctx.deps.client.send_document(
-                                chat_id=chat_id,
-                                document=_media_url,
-                                caption=_caption,
-                            )
-                    logger.info(f"Scheduled {_media_type} message sent successfully")
-                except Exception as e:
-                    logger.error(
-                        f"Scheduled {_media_type} message failed: {e.__class__.__name__}: {e}"
-                    )
-
             common.jobqueue.add_onetime_job(
-                job_key, run_date=schedule_datetime, func=_media_job
+                job_key,
+                run_date=schedule_datetime,
+                func=_scheduled_media_job,
+                args=[chat_id, media_type, media_url, _caption],
             )
 
         return SendResult(
@@ -314,21 +371,12 @@ async def _schedule_poll(
         f":{md5(question.encode()).hexdigest()}"
     )
 
-    async def _job() -> None:
-        result = await send_poll(
-            ctx=ctx,
-            question=question,
-            options=options,
-            is_anonymous=is_anonymous,
-            allows_multiple_answers=allows_multiple_answers,
-            schedule_time=None,
-        )
-        logger.info(f"Scheduled send_poll result: {result}")
-
+    # Use module-level function for persistence
     common.jobqueue.add_onetime_job(
         job_key,
         run_date=schedule_datetime,
-        func=_job,
+        func=_scheduled_poll_job,
+        args=[chat_id, question, options, is_anonymous, allows_multiple_answers],
     )
 
 
