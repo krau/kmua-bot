@@ -157,20 +157,28 @@ async def search_my_code(
     ctx: RunContext[datatype.ContextDeps],
     query: str,
     max_results: int = 20,
+    use_regex: bool = False,
+    case_sensitive: bool = True,
 ) -> str:
-    """Search through your codebase for specific text.
+    """Search through your codebase for specific text or regex pattern.
 
     Use when:
-    - User mentions a command (e.g., "/help") and you need to find its implementation
+    - User mentions a command (e.g., "/waifu") and you need to find its implementation
     - Looking for where a feature is defined
 
     Tips:
-    - Commands: search for "/commandname"
-    - Features: search for keywords like "bottle", "waifu", "quote"
+    - Simple search: "bottle", "waifu", "quote"
+    - Regex patterns (set use_regex=True):
+      - "async def.*bottle" - find async functions with "bottle" in name
+      - "class.*Handler" - find classes ending with "Handler"
+      - "^import|^from" - find import statements
+      - "TODO|FIXME" - find TODO or FIXME comments
 
     Args:
-        query: Text to search for (min 2 characters).
+        query: Text or regex pattern to search for (min 2 characters).
         max_results: Max number of results (1-50, default 20).
+        use_regex: If True, treat query as a regex pattern (like grep -E).
+        case_sensitive: If False, perform case-insensitive search.
 
     Returns:
         Formatted text showing matching code snippets with file paths and line numbers.
@@ -182,14 +190,24 @@ async def search_my_code(
         raise ModelRetry("max_results must be between 1 and 50")
 
     try:
-        results = await search_in_files(query, max_results=max_results)
+        results = await search_in_files(
+            query,
+            max_results=max_results,
+            use_regex=use_regex,
+            case_sensitive=case_sensitive,
+        )
 
         if not results:
-            return f"No results found for '{query}'"
+            search_type = "pattern" if use_regex else "text"
+            return f"No results found for {search_type} '{query}'"
 
         # Format results as readable text
         output_parts = []
-        output_parts.append(f"Search results for '{query}' ({len(results)} files):\n")
+        search_type = "Regex" if use_regex else "Text"
+        case_info = "case-sensitive" if case_sensitive else "case-insensitive"
+        output_parts.append(
+            f"{search_type} search results for '{query}' ({case_info}, {len(results)} files):\n"
+        )
 
         for i, result in enumerate(results, 1):
             file_path = result.get("file", "unknown")
@@ -210,6 +228,9 @@ async def search_my_code(
 
         return "\n".join(output_parts)
 
+    except ValueError as e:
+        # Regex compilation error
+        raise ModelRetry(f"Invalid regex pattern: {e}")
     except Exception as e:
         logger.error(f"Error searching code: {e}")
         return f"Error: {e}"

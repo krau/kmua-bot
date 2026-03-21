@@ -374,19 +374,41 @@ async def read_file(path: str, start_line: int = 1, max_lines: int = 200) -> str
 
 
 @functools.lru_cache
-async def search_in_files(query: str, max_results: int = 20) -> list[dict[str, Any]]:
-    """Search for text in all files in the virtual filesystem.
+async def search_in_files(
+    query: str,
+    max_results: int = 20,
+    use_regex: bool = False,
+    case_sensitive: bool = True,
+) -> list[dict[str, Any]]:
+    """Search for text or pattern in all files in the virtual filesystem.
 
     Args:
-        query: Text to search for.
+        query: Text or regex pattern to search for.
         max_results: Maximum number of results.
+        use_regex: If True, treat query as a regex pattern (like grep).
+        case_sensitive: If False, perform case-insensitive search.
 
     Returns:
         List of search results with file paths and matching lines.
     """
+    import re
+
     agent = await get_code_agentfs()
     if agent is None:
         raise RuntimeError("Code repository not initialized")
+
+    # Compile regex pattern if use_regex is True
+    pattern = None
+    query_lower = None
+    if use_regex:
+        try:
+            flags = 0 if case_sensitive else re.IGNORECASE
+            pattern = re.compile(query, flags)
+        except re.error as e:
+            raise ValueError(f"Invalid regex pattern: {e}")
+    elif not case_sensitive:
+        # For plain text case-insensitive search
+        query_lower = query.lower()
 
     results = []
 
@@ -420,13 +442,34 @@ async def search_in_files(query: str, max_results: int = 20) -> list[dict[str, A
 
                         file_matches: list[dict[str, Any]] = []
                         for i, line in enumerate(lines, 1):
-                            if query in line:
-                                file_matches.append(
-                                    {
-                                        "line": i,
-                                        "content": line.strip(),
-                                    }
-                                )
+                            if use_regex:
+                                assert pattern is not None  # for type checker
+                                if pattern.search(line):
+                                    file_matches.append(
+                                        {
+                                            "line": i,
+                                            "content": line.strip(),
+                                        }
+                                    )
+                            else:
+                                # Plain text search
+                                if case_sensitive:
+                                    if query in line:
+                                        file_matches.append(
+                                            {
+                                                "line": i,
+                                                "content": line.strip(),
+                                            }
+                                        )
+                                else:
+                                    assert query_lower is not None  # for type checker
+                                    if query_lower in line.lower():
+                                        file_matches.append(
+                                            {
+                                                "line": i,
+                                                "content": line.strip(),
+                                            }
+                                        )
 
                         if file_matches:
                             results.append(
