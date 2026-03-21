@@ -50,7 +50,7 @@ jobstore_url = _get_jobstore_db_url()
 if app_config.jobstore_db_url:
     logger.info("Using configured jobstore_db_url for scheduled jobs")
 else:
-    logger.debug(f"Using derived sync URL for job store: {jobstore_url}")
+    logger.debug("Using derived sync URL for job store")
 sync_engine = create_engine(jobstore_url, echo=app_config.debug, future=True)
 
 AsyncSessionFactory = async_sessionmaker(
