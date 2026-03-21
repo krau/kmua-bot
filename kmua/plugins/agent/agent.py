@@ -183,6 +183,9 @@ if app_config.agent and app_config.agent_model:
             ),
             Tool(tools.schedule_message, sequential=True),
             Tool(tools.send_poll, sequential=True),
+            # Time tools
+            Tool(tools.get_current_time),
+            Tool(tools.calculate_time_difference),
             # Code self-awareness tools
             Tool(
                 tools.list_my_code_files,

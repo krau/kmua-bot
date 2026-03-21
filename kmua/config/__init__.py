@@ -23,6 +23,10 @@ class _AppConfig(pydantic.BaseModel):
     token: str
     owners: list[int]
     db_url: str = "sqlite+aiosqlite:///./data/kmua.db"
+    # APScheduler job store database URL (sync)
+    # If not set, uses db_url with async driver replaced by sync driver
+    # Allows separating job storage from main database
+    jobstore_db_url: str | None = None
     pg_pgroonga: bool = False
     session_name: str = "kmua"
     api_id: int = 1025907
@@ -35,7 +39,7 @@ class _AppConfig(pydantic.BaseModel):
     nickname: str = "kmua"
 
     # health check server for container monitoring
-    health_check_enabled: bool = True
+    health_check_enabled: bool = False
     health_check_host: str = "localhost"
     health_check_port: int = 8180
 

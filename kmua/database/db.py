@@ -8,6 +8,7 @@ from typing import ParamSpec, TypeVar
 import alembic.command
 import alembic.config
 import sqlalchemy
+from sqlalchemy import create_engine
 from sqlalchemy.ext.asyncio import (
     AsyncSession,
     async_sessionmaker,
@@ -21,6 +22,36 @@ from kmua.logger import logger
 from .models import Base
 
 engine = create_async_engine(app_config.db_url, echo=app_config.debug, future=True)
+
+
+def _get_jobstore_db_url() -> str:
+    """获取 APScheduler job store 的数据库 URL
+
+    优先使用配置的 jobstore_db_url，否则从 db_url 推断同步驱动版本
+    """
+    if app_config.jobstore_db_url:
+        return app_config.jobstore_db_url
+
+    # 从异步 URL 推断同步版本
+    url = app_config.db_url
+    replacements = [
+        ("+aiosqlite", ""),  # sqlite+aiosqlite -> sqlite
+        ("+asyncpg", ""),  # postgresql+asyncpg -> postgresql
+        ("+aiomysql", ""),  # mysql+aiomysql -> mysql
+    ]
+    for async_driver, sync_driver in replacements:
+        url = url.replace(async_driver, sync_driver)
+    return url
+
+
+# Create sync engine for APScheduler job store
+# APScheduler 3.x SQLAlchemyJobStore requires sync engine
+jobstore_url = _get_jobstore_db_url()
+if app_config.jobstore_db_url:
+    logger.info("Using configured jobstore_db_url for scheduled jobs")
+else:
+    logger.debug(f"Using derived sync URL for job store: {jobstore_url}")
+sync_engine = create_engine(jobstore_url, echo=app_config.debug, future=True)
 
 AsyncSessionFactory = async_sessionmaker(
     bind=engine, autoflush=True, expire_on_commit=False
