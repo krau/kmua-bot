@@ -5,7 +5,6 @@ from ddgs import DDGS
 from powermem import AsyncMemory
 from pydantic_ai import (
     Agent,
-    DeferredToolRequests,
     ModelMessage,
     RunContext,
     Tool,
@@ -19,7 +18,7 @@ from kmua.config import app_config
 from kmua.logger import logger
 from kmua.services import manyacg
 
-from . import datatype, myfilter, provider, state, tools, utils
+from . import datatype, myfilter, provider, runner, state, tools, utils
 from .history import (
     CompressionConfig,
     HistoryCompressor,
@@ -134,7 +133,7 @@ if app_config.agent and app_config.agent_model:
     agent = Agent(
         model=model,
         # instructions=app_config.agent_prompt,
-        output_type=[str, DeferredToolRequests, datatype.EndTurn],
+        output_type=[str, datatype.EndTurn],
         tools=[
             Tool(tools.get_chat_info, prepare=tools.prepare_group_tools),
             Tool(tools.get_history_messages, prepare=tools.prepare_group_tools),
@@ -212,7 +211,6 @@ if app_config.agent and app_config.agent_model:
     async def _dynamic_instructions(ctx: RunContext[datatype.ContextDeps]) -> str:
         return ctx.deps.instructions
 
-    tools.set_agent(agent, model=model, multimodal_model=multimodal_model)
     summary_agent = Agent(model=model, instructions=app_config.agent_summary_prompt)
     memory_agent = Agent(
         model=struct_model,
@@ -220,6 +218,62 @@ if app_config.agent and app_config.agent_model:
         instructions=app_config.agent_memory_prompt,
         retries=5,
     )
+
+    async def _run_agent_for_ask(
+        client: PyrogramClient,
+        message: pyrogram.types.Message,
+        user_id: int,
+        chat_id: int,
+        user_prompt: str,
+    ) -> None:
+        """Start a new agent run to handle an ask_user answer (button click)."""
+        user_config = await database.get_user_config(user_id)
+        lang = user_config.lang
+        history: list[ModelMessage] = await common.memttlcache.get(
+            state.history_key(chat_id, user_id), []
+        )
+        is_group_chat = message.chat and message.chat.type in (
+            pyrogram.enums.ChatType.SUPERGROUP,
+            pyrogram.enums.ChatType.GROUP,
+        )
+        instructions = (
+            app_config.agent_prompt
+            if not is_group_chat
+            else app_config.agent_group_prompt
+            if app_config.agent_group_prompt
+            else app_config.agent_prompt
+        )
+        prompt_override = await runner.get_chat_prompt_override(chat_id)
+        if prompt_override:
+            instructions = prompt_override
+
+        await common.memstore.set(state.waiting_key(user_id), True)
+        try:
+            await runner.run_agent(
+                agi=agent, # type: ignore
+                client=client,
+                message=message,
+                user_id=user_id,
+                chat_id=chat_id,
+                user_prompt=[user_prompt],
+                history=history,
+                deps=datatype.ContextDeps(
+                    user_id=user_id,
+                    chat_id=chat_id,
+                    message=message,
+                    client=client,
+                    instructions=instructions,
+                    powermemory=powermemory,
+                    history=history,
+                ),
+                multimodal_model=multimodal_model,
+                model=model,
+                lang=lang,
+            )
+        finally:
+            await common.memstore.delete(state.waiting_key(user_id))
+
+    tools.set_run_callback(_run_agent_for_ask)
 
     @PyrogramClient.on_message(pyrogram.filters.command("forget"), group=0)
     async def forget_history(client: PyrogramClient, message: pyrogram.types.Message):
@@ -581,29 +635,14 @@ async def wake_agent(client: PyrogramClient, message: pyrogram.types.Message):
     if await common.memstore.get(state.waiting_key(user.id)):
         return await message.reply_text("Thinking...")
 
-    # Check if there's a pending deferred ask
+    # Check if there's a pending ask — clear it and let the normal flow handle
+    # the new message (the ask context is already in history).
     ask_state = await tools.get_ask_state(chat.id, user.id)
     if ask_state is not None:
-        # Resume the deferred ask with "no answer" result
-        # Include the new user message so agent can see it (with multimodal support)
-        user_prompt, needs_multimodal = await get_input_prompt(
-            client, message, include_nearby=0, ctx=None
-        )
-        user_message_text = message.text or message.caption or ""
+        await tools.clear_ask_state(chat.id, user.id)
         logger.info(
-            f"Resuming deferred ask for user {user.id} with no answer, "
-            f"user_message='{user_message_text[:50]}...', needs_multimodal={needs_multimodal}"
+            f"Cleared pending ask for user {user.id}, proceeding with normal agent run"
         )
-        await tools.resume_ask(
-            client=client,
-            ask_state=ask_state,
-            answer="用户没有回答，而是发送了新消息",
-            message=message,
-            powermemory=powermemory,
-            user_prompt=user_prompt,
-            needs_multimodal=needs_multimodal,
-        )
-        return
 
     await common.memstore.set(state.waiting_key(user.id), True)
     # set language

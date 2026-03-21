@@ -4,7 +4,6 @@ import pydantic_ai
 import pyrogram
 from pydantic_ai import (
     Agent,
-    DeferredToolRequests,
     UserContent,
 )
 from pydantic_ai.messages import (
@@ -22,7 +21,7 @@ from kmua.common.memory_store import memttlcache
 from kmua.config import app_config
 from kmua.i18n import i18n
 from kmua.logger import logger
-from kmua.plugins.agent import datatype, provider, state, tools
+from kmua.plugins.agent import datatype, provider, state
 from kmua.plugins.agent.datatype import EndTurn
 from kmua.plugins.agent.output import StreamingOutput, TypingKeepAlive, reply_output
 from kmua.plugins.agent.prompt import check_needs_multimodal
@@ -150,16 +149,7 @@ async def run_agent(
                                     f"Agent run end with result: {agent_run.result.output}"
                                 )
                                 output = agent_run.result.output
-                                if isinstance(output, DeferredToolRequests):
-                                    if streaming_output is not None:
-                                        await streaming_output.abort()
-                                    logger.info(
-                                        f"Agent returned DeferredToolRequests for user {user_id}"
-                                    )
-                                    await tools.update_ask_history(
-                                        chat_id, user_id, agent_run.all_messages()
-                                    )
-                                elif isinstance(output, EndTurn):
+                                if isinstance(output, EndTurn):
                                     if streaming_output is not None:
                                         await streaming_output.abort()
                                 else:
@@ -268,13 +258,6 @@ async def run_agent(
                             if isinstance(output, str) and "final_result" in output:
                                 logger.warning(
                                     f"The stupid agent returned 'final_result' as text🤡 for user {user_id}"
-                                )
-                            elif isinstance(output, DeferredToolRequests):
-                                logger.info(
-                                    f"Agent returned DeferredToolRequests for user {user_id}"
-                                )
-                                await tools.update_ask_history(
-                                    chat_id, user_id, agent_run.all_messages()
                                 )
                             elif isinstance(output, EndTurn):
                                 logger.debug(
