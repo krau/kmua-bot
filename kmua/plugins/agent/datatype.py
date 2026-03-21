@@ -134,6 +134,13 @@ class EndTurn(BaseModel):
 
 
 @dataclass
+class AskUserOutput:
+    """Returned when ask_user output function fires — signals runner to stop silently."""
+
+    question: str
+
+
+@dataclass
 class ContextDeps:
     client: PyrogramClient
     user_id: int

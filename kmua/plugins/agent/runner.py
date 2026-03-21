@@ -22,7 +22,7 @@ from kmua.config import app_config
 from kmua.i18n import i18n
 from kmua.logger import logger
 from kmua.plugins.agent import datatype, provider, state
-from kmua.plugins.agent.datatype import EndTurn
+from kmua.plugins.agent.datatype import AskUserOutput, EndTurn
 from kmua.plugins.agent.output import StreamingOutput, TypingKeepAlive, reply_output
 from kmua.plugins.agent.prompt import check_needs_multimodal
 
@@ -149,7 +149,7 @@ async def run_agent(
                                     f"Agent run end with result: {agent_run.result.output}"
                                 )
                                 output = agent_run.result.output
-                                if isinstance(output, EndTurn):
+                                if isinstance(output, (EndTurn, AskUserOutput)):
                                     if streaming_output is not None:
                                         await streaming_output.abort()
                                 else:
@@ -259,9 +259,9 @@ async def run_agent(
                                 logger.warning(
                                     f"The stupid agent returned 'final_result' as text🤡 for user {user_id}"
                                 )
-                            elif isinstance(output, EndTurn):
+                            elif isinstance(output, (EndTurn, AskUserOutput)):
                                 logger.debug(
-                                    f"Agent returned EndTurn for user {user_id}"
+                                    f"Agent returned {type(output).__name__} for user {user_id}"
                                 )
                             elif not replied and output:
                                 await reply_output(client, message, output)

@@ -38,7 +38,7 @@ async def ask_user(
     ctx: RunContext[datatype.ContextDeps],
     question: str,
     options: list[str],
-) -> str:
+) -> datatype.AskUserOutput:
     """Ask the user a question and wait for their answer.
 
     Use this tool to clarify ambiguous requests, collect preferences, or let the
@@ -47,10 +47,6 @@ async def ask_user(
     Args:
         question: The question to present to the user.
         options: 2-5 short option labels for the user to choose from.
-
-    Returns:
-        A placeholder indicating the question was sent. The user's actual answer
-        will arrive as a new message in the next conversation turn.
     """
     if not options or len(options) < 2:
         raise ModelRetry("Provide at least 2 options.")
@@ -92,7 +88,7 @@ async def ask_user(
         AskState(options=list(options), question=question),
     )
 
-    return f"[已向用户发送问题，等待用户回答: {question}]"
+    return datatype.AskUserOutput(question=question)
 
 
 # Callback to trigger a new agent run — set by agent.py at init time.

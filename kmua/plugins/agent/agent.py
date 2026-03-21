@@ -133,7 +133,7 @@ if app_config.agent and app_config.agent_model:
     agent = Agent(
         model=model,
         # instructions=app_config.agent_prompt,
-        output_type=[str, datatype.EndTurn],
+        output_type=[str, datatype.EndTurn, tools.ask_user],
         tools=[
             Tool(tools.get_chat_info, prepare=tools.prepare_group_tools),
             Tool(tools.get_history_messages, prepare=tools.prepare_group_tools),
@@ -176,7 +176,6 @@ if app_config.agent and app_config.agent_model:
                 prepare=tools.prepare_periodic_sticker,
                 sequential=True,
             ),
-            Tool(tools.ask_user, sequential=True),
             Tool(tools.send_anime_photo, sequential=True),
             Tool(
                 tools.send_reaction,
@@ -250,7 +249,7 @@ if app_config.agent and app_config.agent_model:
         await common.memstore.set(state.waiting_key(user_id), True)
         try:
             await runner.run_agent(
-                agi=agent, # type: ignore
+                agi=agent,  # type: ignore
                 client=client,
                 message=message,
                 user_id=user_id,
