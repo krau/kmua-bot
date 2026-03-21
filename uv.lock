@@ -2636,7 +2636,7 @@ wheels = [
 
 [[package]]
 name = "powermem"
-version = "1.0.0"
+version = "1.0.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "anthropic" },
@@ -2665,14 +2665,15 @@ dependencies = [
     { name = "rank-bm25" },
     { name = "slowapi" },
     { name = "sqlalchemy" },
+    { name = "sqlglot" },
     { name = "together" },
     { name = "uvicorn" },
     { name = "vertexai" },
     { name = "zai-sdk" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/7d/7a/71be1568dbb273de88b45eec5a04efb63c5d8583267d6c2473e541e33cb7/powermem-1.0.0.tar.gz", hash = "sha256:b5257b0674248adf81ec768002ea00c8c1cdfa211d299675bd42e3e22ed8cef7", size = 658112, upload-time = "2026-03-16T09:53:25.952Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/d0/f8/c33abc415facd7d41785d1a321f1fac9c19481fc7b02b8336661fd55be17/powermem-1.0.1.tar.gz", hash = "sha256:968cd2f2a63269d1baafe7d0bfd6e197b3a84a173750048cefc0b4efe4d92402", size = 658474, upload-time = "2026-03-19T12:47:51.245Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/4a/db/fe954e7d79c7480402e19bdc1691f38b18ee8351514cd33efa816034a245/powermem-1.0.0-py3-none-any.whl", hash = "sha256:df4fc8441e7e41fc9c74228fee2c1b3219b3cc61cb678e82a8cde43ad5dafb7f", size = 769113, upload-time = "2026-03-16T09:53:24.204Z" },
+    { url = "https://files.pythonhosted.org/packages/9d/ab/48a3eb7a4c26c15004c29eb67aac398b49efc495414d9329d3eedb2b3496/powermem-1.0.1-py3-none-any.whl", hash = "sha256:5603e17b1f21dbde4eb2c405f21a2b64556f7df864b0ac7afd850bd1c5017482", size = 769356, upload-time = "2026-03-19T12:47:49.596Z" },
 ]
 
 [[package]]
@@ -3809,11 +3810,11 @@ asyncio = [
 
 [[package]]
 name = "sqlglot"
-version = "28.7.0"
+version = "26.24.0"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/0a/3d/aec874eb15ed31d73244aa13c8bbb395de90980bc281539f63f1a3537fd0/sqlglot-28.7.0.tar.gz", hash = "sha256:125f8d41721543e8a503bbe08dbaa9a7ce11bf6b96c052fcb819bea8ca5e3b7e", size = 5717197, upload-time = "2026-01-30T12:47:35.772Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/4d/f7/0fa9f9f2477c4e3d8e28b0f5e066f0e72343c29c8a302ee6a77579e8986b/sqlglot-26.24.0.tar.gz", hash = "sha256:e778ca9cb685b4fc34b59d50432c20f463c63ec90d0448fa91afa7f320a88518", size = 5371208, upload-time = "2025-05-30T08:44:06.516Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/d7/e9/6251e703f7314de9508c1bcf9e8cfa5d603bebd6d96428467ef6d81539ce/sqlglot-28.7.0-py3-none-any.whl", hash = "sha256:cb1c5cb85fa9b8b49738959859590ed22d095d4f65aa1f60c3a0d2b254984569", size = 595253, upload-time = "2026-01-30T12:47:34.018Z" },
+    { url = "https://files.pythonhosted.org/packages/b2/11/6995759d913d714ff443478f5865b2616dbcd32b12764d02df9550d7a61e/sqlglot-26.24.0-py3-none-any.whl", hash = "sha256:81f7e47bb1b4b396c564359f47c7c1aee476575a0cadf84dc35f7189cab87f82", size = 464043, upload-time = "2025-05-30T08:44:00.801Z" },
 ]
 
 [[package]]
