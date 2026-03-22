@@ -169,6 +169,17 @@ bot:
     wordcloud:
       generating: Already generating, please wait a moment...
       generated: Word cloud of recent chat history.
+    infographic:
+      usage: |
+        Usage: /infographic <infographic syntax>
+        Or reply to a message with /infographic
+        
+        Example:
+        <code>/infographic infographic list-row-simple-horizontal-arrow\ndata\n  title Product Roadmap\n  lists\n    - label Research\n      value 80</code>
+      cooldown: Too fast! Please try again later.
+      rendered: "Rendered! Time: {time}ms"
+      timeout: Rendering timeout, please try again later.
+      error: "Rendering failed: {error}"
     waifu:
       disabled: The waifu feature is not allowed here.
       not_found: You don't have a waifu right now because I can't find any other members in my records.
@@ -306,6 +317,7 @@ bot:
     config: Change group settings
     greet: Set welcome message
     help: Help|More features
+    infographic: Render infographic
   button:
     back: Back
     repo: Source Code

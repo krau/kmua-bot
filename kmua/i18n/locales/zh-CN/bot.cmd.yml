@@ -28,3 +28,4 @@ bot:
     help: 帮助|更多功能
     randmyavatar: 立刻更换 bot 头像
     reload: 重载配置文件
+    infographic: 渲染信息图

@@ -151,3 +151,14 @@ bot:
       fetch_failed: 获取图片失败, 请稍后再试
       success: "头像更换成功!\n作品: <a href='{url}'>{title}</a>"
       failed: "更换头像失败: {error}"
+    infographic:
+      usage: |
+        使用方法: /infographic <信息图语法>
+        或回复一条消息使用 /infographic
+        
+        示例:
+        <code>/infographic infographic list-row-simple-horizontal-arrow\ndata\n  title Product Roadmap\n  lists\n    - label Research\n      value 80</code>
+      cooldown: 太快了! 请稍后再试
+      rendered: "渲染完成! 耗时: {time}ms"
+      timeout: 渲染超时, 请稍后再试
+      error: "渲染失败: {error}"
