@@ -3,6 +3,8 @@ Infographic API integration plugin
 Renders infographic syntax to images via infographic-api
 """
 
+from io import BytesIO
+
 import httpx
 from pyrogram import enums, filters
 from pyrogram.client import Client
@@ -37,7 +39,7 @@ async def infographic_command(client: Client, message: Message):
     infographic_text = ""
     if message.reply_to_message and message.reply_to_message.text:
         infographic_text = message.reply_to_message.text
-    elif len(message.command) > 1:
+    elif message.command and len(message.command) > 1 and message.text:
         infographic_text = message.text.split(maxsplit=1)[1]
 
     if not infographic_text:
@@ -75,11 +77,11 @@ async def infographic_command(client: Client, message: Message):
             )
             response.raise_for_status()
 
-            image_data = response.content
+            image_bytes = BytesIO(response.content)
             render_time = response.headers.get("X-Render-Time", "unknown")
 
             await message.reply_photo(
-                photo=image_data,
+                photo=image_bytes,
                 caption=i18n.t("bot.msg.infographic.rendered", locale=lang).format(
                     time=render_time
                 ),
