@@ -121,15 +121,27 @@ def is_explicit_reply(message: Message) -> bool:
     if not message.reply_to_message:
         return False
 
-    # Check if this is a forum topic auto-reply
-    # In forum topics, reply_to_message_id equals reply_to_top_message_id
-    # when the message is automatically replying to the topic creation message
-    reply_to_msg_id = getattr(message, "reply_to_message_id", None)
+    # Get reply information from the message
+    # In Pyrogram, reply_to_message_id and reply_to_top_message_id are exposed directly
     reply_to_top_id = getattr(message, "reply_to_top_message_id", None)
 
-    if reply_to_msg_id and reply_to_top_id and reply_to_msg_id == reply_to_top_id:
+    # In forum topics:
+    # - Explicit reply: both reply_to_message_id and reply_to_top_id exist
+    #   (reply_to_top_id points to the topic creation message)
+    # - Auto-reply (no explicit reply): only reply_to_message_id exists, reply_to_top_id is None
+    if reply_to_top_id is not None:
+        # Has reply_to_top_id, this is an explicit reply in forum topic
+        return True
+
+    # reply_to_top_id is None, check if this is a forum topic message
+    # topic_message is True when the message is in a forum topic
+    is_topic = getattr(message, "topic_message", False)
+
+    if is_topic:
+        # In forum topic without reply_to_top_id, this is auto-reply
         return False
 
+    # Not in forum topic, this is a regular reply in normal group
     return True
 
 
