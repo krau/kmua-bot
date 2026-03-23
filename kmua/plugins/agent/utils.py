@@ -1,6 +1,7 @@
 import pyrogram
 
 from kmua.common.memory_store import memttlcache
+from kmua.common.utils import is_explicit_reply
 from kmua.config import app_config
 from kmua.plugins.agent import state
 
@@ -66,7 +67,7 @@ async def cache_user_image(
     user_id: int,
 ) -> None:
     file_id = _extract_image_file_id(message)
-    if file_id is None and message.reply_to_message:
+    if file_id is None and is_explicit_reply(message) and message.reply_to_message:
         file_id = _extract_image_file_id(message.reply_to_message)
     if file_id is None:
         return

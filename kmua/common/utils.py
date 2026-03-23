@@ -3,6 +3,7 @@ import random
 import shutil
 
 import pyrogram
+from pyrogram.types import Message
 
 from kmua.logger import logger
 
@@ -101,3 +102,49 @@ async def webm_first_frame(webm_bytes: bytes) -> bytes | None:
     except Exception as e:
         logger.error(f"ffmpeg error: {e.__class__.__name__}: {e}")
         return None
+
+
+def is_explicit_reply(message: Message) -> bool:
+    """Check if a message is an explicit user reply (not auto-reply in forum topics).
+
+    In Telegram forum groups, messages in a topic automatically have reply_to_message
+    pointing to the topic creation message. This function distinguishes between:
+    - True user reply: User explicitly replied to a specific message
+    - Auto topic reply: Message is just in a topic (reply_to_message == topic creation msg)
+
+    Args:
+        message: The message to check
+
+    Returns:
+        True if this is an explicit user reply, False otherwise
+    """
+    if not message.reply_to_message:
+        return False
+
+    # Check if this is a forum topic auto-reply
+    # In forum topics, reply_to_message_id equals reply_to_top_message_id
+    # when the message is automatically replying to the topic creation message
+    reply_to_msg_id = getattr(message, "reply_to_message_id", None)
+    reply_to_top_id = getattr(message, "reply_to_top_message_id", None)
+
+    if reply_to_msg_id and reply_to_top_id and reply_to_msg_id == reply_to_top_id:
+        return False
+
+    return True
+
+
+def get_reply_target(message: Message) -> Message | None:
+    """Get the message that the user explicitly replied to.
+
+    This function safely gets the reply target, handling forum topic groups where
+    messages automatically reply to the topic creation message.
+
+    Args:
+        message: The message to check
+
+    Returns:
+        The replied-to message if it's an explicit reply, None otherwise
+    """
+    if not is_explicit_reply(message):
+        return None
+    return message.reply_to_message

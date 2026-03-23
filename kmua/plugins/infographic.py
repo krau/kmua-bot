@@ -36,9 +36,11 @@ async def infographic_command(client: Client, message: Message):
         lang = (await database.get_chat_config(chat)).lang
 
     # Get the infographic syntax from command args or replied message
+    # Use is_explicit_reply to handle forum topics correctly
     infographic_text = ""
-    if message.reply_to_message and message.reply_to_message.text:
-        infographic_text = message.reply_to_message.text
+    reply_target = common.get_reply_target(message)
+    if reply_target and reply_target.text:
+        infographic_text = reply_target.text
     elif message.command and len(message.command) > 1 and message.text:
         infographic_text = message.text.split(maxsplit=1)[1]
 

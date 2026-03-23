@@ -11,6 +11,7 @@ from pydantic_ai import ModelRetry, RunContext
 from pyrogram.errors import ChannelInvalid, ChannelPrivate, MessageIdsEmpty
 from pyrogram.types import Message
 
+from kmua.common.utils import is_explicit_reply
 from kmua.config import app_config
 from kmua.database import get_chat_by_id
 from kmua.logger import logger
@@ -348,7 +349,7 @@ def _format_telegram_message(
         parts.append(f"Forwarded from: {fwd_name}")
 
     # Reply info
-    if message.reply_to_message:
+    if is_explicit_reply(message) and message.reply_to_message:
         parts.append(f"[This is a reply to message {message.reply_to_message.id}]")
 
     if content_parts:

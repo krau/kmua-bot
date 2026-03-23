@@ -24,6 +24,7 @@ from pyrogram.client import Client as PyrogramClient
 
 from kmua import affection, common
 from kmua.common.memory_store import memttlcache
+from kmua.common.utils import is_explicit_reply
 from kmua.config import app_config
 from kmua.logger import logger
 from kmua.plugins.agent import datatype, state
@@ -418,9 +419,15 @@ async def get_input_prompt(
     seen_msg_ids: set[int] = set()
 
     # 处理回复消息链：从当前消息向上追溯
+    # 注意：在话题群组中，需要检查是否是真正的用户回复
     reply_chain: list[pyrogram.types.Message] = []
     current = message
-    while current.reply_to_message and len(reply_chain) < 10:
+    while len(reply_chain) < 10:
+        # 检查是否是明确的用户回复（非话题自动回复）
+        if not is_explicit_reply(current):
+            break
+        if not current.reply_to_message:
+            break
         reply_chain.append(current.reply_to_message)
         current = current.reply_to_message
     reply_chain.reverse()
@@ -586,7 +593,8 @@ async def build_ctx_info(
         current_time=datetime.now().isoformat(),
         is_group_chat=is_group_chat,
     )
-    if reply_to := message.reply_to_message:
+    if is_explicit_reply(message) and message.reply_to_message:
+        reply_to = message.reply_to_message
         ctx_info.reply_to_msg_id = reply_to.id
         ctx_info.reply_to_msg_text = reply_to.text or reply_to.caption
     memory = await memttlcache.get(state.memory_key(user.id))

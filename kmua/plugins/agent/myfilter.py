@@ -3,6 +3,7 @@ from pyrogram import filters
 from pyrogram.client import Client
 
 from kmua.common.memory_store import memttlcache
+from kmua.common.utils import is_explicit_reply
 from kmua.config import app_config
 
 _BOTTLE_MSG_PREFIX = "bottle_msg:"
@@ -26,6 +27,8 @@ async def base_filter_func(_, __, message: pyrogram.types.Message) -> bool:
 async def reply_me_filter_func(
     _, client: Client, message: pyrogram.types.Message
 ) -> bool:
+    if not is_explicit_reply(message):
+        return False
     if not message.reply_to_message:
         return False
     if not message.reply_to_message.from_user:
@@ -60,6 +63,8 @@ async def mention_me_filter_func(
 async def not_bottle_reply_filter_func(
     _, client: Client, message: pyrogram.types.Message
 ) -> bool:
+    if not is_explicit_reply(message):
+        return True
     if not message.reply_to_message:
         return True
     reply_to = message.reply_to_message

@@ -6,6 +6,7 @@ import pyrogram
 from wordcloud import WordCloud
 
 from kmua import common, consts, database, i18n
+from kmua.common.utils import is_explicit_reply
 
 
 @pyrogram.Client.on_message(
@@ -29,9 +30,8 @@ async def wordcloud_command(client: pyrogram.Client, message: pyrogram.types.Mes
     await common.memstore.set(f"wordcloud_gen:{chat_id}", True)
     try:
         await message.reply_chat_action(pyrogram.enums.ChatAction.UPLOAD_PHOTO)
-        stop_message_id = (
-            message.reply_to_message.id if message.reply_to_message else message.id
-        )
+        reply_target = message.reply_to_message if is_explicit_reply(message) else None
+        stop_message_id = reply_target.id if reply_target else message.id
         historys = await common.get_messages_with_cache(
             chat_id=chat_id,
             message_ids=list(range(stop_message_id - 200, stop_message_id)),

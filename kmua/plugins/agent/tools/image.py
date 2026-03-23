@@ -7,6 +7,7 @@ from pydantic_ai import ModelRetry, RunContext, ToolReturn
 from pydantic_ai.messages import BinaryContent, ModelRequest, UserPromptPart
 
 from kmua.common import memttlcache
+from kmua.common.utils import is_explicit_reply
 from kmua.config import app_config
 from kmua.logger import logger
 from kmua.services import image_gen
@@ -182,23 +183,26 @@ async def edit_image(
     mime_type: str = "image/jpeg"
 
     source_message: pyrogram.types.Message | None = None
-    if ctx.deps.message.photo:
-        source_message = ctx.deps.message
-    elif ctx.deps.message.reply_to_message and ctx.deps.message.reply_to_message.photo:
-        source_message = ctx.deps.message.reply_to_message
+    msg = ctx.deps.message
+    is_reply = is_explicit_reply(msg)
+    if msg.photo:
+        source_message = msg
+    elif is_reply and msg.reply_to_message and msg.reply_to_message.photo:
+        source_message = msg.reply_to_message
     elif (
-        ctx.deps.message.document
-        and ctx.deps.message.document.mime_type
-        and ctx.deps.message.document.mime_type.startswith("image/")
+        msg.document
+        and msg.document.mime_type
+        and msg.document.mime_type.startswith("image/")
     ):
-        source_message = ctx.deps.message
+        source_message = msg
     elif (
-        ctx.deps.message.reply_to_message
-        and ctx.deps.message.reply_to_message.document
-        and ctx.deps.message.reply_to_message.document.mime_type
-        and ctx.deps.message.reply_to_message.document.mime_type.startswith("image/")
+        is_reply
+        and msg.reply_to_message
+        and msg.reply_to_message.document
+        and msg.reply_to_message.document.mime_type
+        and msg.reply_to_message.document.mime_type.startswith("image/")
     ):
-        source_message = ctx.deps.message.reply_to_message
+        source_message = msg.reply_to_message
 
     if source_message is not None:
         if source_message.photo:

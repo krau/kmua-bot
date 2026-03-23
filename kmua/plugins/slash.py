@@ -7,6 +7,7 @@ from pyrogram.enums import MessageEntityType, ParseMode
 from pyrogram.types import LinkPreviewOptions, Message
 
 from kmua import common, database
+from kmua.common.utils import is_explicit_reply
 from kmua.config import app_config
 
 
@@ -48,9 +49,11 @@ async def slash(client: Client, message: Message):
     this_mention = await common.mention_html(this_user)
     replied_user = None
     replied_mention = ""
-    if reply_to_message := message.reply_to_message:
+    if is_explicit_reply(message) and message.reply_to_message:
+        reply_to_message = message.reply_to_message
         replied_user = reply_to_message.sender_chat or reply_to_message.from_user
-        replied_mention = await common.mention_html(replied_user)
+        if replied_user:
+            replied_mention = await common.mention_html(replied_user)
     is_reverse = (
         False
         if message.text.startswith("/")

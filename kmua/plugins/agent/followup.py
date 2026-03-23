@@ -7,6 +7,7 @@ from pyrogram.client import Client as PyrogramClient
 
 from kmua import common, database, enums
 from kmua.common.memory_store import memttlcache
+from kmua.common.utils import is_explicit_reply
 from kmua.config import app_config
 from kmua.logger import logger
 from kmua.plugins.agent import datatype, provider, state
@@ -84,7 +85,7 @@ async def _follow_up_filter_func(
         or message.outgoing
         or message.service
         or message.automatic_forward
-        or message.reply_to_message  # 已经是回复消息，不处理
+        or is_explicit_reply(message)  # 已经是用户主动回复的消息，不处理
         or (
             user.id
             in (
