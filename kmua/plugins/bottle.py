@@ -3,6 +3,7 @@ from pyrogram.client import Client
 
 from kmua import common, database, i18n
 from kmua.common.memory_store import memttlcache
+from kmua.common.utils import is_explicit_reply
 from kmua.config import app_config
 from kmua.logger import logger
 
@@ -15,10 +16,10 @@ _BOTTLE_BAN_PREFIX = "bottle_ban:"
 async def _bottle_reply_filter(_, client: Client, message: types.Message) -> bool:
     if not message.from_user or not message.from_user.id:
         return False
-    if not message.reply_to_message:
+    if not is_explicit_reply(message):
         return False
     reply_to = message.reply_to_message
-    if not reply_to.from_user or reply_to.from_user.id != client.me.id:
+    if not reply_to or not reply_to.from_user or reply_to.from_user.id != client.me.id:
         return False
     if not reply_to.chat:
         return False
@@ -52,7 +53,8 @@ async def throw_bottle(client: Client, message: types.Message):
         config = await database.get_chat_config(message.chat.id)
         lang = config.lang
 
-    bottle_message = message.reply_to_message or message
+    reply_target = common.get_reply_target(message)
+    bottle_message = reply_target or message
     sender = message.sender_chat or message.from_user
     if not sender or not sender.id:
         return

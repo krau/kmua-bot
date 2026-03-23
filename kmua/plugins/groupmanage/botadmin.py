@@ -1,6 +1,7 @@
 import pyrogram
 
 from kmua import common, database, enums, i18n
+from kmua.common.utils import is_explicit_reply
 
 
 @pyrogram.Client.on_message(
@@ -24,12 +25,10 @@ async def set_user_bot_admin_in_chat(
     if not message.command:
         return
     try:
+        reply_target = message.reply_to_message if is_explicit_reply(message) else None
         target_user_id = (
-            (
-                message.reply_to_message.sender_chat
-                or message.reply_to_message.from_user
-            ).id  # type: ignore
-            if message.reply_to_message
+            (reply_target.sender_chat or reply_target.from_user).id  # type: ignore
+            if reply_target
             else int(message.command[1])
             if (len(message.command) > 1 and message.command[1].isdigit())
             else None

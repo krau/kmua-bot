@@ -7,6 +7,7 @@ from pyrogram.enums import ChatType, ParseMode
 from pyrogram.types import Message
 
 from kmua import common, database, i18n
+from kmua.common.utils import is_explicit_reply
 from kmua.logger import logger
 
 
@@ -22,7 +23,7 @@ async def ipinfo(client: Client, message: Message):
 
     ip = None
 
-    if message.reply_to_message:
+    if is_explicit_reply(message) and message.reply_to_message:
         ip = message.reply_to_message.text or message.reply_to_message.caption
 
     if not ip and message.command and len(message.command) > 1:

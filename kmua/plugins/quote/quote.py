@@ -7,7 +7,7 @@ import pyrogram
 from pyrogram.client import Client as PyrogramClient
 
 from kmua import common, database, i18n
-from kmua.config import app_config
+from kmua.common.utils import is_explicit_reply
 
 from . import utils
 
@@ -29,13 +29,8 @@ async def make_quote(client: PyrogramClient, message: pyrogram.types.Message):
     cmd = message.command
     if len(cmd) > 1 and cmd[1] != "nopin":
         return
-    if not message.reply_to_message:
+    if not is_explicit_reply(message):
         await message.reply_text(i18n.t("bot.msg.quote.reply_to_required", locale=lang))
-        return
-    if message.topic_message:
-        await message.reply_text(
-            i18n.t("bot.msg.quote.topic_not_supported", locale=lang)
-        )
         return
     quote_message = message.reply_to_message
     quote_user = common.get_message_origin(quote_message)
@@ -182,7 +177,7 @@ async def delete_quote_in_chat(client: PyrogramClient, message: pyrogram.types.M
     quote_link = None
     reply_target = None
 
-    if message.reply_to_message:
+    if is_explicit_reply(message) and message.reply_to_message:
         quote_message = message.reply_to_message
         quote_link = common.get_msg_link(quote_message)
         reply_target = quote_message
