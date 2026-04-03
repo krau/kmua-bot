@@ -43,6 +43,30 @@ async def set_member_title(client: PyrogramClient, message: pyrogram.types.Messa
         logger.warning(f"Chat {chat.id} has title_permissions as string: {permissions}")
         permissions = json.loads(permissions)
     try:
+        text = (
+            i18n.t("bot.msg.title.set_self", locale=chat_config.lang).format(
+                title=html.escape(custom_title),
+            )
+            if target.id == user.id
+            else i18n.t("bot.msg.title.set_other", locale=chat_config.lang).format(
+                title=html.escape(custom_title),
+                target=target.mention(style="html"),
+                user=(await mention_html(user)),
+            )
+        )
+        # check if the bot is an admin with can_promote_members before trying to promote the user, otherwise fallback to set_chat_member_tag if the bot doesn't have the permission
+        me = await common.get_chat_member(client, chat.id, "me")
+        if (
+            me.status != pyrogram.enums.ChatMemberStatus.ADMINISTRATOR
+            or not me.privileges.can_promote_members
+        ):
+            await client.set_chat_member_tag(
+                chat.id,
+                target.id,
+                tag=custom_title,
+            )
+            await message.reply_text(text, parse_mode=pyrogram.enums.ParseMode.HTML)
+            return
         await client.promote_chat_member(
             chat.id,
             target.id,
@@ -62,20 +86,8 @@ async def set_member_title(client: PyrogramClient, message: pyrogram.types.Messa
                 can_manage_tags=permissions.get("can_manage_tags", False),
             ),
         )
-        #  Error setting title: Custom titles can only be applied to owners or administrators of supergroups
         await asyncio.sleep(0.5)
         await client.set_administrator_title(chat.id, target.id, custom_title)
-        text = (
-            i18n.t("bot.msg.title.set_self", locale=chat_config.lang).format(
-                title=html.escape(custom_title),
-            )
-            if target.id == user.id
-            else i18n.t("bot.msg.title.set_other", locale=chat_config.lang).format(
-                title=html.escape(custom_title),
-                target=target.mention(style="html"),
-                user=(await mention_html(user)),
-            )
-        )
         await message.reply_text(text, parse_mode=pyrogram.enums.ParseMode.HTML)
     except pyrogram.errors.UserCreator:
         await message.reply_text(

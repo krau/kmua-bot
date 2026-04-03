@@ -232,3 +232,25 @@ async def get_chat_full(client: pyrogram.client.Client, chat_id: int) -> Chat:
     chat = await client.get_chat(chat_id)
     await memttlcache.set(cache_key, chat, ttl=3600)
     return chat
+
+
+async def get_chat_member(
+    client: pyrogram.client.Client, chat_id: int, user_id: int | str
+) -> pyrogram.types.ChatMember:
+    """Get chat member with cache
+
+    Arguments:
+        client -- pyrogram client
+        chat_id -- chat_id
+        user_id -- user_id
+
+    Returns:
+        ChatMember
+    """
+    cache_key = f"chat_member:{chat_id}:{user_id}"
+    cached = await memttlcache.get(cache_key, None)
+    if cached and isinstance(cached, pyrogram.types.ChatMember):
+        return cached
+    member = await client.get_chat_member(chat_id, user_id)
+    await memttlcache.set(cache_key, member, ttl=3600)
+    return member
