@@ -40,6 +40,7 @@ bot:
       change: 换一只
     title_permissions:
       can_change_info: 修改信息
+      can_manage_tags: 修改标签
       can_delete_messages: 删除消息
       can_edit_messages: 编辑消息
       can_restrict_members: 封禁用户

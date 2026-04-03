@@ -24,7 +24,7 @@ class TitlePermissionsMarkup:
 
     def build(self) -> InlineKeyboardMarkup:
         permission_groups = [
-            ["can_change_info", "can_delete_messages", "can_edit_messages"],
+            ["can_change_info", "can_delete_messages", "can_manage_tags"],
             ["can_restrict_members", "can_invite_users", "can_promote_members"],
             ["can_post_stories", "can_edit_stories", "can_delete_stories"],
             ["can_manage_video_chats", "can_manage_topics", "can_pin_messages"],

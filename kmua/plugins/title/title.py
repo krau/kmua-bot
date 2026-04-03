@@ -59,7 +59,7 @@ async def set_member_title(client: PyrogramClient, message: pyrogram.types.Messa
                 can_manage_video_chats=permissions.get("can_manage_video_chats", False),
                 can_promote_members=permissions.get("can_promote_members", False),
                 can_manage_topics=permissions.get("can_manage_topics", False),
-                # can_edit_messages=permissions.get("can_edit_messages", False), # only for channels
+                can_manage_tags=permissions.get("can_manage_tags", False),
             ),
         )
         #  Error setting title: Custom titles can only be applied to owners or administrators of supergroups

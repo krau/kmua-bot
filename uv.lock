@@ -1864,7 +1864,7 @@ dev = [
 [[package]]
 name = "kurigram"
 version = "2.2.19"
-source = { git = "https://github.com/KurimuzonAkuma/kurigram.git#47d2611b355705e48eda9c2e9bacd44bb4a64417" }
+source = { git = "https://github.com/KurimuzonAkuma/kurigram.git#45eda84b9ecaedacf453822892a281193ea003a0" }
 dependencies = [
     { name = "pyaes" },
     { name = "python-socks" },
