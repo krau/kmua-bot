@@ -153,13 +153,15 @@ async def get_messages_with_cache(
 
 
 async def mention_html(chat: User | Chat | UserData | ChatData) -> str:
-    if isinstance(chat, ChatData):
-        raise NotImplementedError
-    db_user = await database.upsert_user(chat)
+    if not chat.id:
+        raise ValueError("Chat must have an ID")
+    db_user = await database.get_user_by_id(chat.id)
+    if not db_user:
+        raise ValueError("User not found in database")
     if not db_user.is_real_user:
         if db_user.username and db_user.full_name:
             return f"<a href='https://t.me/{db_user.username}'>{html.escape(db_user.full_name)}</a>"
-    return f"<a href='tg://user?id={chat.id}'>{html.escape(chat.full_name)}</a>"
+    return f"<a href='tg://user?id={db_user.id}'>{html.escape(db_user.full_name)}</a>"
 
 
 async def can_user_manage_bot_in_chat(
