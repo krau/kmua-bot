@@ -609,8 +609,12 @@ _filter = (
     & ~pyrogram.filters.regex("|".join([r.pattern for r in manyacg.ARTWORK_ALL_REGEX]))
 )
 
+_chat_command_filter = (
+    pyrogram.filters.command("chat") & myfilter.not_bottle_reply_filter
+)
 
-@PyrogramClient.on_message(_filter, group=0)
+
+@PyrogramClient.on_message(_filter | _chat_command_filter, group=0)
 async def wake_agent(client: PyrogramClient, message: pyrogram.types.Message):
     # some check
     if not agent:
