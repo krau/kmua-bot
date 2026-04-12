@@ -196,11 +196,33 @@ async def delete_member_title(client: PyrogramClient, message: pyrogram.types.Me
         )
         return
     try:
+        me = await common.get_chat_member(client, chat.id, "me")
+        if (not me.status == pyrogram.enums.ChatMemberStatus.ADMINISTRATOR) or (
+            not me.privileges.can_promote_members
+        ):
+            if not me.privileges.can_manage_tags:
+                await message.reply_text(
+                    i18n.t("bot.msg.title.errors.admin_required", locale=lang),
+                    parse_mode=pyrogram.enums.ParseMode.HTML,
+                )
+                return
+            await client.set_chat_member_tag(
+                chat.id,
+                user.id,
+                tag=None,
+            )
+            await message.reply_text(
+                i18n.t("bot.msg.title.deleted", locale=lang),
+                parse_mode=pyrogram.enums.ParseMode.HTML,
+            )
+            return
         await client.promote_chat_member(
             chat_id=chat.id,
             user_id=user.id,
             privileges=pyrogram.types.ChatAdministratorRights(can_manage_chat=False),
         )
+        if me.privileges.can_manage_tags:
+            await client.set_chat_member_tag(chat.id, user.id, tag=None)
         await message.reply_text(
             i18n.t("bot.msg.title.deleted", locale=lang),
             parse_mode=pyrogram.enums.ParseMode.HTML,
