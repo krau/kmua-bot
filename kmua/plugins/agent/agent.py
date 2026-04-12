@@ -1,4 +1,5 @@
 import asyncio
+import random
 
 import pyrogram
 from ddgs import DDGS
@@ -54,6 +55,18 @@ if app_config.agent_powermem_config is not None:
 
 
 _history_compressor: HistoryCompressor | None = None
+_bot_user_wake_locks: dict[int, asyncio.Lock] = {}
+
+_BOT_WAKE_DELAY_MIN_SECONDS = 0.721
+_BOT_WAKE_DELAY_MAX_SECONDS = 12.7
+
+
+def _get_bot_user_wake_lock(user_id: int) -> asyncio.Lock:
+    lock = _bot_user_wake_locks.get(user_id)
+    if lock is None:
+        lock = asyncio.Lock()
+        _bot_user_wake_locks[user_id] = lock
+    return lock
 
 
 def _get_history_compressor() -> HistoryCompressor:
@@ -625,6 +638,7 @@ async def wake_agent(client: PyrogramClient, message: pyrogram.types.Message):
     chat = message.chat
     if not chat or not chat.id:
         return await word_reply(client, message)
+    chat_config = None
     if (
         app_config.agent_whitelist_mode
         and user.id not in app_config.agent_whitelist
@@ -638,27 +652,56 @@ async def wake_agent(client: PyrogramClient, message: pyrogram.types.Message):
     user_data = await database.get_user_by_id(user.id)
     if not user_data:
         return
-    if await common.memstore.get(state.waiting_key(user.id)):
-        return await message.reply_text("Thinking...")
+    is_bot_user = bool(user_data.is_bot)
+    if (
+        is_bot_user
+        and chat.type == pyrogram.enums.ChatType.SUPERGROUP
+        and chat_config is not None
+        and not chat_config.ai_reply_other_bots_enabled
+    ):
+        return
 
-    # Check if there's a pending ask — clear it and let the normal flow handle
-    # the new message (the ask context is already in history).
-    ask_state = await tools.get_ask_state(chat.id, user.id)
-    if ask_state is not None:
-        await tools.clear_ask_state(chat.id, user.id)
-        logger.info(
-            f"Cleared pending ask for user {user.id}, proceeding with normal agent run"
-        )
+    bot_user_wake_lock: asyncio.Lock | None = None
+    bot_user_wake_lock_acquired = False
+    if is_bot_user:
+        bot_user_wake_lock = _get_bot_user_wake_lock(user.id)
+        if bot_user_wake_lock.locked():
+            return
+        await bot_user_wake_lock.acquire()
+        bot_user_wake_lock_acquired = True
 
-    await common.memstore.set(state.waiting_key(user.id), True)
-    # set language
-    if chat.type == pyrogram.enums.ChatType.PRIVATE:
-        lang = (await database.get_user_config(user.id)).lang
-    else:
-        lang = (await database.get_chat_config(chat.id)).lang
-
-    # agent run
+    waiting_marked = False
     try:
+        if await common.memstore.get(state.waiting_key(user.id)):
+            if is_bot_user:
+                return
+            return await message.reply_text("Thinking...")
+
+        # Check if there's a pending ask — clear it and let the normal flow handle
+        # the new message (the ask context is already in history).
+        ask_state = await tools.get_ask_state(chat.id, user.id)
+        if ask_state is not None:
+            await tools.clear_ask_state(chat.id, user.id)
+            logger.info(
+                f"Cleared pending ask for user {user.id}, proceeding with normal agent run"
+            )
+
+        await common.memstore.set(state.waiting_key(user.id), True)
+        waiting_marked = True
+        # set language
+        if chat.type == pyrogram.enums.ChatType.PRIVATE:
+            lang = (await database.get_user_config(user.id)).lang
+        else:
+            lang = (await database.get_chat_config(chat.id)).lang
+
+        # agent run
+        if is_bot_user:
+            await asyncio.sleep(
+                random.uniform(
+                    _BOT_WAKE_DELAY_MIN_SECONDS,
+                    _BOT_WAKE_DELAY_MAX_SECONDS,
+                )
+            )
         chat_id = chat.id
         history: list[ModelMessage] = await common.memttlcache.get(
             state.history_key(chat_id, user.id), []
@@ -737,4 +780,7 @@ async def wake_agent(client: PyrogramClient, message: pyrogram.types.Message):
                 reaction_ctr + 1,
             )
     finally:
-        await common.memstore.delete(state.waiting_key(user.id))
+        if waiting_marked:
+            await common.memstore.delete(state.waiting_key(user.id))
+        if bot_user_wake_lock_acquired and bot_user_wake_lock is not None:
+            bot_user_wake_lock.release()

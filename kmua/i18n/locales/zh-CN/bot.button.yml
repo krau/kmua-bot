@@ -16,6 +16,7 @@ bot:
       message_search: 消息搜索
       quote_pin_message: 语录置顶
       ai_reply: AI回复
+      ai_reply_other_bots_enabled: 响应其他Bot
       setu_enabled: 随机涩图
       unpin_channel_pin_enabled: 解除频道置顶
       convert_b23_enabled: 转换b23短链

@@ -78,6 +78,14 @@ class ChatConfigMarkup:
                 ],
                 [
                     InlineKeyboardButton(
+                        f"{i18n.t('bot.button.chat_config.ai_reply_other_bots_enabled', locale=self.lang)} {self.get_status_emoji(self.chat_config.ai_reply_other_bots_enabled)}",
+                        callback_data=self.get_callback_data(
+                            "ai_reply_other_bots_enabled"
+                        ),
+                    ),
+                ],
+                [
+                    InlineKeyboardButton(
                         i18n.t("bot.button.chat_config.save", locale=self.lang),
                         callback_data="config_chat save",
                     ),
@@ -158,6 +166,10 @@ async def config_chat(
                 chat_config.ai_comment = not chat_config.ai_comment
             case "group_memory_enabled":
                 chat_config.group_memory_enabled = not chat_config.group_memory_enabled
+            case "ai_reply_other_bots_enabled":
+                chat_config.ai_reply_other_bots_enabled = (
+                    not chat_config.ai_reply_other_bots_enabled
+                )
             case _:
                 await callback_query.answer(
                     text=i18n.t("bot.msg.unknown_operation", locale=lang),

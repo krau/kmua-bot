@@ -55,6 +55,7 @@ class ChatConfig:
     title_permissions: dict | None = None
     greeting: str | None = None
     ai_reply: bool = True
+    ai_reply_other_bots_enabled: bool = False
     ai_comment: bool = False
     setu_enabled: bool = True
     convert_b23_enabled: bool = True
@@ -77,6 +78,7 @@ class ChatConfig:
             title_permissions=data.get("title_permissions", {}),
             greeting=data.get("greeting", None),
             ai_reply=data.get("ai_reply", True),
+            ai_reply_other_bots_enabled=data.get("ai_reply_other_bots_enabled", False),
             setu_enabled=data.get("setu_enabled", True),
             convert_b23_enabled=data.get("convert_b23_enabled", False),
             parse_artwork_enabled=data.get("parse_artwork_enabled", True),

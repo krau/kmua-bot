@@ -284,6 +284,7 @@ bot:
       message_search: 銷蒠蒐索
       quote_pin_message: 語錄置頂
       ai_reply: AI徊複
+      ai_reply_other_bots_enabled: 徊複萁牠Bot
       ai_comment: AI評論
       setu_enabled: 隨機澀圖
       unpin_channel_pin_enabled: 繲滁頻檤置頂
