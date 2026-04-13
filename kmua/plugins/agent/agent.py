@@ -39,6 +39,7 @@ agent = None
 model = None
 small_model = None
 multimodal_model = None
+struct_model = None
 summary_agent = None
 memory_agent = None
 powermemory = None
