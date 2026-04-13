@@ -7,7 +7,6 @@ from openai import AsyncOpenAI
 
 from kmua.config import app_config
 from kmua.logger import logger
-from kmua.plugins.agent import provider
 
 
 @dataclass
@@ -126,11 +125,34 @@ class _ImageEditClient:
             return ImageEditResult(success=False, error=f"{e.__class__.__name__}: {e}")
 
 
+def _parse_model_spec(spec: str) -> tuple[str, str]:
+    if "/" in spec:
+        provider_name, _, model_name = spec.partition("/")
+        return provider_name.strip(), model_name.strip()
+    return "default", spec.strip()
+
+
+def _make_openai_client_args(spec: str) -> dict[str, str]:
+    provider_name, model_name = _parse_model_spec(spec)
+    providers = app_config.agent_providers
+    if provider_name not in providers:
+        raise ValueError(
+            f"Provider {provider_name!r} not found in agent_providers. "
+            f"Available: {list(providers.keys())}"
+        )
+    provider_cfg = providers[provider_name]
+    return {
+        "api_key": provider_cfg.key,
+        "base_url": provider_cfg.url,
+        "model": model_name,
+    }
+
+
 image_gen_client: _ImageGenerationClient | None = None
 image_edit_client: _ImageEditClient | None = None
 
-if app_config.agent_image_gen_model:
-    _gen_args = provider.make_openai_client_args(app_config.agent_image_gen_model)
+if app_config.agent and app_config.agent_image_gen_model:
+    _gen_args = _make_openai_client_args(app_config.agent_image_gen_model)
     image_gen_client = _ImageGenerationClient(
         api_key=_gen_args["api_key"],
         base_url=_gen_args["base_url"],
@@ -139,7 +161,7 @@ if app_config.agent_image_gen_model:
 
     # Edit client: use agent_image_edit_model if set, else fall back to gen model
     _edit_spec = app_config.agent_image_edit_model or app_config.agent_image_gen_model
-    _edit_args = provider.make_openai_client_args(_edit_spec)
+    _edit_args = _make_openai_client_args(_edit_spec)
     image_edit_client = _ImageEditClient(
         api_key=_edit_args["api_key"],
         base_url=_edit_args["base_url"],

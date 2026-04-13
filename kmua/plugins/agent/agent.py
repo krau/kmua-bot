@@ -243,6 +243,8 @@ if app_config.agent and app_config.agent_model:
         user_prompt: str,
     ) -> None:
         """Start a new agent run to handle an ask_user answer (button click)."""
+        if not app_config.agent or agent is None:
+            return
         user_config = await database.get_user_config(user_id)
         lang = user_config.lang
         history: list[ModelMessage] = await common.memttlcache.get(
@@ -293,6 +295,8 @@ if app_config.agent and app_config.agent_model:
 
     @PyrogramClient.on_message(pyrogram.filters.command("forget"), group=0)
     async def forget_history(client: PyrogramClient, message: pyrogram.types.Message):
+        if not app_config.agent:
+            return
         user = message.sender_chat or message.from_user
         if not user or user.id is None:
             return
@@ -317,6 +321,8 @@ if app_config.agent and app_config.agent_model:
     async def on_clear_history_callback(
         client: PyrogramClient, callback_query: pyrogram.types.CallbackQuery
     ):
+        if not app_config.agent:
+            return
         data = str(callback_query.data)
         parts = data.split(":")
         target_chat_id = int(parts[1])
@@ -345,6 +351,8 @@ if app_config.agent and app_config.agent_model:
     async def set_model_command(
         client: PyrogramClient, message: pyrogram.types.Message
     ):
+        if not app_config.agent:
+            return
         assert app_config.agent_model is not None, (
             "Unexcepted None value for agent_model"
         )
@@ -562,6 +570,8 @@ if app_config.agent and app_config.agent_model:
     async def set_prompt_command(
         client: PyrogramClient, message: pyrogram.types.Message
     ):
+        if not app_config.agent:
+            return
         user = message.from_user
         if not user or not user.id:
             return
@@ -631,7 +641,7 @@ _chat_command_filter = (
 @PyrogramClient.on_message(_filter | _chat_command_filter, group=0)
 async def wake_agent(client: PyrogramClient, message: pyrogram.types.Message):
     # some check
-    if not agent:
+    if not app_config.agent or not agent:
         return await word_reply(client, message)
     user = message.sender_chat or message.from_user
     if not user or not user.id:

@@ -136,6 +136,8 @@ _sticker_filter = filters.sticker & (filters.group) & ~filters.bot
 
 @PyrogramClient.on_message(_sticker_filter, group=11)
 async def on_sticker(client: PyrogramClient, message: pyrogram.types.Message) -> None:
+    if not app_config.agent:
+        return
     if not app_config.agent_sticker_memory:
         return
     if embedder is None or _description_agent is None:

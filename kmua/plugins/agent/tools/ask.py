@@ -7,6 +7,7 @@ from pyrogram.types import CallbackQuery
 
 from kmua import database
 from kmua.common import memstore
+from kmua.config import app_config
 from kmua.logger import logger
 
 from .. import datatype
@@ -105,6 +106,8 @@ def set_run_callback(callback) -> None:
     pyrogram.filters.regex(r"^agentask:(-?\d+):(-?\d+):(\d+)$"), group=0
 )
 async def _on_ask_answer(client: Client, callback_query: CallbackQuery) -> None:
+    if not app_config.agent:
+        return
     data = str(callback_query.data)
     parts = data.split(":")
     if len(parts) != 4:

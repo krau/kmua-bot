@@ -79,6 +79,8 @@ channel_comment_filter = pyrogram.filters.create(channel_comment_filter_func)
 
 @Client.on_message(channel_comment_filter, group=2)  # 2 to after unpin
 async def comment_channel_message(client: Client, message: pyrogram.types.Message):
+    if not app_config.agent:
+        return
     chat = message.chat
     if chat is None or chat.id is None:
         return

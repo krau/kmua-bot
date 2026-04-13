@@ -90,6 +90,8 @@ cross_memory_filter = pyrogram.filters.create(_cross_memory_filter_func)
 
 @Client.on_message(cross_memory_filter, group=100)
 async def record_memory(client: Client, message: pyrogram.types.Message):
+    if not app_config.agent:
+        return
     user = message.from_user
     chat = message.chat
     text = message.caption or message.text

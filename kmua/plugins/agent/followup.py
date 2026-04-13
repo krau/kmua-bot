@@ -117,6 +117,8 @@ follow_up_filter = pyrogram.filters.create(_follow_up_filter_func)
 async def handle_follow_up_message(
     client: PyrogramClient, message: pyrogram.types.Message
 ):
+    if not app_config.agent or agent is None or model is None:
+        return
     chat = message.chat
     user = message.sender_chat or message.from_user
     assert chat is not None and chat.id is not None, "Invalid chat in follow-up"

@@ -254,7 +254,7 @@ _settings = Dynaconf(
 
 app_config = _get_typed_config(_AppConfig)
 
-if app_config.agent_powermem_config_path:
+if app_config.agent and app_config.agent_powermem_config_path:
     try:
         with open(app_config.agent_powermem_config_path, encoding="utf-8") as f:
             app_config.agent_powermem_config = json.load(f)
@@ -304,7 +304,7 @@ def reload_config() -> tuple[bool, str, list[str]]:
                 return False, f"Cannot reload: {field} changed (requires restart)", []
 
         # Reload powermem config if path is set
-        if new_config.agent_powermem_config_path:
+        if new_config.agent and new_config.agent_powermem_config_path:
             with open(new_config.agent_powermem_config_path, encoding="utf-8") as f:
                 new_config.agent_powermem_config = json.load(f)
             if new_config.agent_powermem_config is None:
@@ -313,6 +313,8 @@ def reload_config() -> tuple[bool, str, list[str]]:
                 new_config.agent_powermem_config["custom_fact_extraction_prompt"] = (
                     new_config.agent_powermem_custom_fact_extraction_prompt
                 )
+        elif not new_config.agent:
+            new_config.agent_powermem_config = None
 
         # Diff and update app_config in-place to preserve references
         changed: list[str] = []

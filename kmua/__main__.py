@@ -17,8 +17,6 @@ from kmua.config import app_config
 from kmua.database import db
 from kmua.health import start_health_server, stop_health_server
 from kmua.logger import logger
-from kmua.plugins.agent import sticker_vec
-from kmua.plugins.agent.tools import init_code_repository
 
 
 def _get_commands_hash(commands_dict: dict[str, list[BotCommand]]) -> str:
@@ -83,8 +81,10 @@ async def _should_update_commands(commands_dict: dict[str, list[BotCommand]]) ->
 @client.on_start()
 async def init_bot(client: Client = client):
     # Initialize code repository for agent self-awareness
-    if app_config.agent_code_awareness:
+    if app_config.agent and app_config.agent_code_awareness:
         try:
+            from kmua.plugins.agent.tools import init_code_repository
+
             await init_code_repository()
             logger.info("Code repository initialized for agent self-awareness")
         except Exception as e:
@@ -116,10 +116,13 @@ async def init_bot(client: Client = client):
             "throwbottle", i18n.t("bot.cmd.throwbottle", locale=app_config.lang)
         ),
         BotCommand("pickbottle", i18n.t("bot.cmd.pickbottle", locale=app_config.lang)),
-        BotCommand("forget", i18n.t("bot.cmd.forget", locale=app_config.lang)),
         BotCommand("id", i18n.t("bot.cmd.id", locale=app_config.lang)),
         BotCommand("f5avatar", i18n.t("bot.cmd.f5avatar", locale=app_config.lang)),
     ]
+    if app_config.agent:
+        common_commands.append(
+            BotCommand("forget", i18n.t("bot.cmd.forget", locale=app_config.lang))
+        )
     group_common_commands = [
         BotCommand("waifu", i18n.t("bot.cmd.waifu", locale=app_config.lang)),
         BotCommand(
@@ -197,7 +200,9 @@ async def init_bot(client: Client = client):
 
     common.jobqueue.add_daily_job("cleanup", jobs.cleanup, hour=4)
 
-    if app_config.agent_sticker_memory:
+    if app_config.agent and app_config.agent_sticker_memory:
+        from kmua.plugins.agent import sticker_vec
+
         await sticker_vec.init()
         logger.debug("Sticker vector DB initialized")
 
@@ -223,7 +228,7 @@ async def stop_bot(client: Client = client):
     logger.info(i18n.t("log.stopping", locale=app_config.lang))
 
     # Close code repository
-    if app_config.agent_code_awareness:
+    if app_config.agent and app_config.agent_code_awareness:
         try:
             from kmua.plugins.agent.tools import close_code_repository
 
