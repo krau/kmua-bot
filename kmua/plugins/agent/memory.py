@@ -12,6 +12,7 @@ from kmua.plugins.agent import state
 from kmua.plugins.agent.user_memory import update_user_memory
 
 from .agent import memory_agent, powermemory
+from .whitelist import is_chat_allowed
 
 
 @dataclass
@@ -45,6 +46,8 @@ async def _cross_memory_filter_func(
     user = message.from_user
     chat = message.chat
     if not chat.id or not user.id:
+        return False
+    if not is_chat_allowed(chat.id):
         return False
     if (
         user.is_bot
@@ -102,6 +105,8 @@ async def record_memory(client: Client, message: pyrogram.types.Message):
         and user.id is not None
         and chat.id is not None
     ), "Invalid message state in record_cross_group_memory"
+    if not is_chat_allowed(chat.id):
+        return
     in_group = chat.type in (
         pyrogram.enums.ChatType.SUPERGROUP,
         pyrogram.enums.ChatType.GROUP,

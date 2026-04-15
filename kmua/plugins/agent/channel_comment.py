@@ -14,6 +14,7 @@ from kmua.plugins.agent.prompt import get_input_prompt
 from kmua.plugins.agent.runner import get_chat_prompt_override
 
 from .agent import struct_model
+from .whitelist import is_chat_allowed
 
 
 class CommentResult(BaseModel):
@@ -68,6 +69,8 @@ async def channel_comment_filter_func(_, __, message: pyrogram.types.Message):
         return False
     if not app_config.agent:
         return False
+    if not chat.id or not is_chat_allowed(chat.id):
+        return False
     chat_config = await database.get_chat_config(chat)
     if not chat_config.ai_comment:
         return False
@@ -83,6 +86,8 @@ async def comment_channel_message(client: Client, message: pyrogram.types.Messag
         return
     chat = message.chat
     if chat is None or chat.id is None:
+        return
+    if not is_chat_allowed(chat.id):
         return
     channel = message.sender_chat
     if channel is None or channel.id is None:

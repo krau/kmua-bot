@@ -25,6 +25,7 @@ from kmua.plugins.agent import datatype, provider, state
 from kmua.plugins.agent.datatype import AskUserOutput, EndTurn
 from kmua.plugins.agent.output import StreamingOutput, TypingKeepAlive, reply_output
 from kmua.plugins.agent.prompt import check_needs_multimodal
+from kmua.plugins.agent.whitelist import is_chat_allowed
 
 
 async def get_chat_model_override(chat_id: int, role: str = "main") -> str | None:
@@ -77,6 +78,9 @@ async def run_agent(
     This is the single source of truth for agent execution shared by both
     the normal wake flow and the follow-up flow.
     """
+
+    if not is_chat_allowed(chat_id):
+        return
 
     needs_multimodal = check_needs_multimodal(user_prompt, history)
 

@@ -11,6 +11,7 @@ from kmua.config import app_config
 from kmua.logger import logger
 
 from .. import datatype
+from ..whitelist import is_chat_allowed
 
 _ASK_STATE_KEY_PREFIX = "agent_ask_state:"
 
@@ -57,6 +58,8 @@ async def ask_user(
         raise ModelRetry("Question must not be empty.")
     if ctx.deps.message is None or ctx.deps.chat_id is None:
         raise ModelRetry("Message context is unavailable.")
+    if not is_chat_allowed(ctx.deps.chat_id):
+        raise ModelRetry("This feature is not available in this chat.")
 
     user_id = ctx.deps.user_id
     chat_id = ctx.deps.chat_id
@@ -116,6 +119,8 @@ async def _on_ask_answer(client: Client, callback_query: CallbackQuery) -> None:
 
     expected_user_id = int(uid_str)
     expected_chat_id = int(chat_id_str)
+    if not is_chat_allowed(expected_chat_id):
+        return
     caller_id = callback_query.from_user.id if callback_query.from_user else None
     if caller_id != expected_user_id:
         await callback_query.answer("这不是你的问题哦", show_alert=True)

@@ -34,6 +34,7 @@ from .runner import (
     set_chat_prompt_override,
 )
 from .simple_reply import word_reply
+from .whitelist import is_chat_allowed
 
 agent = None
 model = None
@@ -243,7 +244,7 @@ if app_config.agent and app_config.agent_model:
         user_prompt: str,
     ) -> None:
         """Start a new agent run to handle an ask_user answer (button click)."""
-        if not app_config.agent or agent is None:
+        if not app_config.agent or agent is None or not is_chat_allowed(chat_id):
             return
         user_config = await database.get_user_config(user_id)
         lang = user_config.lang
@@ -309,6 +310,8 @@ if app_config.agent and app_config.agent_model:
         chat_id = message.chat.id if message.chat else user.id
         if not chat_id:
             return
+        if not is_chat_allowed(chat_id):
+            return
         await common.memttlcache.delete(state.history_key(chat_id, user.id))
         await tools.clear_ask_state(chat_id, user.id)
         await message.reply_text(
@@ -327,6 +330,8 @@ if app_config.agent and app_config.agent_model:
         parts = data.split(":")
         target_chat_id = int(parts[1])
         target_user_id = int(parts[2])
+        if not is_chat_allowed(target_chat_id):
+            return
 
         caller = callback_query.from_user
         if not caller or caller.id != target_user_id:
@@ -367,6 +372,8 @@ if app_config.agent and app_config.agent_model:
         current_chat_id = message.chat.id if message.chat else None
         if not current_chat_id:
             return
+        if not is_chat_allowed(current_chat_id):
+            return
         raw_args = message.text.split() if message.text else []
         # Remove the command itself ("/model")
         raw_args = raw_args[1:]
@@ -393,6 +400,9 @@ if app_config.agent and app_config.agent_model:
                     pass
                 if not target_chat_label:
                     target_chat_label = str(target_chat_id)
+
+        if not is_chat_allowed(target_chat_id):
+            return
 
         is_remote = target_chat_id != current_chat_id
         chat_display = target_chat_label or str(target_chat_id)
@@ -583,6 +593,8 @@ if app_config.agent and app_config.agent_model:
         chat_id = message.chat.id if message.chat else None
         if not chat_id:
             return
+        if not is_chat_allowed(chat_id):
+            return
 
         # Split only on the first whitespace to capture the full prompt text
         args = message.text.split(maxsplit=1) if message.text else []
@@ -650,11 +662,7 @@ async def wake_agent(client: PyrogramClient, message: pyrogram.types.Message):
     if not chat or not chat.id:
         return await word_reply(client, message)
     chat_config = None
-    if (
-        app_config.agent_whitelist_mode
-        and user.id not in app_config.agent_whitelist
-        and chat.id not in app_config.agent_whitelist
-    ):
+    if not is_chat_allowed(chat.id):
         return await word_reply(client, message)
     if chat.type == pyrogram.enums.ChatType.SUPERGROUP:
         chat_config = await database.get_chat_config(chat)

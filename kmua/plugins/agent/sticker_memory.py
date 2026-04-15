@@ -13,6 +13,7 @@ from kmua.config import app_config
 from kmua.logger import logger
 
 from . import provider, sticker_vec
+from .whitelist import is_chat_allowed
 
 embedder: Embedder | None = None
 _description_agent: Agent[None, str] | None = None
@@ -144,6 +145,8 @@ async def on_sticker(client: PyrogramClient, message: pyrogram.types.Message) ->
         return
     chat = message.chat
     if not chat or not chat.id:
+        return
+    if not is_chat_allowed(chat.id):
         return
     sticker = message.sticker
     if sticker is None:

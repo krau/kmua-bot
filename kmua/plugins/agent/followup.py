@@ -18,6 +18,7 @@ from kmua.plugins.agent.runner import (
 )
 
 from .agent import agent, model, multimodal_model, powermemory, small_model
+from .whitelist import is_chat_allowed
 
 
 class RelevanceCheck(BaseModel):
@@ -67,6 +68,8 @@ async def _follow_up_filter_func(
     ):
         return False
     if not chat.id:
+        return False
+    if not is_chat_allowed(chat.id):
         return False
     text = message.text or message.caption
     if not text or len(text.strip()) == 0:
@@ -123,6 +126,8 @@ async def handle_follow_up_message(
     user = message.sender_chat or message.from_user
     assert chat is not None and chat.id is not None, "Invalid chat in follow-up"
     assert user is not None and user.id is not None, "Invalid user in follow-up"
+    if not is_chat_allowed(chat.id):
+        return
     if await common.memttlcache.get(
         state.message_follow_up_lock_key(chat.id, message.id)
     ):
