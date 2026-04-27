@@ -135,7 +135,7 @@ class _AppConfig(pydantic.BaseModel):
     # Oldest history items are stripped first when the total exceeds this limit.
     # 0 = no limit.
     agent_multimodal_max_items: int = 4
-    agent_extra_tools: list[str] = ["duckduckgo_search", "webfetch"]
+    agent_extra_tools: list[str] = ["websearch", "webfetch"]
     # crawl4ai API server for JS-rendered pages (e.g. docker run crawl4ai)
     # if not set, js=True requests will return an error
     agent_crawl_api_url: str | None = None
