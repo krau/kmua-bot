@@ -437,10 +437,14 @@ async def send_reaction(
     emoji: str,
     target_message_id: int | None = None,
 ) -> str:
-    """Send a reaction (emoji) to a message.
+    """Add a Telegram reaction emoji to a message.
+
+    Telegram only supports a limited set of reaction emojis, and each chat may
+    allow only some of them. Prefer common Telegram reactions such as "👍",
+    "❤️", "🔥", "🥰", "👏", "😁", "🤔", "😢", "😡", or "🎉".
 
     Args:
-        emoji: The emoji to react with, e.g. "🥰", "❤️", "😡".
+        emoji: The reaction emoji to use.
         target_message_id: Optional message ID to react to. If not provided,
             reacts to the current user's message.
 
