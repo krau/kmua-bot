@@ -209,7 +209,6 @@ if app_config.agent and app_config.agent_model:
             ),
             Tool(
                 tools.send_anime_photo,
-                prepare=tools.prepare_not_guest_mode,
                 sequential=True,
             ),
             Tool(

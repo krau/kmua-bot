@@ -22,10 +22,13 @@ def _is_markdown_separator_only_chunk(chunk: str) -> bool:
 
 
 async def reply_output(
-    client: PyrogramClient, message: pyrogram.types.Message, text: str
+    client: PyrogramClient,
+    message: pyrogram.types.Message,
+    text: str,
+    deps: "datatype.ContextDeps | None" = None,
 ):
     if message.guest_query_id:
-        return await answer_guest_query(client, message, text)
+        return await answer_guest_query(client, message, text, deps=deps)
     if message.chat is None:
         return
     is_group_chat = message.chat.type in (
@@ -184,9 +187,11 @@ class StreamingOutput:
         self,
         client: PyrogramClient,
         message: pyrogram.types.Message,
+        deps: "datatype.ContextDeps | None" = None,
     ):
         self.client = client
         self.message = message
+        self.deps = deps
         self.current_text = ""
         self._last_sent_text = ""
         self.reply_message: pyrogram.types.Message | None = None
@@ -287,7 +292,7 @@ class StreamingOutput:
             if self.current_text:
                 from kmua.plugins.agent.guest_mode import answer_guest_query
 
-                await answer_guest_query(self.client, self.message, self.current_text)
+                await answer_guest_query(self.client, self.message, self.current_text, deps=self.deps)
             return
         if self._start_task and not self._start_task.done():
             await self._start_task

@@ -123,7 +123,7 @@ async def run_agent(
                                             if isinstance(event.part, TextPart):
                                                 if streaming_output is None:
                                                     streaming_output = StreamingOutput(
-                                                        client, message
+                                                        client, message, deps=deps
                                                     )
                                                 await streaming_output.append_delta(
                                                     event.part.content
@@ -132,7 +132,7 @@ async def run_agent(
                                             if isinstance(event.delta, TextPartDelta):
                                                 if streaming_output is None:
                                                     streaming_output = StreamingOutput(
-                                                        client, message
+                                                        client, message, deps=deps
                                                     )
                                                 await streaming_output.append_delta(
                                                     event.delta.content_delta
@@ -175,7 +175,7 @@ async def run_agent(
                                     elif streaming_output is not None:
                                         await streaming_output.finalize()
                                     elif output:
-                                        await reply_output(client, message, output)
+                                        await reply_output(client, message, output, deps=deps)
                         # Save full output for follow-up detection
                         full_output = ""
                         if streaming_output is not None:
@@ -280,11 +280,7 @@ async def run_agent(
                             # In guest mode, send a single collected reply at the end
                             if is_guest_mode and full_output_parts:
                                 full_text = "\n".join(full_output_parts)
-                                logger.debug(
-                                    f"Guest agent output for user {user_id} in chat {chat_id}: "
-                                    f"{full_text[:200]}"
-                                )
-                                await reply_output(client, message, full_text)
+                                await reply_output(client, message, full_text, deps=deps)
                     # Save full output for follow-up detection
                     full_output = "\n".join(full_output_parts)
                     if (
@@ -321,7 +317,7 @@ async def run_agent(
         logger.exception(f"Agent run error: {e}")
         err_text = i18n.t("bot.msg.agent.errors.too_fast", locale=lang)
         if is_guest_mode:
-            await reply_output(client, message, f"{err_text}\n{e}")
+            await reply_output(client, message, f"{err_text}\n{e}", deps=deps)
         else:
             await message.reply_text(
                 f"{err_text}\n<code>{e}</code>",
@@ -347,7 +343,7 @@ async def run_agent(
             base = i18n.t("bot.msg.agent.errors.interrupted", locale=lang).format(
                 error=f"{e.__class__.__name__}"
             )
-            await reply_output(client, message, base)
+            await reply_output(client, message, base, deps=deps)
         elif status_code == 400:
             await message.reply_text(
                 i18n.t("bot.msg.agent.errors.model_http_400", locale=lang),
@@ -372,6 +368,6 @@ async def run_agent(
             error=f"{e.__class__.__name__}"
         )
         if is_guest_mode:
-            await reply_output(client, message, err_text)
+            await reply_output(client, message, err_text, deps=deps)
         else:
             await message.reply_text(err_text)

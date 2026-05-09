@@ -150,6 +150,7 @@ class ContextDeps:
     powermemory: AsyncMemory | None = None
     history: list[ModelMessage] = field(default_factory=list)
     tools_called_this_turn: set[str] = field(default_factory=set)
+    guest_replied: bool = False
 
     @property
     def is_guest_mode(self) -> bool:

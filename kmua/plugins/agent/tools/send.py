@@ -1,4 +1,5 @@
 import datetime
+import random
 from dataclasses import dataclass
 from hashlib import md5
 from typing import Literal
@@ -6,10 +7,19 @@ from typing import Literal
 import pyrogram
 import pyrogram.errors
 from pydantic_ai import ModelRetry, RunContext
+from pyrogram.raw.functions.messages import SetBotGuestChatResult
+from pyrogram.raw.types import (
+    DocumentAttributeImageSize,
+    InputBotInlineMessageMediaAuto,
+    InputBotInlineResult,
+    InputWebDocument,
+)
 
-from kmua import common
+from kmua import common, database, i18n
 from kmua.bot.client import client
+from kmua.config import app_config
 from kmua.logger import logger
+from kmua.plugins.manyacg import manyacg
 
 from .. import datatype, sticker_memory, sticker_vec
 
@@ -488,4 +498,228 @@ async def send_reaction(
     return SendResult(success=True).text()
 
 
-__all__ = ["schedule_message", "send_poll", "send_reaction", "send_sticker"]
+@dataclass
+class Artist:
+    name: str
+    type: str
+    username: str
+    uid: str
+
+
+@dataclass
+class AnimePhotoInfo:
+    title: str
+    source_url: str
+    r18: bool
+    description: str | None = None
+    artist: Artist | None = None
+    tags: list[str] | None = None
+
+
+@dataclass
+class AnimePhotoResult:
+    success: bool = True
+    message: str | None = None
+    data: AnimePhotoInfo | None = None
+
+
+async def _fetch_anime_artwork(keyword: str = "") -> tuple[dict, dict] | None:
+    try:
+        if keyword:
+            params = {
+                "r18": 2,
+                "hybrid": app_config.manyacg_hybrid_search,
+                "keyword": keyword,
+            }
+            resp = await manyacg.httpx_client.get(
+                url="/artwork/list",
+                params=params,
+            )
+        else:
+            resp = await manyacg.httpx_client.get(
+                url="/artwork/random",
+                params={"r18": 2},
+            )
+        if resp.status_code != 200:
+            logger.error(f"Anime API returned {resp.status_code}")
+            return None
+        artwork: dict = random.choice(resp.json()["data"])
+        picture: dict = artwork["pictures"][
+            random.randint(0, len(artwork["pictures"]) - 1)
+        ]
+        return artwork, picture
+    except Exception as e:
+        logger.error(f"Fetch anime artwork error: {e.__class__.__name__}:{e}")
+        return None
+
+
+async def _send_anime_photo_guest(
+    ctx: RunContext[datatype.ContextDeps],
+    artwork: dict,
+    picture: dict,
+) -> AnimePhotoResult:
+    query_id = ctx.deps.message.guest_query_id
+    if ctx.deps.guest_replied or not query_id:
+        return AnimePhotoResult(
+            success=False, message="Guest query already replied."
+        )
+    photo_url = picture["regular"]
+    caption = f"{artwork['title']}\n{artwork['source_url']}"
+
+    try:
+        result = InputBotInlineResult(
+            id="0",
+            type="photo",
+            title=artwork["title"],
+            thumb=InputWebDocument(
+                url=photo_url,
+                size=0,
+                mime_type="image/jpeg",
+                attributes=[DocumentAttributeImageSize(w=0, h=0)],
+            ),
+            content=InputWebDocument(
+                url=photo_url,
+                size=0,
+                mime_type="image/jpeg",
+                attributes=[DocumentAttributeImageSize(w=0, h=0)],
+            ),
+            send_message=InputBotInlineMessageMediaAuto(
+                message=caption,
+            ),
+        )
+        await ctx.deps.client.invoke(
+            SetBotGuestChatResult(
+                query_id=int(query_id),
+                result=result,
+            )
+        )
+        ctx.deps.guest_replied = True
+    except Exception as e:
+        logger.error(f"Guest anime photo send error: {e.__class__.__name__} - {e}")
+        return AnimePhotoResult(
+            success=False, message=f"Failed to send photo: {e.__class__.__name__}"
+        )
+
+    return AnimePhotoResult(
+        success=True,
+        data=AnimePhotoInfo(
+            title=artwork["title"],
+            source_url=artwork["source_url"],
+            r18=artwork["r18"],
+            description=artwork.get("description", "")[:512],
+            artist=Artist(
+                name=artwork.get("artist", {}).get("name", ""),
+                type=artwork["artist"].get("type", ""),
+                username=artwork["artist"].get("username", ""),
+                uid=artwork["artist"].get("uid", ""),
+            ),
+            tags=artwork.get("tags", [])[:10],
+        ),
+    )
+
+
+async def send_anime_photo(
+    ctx: RunContext[datatype.ContextDeps], keyword: str = ""
+) -> AnimePhotoResult:
+    """Get and send anime photos (or called it setu/涩图).
+
+    Args:
+        keyword: Optional keyword to search for specific anime photos.
+
+    Returns:
+        An AnimePhotoResult dataclass containing the result of the operation.
+    """
+    if ctx.deps.message is None or ctx.deps.message.id is None:
+        return AnimePhotoResult(
+            success=False, message="Current message context is unavailable."
+        )
+    if (
+        ctx.deps.chat_id is not None
+        and ctx.deps.chat_id != ctx.deps.user_id
+        and not (await database.get_chat_config(ctx.deps.chat_id)).setu_enabled
+    ):
+        return AnimePhotoResult(
+            success=False, message="Anime photo feature is disabled in this chat."
+        )
+    try:
+        ratekey = f"anime_photo_rate_limit:{ctx.deps.chat_id}:{ctx.deps.user_id}"
+        if await common.memttlcache.get(ratekey, 0) > 3:
+            return AnimePhotoResult(
+                success=False,
+                message="You are sending requests too frequently. Please try again later.",
+            )
+        current_count = await common.memttlcache.get(ratekey, 0)
+        await common.memttlcache.set(ratekey, current_count + 1, ttl=10)
+
+        fetched = await _fetch_anime_artwork(keyword)
+        if fetched is None:
+            return AnimePhotoResult(
+                success=False, message="Failed to fetch anime artwork."
+            )
+        artwork, picture = fetched
+
+        if ctx.deps.is_guest_mode:
+            return await _send_anime_photo_guest(ctx, artwork, picture)
+
+        user_config = await database.get_user_config(ctx.deps.user_id)
+        lang = user_config.lang
+        detail_link = (
+            f"https://t.me/{app_config.manyacg_channel}/{picture['message_id']}"
+            if picture.get("message_id")
+            else artwork["source_url"]
+        )
+        await ctx.deps.client.send_photo(
+            chat_id=ctx.deps.chat_id,
+            photo=picture["regular"],
+            caption=f"<a href='{artwork['source_url']}'>{artwork['title']}</a>",
+            parse_mode=pyrogram.enums.ParseMode.HTML,
+            reply_markup=pyrogram.types.InlineKeyboardMarkup(
+                [
+                    [
+                        pyrogram.types.InlineKeyboardButton(
+                            text=i18n.t("bot.button.manyacg.detail", locale=lang),
+                            url=detail_link,
+                        ),
+                        pyrogram.types.InlineKeyboardButton(
+                            text=i18n.t("bot.button.manyacg.original", locale=lang),
+                            url=f"https://t.me/{app_config.manyacg_bot}/?start=file_{picture['id']}",
+                        ),
+                    ]
+                ]
+            ),
+            has_spoiler=artwork["r18"],
+            reply_parameters=pyrogram.types.ReplyParameters(
+                message_id=ctx.deps.message.id,
+            ),
+        )
+        return AnimePhotoResult(
+            success=True,
+            data=AnimePhotoInfo(
+                title=artwork["title"],
+                source_url=artwork["source_url"],
+                r18=artwork["r18"],
+                description=artwork.get("description", "")[:512],
+                artist=Artist(
+                    name=artwork.get("artist", {}).get("name", ""),
+                    type=artwork["artist"].get("type", ""),
+                    username=artwork["artist"].get("username", ""),
+                    uid=artwork["artist"].get("uid", ""),
+                ),
+                tags=artwork.get("tags", [])[:10],
+            ),
+        )
+    except Exception as e:
+        logger.error(f"send_anime_photo error: {e.__class__.__name__}:{e}")
+        return AnimePhotoResult(
+            success=False,
+            message=f"Error occurred: {e.__class__.__name__}",
+        )
+
+
+__all__ = [
+    "schedule_message",
+    "send_anime_photo",
+    "send_poll",
+    "send_reaction",
+    "send_sticker",
+]
