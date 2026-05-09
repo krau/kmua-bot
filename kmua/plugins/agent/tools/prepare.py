@@ -1,3 +1,5 @@
+from collections.abc import Awaitable, Callable
+
 from pydantic_ai import RunContext
 from pydantic_ai.tools import ToolDefinition
 
@@ -6,6 +8,35 @@ from kmua.config import app_config
 from kmua.logger import logger
 from kmua.plugins.agent import datatype, state, sticker_memory, sticker_vec
 from kmua.services import btts, image_gen
+
+PrepareFunc = Callable[
+    [RunContext[datatype.ContextDeps], ToolDefinition],
+    Awaitable[ToolDefinition | None],
+]
+
+
+def compose_prepare(*funcs: PrepareFunc) -> PrepareFunc:
+    """Compose multiple prepare functions. Returns the first None, or the tool_def if all pass."""
+
+    async def _composed(
+        ctx: RunContext[datatype.ContextDeps], tool_def: ToolDefinition
+    ) -> ToolDefinition | None:
+        for f in funcs:
+            result = await f(ctx, tool_def)
+            if result is None:
+                return None
+        return tool_def
+
+    return _composed
+
+
+async def prepare_not_guest_mode(
+    ctx: RunContext[datatype.ContextDeps], tool_def: ToolDefinition
+) -> ToolDefinition | None:
+    """Hide the tool when running in guest mode."""
+    if ctx.deps.is_guest_mode:
+        return None
+    return tool_def
 
 
 async def prepare_group_tools(

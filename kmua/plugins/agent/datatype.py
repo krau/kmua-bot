@@ -151,6 +151,10 @@ class ContextDeps:
     history: list[ModelMessage] = field(default_factory=list)
     tools_called_this_turn: set[str] = field(default_factory=set)
 
+    @property
+    def is_guest_mode(self) -> bool:
+        return bool(self.message.guest_query_id)
+
 
 @dataclass
 class UserData:

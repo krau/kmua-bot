@@ -151,7 +151,12 @@ if app_config.agent and app_config.agent_model:
         output_type=[str, datatype.EndTurn, tools.ask_user],
         tools=[
             Tool(tools.get_chat_info, prepare=tools.prepare_group_tools),
-            Tool(tools.get_history_messages, prepare=tools.prepare_group_tools),
+            Tool(
+                tools.get_history_messages,
+                prepare=tools.compose_prepare(
+                    tools.prepare_not_guest_mode, tools.prepare_group_tools
+                ),
+            ),
             Tool(
                 DuckDuckGoSearchTool(DDGS(), max_results=3).__call__,
                 name="websearch",
@@ -160,60 +165,76 @@ if app_config.agent and app_config.agent_model:
             ),
             Tool(
                 tools.search_messages,
-                prepare=tools.prepare_message_search_tool,
+                prepare=tools.compose_prepare(
+                    tools.prepare_not_guest_mode, tools.prepare_message_search_tool
+                ),
             ),
             Tool(
                 tools.send_chat_quote,
-                prepare=tools.prepare_group_tools,
+                prepare=tools.compose_prepare(
+                    tools.prepare_not_guest_mode, tools.prepare_group_tools
+                ),
             ),
             Tool(
                 tools.search_group_memory,
-                prepare=tools.prepare_powermem_tool,
+                prepare=tools.compose_prepare(
+                    tools.prepare_not_guest_mode, tools.prepare_powermem_tool
+                ),
             ),
             Tool(
                 tools.update_group_memory,
-                prepare=tools.prepare_powermem_tool,
+                prepare=tools.compose_prepare(
+                    tools.prepare_not_guest_mode, tools.prepare_powermem_tool
+                ),
             ),
             Tool(
                 tools.generate_image,
-                prepare=tools.prepare_image_gen_tools,
+                prepare=tools.compose_prepare(
+                    tools.prepare_not_guest_mode, tools.prepare_image_gen_tools
+                ),
             ),
             Tool(
                 tools.edit_image,
-                prepare=tools.prepare_image_edit_tools,
+                prepare=tools.compose_prepare(
+                    tools.prepare_not_guest_mode, tools.prepare_image_edit_tools
+                ),
             ),
-            Tool(
-                tools.webfetch,
-                prepare=tools.prepare_configurable_tools,
-            ),
+            Tool(tools.webfetch, prepare=tools.prepare_configurable_tools),
             Tool(
                 tools.send_sticker,
-                prepare=tools.prepare_periodic_sticker,
+                prepare=tools.compose_prepare(
+                    tools.prepare_not_guest_mode, tools.prepare_periodic_sticker
+                ),
                 sequential=True,
             ),
-            Tool(tools.send_anime_photo, sequential=True),
+            Tool(
+                tools.send_anime_photo,
+                prepare=tools.prepare_not_guest_mode,
+                sequential=True,
+            ),
             Tool(
                 tools.send_reaction,
-                prepare=tools.prepare_periodic_reaction,
+                prepare=tools.compose_prepare(
+                    tools.prepare_not_guest_mode, tools.prepare_periodic_reaction
+                ),
             ),
-            Tool(tools.schedule_message, sequential=True),
-            Tool(tools.send_poll, sequential=True),
+            Tool(
+                tools.schedule_message,
+                prepare=tools.prepare_not_guest_mode,
+                sequential=True,
+            ),
+            Tool(
+                tools.send_poll,
+                prepare=tools.prepare_not_guest_mode,
+                sequential=True,
+            ),
             # Time tools
             Tool(tools.get_current_time),
             Tool(tools.calculate_time_difference),
             # Code self-awareness tools
-            Tool(
-                tools.list_my_code_files,
-                prepare=tools.prepare_code_awareness_tools,
-            ),
-            Tool(
-                tools.read_my_code_file,
-                prepare=tools.prepare_code_awareness_tools,
-            ),
-            Tool(
-                tools.search_my_code,
-                prepare=tools.prepare_code_awareness_tools,
-            ),
+            Tool(tools.list_my_code_files, prepare=tools.prepare_code_awareness_tools),
+            Tool(tools.read_my_code_file, prepare=tools.prepare_code_awareness_tools),
+            Tool(tools.search_my_code, prepare=tools.prepare_code_awareness_tools),
             Tool(
                 tools.get_my_codebase_overview,
                 prepare=tools.prepare_code_awareness_tools,
@@ -642,6 +663,7 @@ _filter = (
     myfilter.base_filter
     & (myfilter.reply_me_filter | filters.private | myfilter.mention_me_filter)
     & myfilter.not_bottle_reply_filter
+    & ~filters.guest_message
     & ~pyrogram.filters.regex("|".join([r.pattern for r in manyacg.ARTWORK_ALL_REGEX]))
 )
 
@@ -803,3 +825,95 @@ async def wake_agent(client: PyrogramClient, message: pyrogram.types.Message):
             await common.memstore.delete(state.waiting_key(user.id))
         if bot_user_wake_lock_acquired and bot_user_wake_lock is not None:
             bot_user_wake_lock.release()
+
+
+@PyrogramClient.on_message(filters.guest_message, group=-1)
+async def on_guest_chat_query(
+    client: PyrogramClient,
+    message: pyrogram.types.Message,
+):
+    """Handle guest bot messages (Layer 225)."""
+    if not app_config.agent or not agent:
+        return
+
+    user = message.sender_chat or message.from_user
+    if not user or not user.id:
+        return
+
+    chat = message.chat
+    if not chat or not chat.id:
+        return
+    if not is_chat_allowed(chat.id):
+        return
+
+    if await common.memstore.get(state.waiting_key(user.id)):
+        return
+
+    user_data = await database.get_user_by_id(user.id)
+    if not user_data:
+        return
+
+    await common.memstore.set(state.waiting_key(user.id), True)
+    try:
+        user_message_text = message.text or message.caption or ""
+        if user_message_text:
+            logger.debug(
+                f"User {user.id} wake agent [guest] in Chat {chat.id}: {user_message_text}"
+            )
+        is_group_chat = chat.type in (
+            pyrogram.enums.ChatType.SUPERGROUP,
+            pyrogram.enums.ChatType.GROUP,
+        )
+        instructions = (
+            app_config.agent_prompt
+            if not is_group_chat
+            else app_config.agent_group_prompt
+            if app_config.agent_group_prompt
+            else app_config.agent_prompt
+        )
+        prompt_override = await get_chat_prompt_override(chat.id)
+        if prompt_override:
+            instructions = prompt_override
+
+        history: list[ModelMessage] = await common.memttlcache.get(
+            state.history_key(chat.id, user.id), []
+        )
+
+        ctx_info = await build_ctx_info(
+            message=message,
+            user=user,
+            user_data=user_data,
+            history=history,
+            is_group_chat=is_group_chat,
+        )
+
+        user_prompt, _ = await get_input_prompt(
+            client, message, include_nearby=0, ctx=None
+        )
+
+        await run_agent(
+            agi=agent,  # type: ignore[arg-type]
+            additional_instructions=ctx_info.to_text() if ctx_info else None,
+            client=client,
+            message=message,
+            user_id=user.id,
+            chat_id=chat.id,
+            user_prompt=user_prompt,
+            history=history,
+            deps=datatype.ContextDeps(
+                user_id=user.id,
+                chat_id=chat.id,
+                message=message,
+                client=client,
+                instructions=instructions,
+                powermemory=powermemory,
+                history=history,
+            ),
+            multimodal_model=multimodal_model,
+            model=model,
+            lang=user_data.user_config.lang
+            if user_data.user_config
+            else app_config.lang,
+        )
+    finally:
+        await common.memstore.delete(state.waiting_key(user.id))

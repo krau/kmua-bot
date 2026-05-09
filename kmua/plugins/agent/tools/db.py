@@ -45,6 +45,13 @@ async def get_chat_info(ctx: RunContext[datatype.ContextDeps]) -> ChatInfo | Non
         chat_title = chat_db.title
         chat_username = chat_db.username
         chat_config = chat_db.config
+    if ctx.deps.is_guest_mode:
+        return ChatInfo(
+            chat_id=chat_id,
+            title=chat_title,
+            username=chat_username,
+            config=chat_config,
+        )
     chat_full = await common.memttlcache.get(f"chatfull_{chat_id}", None)
     if not chat_full:
         chat_full = await ctx.deps.client.get_chat(chat_id)
