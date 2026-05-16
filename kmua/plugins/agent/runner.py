@@ -86,17 +86,19 @@ async def run_agent(
 
     needs_multimodal = check_needs_multimodal(user_prompt, history)
 
-    # Apply per-chat model override if set
     override_name = await get_chat_model_override(chat_id, "main")
+    multimodal_override = await get_chat_model_override(chat_id, "multimodal")
+    effective_multimodal = (
+        provider.make_chat_model(multimodal_override)
+        if multimodal_override
+        else multimodal_model
+    )
     if override_name:
-        use_model = provider.make_chat_model(override_name)
+        if needs_multimodal and effective_multimodal:
+            use_model = effective_multimodal
+        else:
+            use_model = provider.make_chat_model(override_name)
     else:
-        multimodal_override = await get_chat_model_override(chat_id, "multimodal")
-        effective_multimodal = (
-            provider.make_chat_model(multimodal_override)
-            if multimodal_override
-            else multimodal_model
-        )
         use_model = effective_multimodal if needs_multimodal else model
 
     try:
