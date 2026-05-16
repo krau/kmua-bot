@@ -662,7 +662,6 @@ _filter = (
     myfilter.base_filter
     & (myfilter.reply_me_filter | filters.private | myfilter.mention_me_filter)
     & myfilter.not_bottle_reply_filter
-    & ~filters.guest_message
     & ~pyrogram.filters.regex("|".join([r.pattern for r in manyacg.ARTWORK_ALL_REGEX]))
 )
 
@@ -826,7 +825,7 @@ async def wake_agent(client: PyrogramClient, message: pyrogram.types.Message):
             bot_user_wake_lock.release()
 
 
-@PyrogramClient.on_message(filters.guest_message, group=-1)
+@PyrogramClient.on_guest_message(group=0)
 async def on_guest_chat_query(
     client: PyrogramClient,
     message: pyrogram.types.Message,
