@@ -56,6 +56,9 @@ async def block_user(
             logger.warning(f"Failed to check membership for user {user_id}: {e}")
             return f"Cannot verify if user {user_id} is in this group: {e.__class__.__name__}"
 
+    if await common.memttlcache.get(state.user_block_immune_key(target_id)):
+        return f"User {target_id} is currently immune to being blocked."
+
     affection_rank = await get_affection_rank(target_id)
     effective_minutes = _calculate_block_duration(duration_minutes, affection_rank)
     ttl_seconds = effective_minutes * 60
@@ -77,5 +80,10 @@ async def block_user(
 
 
 async def is_user_blocked(user_id: int) -> bool:
-    """Check if a user is currently blocked from triggering the agent."""
+    """Check if a user is currently blocked from triggering the agent.
+
+    Returns False if the user has block immunity active.
+    """
+    if await common.memttlcache.get(state.user_block_immune_key(user_id)):
+        return False
     return bool(await common.memttlcache.get(state.user_blocked_key(user_id)))

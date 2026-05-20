@@ -2,6 +2,7 @@ from pyrogram import filters, types
 from pyrogram.client import Client
 
 from kmua import affection, common, database, gift
+from kmua.plugins.agent import state
 
 
 @Client.on_callback_query(filters.regex(r"^gift:.+:.+$"), group=1)
@@ -73,6 +74,13 @@ async def handle_send_gift_callback(
             await callback_query.message.reply_text(
                 f"当前对你的记忆:\n{memory_text}\n\n好感度排名: {affection_rank:.2%}"
             )
+        case gift.GiftID.DAWN_BELL_HERB:
+            await common.memttlcache.delete(state.user_blocked_key(user_id))
+            immune_duration = gift_def.effects.get("immune_duration", 0) * gift_item.rarity
+            if immune_duration > 0:
+                await common.memttlcache.set(
+                    state.user_block_immune_key(user_id), True, ttl=immune_duration
+                )
         case _:
             await callback_query.answer("收到了一件奇怪的礼物呢", show_alert=True)
             return

@@ -33,6 +33,7 @@ class GiftID(StrEnum):
     VOW_LOTUS_SEAL = "vow_lotus_seal"
     AMARANTH_HEART_LAMP = "amaranth_heart_lamp"
     FROST_FLOWER_WHISPER = "frost_flower_whisper"
+    DAWN_BELL_HERB = "dawn_bell_herb"
     OTHERWORLDLY_FLOWER = "otherworldly_flower"
 
 
@@ -41,6 +42,7 @@ GIFT_DISPLAY_NAMES: dict[GiftID, str] = {
     GiftID.VOW_LOTUS_SEAL: "誓印之莲",
     GiftID.AMARANTH_HEART_LAMP: "苋色心灯",
     GiftID.FROST_FLOWER_WHISPER: "低语霜花",
+    GiftID.DAWN_BELL_HERB: "晓钟之草",
     GiftID.OTHERWORLDLY_FLOWER: "异界之花",
 }
 
@@ -91,6 +93,14 @@ ALL_GIFTS: dict[GiftID, Gift] = {
         effects={},
         consumable=True,
         comment="查看当前对你的记忆",
+    ),
+    GiftID.DAWN_BELL_HERB: Gift(
+        id=GiftID.DAWN_BELL_HERB,
+        description="晓钟一响, 夜障皆消; 草叶拂霜, 晨光不灭",
+        price=4549,
+        effects={"unblock": True, "immune_duration": 1800},
+        consumable=True,
+        comment="解除被拉黑状态, 并在一段时间内免疫拉黑",
     ),
 }
 

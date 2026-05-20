@@ -67,3 +67,8 @@ def chat_prompt_override_key(chat_id: int) -> str:
 def user_blocked_key(user_id: int) -> str:
     """Whether the user is blocked from triggering the agent."""
     return f"agent_user_blocked:{user_id}"
+
+
+def user_block_immune_key(user_id: int) -> str:
+    """Whether the user is immune to being blocked by the agent."""
+    return f"agent_user_block_immune:{user_id}"
