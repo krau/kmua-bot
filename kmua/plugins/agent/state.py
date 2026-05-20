@@ -62,3 +62,8 @@ def periodic_reaction_counter_key(chat_id: int, user_id: int) -> str:
 def chat_prompt_override_key(chat_id: int) -> str:
     """Per-chat system prompt override. Replaces the default prompt for this chat."""
     return f"agent_chat_prompt_override:{chat_id}"
+
+
+def user_blocked_key(user_id: int) -> str:
+    """Whether the user is blocked from triggering the agent."""
+    return f"agent_user_blocked:{user_id}"

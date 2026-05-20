@@ -1,4 +1,5 @@
 from .ask import *  # noqa: F403
+from .block import *  # noqa: F403
 from .bot import *  # noqa: F403
 from .chat import *  # noqa: F403
 from .code_awareness import *  # noqa: F403

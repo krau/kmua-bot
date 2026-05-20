@@ -18,6 +18,7 @@ from kmua.plugins.agent.runner import (
 )
 
 from .agent import agent, model, multimodal_model, powermemory, small_model
+from .tools import block as tools
 from .whitelist import is_chat_allowed
 
 
@@ -127,6 +128,8 @@ async def handle_follow_up_message(
     assert chat is not None and chat.id is not None, "Invalid chat in follow-up"
     assert user is not None and user.id is not None, "Invalid user in follow-up"
     if not is_chat_allowed(chat.id):
+        return
+    if await tools.is_user_blocked(user.id):
         return
     if await common.memttlcache.get(
         state.message_follow_up_lock_key(chat.id, message.id)

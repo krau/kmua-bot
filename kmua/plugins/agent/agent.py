@@ -227,6 +227,7 @@ if app_config.agent and app_config.agent_model:
                 prepare=tools.prepare_not_guest_mode,
                 sequential=True,
             ),
+            Tool(tools.block_user, prepare=tools.prepare_not_guest_mode),
             # Time tools
             Tool(tools.get_current_time),
             Tool(tools.calculate_time_difference),
@@ -265,6 +266,8 @@ if app_config.agent and app_config.agent_model:
     ) -> None:
         """Start a new agent run to handle an ask_user answer (button click)."""
         if not app_config.agent or agent is None or not is_chat_allowed(chat_id):
+            return
+        if await tools.is_user_blocked(user_id):
             return
         user_config = await database.get_user_config(user_id)
         lang = user_config.lang
@@ -692,6 +695,8 @@ async def wake_agent(client: PyrogramClient, message: pyrogram.types.Message):
     if not user_data:
         return
     is_bot_user = bool(user_data.is_bot)
+    if await tools.is_user_blocked(user.id):
+        return
     if (
         is_bot_user
         and chat.type == pyrogram.enums.ChatType.SUPERGROUP
@@ -849,6 +854,8 @@ async def on_guest_chat_query(
 
     user_data = await database.get_user_by_id(user.id)
     if not user_data:
+        return
+    if await tools.is_user_blocked(user.id):
         return
 
     await common.memstore.set(state.waiting_key(user.id), True)
