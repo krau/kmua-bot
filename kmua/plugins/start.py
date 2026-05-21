@@ -1,3 +1,4 @@
+import asyncio
 import html
 
 from pyrogram import enums, filters
@@ -227,7 +228,7 @@ async def start(client: Client, message: Message):
 async def start_group(client: Client, message: Message):
     chat_config = await database.get_chat_config(message.chat)
     lang = chat_config.lang
-    await message.reply(
+    reply = await message.reply(
         text=i18n.t("bot.msg.group_start", locale=lang),
         reply_markup=InlineKeyboardMarkup(
             [
@@ -240,6 +241,7 @@ async def start_group(client: Client, message: Message):
             ]
         ),
     )
+    asyncio.create_task(_auto_delete(reply, 120))
 
 
 @Client.on_callback_query(filters.regex(r"^back_home"))
@@ -261,3 +263,11 @@ async def delete_callback_query_message(client: Client, callback_query: Callback
         await callback_query.message.delete()
     except Exception as e:
         logger.error(f"Failed to delete message: {e.__class__.__name__} - {e}")
+
+
+async def _auto_delete(message: Message, delay: int = 120) -> None:
+    try:
+        await asyncio.sleep(delay)
+        await message.delete()
+    except Exception:
+        pass

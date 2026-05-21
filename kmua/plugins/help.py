@@ -1,3 +1,5 @@
+import asyncio
+
 import pyrogram
 
 from kmua import database, i18n
@@ -19,4 +21,14 @@ async def help_command(client: pyrogram.Client, message: pyrogram.types.Message)
 
     text = i18n.t("bot.msg.help", locale=lang)
 
-    await message.reply_text(text, parse_mode=pyrogram.enums.ParseMode.HTML)
+    reply = await message.reply_text(text, parse_mode=pyrogram.enums.ParseMode.HTML)
+    if in_group:
+        asyncio.create_task(_auto_delete(reply, 120))
+
+
+async def _auto_delete(message: pyrogram.types.Message, delay: int = 120) -> None:
+    try:
+        await asyncio.sleep(delay)
+        await message.delete()
+    except Exception:
+        pass
