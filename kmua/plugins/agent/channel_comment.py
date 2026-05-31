@@ -1,4 +1,5 @@
 import datetime
+import mimetypes
 
 import pyrogram
 from pydantic import BaseModel, Field
@@ -54,6 +55,124 @@ async def _is_first_media_in_group(message: pyrogram.types.Message) -> bool:
     return True
 
 
+def _message_has_unsupported_media(message: pyrogram.types.Message) -> bool:
+    """Return True if the message contains media that get_input_prompt cannot process.
+
+    This mirrors the media handling logic in get_input_prompt so that comments
+    are skipped when the model would only see a caption without the actual media.
+
+    Supported media breakdown (matching get_input_prompt exactly):
+    - POLL: always converted to text (supported regardless of settings).
+    - WEB_PAGE: URL text is always visible (supported).
+    - All other media types require app_config.agent_multimodal == True.
+      - PHOTO: supported when "photo" is in agent_multimodal_inputs.
+      - LIVE_PHOTO: NOT handled in get_input_prompt (unsupported).
+      - VIDEO: supported when "video" in inputs, file_size <= 20 MiB.
+      - AUDIO: supported when "audio" in inputs, file_size <= 10 MiB.
+      - VOICE: supported when "audio" in inputs, file_size <= 10 MiB.
+      - DOCUMENT:
+        - text/* mime types are read as plain text (supported).
+        - image/* requires "photo" in inputs, file_size <= 10 MiB.
+        - Specific mime types listed in agent_multimodal_inputs,
+          file_size <= 10 MiB.
+        - Everything else is unsupported.
+      - STICKER:
+        - Animated stickers are unsupported.
+        - Video/static stickers require "photo" in inputs.
+    """
+    if not message.media:
+        return False
+
+    # POLL is always converted to text; WEB_PAGE URL text is always visible.
+    if message.media in (
+        pyrogram.enums.MessageMediaType.POLL,
+        pyrogram.enums.MessageMediaType.WEB_PAGE,
+    ):
+        return False
+
+    # All remaining media types require agent_multimodal to be processed.
+    if not app_config.agent_multimodal:
+        return True
+
+    match message.media:
+        case pyrogram.enums.MessageMediaType.PHOTO:
+            photo = message.photo
+            return not (
+                photo and photo.file_id and "photo" in app_config.agent_multimodal_inputs
+            )
+
+        case pyrogram.enums.MessageMediaType.LIVE_PHOTO:
+            # get_input_prompt has no handler for LIVE_PHOTO.
+            return True
+
+        case pyrogram.enums.MessageMediaType.VIDEO:
+            video = message.video
+            return not (
+                video
+                and video.file_id
+                and video.mime_type
+                and video.file_size
+                and video.file_size <= 20 * 1024 * 1024
+                and "video" in app_config.agent_multimodal_inputs
+            )
+
+        case pyrogram.enums.MessageMediaType.AUDIO:
+            audio = message.audio
+            return not (
+                audio
+                and audio.file_id
+                and audio.mime_type
+                and audio.file_size
+                and audio.file_size <= 10 * 1024 * 1024
+                and "audio" in app_config.agent_multimodal_inputs
+            )
+
+        case pyrogram.enums.MessageMediaType.VOICE:
+            voice = message.voice
+            return not (
+                voice
+                and voice.file_id
+                and voice.mime_type
+                and voice.file_size
+                and voice.file_size <= 10 * 1024 * 1024
+                and "audio" in app_config.agent_multimodal_inputs
+            )
+
+        case pyrogram.enums.MessageMediaType.DOCUMENT:
+            document = message.document
+            if not document or not document.file_id:
+                return True
+            if not document.file_size or document.file_size > 10 * 1024 * 1024:
+                return True
+            mime_type = document.mime_type
+            if not mime_type:
+                mime_type, _ = mimetypes.guess_type(document.file_name or "")
+                mime_type = mime_type or "application/octet-stream"
+            mime_type = mime_type.split(";")[0]
+            # Plain text documents are readable as text.
+            if mime_type.startswith("text/"):
+                return False
+            if mime_type.startswith("image/") and "photo" in app_config.agent_multimodal_inputs:
+                return False
+            if mime_type in app_config.agent_multimodal_inputs:
+                return False
+            return True
+
+        case pyrogram.enums.MessageMediaType.STICKER:
+            sticker = message.sticker
+            if not sticker or not sticker.file_id:
+                return True
+            if sticker.is_animated:
+                return True
+            return "photo" not in app_config.agent_multimodal_inputs
+
+        case _:
+            # ANIMATION, VIDEO_NOTE, LOCATION, VENUE, CONTACT, DICE, GAME,
+            # GIVEAWAY, GIVEAWAY_WINNERS, STORY, INVOICE, PAID_MEDIA,
+            # CHECKLIST, UNSUPPORTED — none are handled by get_input_prompt.
+            return True
+
+
 async def channel_comment_filter_func(_, __, message: pyrogram.types.Message):
     chat = message.chat
     if chat is None:
@@ -64,6 +183,8 @@ async def channel_comment_filter_func(_, __, message: pyrogram.types.Message):
     ):
         return False
     if not message.automatic_forward:
+        return False
+    if _message_has_unsupported_media(message):
         return False
     if comment_agent is None:
         return False
