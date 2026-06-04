@@ -35,17 +35,17 @@ demo: [@kmuav2bot](https://t.me/kmuav2bot)
                 </a>
             </td>
             <td align="center">
-                <a href="https://github.com/NyanWhite">
-                    <img src="https://avatars.githubusercontent.com/u/51278093?v=4" width="100;" alt="NyanWhite"/>
-                    <br />
-                    <sub><b>喵白</b></sub>
-                </a>
-            </td>
-            <td align="center">
                 <a href="https://github.com/tjsky">
                     <img src="https://avatars.githubusercontent.com/u/7272911?v=4" width="100;" alt="tjsky"/>
                     <br />
                     <sub><b>去年夏天</b></sub>
+                </a>
+            </td>
+            <td align="center">
+                <a href="https://github.com/NyanWhite">
+                    <img src="https://avatars.githubusercontent.com/u/51278093?v=4" width="100;" alt="NyanWhite"/>
+                    <br />
+                    <sub><b>喵白</b></sub>
                 </a>
             </td>
             <td align="center">
