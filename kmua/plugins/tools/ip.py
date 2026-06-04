@@ -1,4 +1,5 @@
 import contextlib
+import re
 from urllib.parse import urlparse
 
 import httpx
@@ -38,6 +39,10 @@ async def ipinfo(client: Client, message: Message):
 
     if not ip:
         await message.reply_text(i18n.t("bot.msg.ip.no_ip_provided", locale=lang))
+        return
+
+    if not re.match(r"^[a-zA-Z0-9.:-]+$", ip):
+        await message.reply_text(i18n.t("bot.msg.ip.no_ip_provided", locale=lang)) 
         return
 
     sent_message = await message.reply_text(
