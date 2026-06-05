@@ -1,8 +1,9 @@
 import contextlib
-import re
+import ipaddress
 from urllib.parse import urlparse
 
 import httpx
+import idna
 from pyrogram import Client, filters
 from pyrogram.enums import ChatType, ParseMode
 from pyrogram.types import Message
@@ -41,8 +42,8 @@ async def ipinfo(client: Client, message: Message):
         await message.reply_text(i18n.t("bot.msg.ip.no_ip_provided", locale=lang))
         return
 
-    if not re.match(r"^[a-zA-Z0-9.:-]+$", ip):
-        await message.reply_text(i18n.t("bot.msg.ip.no_ip_provided", locale=lang)) 
+    if not _is_valid_ip_or_domain(ip):
+        await message.reply_text(i18n.t("bot.msg.ip.no_ip_provided", locale=lang))
         return
 
     sent_message = await message.reply_text(
@@ -65,6 +66,31 @@ async def ipinfo(client: Client, message: Message):
         )
     finally:
         await common.memstore.delete(querying_key)
+
+
+_DOMAIN_MAX_LEN = 253
+
+
+def _is_valid_ip_or_domain(value: str) -> bool:
+    """校验是否为合法的公网 IP 地址或域名, 防止 `.`、`localhost`、`127.1` 等触发本机/内网查询."""
+    try:
+        ip_obj = ipaddress.ip_address(value)
+    except ValueError:
+        pass
+    else:
+        return ip_obj.is_global and not ip_obj.is_multicast
+
+    host = value.rstrip(".")
+    if not host or len(host) > _DOMAIN_MAX_LEN or "." not in host:
+        return False
+    tld = host.rsplit(".", 1)[-1]
+    if not any(c.isalpha() for c in tld):
+        return False
+    try:
+        idna.encode(host, uts46=True)
+    except idna.IDNAError:
+        return False
+    return True
 
 
 async def _get_ip_info(url: str, lang: str) -> str:
