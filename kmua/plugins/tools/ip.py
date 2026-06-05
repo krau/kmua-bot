@@ -41,7 +41,7 @@ async def ipinfo(client: Client, message: Message):
         await message.reply_text(i18n.t("bot.msg.ip.no_ip_provided", locale=lang))
         return
 
-    if not re.match(r"^[a-zA-Z0-9.:-]+$", ip):
+    if not re.match(r"^[a-zA-Z0-9.:-]+$", ip) or not re.search(r"[a-zA-Z0-9]", ip):
         await message.reply_text(i18n.t("bot.msg.ip.no_ip_provided", locale=lang)) 
         return
 
