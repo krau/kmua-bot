@@ -5,7 +5,7 @@ RUN apt-get update && \
     apt-get install -y --no-install-recommends gcc g++ make build-essential git graphviz ca-certificates ffmpeg curl && \
     uv sync --frozen --no-dev && \
     uv pip install pip && \
-    apt-get purge -y --auto-remove gcc g++ make build-essential git && \
+    apt-get purge -y --auto-remove gcc g++ make build-essential && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 COPY . .
 
