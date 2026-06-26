@@ -241,7 +241,7 @@ async def start_group(client: Client, message: Message):
             ]
         ),
     )
-    asyncio.create_task(_auto_delete(reply, 120))
+    common.spawn(_auto_delete(reply, 120), name="group-start-auto-delete")
 
 
 @Client.on_callback_query(filters.regex(r"^back_home"))

@@ -15,6 +15,11 @@ from kmua.plugins.agent.styling import convert_md
 
 _MD_SEPARATOR_RE = re.compile(r"^(?:[-*_][ \t]*){3,}$")
 
+# Upper bound on the cumulative inter-chunk delay in reply_output. Without this
+# cap, a long reply split into many chunks could keep a dispatcher worker busy
+# (holding its handler lock) for tens of seconds purely on sleeps.
+_MAX_TOTAL_REPLY_DELAY = 12.0
+
 
 def _is_markdown_separator_only_chunk(chunk: str) -> bool:
     lines = [line.strip() for line in chunk.splitlines() if line.strip()]
@@ -74,6 +79,7 @@ async def reply_output(
                 logger.warning(f"Send failed: {e.__class__.__name__} - {e}")
                 last_reply_msg = await message.reply_text(total_plain)
         else:
+            total_delay = 0.0
             for chunk in chunks:
                 # 如果只有分隔符, 则跳过
                 if _is_markdown_separator_only_chunk(chunk):
@@ -90,7 +96,11 @@ async def reply_output(
                         logger.error(f"Send failed: {e.__class__.__name__} - {e}")
                         raise
                 last_reply_msg = reply_msg
-                await asyncio.sleep(random.uniform(0.721, 3.9) + len(chunk) / 600)
+                if total_delay < _MAX_TOTAL_REPLY_DELAY:
+                    delay = random.uniform(0.721, 3.9) + len(chunk) / 600
+                    delay = min(delay, _MAX_TOTAL_REPLY_DELAY - total_delay)
+                    total_delay += delay
+                    await asyncio.sleep(delay)
         if (
             last_reply_msg
             and last_reply_msg.text

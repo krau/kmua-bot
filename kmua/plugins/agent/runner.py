@@ -1,3 +1,4 @@
+import asyncio
 from typing import Any
 
 import pydantic_ai
@@ -59,6 +60,63 @@ async def set_chat_prompt_override(chat_id: int, prompt: str | None) -> None:
 
 
 async def run_agent(
+    agi: Agent[Any, Any],
+    client: PyrogramClient,
+    message: pyrogram.types.Message,
+    user_id: int,
+    chat_id: int,
+    user_prompt: list[UserContent],
+    history: list[ModelMessage],
+    deps: Any,
+    multimodal_model: Any,
+    model: Any,
+    lang: str,
+    additional_instructions: str | None = None,
+) -> None:
+    """Run the agent with an overall wall-clock timeout guard.
+
+    Wraps :func:`_run_agent_impl` with ``asyncio.wait_for`` so that a stuck
+    model response or tool call can never block a dispatcher worker (and thus
+    the whole event loop) indefinitely. The timeout is controlled by
+    ``app_config.agent_run_timeout`` (0 disables it).
+    """
+    timeout = app_config.agent_run_timeout
+    coro = _run_agent_impl(
+        agi=agi,
+        client=client,
+        message=message,
+        user_id=user_id,
+        chat_id=chat_id,
+        user_prompt=user_prompt,
+        history=history,
+        deps=deps,
+        multimodal_model=multimodal_model,
+        model=model,
+        lang=lang,
+        additional_instructions=additional_instructions,
+    )
+    if not timeout or timeout <= 0:
+        await coro
+        return
+    try:
+        await asyncio.wait_for(coro, timeout=timeout)
+    except TimeoutError:
+        logger.warning(
+            f"Agent run timed out after {timeout}s for user {user_id} in chat {chat_id}"
+        )
+        try:
+            err_text = i18n.t("bot.msg.agent.errors.interrupted", locale=lang).format(
+                error="Timeout"
+            )
+            if deps.is_guest_mode:
+                await reply_output(client, message, err_text, deps=deps)
+            else:
+                await message.reply_text(err_text)
+        except Exception as e:
+            logger.error(f"Failed to send timeout notice: {e.__class__.__name__} - {e}")
+
+
+async def _run_agent_impl(
     agi: Agent[Any, Any],
     client: PyrogramClient,
     message: pyrogram.types.Message,
