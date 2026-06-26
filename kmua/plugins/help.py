@@ -2,7 +2,7 @@ import asyncio
 
 import pyrogram
 
-from kmua import database, i18n
+from kmua import common, database, i18n
 
 
 @pyrogram.Client.on_message(pyrogram.filters.command("help"), group=0)
@@ -23,7 +23,7 @@ async def help_command(client: pyrogram.Client, message: pyrogram.types.Message)
 
     reply = await message.reply_text(text, parse_mode=pyrogram.enums.ParseMode.HTML)
     if in_group:
-        asyncio.create_task(_auto_delete(reply, 120))
+        common.spawn(_auto_delete(reply, 120), name="help-auto-delete")
 
 
 async def _auto_delete(message: pyrogram.types.Message, delay: int = 120) -> None:

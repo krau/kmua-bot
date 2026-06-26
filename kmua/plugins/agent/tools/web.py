@@ -1,3 +1,4 @@
+import asyncio
 import re
 from dataclasses import dataclass
 from typing import Any, cast
@@ -49,8 +50,13 @@ def _truncate(text: str) -> str:
 
 
 async def _fetch_http(url: str) -> WebFetchResult:
+    timeout = app_config.agent_webfetch_timeout
     async with AsyncWebCrawler(crawler_strategy=_http_strategy) as crawler:
-        raw = await crawler.arun(url, config=_run_config)
+        coro = crawler.arun(url, config=_run_config)
+        if timeout and timeout > 0:
+            raw = await asyncio.wait_for(coro, timeout=timeout)
+        else:
+            raw = await coro
     result = cast(CrawlResult, raw)
     if not result.success:
         return WebFetchResult(
@@ -378,6 +384,13 @@ async def webfetch(ctx: RunContext[datatype.ContextDeps], url: str) -> WebFetchR
         if app_config.agent_crawl_api_url:
             return await _fetch_crawl_api(url)
         return await _fetch_http(url)
+    except TimeoutError:
+        logger.warning(f"webfetch timed out for {url}")
+        return WebFetchResult(
+            success=False,
+            url=url,
+            error="Fetch timed out",
+        )
     except Exception as e:
         logger.error(f"webfetch error for {url}: {e.__class__.__name__}: {e}")
         return WebFetchResult(

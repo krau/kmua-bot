@@ -10,6 +10,7 @@ from pydantic_ai import (
     RunContext,
     Tool,
 )
+from pydantic_ai.capabilities import ProcessHistory
 from pydantic_ai.common_tools.duckduckgo import DuckDuckGoSearchTool
 from pyrogram import filters
 from pyrogram.client import Client as PyrogramClient
@@ -44,16 +45,29 @@ struct_model = None
 summary_agent = None
 memory_agent = None
 powermemory = None
+# Becomes True only after AsyncMemory.initialize() succeeds. The powermem
+# tools are gated on this so a failed/slow init degrades gracefully (the
+# tools are simply hidden) instead of producing undefined behaviour.
+powermemory_ready = False
 
 if app_config.agent_powermem_config is not None:
     # for group memory, the key is f"group_{chat_id}"
     powermemory = AsyncMemory(app_config.agent_powermem_config)
 
     async def _init_powermem():
+        global powermemory_ready
         assert powermemory is not None
-        await powermemory.initialize()
+        try:
+            await powermemory.initialize()
+            powermemory_ready = True
+            logger.info("powermem initialized successfully")
+        except Exception as e:
+            logger.exception(
+                f"Failed to initialize powermem, group memory tools will be "
+                f"disabled: {e.__class__.__name__} - {e}"
+            )
 
-    asyncio.create_task(_init_powermem())
+    common.spawn(_init_powermem(), name="powermem-init")
 
 
 _history_compressor: HistoryCompressor | None = None
@@ -241,7 +255,7 @@ if app_config.agent and app_config.agent_model:
             ),
         ],
         deps_type=datatype.ContextDeps,
-        history_processors=[history_processor],
+        capabilities=[ProcessHistory(history_processor)],
         retries=5,
     )
 

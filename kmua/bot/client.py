@@ -42,5 +42,5 @@ client = Client(
     plugins=_build_plugins_config(),
     ipv6=app_config.use_ipv6,
     sleep_threshold=300,
-    max_concurrent_transmissions=min(32, cpu_count() or 0 + 4),
+    max_concurrent_transmissions=min(32, (cpu_count() or 0) + 4),
 )

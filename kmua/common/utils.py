@@ -14,6 +14,36 @@ MAX_WEBM_SIZE = 10 * 1024 * 1024
 # WEBM 处理超时 (秒)
 WEBM_PROCESS_TIMEOUT = 10
 
+# Strong references to background tasks so they are not garbage-collected
+# mid-flight (asyncio only keeps weak references to tasks).
+_background_tasks: set[asyncio.Task] = set()
+
+
+def _on_task_done(task: asyncio.Task) -> None:
+    _background_tasks.discard(task)
+    if task.cancelled():
+        return
+    exc = task.exception()
+    if exc is not None:
+        logger.opt(exception=exc).error(
+            f"Background task {task.get_name()!r} raised an unhandled exception: "
+            f"{exc.__class__.__name__} - {exc}"
+        )
+
+
+def spawn(coro, *, name: str | None = None) -> asyncio.Task:
+    """Schedule a coroutine as a background task safely.
+
+    Unlike a bare ``asyncio.create_task``:
+    - keeps a strong reference until the task finishes (prevents the task from
+      being silently garbage-collected before completion), and
+    - logs any unhandled exception instead of swallowing it.
+    """
+    task = asyncio.create_task(coro, name=name)
+    _background_tasks.add(task)
+    task.add_done_callback(_on_task_done)
+    return task
+
 
 def get_msg_link(message: pyrogram.types.Message) -> str:
     try:

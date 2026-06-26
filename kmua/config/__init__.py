@@ -43,6 +43,15 @@ class _AppConfig(pydantic.BaseModel):
     health_check_host: str = "localhost"
     health_check_port: int = 8180
 
+    # event loop lag monitor: detects when the single asyncio event loop is
+    # blocked (the root cause of "bot freezes, no logs, no response"). When the
+    # measured scheduling lag exceeds the threshold, a warning is logged together
+    # with stack traces of the currently running tasks so the culprit await/call
+    # can be identified.
+    loop_monitor_enabled: bool = True
+    loop_monitor_interval: float = 1.0  # how often to sample lag (seconds)
+    loop_monitor_threshold: float = 1.0  # warn when lag exceeds this (seconds)
+
     # external services
     redis: bool = False
     redis_endpoint: str = "localhost"
@@ -145,6 +154,12 @@ class _AppConfig(pydantic.BaseModel):
     agent_model_timeout: int = 0  # Main model timeout (0 = no timeout)
     agent_small_model_timeout: int = 10  # Small model timeout for quick tasks
     agent_download_timeout: int = 30  # Download media timeout (0 = no timeout)
+    # Overall wall-clock timeout for a single agent run (the whole iter loop,
+    # including all tool calls and streaming). Prevents a stuck model/tool call
+    # from blocking a dispatcher worker indefinitely. 0 = no timeout.
+    agent_run_timeout: int = 180
+    # Timeout for a single webfetch (_fetch_http via crawl4ai). 0 = no timeout.
+    agent_webfetch_timeout: int = 45
     # Image generation/editing: "provider/model" spec.
     # Generation client is disabled when unset.
     agent_image_gen_model: str | None = None

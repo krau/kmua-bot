@@ -155,4 +155,7 @@ async def on_sticker(client: PyrogramClient, message: pyrogram.types.Message) ->
         return
     if not (await database.get_chat_config(chat.id)).ai_reply:
         return
-    asyncio.create_task(_process_sticker(client, sticker, chat.id))
+    common.spawn(
+        _process_sticker(client, sticker, chat.id),
+        name=f"sticker-memory-{chat.id}",
+    )

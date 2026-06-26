@@ -8,6 +8,7 @@ from pyrogram.client import Client as PyrogramClient
 
 from kmua import common, database, i18n
 from kmua.common.utils import is_explicit_reply
+from kmua.config import app_config
 
 from . import utils
 

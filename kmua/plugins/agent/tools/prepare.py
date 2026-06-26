@@ -87,9 +87,13 @@ async def prepare_message_search_tool(
 async def prepare_powermem_tool(
     ctx: RunContext[datatype.ContextDeps], tool_def: ToolDefinition
 ) -> ToolDefinition | None:
+    # Import lazily to avoid a circular import (agent -> tools -> prepare).
+    from kmua.plugins.agent import agent as _agent
+
     if (
         app_config.agent_powermem_config is not None
         and ctx.deps.powermemory is not None
+        and _agent.powermemory_ready  # init finished successfully
         and ctx.deps.chat_id < -100  # current powermem tool is only for group chat
     ):
         return tool_def

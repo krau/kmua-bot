@@ -17,6 +17,7 @@ from kmua.config import app_config
 from kmua.database import db
 from kmua.health import start_health_server, stop_health_server
 from kmua.logger import logger
+from kmua.loop_monitor import LoopLagMonitor
 
 
 def _get_commands_hash(commands_dict: dict[str, list[BotCommand]]) -> str:
@@ -245,6 +246,16 @@ async def stop_bot(client: Client = client):
 async def main():
     await db.init_db()
 
+    # Start event-loop lag monitor (helps diagnose freezes: logs a warning and
+    # dumps running task stacks whenever the loop is blocked beyond a threshold).
+    loop_monitor = None
+    if app_config.loop_monitor_enabled:
+        loop_monitor = LoopLagMonitor(
+            interval=app_config.loop_monitor_interval,
+            warn_threshold=app_config.loop_monitor_threshold,
+        )
+        loop_monitor.start()
+
     # Start health check server
     health_runner = None
     if app_config.health_check_enabled:
@@ -260,6 +271,9 @@ async def main():
     # Stop health check server
     if health_runner:
         await stop_health_server(health_runner)
+
+    if loop_monitor:
+        await loop_monitor.stop()
 
 
 if __name__ == "__main__":
