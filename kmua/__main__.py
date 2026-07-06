@@ -18,6 +18,7 @@ from kmua.database import db
 from kmua.health import start_health_server, stop_health_server
 from kmua.logger import logger
 from kmua.loop_monitor import LoopLagMonitor
+from kmua.session_health import SessionHealthMonitor
 
 
 def _get_commands_hash(commands_dict: dict[str, list[BotCommand]]) -> str:
@@ -265,12 +266,29 @@ async def main():
         )
 
     await client.start()
+
+    # Start Telegram session health monitor (force-restarts zombie sessions
+    # that kurigram fails to recover on its own after silent TCP drops).
+    session_health = None
+    if app_config.session_health_enabled:
+        session_health = SessionHealthMonitor(
+            client=client,
+            check_interval=app_config.session_health_interval,
+            probe_timeout=app_config.session_health_timeout,
+            failure_threshold=app_config.session_health_threshold,
+            cooldown=app_config.session_health_cooldown,
+        )
+        session_health.start()
+
     await idle()
     await client.stop()  # type: ignore
 
     # Stop health check server
     if health_runner:
         await stop_health_server(health_runner)
+
+    if session_health:
+        await session_health.stop()
 
     if loop_monitor:
         await loop_monitor.stop()

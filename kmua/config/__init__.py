@@ -52,6 +52,17 @@ class _AppConfig(pydantic.BaseModel):
     loop_monitor_interval: float = 1.0  # how often to sample lag (seconds)
     loop_monitor_threshold: float = 1.0  # warn when lag exceeds this (seconds)
 
+    # Telegram session health monitor: periodically probes the main session
+    # with a lightweight API call; if it fails repeatedly (zombie session),
+    # force-restarts the session to restore connectivity. This works around
+    # a recovery gap in kurigram where a silently-dropped TCP connection
+    # leaves the session stuck without auto-reconnect.
+    session_health_enabled: bool = True
+    session_health_interval: float = 60.0  # seconds between probes
+    session_health_timeout: float = 15.0  # probe invoke timeout
+    session_health_threshold: int = 3  # consecutive failures before restart
+    session_health_cooldown: float = 60.0  # min seconds between restarts
+
     # external services
     redis: bool = False
     redis_endpoint: str = "localhost"
