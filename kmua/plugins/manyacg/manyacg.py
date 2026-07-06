@@ -94,7 +94,7 @@ async def parse_artwork(client: PyrogramClient, message: pyrogram.types.Message)
             if artwork.cache_id:
                 caption += f" <a href='https://t.me/{app_config.manyacg_bot}/?start=info_{artwork.cache_id}'>{i18n.t('bot.msg.manyacg.seefull', locale=lang)}</a>"
         async with aiofiles.tempfile.TemporaryDirectory() as tmpdir:
-            async with httpx.AsyncClient() as http_client:
+            async with httpx.AsyncClient(timeout=60) as http_client:
                 inputs = []
                 for idx, media in enumerate(medias[:10]):
                     im = await utils.prepare_media(

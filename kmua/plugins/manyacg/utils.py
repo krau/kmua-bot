@@ -45,13 +45,14 @@ async def prepare_media(
     if cache is not None:
         return cache
     if isinstance(media, FetchedPicture):
-        media_bytes: bytes = await (await client.get(media.original)).aread()
+        resp = await client.get(media.original, timeout=60)
+        media_bytes: bytes = await resp.aread()
         if len(media_bytes) >= 1024 * 1024 * 10 or media.width + media.height >= 10000:
             media_bytes = await asyncio.to_thread(_resize_image, media_bytes)
         return io.BytesIO(media_bytes)
     if isinstance(media, FetchedVideo):
         # head request to get content length
-        head_resp = await client.head(media.url)
+        head_resp = await client.head(media.url, timeout=30)
         content_length = head_resp.headers.get("Content-Length")
         if (
             content_length is not None and int(content_length) > 1024 * 1024 * 1024
@@ -59,10 +60,11 @@ async def prepare_media(
             raise ValueError("Video file too large")
         if save_path is not None:
             async with aiofiles.open(save_path, "wb") as f:
-                async with client.stream("GET", media.url) as resp:
+                async with client.stream("GET", media.url, timeout=120) as resp:
                     async for chunk in resp.aiter_bytes():
                         await f.write(chunk)
             return save_path
         else:
-            video_bytes: bytes = await (await client.get(media.url)).aread()
+            resp = await client.get(media.url, timeout=120)
+            video_bytes: bytes = await resp.aread()
             return io.BytesIO(video_bytes)

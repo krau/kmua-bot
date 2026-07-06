@@ -58,10 +58,13 @@ class _AppConfig(pydantic.BaseModel):
     # a recovery gap in kurigram where a silently-dropped TCP connection
     # leaves the session stuck without auto-reconnect.
     session_health_enabled: bool = True
-    session_health_interval: float = 60.0  # seconds between probes
+    session_health_interval: float = 60.0  # seconds between checks
     session_health_timeout: float = 15.0  # probe invoke timeout
     session_health_threshold: int = 3  # consecutive failures before restart
     session_health_cooldown: float = 60.0  # min seconds between restarts
+    # If no update arrives within this many seconds, the recv path is
+    # considered dead (half-open TCP) and a restart is forced.
+    session_health_stale: float = 300.0
 
     # external services
     redis: bool = False

@@ -277,6 +277,7 @@ async def main():
             probe_timeout=app_config.session_health_timeout,
             failure_threshold=app_config.session_health_threshold,
             cooldown=app_config.session_health_cooldown,
+            stale_threshold=app_config.session_health_stale,
         )
         session_health.start()
 
