@@ -11,9 +11,8 @@ from kmua.common.utils import is_explicit_reply
 from kmua.config import app_config
 
 
-def _replace_char(text: str):
-    text = text.replace("$", "").replace("/", "").replace("\\", "")
-    return text
+def _strip_trigger_prefix(text: str) -> str:
+    return text.lstrip("$/\\")
 
 
 async def slash_fliter_func(_, __, message: Message) -> bool:
@@ -62,12 +61,12 @@ async def slash(client: Client, message: Message):
         else False
     )
     is_one_cmd = len(message.text.split(" ")) == 1
-    cmd1 = html.escape(_replace_char(message.text.split(" ")[0][1:]))
+    cmd1 = html.escape(_strip_trigger_prefix(message.text.split(" ")[0][1:]))
     if not cmd1:
         return
     if not is_one_cmd:
         # TODO: i18n
-        cmd2 = html.escape(_replace_char(" ".join(message.text.split(" ")[1:])))
+        cmd2 = html.escape(" ".join(message.text.split(" ")[1:]))
         text = (
             (
                 f"{replied_mention} {cmd1} {this_mention} {cmd2} !"
