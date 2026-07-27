@@ -29,7 +29,16 @@ jobs:
       - uses: actions/checkout@v7
 
       # pnpm before Node, so setup-node can use pnpm's store for its cache.
+      #
+      # `package_json_file` is required here because there is no package.json at the
+      # repo root - the panel is a subdirectory of a Python project. The action reads
+      # the version from `packageManager` in that file, and its path is relative to
+      # the repo root regardless of the job's working-directory. Pointing at
+      # webapp/package.json also keeps the pinned pnpm version in one place, rather
+      # than duplicating it here where it could drift.
       - uses: pnpm/action-setup@v6
+        with:
+          package_json_file: webapp/package.json
 
       - uses: actions/setup-node@v7
         with:
