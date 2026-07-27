@@ -3,6 +3,8 @@ bot:
     lang_changed: Language changed to {lang}
     no_permission_group: You don't have permission to manage the bot in this group!
     group_config: Click the buttons to change group settings!
+    chat_panel: Tap to configure this group in the panel
+    panel_unavailable: The panel is not enabled
     unknown_operation: Unknown operation. No funny business!
     group_config_saved: Group settings saved~
     refresh_failed: Refresh failed, please try again later.
@@ -329,6 +331,8 @@ bot:
     pm_me: PM Me
     page_prev: Previous
     page_next: Next
+    panel: Panel
+    chat_panel: Open in panel
     chat_config:
       waifu: Daily Waifu
       delete_events: Delete Events

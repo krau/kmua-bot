@@ -18,6 +18,7 @@ dependencies = [
     "ddgs>=9.2.3",
     "dynaconf>=3.2.13",
     "emoji>=2.11",
+    "fastapi>=0.121.0",
     "fastmcp>=3.2.0",
     "google-cloud-aiplatform>=1.133.0",
     "graphviz>=0.20.3",
@@ -43,6 +44,7 @@ dependencies = [
     "telegramify-markdown>=1.0.0",
     "tgcrypto>=1.2.5",
     "ujson>=5.13.0",
+    "uvicorn[standard]>=0.40.0",
     "uvloop>=0.21.0",
     "wordcloud>=1.9.4",
     "zhconv>=1.4.3",
@@ -52,6 +54,9 @@ dependencies = [
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 asyncio_mode = "auto"
+# aiosqlite and pyrogram log every statement at DEBUG; captured output at that
+# level buries the actual assertion in a failure report.
+log_level = "WARNING"
 
 [tool.ruff.lint]
 select = ["F", "UP", "I"]

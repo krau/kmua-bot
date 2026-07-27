@@ -17,6 +17,7 @@ bot:
     pickbottle: 捡一个漂流瓶
     wordcloud: 生成聊天记录词云
     config: 更改群组设置
+    panel: 在管理面板中配置本群
     greet: 设置群组欢迎语
     forget: 让 bot 忘记与你的对话记录
     f5avatar: 刷新头像

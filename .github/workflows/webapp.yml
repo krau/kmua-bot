@@ -1,0 +1,50 @@
+name: Mini App Panel CI
+
+on:
+  push:
+    branches:
+      - v2
+      - dev
+    paths:
+      - "webapp/**"
+      - ".github/workflows/webapp.yml"
+  pull_request:
+    paths:
+      - "webapp/**"
+      - ".github/workflows/webapp.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    working-directory: webapp
+
+jobs:
+  check:
+    name: Typecheck, lint, test, build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      # pnpm before Node, so setup-node can use pnpm's store for its cache.
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: webapp/pnpm-lock.yaml
+
+      # --frozen-lockfile fails rather than silently resolving a new tree, so a
+      # stale lockfile is caught here instead of in the Docker build.
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm typecheck
+
+      - run: pnpm lint
+
+      - run: pnpm test
+
+      - run: pnpm build

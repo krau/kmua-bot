@@ -9,11 +9,14 @@ from pyrogram.types import (
     InlineKeyboardButton,
     InlineKeyboardMarkup,
     Message,
+    WebAppInfo,
 )
 
 from kmua import common, consts, database, i18n
 from kmua.common.memory_store import memttlcache
+from kmua.config import app_config
 from kmua.logger import logger
+from kmua.plugins.panel import chat_panel_button
 
 _BOTTLE_MSG_PREFIX = "bottle_msg:"
 
@@ -23,30 +26,39 @@ class PrivateStartBotMarkup:
         self.lang = lang
 
     def build(self) -> InlineKeyboardMarkup:
-        return InlineKeyboardMarkup(
+        rows = [
             [
+                InlineKeyboardButton(
+                    i18n.t("bot.button.repo", locale=self.lang),
+                    url=consts.REPO_URL,
+                ),
+                InlineKeyboardButton(
+                    i18n.t("bot.button.docs", locale=self.lang),
+                    url=consts.DOCS_URL,
+                ),
+            ],
+            [
+                InlineKeyboardButton(
+                    i18n.t("bot.button.user_waifu", locale=self.lang),
+                    callback_data="user_waifu_manage",
+                ),
+                InlineKeyboardButton(
+                    i18n.t("bot.button.user_quote", locale=self.lang),
+                    callback_data="user_quote_manage",
+                ),
+            ],
+        ]
+        if app_config.webapp and app_config.webapp_url:
+            rows.insert(
+                0,
                 [
                     InlineKeyboardButton(
-                        i18n.t("bot.button.repo", locale=self.lang),
-                        url=consts.REPO_URL,
-                    ),
-                    InlineKeyboardButton(
-                        i18n.t("bot.button.docs", locale=self.lang),
-                        url=consts.DOCS_URL,
-                    ),
+                        i18n.t("bot.button.panel", locale=self.lang),
+                        web_app=WebAppInfo(url=app_config.webapp_url),
+                    )
                 ],
-                [
-                    InlineKeyboardButton(
-                        i18n.t("bot.button.user_waifu", locale=self.lang),
-                        callback_data="user_waifu_manage",
-                    ),
-                    InlineKeyboardButton(
-                        i18n.t("bot.button.user_quote", locale=self.lang),
-                        callback_data="user_quote_manage",
-                    ),
-                ],
-            ]
-        )
+            )
+        return InlineKeyboardMarkup(rows)
 
 
 @Client.on_message(filters.command("start") & filters.private, group=0)
@@ -228,18 +240,22 @@ async def start(client: Client, message: Message):
 async def start_group(client: Client, message: Message):
     chat_config = await database.get_chat_config(message.chat)
     lang = chat_config.lang
+    rows = [
+        [
+            InlineKeyboardButton(
+                i18n.t("bot.button.pm_me", locale=lang),
+                url=f"https://t.me/{client.me.username}?start=start",
+            )
+        ]
+    ]
+    # A group member who can manage the bot here gets a direct route to this group's
+    # settings, rather than having to open a private chat and find the group again.
+    panel_button = chat_panel_button(message.chat.id, lang)
+    if panel_button and await _can_manage(message):
+        rows.insert(0, [panel_button])
     reply = await message.reply(
         text=i18n.t("bot.msg.group_start", locale=lang),
-        reply_markup=InlineKeyboardMarkup(
-            [
-                [
-                    InlineKeyboardButton(
-                        i18n.t("bot.button.pm_me", locale=lang),
-                        url=f"https://t.me/{client.me.username}?start=start",
-                    )
-                ]
-            ]
-        ),
+        reply_markup=InlineKeyboardMarkup(rows),
     )
     common.spawn(_auto_delete(reply, 120), name="group-start-auto-delete")
 
@@ -263,6 +279,21 @@ async def delete_callback_query_message(client: Client, callback_query: Callback
         await callback_query.message.delete()
     except Exception as e:
         logger.error(f"Failed to delete message: {e.__class__.__name__} - {e}")
+
+
+async def _can_manage(message: Message) -> bool:
+    """Whether the sender may manage the bot in this group.
+
+    Failures are swallowed: the check decides whether to offer an extra button, and a
+    lookup error must not take down the whole /start reply.
+    """
+    try:
+        return await common.can_user_manage_bot_in_chat(
+            message.sender_chat or message.from_user, message.chat
+        )
+    except Exception as e:
+        logger.debug(f"panel button: permission check failed: {e}")
+        return False
 
 
 async def _auto_delete(message: Message, delay: int = 120) -> None:

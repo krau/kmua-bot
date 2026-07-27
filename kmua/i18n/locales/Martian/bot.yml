@@ -3,6 +3,8 @@ bot:
     lang_changed: 語誩已莄攺爲 {lang}
     no_permission_group: 伱沒冇夲群組ф菅理 bot の權限哦
     group_config: 點擊按鈕莄攺群組設置哦
+    chat_panel: 點擊按鈕茬管理靣板ф配置夲群
+    panel_unavailable: 管理靣板未啟鎓哦
     unknown_operation: 耒倁操莋, 卟岢苡幹壞亊哦
     group_config_saved: 群組設置已葆洊~
     refresh_failed: 刷噺矢敗, 請稍後侢試

@@ -1,0 +1,206 @@
+<script setup lang="ts">
+/**
+ * Group configuration.
+ *
+ * The whole config document is submitted at once, matching the API: it is a single
+ * JSON column that the inline /config keyboard also writes, and replacing it wholly
+ * makes the last writer's intent unambiguous.
+ *
+ * Title permissions and the admin roster have their own pages, so saving the toggles
+ * here can never clobber them.
+ */
+import { computed, ref } from "vue";
+import { useRouter } from "vue-router";
+
+import { systemInfo } from "@/api/endpoints/auth";
+import { fetchChat, saveChatConfig } from "@/api/endpoints/chats";
+import { isApiError } from "@/api/errors";
+import type { ChatConfigInput } from "@/api/types";
+import NumberStepper from "@/components/NumberStepper.vue";
+import PageHeader from "@/components/PageHeader.vue";
+import SelectField from "@/components/SelectField.vue";
+import SettingsRow from "@/components/SettingsRow.vue";
+import SettingsSection from "@/components/SettingsSection.vue";
+import StateBlock from "@/components/StateBlock.vue";
+import TextArea from "@/components/TextArea.vue";
+import ToggleSwitch from "@/components/ToggleSwitch.vue";
+import { useAsyncData } from "@/composables/useAsyncData";
+import { useDirtyState } from "@/composables/useDirtyState";
+import { useMainButton } from "@/composables/useMainButton";
+import { useNotice } from "@/composables/useNotice";
+import { t, tOptional } from "@/i18n";
+import { tError } from "@/i18n";
+import { haptics } from "@/telegram";
+import { localeName } from "@/utils/locale";
+import { TOGGLES_WITH_HINTS, TOGGLE_GROUPS, type ChatToggleKey } from "./config-layout";
+
+const props = defineProps<{ chatId: number }>();
+
+const router = useRouter();
+const saving = ref(false);
+const { notify, notifyError } = useNotice();
+
+const EMPTY_CONFIG: ChatConfigInput = {
+  waifu_enabled: true,
+  delete_events_enabled: false,
+  unpin_channel_pin_enabled: false,
+  message_search_enabled: false,
+  quote_probability: 0.001,
+  quote_pin_message: true,
+  greeting: null,
+  ai_reply: true,
+  ai_reply_other_bots_enabled: false,
+  ai_comment: false,
+  setu_enabled: true,
+  convert_b23_enabled: true,
+  parse_artwork_enabled: true,
+  pick_bottle_enabled: true,
+  group_memory_enabled: true,
+  lang: "zh-CN",
+};
+
+const form = useDirtyState<ChatConfigInput & Record<string, unknown>>({ ...EMPTY_CONFIG });
+
+const chat = useAsyncData(async (signal) => {
+  const detail = await fetchChat(props.chatId, signal);
+  const { title_permissions: _ignored, ...config } = detail.config;
+  form.commit({ ...config });
+  return detail;
+});
+
+const locales = useAsyncData(async (signal) => (await systemInfo(signal)).available_locales);
+
+const localeOptions = computed(() =>
+  (locales.data.value ?? [form.draft.value.lang]).map((value) => ({
+    value,
+    text: localeName(value),
+  })),
+);
+
+/** The greeting is nullable in the API but a textarea needs a string. */
+const greeting = computed({
+  get: () => form.draft.value.greeting ?? "",
+  set: (value: string) => {
+    form.draft.value.greeting = value.trim() ? value : null;
+  },
+});
+
+function toggleLabel(key: ChatToggleKey): string {
+  return t(`chatConfig.${key}`);
+}
+
+function toggleHint(key: ChatToggleKey): string | undefined {
+  return TOGGLES_WITH_HINTS.has(key) ? tOptional(`chatConfig.${key}Hint`) : undefined;
+}
+
+function changed(key: string): boolean {
+  return form.changedFields.value.includes(key);
+}
+
+async function save(): Promise<void> {
+  saving.value = true;
+  try {
+    const saved = await saveChatConfig(props.chatId, form.draft.value);
+    const { title_permissions: _ignored, ...config } = saved;
+    form.commit({ ...config });
+    if (chat.data.value) chat.data.value.config = saved;
+    notify(t("app.saved"));
+    haptics.success();
+  } catch (error) {
+    notifyError(isApiError(error) ? tError(error.code) : t("app.loadFailed"));
+    haptics.error();
+  } finally {
+    saving.value = false;
+  }
+}
+
+useMainButton({
+  text: () => t("app.saveCount", { count: form.changedFields.value.length }),
+  visible: () => form.isDirty.value,
+  enabled: () => form.isDirty.value && !saving.value,
+  loading: () => saving.value,
+  onClick: () => void save(),
+  secondary: {
+    text: () => t("app.reset"),
+    visible: () => form.isDirty.value,
+    onClick: () => form.reset(),
+  },
+});
+
+function go(name: string): void {
+  void router.push({ name, params: { chatId: String(props.chatId) } });
+}
+</script>
+
+<template>
+  <PageHeader :title="t('chats.config')" :subtitle="chat.data.value?.title" />
+
+  <StateBlock
+    :loading="chat.loading.value && !chat.data.value"
+    :error="chat.error.value"
+    @retry="chat.reload"
+  >
+    <SettingsSection
+      v-for="group in TOGGLE_GROUPS"
+      :key="group.labelKey"
+      :label="t(`chats.${group.labelKey}`)"
+    >
+      <SettingsRow
+        v-for="key in group.keys"
+        :key="key"
+        :label="toggleLabel(key)"
+        :hint="toggleHint(key)"
+        :changed="changed(key)"
+      >
+        <template #control>
+          <ToggleSwitch v-model="form.draft.value[key] as boolean" :aria-label="toggleLabel(key)" />
+        </template>
+      </SettingsRow>
+
+      <NumberStepper
+        v-if="group.labelKey === 'interaction'"
+        v-model="form.draft.value.quote_probability"
+        :label="t('chats.quoteProbability')"
+      />
+    </SettingsSection>
+
+    <SettingsSection :label="t('chats.greeting')">
+      <TextArea
+        v-model="greeting"
+        :label="t('chats.greeting')"
+        :hint="t('chats.greetingHint')"
+        :placeholder="t('chats.greetingPlaceholder')"
+        :maxlength="1024"
+        :changed="changed('greeting')"
+      />
+      <SelectField
+        v-model="form.draft.value.lang"
+        :label="t('chats.lang')"
+        :options="localeOptions"
+        :changed="changed('lang')"
+      />
+    </SettingsSection>
+
+    <SettingsSection>
+      <SettingsRow
+        :label="t('chats.titlePermissions')"
+        :hint="t('chats.titlePermissionsHint')"
+        navigable
+        @click="go('chat-title-permissions')"
+      />
+      <SettingsRow
+        :label="t('chats.admins')"
+        :hint="t('chats.adminsHint')"
+        navigable
+        @click="go('chat-admins')"
+      />
+      <SettingsRow
+        :label="t('chats.quotes')"
+        :value="chat.data.value?.quote_count ?? 0"
+        navigable
+        @click="go('chat-quotes')"
+      />
+      <SettingsRow :label="t('chats.members')" :value="chat.data.value?.member_count ?? 0" />
+    </SettingsSection>
+  </StateBlock>
+</template>

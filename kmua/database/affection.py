@@ -291,10 +291,16 @@ async def update_user_affection(
 
     # 非 PG：手动维护
     if old_bucket != new_bucket:
+        # CASE 而非 greatest(): SQLite 没有 greatest 函数, 用它会让
+        # SQLite 上任何跨桶的好感度变更直接抛 OperationalError.
+        decremented = sqlalchemy.case(
+            (AffectionHistogram.cnt - 1 < 0, 0),
+            else_=AffectionHistogram.cnt - 1,
+        )
         await session.execute(
             sqlalchemy.update(AffectionHistogram)
             .where(AffectionHistogram.bucket == old_bucket)
-            .values(cnt=sqlalchemy.func.greatest(AffectionHistogram.cnt - 1, 0))
+            .values(cnt=decremented)
         )
 
         if runtime_config.db_is_mysql:

@@ -3,6 +3,8 @@ bot:
     lang_changed: 언어가 {lang}으로 변경되었어요.
     no_permission_group: 이 그룹에서 봇을 관리할 권한이 없어요!
     group_config: 버튼을 눌러 그룹 설정을 변경하세요!
+    chat_panel: 버튼을 눌러 패널에서 이 그룹을 설정하세요
+    panel_unavailable: 패널이 활성화되지 않았어요
     unknown_operation: 알 수 없는 명령어예요. 나쁜 짓은 안돼요~
     group_config_saved: 그룹 설정이 저장되었어요~
     refresh_failed: 새로고침에 실패했어요. 잠시 후에 다시 시도해주세요.

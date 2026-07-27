@@ -10,6 +10,8 @@ bot:
     pm_me: 打开私聊
     page_prev: 上一页
     page_next: 下一页
+    panel: 管理面板
+    chat_panel: 在面板中配置
     chat_config:
       waifu: 每日老婆
       delete_events: 删除事件

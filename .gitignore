@@ -1,5 +1,4 @@
 __pycache__
-*test*
 *venv*
 *.log
 tmp/
@@ -10,5 +9,24 @@ settings.dev*
 data/**
 .secret*
 pgload/
-test.*
 .agentfs
+
+# Root-level scratch files (test.py, test2.py, test.json, test_powermem.json).
+# Scoped to the repo root with a leading slash: a bare *test* pattern also matches
+# conftest.py, tests/test_*.py and vitest.config.ts, which hides the real suite.
+/test*.py
+/test*.json
+/test*.db
+
+# Mini App panel: frontend deps, caches and build output
+webapp/node_modules/
+webapp/dist/
+webapp/.vite/
+webapp/*.tsbuildinfo
+kmua/webapp/dist/
+# Holds a signed initData payload generated from the bot token for local dev.
+webapp/.env.local
+
+# Working notes: design plans, local dev scratch. Not user documentation, so they
+# stay out of the repo and out of the docs site.
+.dev-notes/

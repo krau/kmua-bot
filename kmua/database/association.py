@@ -401,3 +401,69 @@ async def change_user_waifu_in_chat(
         return None
     association.waifu_id = new_waifu.id
     return new_waifu
+
+
+@with_session
+async def get_user_chats(
+    user_id: int, session: AsyncSession | None = None
+) -> Sequence[tuple[ChatData, bool]]:
+    """Return the groups a user shares with the bot, plus their bot-admin flag.
+
+    `is_bot_admin` here is the stored flag only. Group owners and admins with
+    can_promote_members also count as managers, but confirming that needs a
+    Telegram round trip - `common.can_user_manage_bot_in_chat` does it lazily and
+    persists the result, so this flag catches up over time.
+    """
+    assert session is not None
+
+    stmt = (
+        sqlalchemy.select(ChatData, UserChatAssociation.is_bot_admin)
+        .join(UserChatAssociation, UserChatAssociation.chat_id == ChatData.id)
+        .where(UserChatAssociation.user_id == user_id)
+        .order_by(ChatData.title)
+    )
+    result = await session.execute(stmt)
+    return [(row[0], bool(row[1])) for row in result.all()]
+
+
+@with_session
+async def get_chat_bot_admins(
+    chat_id: int, session: AsyncSession | None = None
+) -> Sequence[tuple[UserData, int | None]]:
+    """Return users flagged as bot admins in a chat, with who promoted them."""
+    assert session is not None
+
+    stmt = (
+        sqlalchemy.select(UserData, UserChatAssociation.promoted_by)
+        .join(UserChatAssociation, UserChatAssociation.user_id == UserData.id)
+        .where(
+            UserChatAssociation.chat_id == chat_id,
+            UserChatAssociation.is_bot_admin.is_(True),
+        )
+        .order_by(UserData.full_name)
+    )
+    result = await session.execute(stmt)
+    return [(row[0], row[1]) for row in result.all()]
+
+
+@with_tx
+async def set_association_bot_admin(
+    user_id: int,
+    chat_id: int,
+    value: bool,
+    promoted_by: int | None = None,
+    session: AsyncSession | None = None,
+) -> bool:
+    """Toggle a user's bot-admin flag in a chat. Returns False when not a member.
+
+    `promoted_by` is recorded on promotion and cleared on demotion; it is what
+    stops a promoted admin from demoting whoever promoted them.
+    """
+    assert session is not None
+
+    association = await session.get(UserChatAssociation, (user_id, chat_id))
+    if association is None:
+        return False
+    association.is_bot_admin = value
+    association.promoted_by = promoted_by if value else None
+    return True

@@ -8,9 +8,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from kmua.common.memory_store import memttlcache
 from kmua.config import runtime_config
+from kmua.database import pagination
 
 from .db import with_session, with_tx
-from .models import ChatConfig, ChatData
+from .models import ChatConfig, ChatData, UserChatAssociation
 
 # 本地内存缓存：记录已同步到 DB 的群组快照，避免每条消息触发重复 upsert
 # key: chat_id, value: (title, username)
@@ -207,3 +208,76 @@ async def update_chat_config(
     )
 
     return chat_data.chat_config
+
+
+@with_session
+async def get_chats_page(
+    page: int = 1,
+    size: int = pagination.DEFAULT_PAGE_SIZE,
+    query: str = "",
+    session: AsyncSession | None = None,
+) -> pagination.Page[ChatData]:
+    """List groups for the developer panel, newest first."""
+    assert session is not None
+
+    page, size = pagination.normalize_page(page, size)
+    conditions = []
+    query = query.strip()
+    if query:
+        wanted_id = pagination.parse_id_query(query)
+        if wanted_id is not None:
+            conditions.append(ChatData.id == wanted_id)
+        else:
+            conditions.append(
+                sqlalchemy.or_(
+                    pagination.text_match(ChatData.title, query),
+                    pagination.text_match(ChatData.username, query),
+                )
+            )
+
+    total_stmt = sqlalchemy.select(sqlalchemy.func.count()).select_from(ChatData)
+    if conditions:
+        total_stmt = total_stmt.where(*conditions)
+    total = (await session.execute(total_stmt)).scalar() or 0
+
+    stmt = sqlalchemy.select(ChatData)
+    if conditions:
+        stmt = stmt.where(*conditions)
+    stmt = (
+        stmt.order_by(ChatData.created_at.desc(), ChatData.id.desc())
+        .offset(pagination.offset_for(page, size))
+        .limit(size)
+    )
+    items = (await session.execute(stmt)).scalars().all()
+    return pagination.Page(items=items, total=total, page=page, size=size)
+
+
+@with_session
+async def count_chat_members(chat_id: int, session: AsyncSession | None = None) -> int:
+    """Count members the bot knows about, which is what the panel can act on.
+
+    This is the association count, not Telegram's member count: the two differ
+    until /syncmembers runs.
+    """
+    assert session is not None
+
+    stmt = (
+        sqlalchemy.select(sqlalchemy.func.count())
+        .select_from(UserChatAssociation)
+        .where(UserChatAssociation.chat_id == chat_id)
+    )
+    return (await session.execute(stmt)).scalar() or 0
+
+
+@with_tx
+async def delete_chat(chat_id: int, session: AsyncSession | None = None) -> bool:
+    """Remove a group and its cascaded rows. Returns False when absent."""
+    assert session is not None
+
+    chat_data = await session.get(ChatData, chat_id)
+    if chat_data is None:
+        return False
+    await session.delete(chat_data)
+    _upsert_chat_cache.pop(chat_id, None)
+    await memttlcache.delete(f"{_CHAT_CONFIG_CACHE_PREFIX}{chat_id}")
+    return True

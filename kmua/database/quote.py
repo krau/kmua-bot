@@ -5,6 +5,7 @@ import sqlalchemy.orm
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from kmua.config import app_config, runtime_config
+from kmua.database import pagination
 from kmua.database.db import with_session, with_tx
 from kmua.database.models import ChatData, Quote, UserChatAssociation, UserData
 
@@ -195,3 +196,86 @@ async def get_chat_quotes(
     )
     result = await session.execute(stmt)
     return result.scalars().all()
+
+
+@with_session
+async def get_user_quotes_paged(
+    user_id: int,
+    page: int = 1,
+    size: int = pagination.DEFAULT_PAGE_SIZE,
+    session: AsyncSession | None = None,
+) -> pagination.Page[Quote]:
+    """Page through a user's quotes, newest first.
+
+    `get_user_quotes_page` exists for the inline keyboard flow but returns no
+    total and has no deterministic order, neither of which works for a pager.
+    """
+    assert session is not None
+
+    page, size = pagination.normalize_page(page, size)
+    total = (
+        await session.execute(
+            sqlalchemy.select(sqlalchemy.func.count())
+            .select_from(Quote)
+            .where(Quote.user_id == user_id)
+        )
+    ).scalar() or 0
+
+    stmt = (
+        sqlalchemy.select(Quote)
+        .where(Quote.user_id == user_id)
+        .order_by(Quote.created_at.desc(), Quote.link)
+        .offset(pagination.offset_for(page, size))
+        .limit(size)
+    )
+    items = (await session.execute(stmt)).scalars().all()
+    return pagination.Page(items=items, total=total, page=page, size=size)
+
+
+@with_session
+async def get_chat_quotes_paged(
+    chat_id: int,
+    page: int = 1,
+    size: int = pagination.DEFAULT_PAGE_SIZE,
+    query: str = "",
+    session: AsyncSession | None = None,
+) -> pagination.Page[Quote]:
+    """Page through a chat's quotes, newest first, with optional text search."""
+    assert session is not None
+
+    page, size = pagination.normalize_page(page, size)
+    conditions: list[sqlalchemy.ColumnElement[bool]] = [Quote.chat_id == chat_id]
+    query = query.strip()
+    if query:
+        conditions.append(_build_text_search_condition(query))
+
+    total = (
+        await session.execute(
+            sqlalchemy.select(sqlalchemy.func.count())
+            .select_from(Quote)
+            .where(*conditions)
+        )
+    ).scalar() or 0
+
+    stmt = (
+        sqlalchemy.select(Quote)
+        .options(sqlalchemy.orm.selectinload(Quote.user))
+        .where(*conditions)
+        .order_by(Quote.created_at.desc(), Quote.link)
+        .offset(pagination.offset_for(page, size))
+        .limit(size)
+    )
+    items = (await session.execute(stmt)).scalars().all()
+    return pagination.Page(items=items, total=total, page=page, size=size)
+
+
+@with_session
+async def count_chat_quotes(chat_id: int, session: AsyncSession | None = None) -> int:
+    assert session is not None
+
+    stmt = (
+        sqlalchemy.select(sqlalchemy.func.count())
+        .select_from(Quote)
+        .where(Quote.chat_id == chat_id)
+    )
+    return (await session.execute(stmt)).scalar() or 0

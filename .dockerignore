@@ -9,3 +9,10 @@ __pycache__
 docker-compose.yml
 data/
 logs/
+# Frontend deps and build output: the Docker build installs and builds these in
+# its own stage, so copying the host's copies in would only invalidate the cache.
+webapp/node_modules/
+webapp/dist/
+kmua/webapp/dist/
+# Local browser development credentials and signed test launch data must not ship.
+webapp/.env.local
