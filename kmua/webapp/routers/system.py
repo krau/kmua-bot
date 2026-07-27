@@ -14,6 +14,11 @@ from kmua.logger import logger
 
 router = APIRouter(tags=["system"])
 
+# What an unauthenticated caller is told when the check itself raised. The field is
+# kept rather than dropped so the response shape does not change with the failure
+# mode, but its value is fixed: see the handlers for why.
+_OPAQUE_ERROR = "Health check failed"
+
 
 @router.get("/health", include_in_schema=False)
 async def health_check() -> Response:
@@ -41,9 +46,18 @@ async def health_check() -> Response:
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
         )
     except Exception as e:
-        logger.error(f"Health check failed: {e}")
+        # The exception text stays in the log, not in the response. These two routes
+        # are unauthenticated by design - a container health check cannot present a
+        # token - so anything they return is public, and an exception string can
+        # carry a stack frame, a path or a hostname. The operator reading the log has
+        # the detail; the caller only needs the verdict.
+        logger.opt(exception=e).error("webapp: health check failed")
         return JSONResponse(
-            {"status": "error", "error": str(e)},
+            {
+                "status": "error",
+                "bot_connected": False,
+                "error": _OPAQUE_ERROR,
+            },
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
         )
 
@@ -66,8 +80,10 @@ async def readiness_check() -> Response:
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
         )
     except Exception as e:
+        # Same reasoning as /health: log the detail, return only the verdict.
+        logger.opt(exception=e).error("webapp: readiness check failed")
         return JSONResponse(
-            {"status": "error", "error": str(e)},
+            {"status": "error", "error": _OPAQUE_ERROR},
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
         )
 
