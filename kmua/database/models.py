@@ -419,7 +419,7 @@ class ChatPolicy:
     def from_dict(cls, data: dict | None) -> "ChatPolicy":
         if data is None:
             return cls()
-        return cls(agent_enabled=data.get("agent_enabled", False))
+        return cls(agent_allowed=data.get("agent_allowed", False))
 
     def to_dict(self) -> dict:
         return asdict(self)

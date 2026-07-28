@@ -212,7 +212,7 @@
     "agentMode": "Agent 白名单模式",
     "agentModeOn": "已开启: Agent 仅在下方启用的群组生效",
     "agentModeOff": "已关闭: Agent 在所有群组生效, 下方开关不起作用",
-    "agentEnabled": "允许 Agent",
+    "agentAllowed": "允许 Agent",
     "chats": "已配置的群组",
     "chatsHint": "开关控制该群是否允许 Agent",
     "emptyHint": "还没有配置任何群组",

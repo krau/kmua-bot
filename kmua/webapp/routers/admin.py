@@ -417,8 +417,8 @@ async def write_chat_policy(
     desired = ChatPolicy(
         agent_allowed=(
             current.agent_allowed
-            if payload.agent_enabled is None
-            else payload.agent_enabled
+            if payload.agent_allowed is None
+            else payload.agent_allowed
         )
     )
 

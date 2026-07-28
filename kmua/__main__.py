@@ -91,7 +91,7 @@ async def _init_chat_policies() -> None:
         return
     try:
         if await database.count_chat_policies() == 0 and app_config.agent_whitelist:
-            seeded = await database.seed_agent_enabled_chats(
+            seeded = await database.seed_agent_allowed_chats(
                 list(app_config.agent_whitelist)
             )
             if seeded:
@@ -99,7 +99,7 @@ async def _init_chat_policies() -> None:
                     f"chat policy: seeded {seeded} chat(s) from agent_whitelist; "
                     "it is now editable in the panel and the config list is ignored"
                 )
-        loaded = await database.load_agent_enabled_chats()
+        loaded = await database.load_agent_allowed_chats()
         logger.info(f"chat policy: agent allowed in {len(loaded)} chat(s)")
     except Exception as e:
         # A failure here leaves the mirror unloaded, which makes `is_chat_allowed`

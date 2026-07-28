@@ -140,14 +140,14 @@ async def test_policy_row_for_an_unknown_chat_has_no_title():
 async def test_seed_only_adds_missing_ids():
     await database.set_chat_policy(-100900011, ChatPolicy(agent_allowed=True))
 
-    seeded = await database.seed_agent_enabled_chats([-100900011, -100900012])
+    seeded = await database.seed_agent_allowed_chats([-100900011, -100900012])
 
     assert seeded == 1
     assert await database.count_chat_policies() == 2
 
 
 async def test_seed_ignores_duplicates_in_its_input():
-    seeded = await database.seed_agent_enabled_chats([-100900013, -100900013])
+    seeded = await database.seed_agent_allowed_chats([-100900013, -100900013])
 
     assert seeded == 1
 
@@ -165,11 +165,11 @@ async def test_set_policy_with_absent_flags_leaves_them_alone():
     """The PUT contract: a partial write does not reset unmentioned flags."""
     await database.set_chat_policy(-100900016, ChatPolicy(agent_allowed=True))
 
-    # A hypothetical second flag added later: setting it should not touch agent_enabled.
+    # A hypothetical second flag added later: setting it should not touch agent_allowed.
     current = await database.get_chat_policy(-100900016)
     assert current.agent_allowed is True
 
-    # Re-save with agent_enabled unchanged.
+    # Re-save with agent_allowed unchanged.
     await database.set_chat_policy(-100900016, current)
 
     policy = await database.get_chat_policy(-100900016)
@@ -195,7 +195,7 @@ async def test_admin_can_read_policy_list(monkeypatch):
     body = response.json()
     assert body["agent_whitelist_mode"] is False
     assert [e["chat_id"] for e in body["items"]] == [-100900020]
-    assert body["items"][0]["policy"]["agent_enabled"] is True
+    assert body["items"][0]["policy"]["agent_allowed"] is True
     assert body["items"][0]["note"] == "visible"
 
 
@@ -206,7 +206,7 @@ async def test_owner_can_set_policy_and_response_carries_the_new_list(monkeypatc
     async with api_client() as client:
         response = await client.put(
             "/api/admin/chat-policies/-100900021",
-            json={"agent_enabled": True, "note": "onboarded"},
+            json={"agent_allowed": True, "note": "onboarded"},
             headers=bearer(OWNER_ID),
         )
 
@@ -225,7 +225,7 @@ async def test_set_policy_is_immediately_visible_to_is_chat_allowed(
     async with api_client() as client:
         response = await client.put(
             "/api/admin/chat-policies/-100900022",
-            json={"agent_enabled": True, "note": None},
+            json={"agent_allowed": True, "note": None},
             headers=bearer(OWNER_ID),
         )
 
@@ -268,7 +268,7 @@ async def test_global_admin_cannot_set_policy(monkeypatch):
     async with api_client() as client:
         response = await client.put(
             "/api/admin/chat-policies/-100900026",
-            json={"agent_enabled": True, "note": None},
+            json={"agent_allowed": True, "note": None},
             headers=bearer(ADMIN_ID),
         )
 
@@ -328,10 +328,10 @@ async def test_put_with_absent_flags_leaves_them_at_their_current_value(monkeypa
     await database.set_chat_policy(-100900028, ChatPolicy(agent_allowed=True))
 
     async with api_client() as client:
-        # Hypothetical: setting a second flag without mentioning agent_enabled.
+        # Hypothetical: setting a second flag without mentioning agent_allowed.
         response = await client.put(
             "/api/admin/chat-policies/-100900028",
-            json={"agent_enabled": None, "note": "updated"},
+            json={"agent_allowed": None, "note": "updated"},
             headers=bearer(OWNER_ID),
         )
 

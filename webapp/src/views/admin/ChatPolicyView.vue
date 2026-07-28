@@ -88,7 +88,7 @@ async function add(): Promise<void> {
   pending.value = "add";
   try {
     policies.data.value = await setChatPolicy(chatId, {
-      agent_enabled: true,
+      agent_allowed: true,
       note: newNote.value.trim() || null,
     });
     newChatId.value = "";
@@ -109,7 +109,7 @@ async function toggleAgent(item: ChatPolicy, value: boolean): Promise<void> {
 
   pending.value = `toggle:${item.chat_id}`;
   try {
-    policies.data.value = await setChatPolicy(item.chat_id, { agent_enabled: value });
+    policies.data.value = await setChatPolicy(item.chat_id, { agent_allowed: value });
     notify(t("app.saved"));
     haptics.success();
   } catch (error) {
@@ -173,9 +173,9 @@ async function remove(item: ChatPolicy): Promise<void> {
       >
         <template #control>
           <ToggleSwitch
-            :model-value="item.policy.agent_enabled"
+            :model-value="item.policy.agent_allowed"
             :disabled="!session.isOwner || busy"
-            :aria-label="t('chatPolicy.agentEnabled')"
+            :aria-label="t('chatPolicy.agentAllowed')"
             @update:model-value="toggleAgent(item, $event)"
           />
         </template>

@@ -25,13 +25,13 @@ from kmua.logger import logger
 from .db import with_session, with_tx
 from .models import ChatData, ChatPolicy, ChatPolicyData
 
-# Mirrors the chat ids whose policy has `agent_enabled` set. `None` means "not loaded
+# Mirrors the chat ids whose policy has `agent_allowed` set. `None` means "not loaded
 # yet", which is distinct from "loaded and empty" - the difference decides whether a
 # synchronous reader may trust it.
 _agent_cache: set[int] | None = None
 
 
-def agent_enabled_cache() -> set[int] | None:
+def agent_allowed_cache() -> set[int] | None:
     """The mirrored id set, or None when it has not been loaded yet."""
     return _agent_cache
 
@@ -57,7 +57,7 @@ def _mirror(chat_id: int, enabled: bool) -> None:
 
 
 @with_session
-async def load_agent_enabled_chats(session: AsyncSession | None = None) -> set[int]:
+async def load_agent_allowed_chats(session: AsyncSession | None = None) -> set[int]:
     """Read every chat with the agent flag set, and refresh the mirror.
 
     Filtering happens in Python rather than in SQL: the flag lives in a JSON column and
@@ -162,7 +162,7 @@ async def delete_chat_policy(chat_id: int, session: AsyncSession | None = None) 
 
 
 @with_tx
-async def seed_agent_enabled_chats(
+async def seed_agent_allowed_chats(
     chat_ids: list[int], session: AsyncSession | None = None
 ) -> int:
     """Turn a config-supplied whitelist into policy rows.
@@ -204,12 +204,12 @@ async def count_chat_policies(session: AsyncSession | None = None) -> int:
 
 
 __all__ = [
-    "agent_enabled_cache",
+    "agent_allowed_cache",
     "count_chat_policies",
     "delete_chat_policy",
     "get_chat_policies",
     "get_chat_policy",
-    "load_agent_enabled_chats",
-    "seed_agent_enabled_chats",
+    "load_agent_allowed_chats",
+    "seed_agent_allowed_chats",
     "set_chat_policy",
 ]

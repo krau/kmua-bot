@@ -368,7 +368,7 @@ class ChatPolicyFlagsOut(ApiModel):
     the frontend sees rather than a key that silently appears.
     """
 
-    agent_enabled: bool
+    agent_allowed: bool
 
 
 class ChatPolicyOut(ApiModel):
@@ -396,7 +396,7 @@ class ChatPolicyListOut(ApiModel):
 class ChatPolicyIn(ApiModel):
     """A policy write. Absent flags keep their current value."""
 
-    agent_enabled: bool | None = None
+    agent_allowed: bool | None = None
     note: str | None = Field(default=None, max_length=256)
 
 

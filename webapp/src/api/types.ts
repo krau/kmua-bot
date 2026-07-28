@@ -243,7 +243,7 @@ export interface Job {
  * per-chat setting is a field here, not a new endpoint.
  */
 export interface ChatPolicyFlags {
-  agent_enabled: boolean;
+  agent_allowed: boolean;
 }
 
 export interface ChatPolicy {
@@ -257,14 +257,14 @@ export interface ChatPolicy {
 }
 
 export interface ChatPolicyList {
-  /** Whether whitelist mode is on. With it off `agent_enabled` is inert. */
+  /** Whether whitelist mode is on. With it off `agent_allowed` is inert. */
   agent_whitelist_mode: boolean;
   items: ChatPolicy[];
 }
 
 /** A policy write. Absent flags keep their current value. */
 export interface ChatPolicyPatch {
-  agent_enabled?: boolean | null;
+  agent_allowed?: boolean | null;
   note?: string | null;
 }
 
