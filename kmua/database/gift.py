@@ -12,7 +12,7 @@ async def add_gift_to_user(
     gift_id: gift.GiftID,
     rarity: int = 1,
     session: AsyncSession | None = None,
-):
+) -> Gift:
     assert session is not None, "Session must be provided"
     gift_entry = Gift(
         owner_id=owner_id,
@@ -21,6 +21,8 @@ async def add_gift_to_user(
         rarity=rarity,
     )
     session.add(gift_entry)
+    await session.flush()
+    return gift_entry
 
 
 @with_session
@@ -60,7 +62,7 @@ async def buy_gift_for_user(
     gift_id: gift.GiftID,
     rarity: int = 1,
     session: AsyncSession | None = None,
-):
+) -> Gift:
     assert session is not None, "Session must be provided"
     cost = gift.get_gift_by_id(gift_id).price
     user_data = await session.get(UserData, owner_id)
@@ -71,7 +73,7 @@ async def buy_gift_for_user(
         raise ValueError("Not enough coins to buy gift")
     config.coins = max(-144 * 16, config.coins - cost)
     user_data.user_config = config
-    await add_gift_to_user(owner_id, gift_id, rarity, session=session)
+    return await add_gift_to_user(owner_id, gift_id, rarity, session=session)
 
 
 @with_session

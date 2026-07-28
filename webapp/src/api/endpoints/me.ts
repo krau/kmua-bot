@@ -1,5 +1,15 @@
 import { api } from "../client";
-import type { ChatBrief, Gift, Me, MeConfigPatch, Page, Quote, Waifu } from "../types";
+import type {
+  ChatBrief,
+  Gift,
+  GiftCatalogItem,
+  GiftUseResult,
+  Me,
+  MeConfigPatch,
+  Page,
+  Quote,
+  Waifu,
+} from "../types";
 
 export function fetchMe(signal?: AbortSignal) {
   return api.get<Me>("/api/me", signal ? { signal } : {});
@@ -37,6 +47,18 @@ export function fetchMyGifts(sent = false, signal?: AbortSignal) {
     query: { sent },
     ...(signal ? { signal } : {}),
   });
+}
+
+export function fetchGiftCatalog(signal?: AbortSignal) {
+  return api.get<GiftCatalogItem[]>("/api/me/gifts/catalog", signal ? { signal } : {});
+}
+
+export function buyGift(giftId: string) {
+  return api.post<Gift>("/api/me/gifts/buy", { gift_id: giftId });
+}
+
+export function sendGift(giftDbId: number) {
+  return api.post<GiftUseResult>(`/api/me/gifts/${giftDbId}/send`);
 }
 
 export function refreshMyAvatar() {

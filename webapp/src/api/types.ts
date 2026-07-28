@@ -95,6 +95,19 @@ export interface Gift {
   created_at: string;
 }
 
+export interface GiftCatalogItem {
+  gift_id: string;
+  display_name: string;
+  description: string;
+  comment: string;
+  price: number;
+}
+
+export interface GiftUseResult {
+  gift: Gift;
+  detail: string | null;
+}
+
 export interface ChatConfig {
   waifu_enabled: boolean;
   delete_events_enabled: boolean;

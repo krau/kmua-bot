@@ -154,6 +154,23 @@ class GiftOut(ApiModel):
     created_at: str
 
 
+class GiftCatalogOut(ApiModel):
+    gift_id: str
+    display_name: str
+    description: str
+    comment: str
+    price: int
+
+
+class GiftPurchaseIn(ApiModel):
+    gift_id: str
+
+
+class GiftUseOut(ApiModel):
+    gift: GiftOut
+    detail: str | None = None
+
+
 # -------------------------------------------------------------------------- chats
 
 

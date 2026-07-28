@@ -74,7 +74,19 @@
   "gifts": {
     "title": "Gifts",
     "sentToBot": "Given to kmua",
-    "inBag": "In bag"
+    "inBag": "In bag",
+    "shop": "Garden",
+    "shopHint": "Each purchase rolls a rarity from common to legendary",
+    "buy": "Buy",
+    "buyConfirm": "Spend {price} coins on {name}? Its rarity is random.",
+    "bought": "Received {rarity} {name}",
+    "send": "Give",
+    "sendConfirm": "Give {name} to kmua? Its effect applies immediately and cannot be undone.",
+    "sent": "Gave {rarity} {name}",
+    "effect": "Effect: {comment}",
+    "lastEffect": "Effect result",
+    "noInventory": "Your bag has no gifts yet",
+    "noHistory": "No gifts given yet"
   },
   "chats": {
     "title": "My groups",
@@ -203,6 +215,9 @@
     "CONFLICT": "Already in that state",
     "FEATURE_DISABLED": "This feature is turned off",
     "NOT_MARRIED": "Not married",
+    "INSUFFICIENT_COINS": "Not enough coins",
+    "GIFT_NOT_FOUND": "Gift not found",
+    "GIFT_ALREADY_SENT": "This gift was already sent",
     "TELEGRAM_ERROR": "Telegram request failed, kmua may lack permissions",
     "INTERNAL_ERROR": "Server error"
   },

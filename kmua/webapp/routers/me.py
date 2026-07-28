@@ -8,6 +8,7 @@ forget.
 from __future__ import annotations
 
 import html
+import random
 
 from fastapi import APIRouter, Path, Query, Request
 from pyrogram.enums import ParseMode
@@ -16,6 +17,7 @@ from kmua import common, database
 from kmua.bot.client import client
 from kmua.common import ops
 from kmua.gift import define as gift_define
+from kmua.gift.service import send_gift_to_bot
 from kmua.i18n import i18n
 from kmua.logger import logger
 from kmua.webapp.deps import CurrentUser, client_key
@@ -23,7 +25,10 @@ from kmua.webapp.errors import ApiError, ErrorCode, not_found
 from kmua.webapp.ratelimit import write_limiter
 from kmua.webapp.schemas import (
     ChatBriefOut,
+    GiftCatalogOut,
     GiftOut,
+    GiftPurchaseIn,
+    GiftUseOut,
     MeConfigPatch,
     MeOut,
     PageOut,
@@ -34,6 +39,23 @@ from kmua.webapp.schemas import (
 from kmua.webapp.serializers import quote_out, timestamp
 
 router = APIRouter(prefix="/api/me", tags=["me"])
+
+
+def gift_out(gift_entry) -> GiftOut:
+    try:
+        gift_id = gift_define.GiftID(gift_entry.gift_id)
+        display = gift_define.get_display_name(gift_id)
+    except ValueError:
+        display = gift_entry.gift_id
+    return GiftOut(
+        id=gift_entry.id,
+        gift_id=gift_entry.gift_id,
+        display_name=display,
+        rarity=gift_entry.rarity,
+        rarity_name=gift_define.get_rarity_display_name(gift_entry.rarity),
+        sent_to_bot=gift_entry.sent_to_bot,
+        created_at=timestamp(gift_entry.created_at),
+    )
 
 
 @router.get("", response_model=MeOut)
@@ -218,25 +240,71 @@ async def list_my_gifts(
     limit: int = Query(50, ge=1, le=100),
 ) -> list[GiftOut]:
     gifts = await database.get_user_gifts(user.id, sent=sent, offset=0, limit=limit)
-    out: list[GiftOut] = []
-    for gift in gifts:
-        try:
-            gift_id = gift_define.GiftID(gift.gift_id)
-            display = gift_define.get_display_name(gift_id)
-        except ValueError:
-            display = gift.gift_id
-        out.append(
-            GiftOut(
-                id=gift.id,
-                gift_id=gift.gift_id,
-                display_name=display,
-                rarity=gift.rarity,
-                rarity_name=gift_define.get_rarity_display_name(gift.rarity),
-                sent_to_bot=gift.sent_to_bot,
-                created_at=timestamp(gift.created_at),
-            )
+    return [gift_out(gift) for gift in gifts]
+
+
+@router.get("/gifts/catalog", response_model=list[GiftCatalogOut])
+async def list_gift_catalog(user: CurrentUser) -> list[GiftCatalogOut]:
+    del user  # The catalog is public to signed-in users, not to anonymous callers.
+    return [
+        GiftCatalogOut(
+            gift_id=item.id,
+            display_name=gift_define.get_display_name(item.id),
+            description=item.description,
+            comment=item.comment,
+            price=item.price,
         )
-    return out
+        for item in gift_define.list_all_gifts()
+    ]
+
+
+@router.post("/gifts/buy", response_model=GiftOut)
+async def buy_gift(
+    request: Request, payload: GiftPurchaseIn, user: CurrentUser
+) -> GiftOut:
+    write_limiter.check(client_key(request, user.id))
+    try:
+        gift_id = gift_define.GiftID(payload.gift_id)
+    except ValueError as e:
+        raise ApiError(ErrorCode.GIFT_NOT_FOUND, "Gift not found", 404) from e
+    if gift_id not in gift_define.ALL_GIFTS:
+        # GiftID also contains an internal sentinel used for corrupted legacy rows.
+        # It is intentionally not a purchasable catalog item.
+        raise ApiError(ErrorCode.GIFT_NOT_FOUND, "Gift not found", 404)
+    item = gift_define.get_gift_by_id(gift_id)
+    if user.data.user_config.coins < item.price:
+        raise ApiError(ErrorCode.INSUFFICIENT_COINS, "Not enough coins", 409)
+    gift_entry = await database.buy_gift_for_user(
+        user.id, gift_id, rarity=random.randint(1, 5)
+    )
+    return gift_out(gift_entry)
+
+
+@router.post("/gifts/{gift_db_id}/send", response_model=GiftUseOut)
+async def send_gift(request: Request, gift_db_id: int, user: CurrentUser) -> GiftUseOut:
+    write_limiter.check(client_key(request, user.id))
+    try:
+        result = await send_gift_to_bot(user.id, gift_db_id)
+    except ValueError as e:
+        message = str(e)
+        code = (
+            ErrorCode.GIFT_ALREADY_SENT
+            if message == "Gift was already sent"
+            else ErrorCode.GIFT_NOT_FOUND
+            if message == "Gift not found"
+            else ErrorCode.FORBIDDEN
+        )
+        status_code = (
+            404
+            if code == ErrorCode.GIFT_NOT_FOUND
+            else 409
+            if code == ErrorCode.GIFT_ALREADY_SENT
+            else 403
+        )
+        raise ApiError(code, message, status_code) from e
+    gift_entry = await database.get_gift_by_db_id(gift_db_id)
+    assert gift_entry is not None
+    return GiftUseOut(gift=gift_out(gift_entry), detail=result.detail)
 
 
 @router.post("/avatar/refresh")

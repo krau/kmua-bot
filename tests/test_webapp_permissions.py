@@ -67,6 +67,7 @@ async def test_unauthenticated_requests_are_rejected(world):
     async with api_client() as client:
         for method, path in (
             ("get", "/api/me"),
+            ("get", "/api/me/gifts/catalog"),
             ("get", "/api/admin/stats"),
             ("get", f"/api/chats/{CHAT_ID}"),
         ):
@@ -77,9 +78,7 @@ async def test_unauthenticated_requests_are_rejected(world):
 
 async def test_plain_user_cannot_reach_the_developer_panel(world):
     async with api_client() as client:
-        response = await client.get(
-            "/api/admin/stats", headers=bearer(PLAIN_USER_ID)
-        )
+        response = await client.get("/api/admin/stats", headers=bearer(PLAIN_USER_ID))
 
     assert response.status_code == 403
     assert response.json()["code"] == "ADMIN_REQUIRED"
@@ -87,9 +86,7 @@ async def test_plain_user_cannot_reach_the_developer_panel(world):
 
 async def test_global_admin_can_read_the_developer_panel(world):
     async with api_client() as client:
-        response = await client.get(
-            "/api/admin/stats", headers=bearer(GLOBAL_ADMIN_ID)
-        )
+        response = await client.get("/api/admin/stats", headers=bearer(GLOBAL_ADMIN_ID))
 
     assert response.status_code == 200
     assert "users" in response.json()

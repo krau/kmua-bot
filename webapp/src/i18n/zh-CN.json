@@ -74,7 +74,19 @@
   "gifts": {
     "title": "礼物",
     "sentToBot": "已送给 kmua",
-    "inBag": "在背包里"
+    "inBag": "在背包里",
+    "shop": "花圃",
+    "shopHint": "随机获得凡芽至禁华品质",
+    "buy": "购买",
+    "buyConfirm": "花费 {price} 硬币购买「{name}」? 品质将随机决定。",
+    "bought": "已获得 {rarity}的{name}",
+    "send": "赠送",
+    "sendConfirm": "将「{name}」赠给 kmua? 赠出后会立即生效，无法撤回。",
+    "sent": "已赠送 {rarity}的{name}",
+    "effect": "效果: {comment}",
+    "lastEffect": "本次效果",
+    "noInventory": "背包里还没有礼物",
+    "noHistory": "还没有赠送过礼物"
   },
   "chats": {
     "title": "我的群组",
@@ -203,6 +215,9 @@
     "CONFLICT": "状态没有变化",
     "FEATURE_DISABLED": "此功能已被关闭",
     "NOT_MARRIED": "还没有结婚",
+    "INSUFFICIENT_COINS": "硬币不够",
+    "GIFT_NOT_FOUND": "找不到这件礼物",
+    "GIFT_ALREADY_SENT": "这件礼物已经送出",
     "TELEGRAM_ERROR": "Telegram 操作失败, kmua 可能缺少权限",
     "INTERNAL_ERROR": "服务器出错了喵"
   },
