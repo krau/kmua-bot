@@ -1,0 +1,59 @@
+name: Mini App Panel CI
+
+on:
+  push:
+    branches:
+      - v2
+      - dev
+    paths:
+      - "webapp/**"
+      - ".github/workflows/webapp.yml"
+  pull_request:
+    paths:
+      - "webapp/**"
+      - ".github/workflows/webapp.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    working-directory: webapp
+
+jobs:
+  check:
+    name: Typecheck, lint, test, build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      # pnpm before Node, so setup-node can use pnpm's store for its cache.
+      #
+      # `package_json_file` is required here because there is no package.json at the
+      # repo root - the panel is a subdirectory of a Python project. The action reads
+      # the version from `packageManager` in that file, and its path is relative to
+      # the repo root regardless of the job's working-directory. Pointing at
+      # webapp/package.json also keeps the pinned pnpm version in one place, rather
+      # than duplicating it here where it could drift.
+      - uses: pnpm/action-setup@v6
+        with:
+          package_json_file: webapp/package.json
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: webapp/pnpm-lock.yaml
+
+      # --frozen-lockfile fails rather than silently resolving a new tree, so a
+      # stale lockfile is caught here instead of in the Docker build.
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm typecheck
+
+      - run: pnpm lint
+
+      - run: pnpm test
+
+      - run: pnpm build

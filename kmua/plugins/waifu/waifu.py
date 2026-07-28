@@ -7,6 +7,7 @@ import pyrogram.errors
 from pyrogram.client import Client as PyrogramClient
 
 from kmua import common, database, enums, i18n
+from kmua.common import ops
 from kmua.config import app_config
 from kmua.database.models import ChatData, UserData
 from kmua.logger import logger
@@ -539,8 +540,9 @@ async def user_waifu_manage(
     if "divorce_confirm" in data:
         if not db_user.married_waifu_id or not db_user.is_married:
             return
-        married_waifu = await database.get_user_by_id(db_user.married_waifu_id)
-        if not married_waifu:
+        try:
+            married_waifu = await ops.divorce_user(db_user.id)
+        except ValueError:
             await query.answer(
                 text=i18n.t(
                     "bot.msg.waifu.divorce_not_found", locale=db_user.user_config.lang
@@ -549,7 +551,6 @@ async def user_waifu_manage(
                 cache_time=10,
             )
             return
-        await database.divorce(db_user.id)
         await query.edit_message_text(
             text=i18n.t(
                 "bot.msg.waifu.divorce_success",
@@ -568,10 +569,10 @@ async def user_waifu_manage(
             parse_mode=pyrogram.enums.ParseMode.HTML,
         )
         await client.send_message(
-            chat_id=married_waifu.id,
+            chat_id=married_waifu.partner_id,
             text=i18n.t(
                 "bot.msg.waifu.divorce_notify",
-                locale=married_waifu.user_config.lang,
+                locale=married_waifu.partner_lang,
             ).format(
                 user=html.escape(db_user.full_name),
             ),

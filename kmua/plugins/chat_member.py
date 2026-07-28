@@ -4,6 +4,7 @@ from pyrogram.enums import ChatMemberStatus
 from pyrogram.types import ChatMemberUpdated, Message
 
 from kmua import common, database
+from kmua.common import ops
 from kmua.config import app_config
 from kmua.i18n import i18n
 from kmua.logger import logger
@@ -100,28 +101,11 @@ async def sync_chat_members(client: Client, message: Message):
     await message.reply_text(i18n.t("bot.msg.sync_members_start", locale=lang))
     # 在数据库中删除已经不在群组中的用户
     try:
-        current_members = client.get_chat_members(chat.id)
-        current_member_ids = {member.user.id async for member in current_members}
+        result = await ops.sync_chat_members(chat.id)
     except Exception as e:
-        logger.error(f"Failed to get current members for chat {chat.id}: {e}")
+        logger.error(f"Failed to sync members for chat {chat.id}: {e}")
         await message.reply_text(i18n.t("bot.msg.sync_members_error", locale=lang))
         return
-    db_associations = await database.get_chat_associations(chat.id)
-    db_member_ids = {assoc.user_id for assoc in db_associations}
-    to_remove = db_member_ids - current_member_ids
-    oks = 0
-    for user_id in to_remove:
-        ok = await database.remove_association(user_id, chat.id)
-        if not ok:
-            logger.warning(
-                f"Failed to remove association for user {user_id} in chat {chat.id}"
-            )
-            continue
-        oks += 1
-        await database.unset_chat_waifus_by_waifu(db_chat, user_id)
     await message.reply_text(
-        i18n.t("bot.msg.sync_members_done", locale=lang).format(count=oks)
-    )
-    logger.info(
-        f"Synced members for chat {chat.id} ({chat.title}), removed {oks} members"
+        i18n.t("bot.msg.sync_members_done", locale=lang).format(count=result.removed)
     )

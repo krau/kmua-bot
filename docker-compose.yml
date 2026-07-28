@@ -3,8 +3,12 @@ services:
     image: ghcr.io/krau/kmua-bot:v2
     container_name: kmua-bot
     restart: unless-stopped
+    # Health check and the Mini App panel share this port.
+    # Note: `network_mode: host` below makes this mapping a no-op - the container
+    # already uses the host's network stack, so the port is reachable directly.
+    # Keep it firewalled and let a TLS-terminating reverse proxy publish the panel.
     ports:
-      - "8180:8180"  # Health check endpoint
+      - "8180:8180"
     volumes:
       - ./data:/kmua/data
       - ./logs:/kmua/logs

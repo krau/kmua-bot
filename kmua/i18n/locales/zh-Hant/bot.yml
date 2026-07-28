@@ -3,6 +3,8 @@ bot:
     lang_changed: 語言已更改爲 {lang}
     no_permission_group: 你沒有本群組中管理 bot 的權限哦
     group_config: 點擊按鈕更改群組設置哦
+    chat_panel: 點擊按鈕在管理面板中配置本群
+    panel_unavailable: 管理面板未啟用哦
     unknown_operation: 未知操作, 不可以幹壞事哦
     group_config_saved: 群組設置已保存~
     refresh_failed: 刷新失敗, 請稍後再試

@@ -9,6 +9,33 @@ log_retention_days = 30
 log_level = "INFO"
 lang = "zh-CN"
 
+# Telegram Mini App 管理面板.
+# 面板与健康检查共用一个 FastAPI 服务和一个端口; webapp = false 时只提供
+# /health 与 /ready, 容器健康检查不受影响.
+# webapp = false
+# webapp_host = "0.0.0.0"
+# webapp_port = 8180
+# 公网 HTTPS 地址, 启用面板时必填 (Telegram 不会打开 HTTP 的 Mini App)
+# webapp_url = ""
+# 在 BotFather 用 /newapp 注册的 Mini App short name.
+# 群内 /config 的深链 t.me/<bot>/<short_name>?startapp=... 需要它
+# webapp_short_name = "panel"
+# webapp_menu_button = true
+# 会话令牌签名密钥; 留空则从 bot token 派生 (推荐)
+# webapp_jwt_secret = ""
+# webapp_jwt_ttl = 21600
+# initData 有效期(秒), 防重放
+# webapp_initdata_ttl = 300
+# CORS 白名单, 仅本地开发用 (pnpm dev 跑在另一个源上)
+# webapp_allow_origins = []
+# 信任其 X-Forwarded-For 的地址(用于限流和日志).
+# 默认只信任本机, 反代在同一台机器上时不用改.
+# webapp_trusted_proxies = ["127.0.0.1", "::1"]
+# 前端产物目录, 留空则用 kmua/webapp/dist
+# webapp_static_dir = ""
+# 是否允许在后台编辑用户信息 (coins/affection/全局管理员仍额外要求 owner)
+# webapp_admin_edit_user = true
+
 redis = false
 redis_endpoint = "localhost"
 redis_port = 6379

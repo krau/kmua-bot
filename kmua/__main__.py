@@ -15,10 +15,10 @@ from kmua.bot import jobs
 from kmua.bot.client import client
 from kmua.config import app_config
 from kmua.database import db
-from kmua.health import start_health_server, stop_health_server
 from kmua.logger import logger
 from kmua.loop_monitor import LoopLagMonitor
 from kmua.session_health import SessionHealthMonitor
+from kmua.webapp.server import server as webapp_server
 
 
 def _get_commands_hash(commands_dict: dict[str, list[BotCommand]]) -> str:
@@ -148,6 +148,12 @@ async def init_bot(client: Client = client):
         BotCommand("config", i18n.t("bot.cmd.config", locale=app_config.lang)),
         BotCommand("greet", i18n.t("bot.cmd.greet", locale=app_config.lang)),
     ]
+    # Only advertised when the panel is actually reachable: a listed command that
+    # replies "not enabled" is worse than no command.
+    if app_config.webapp and app_config.webapp_url:
+        group_admin_commands.append(
+            BotCommand("panel", i18n.t("bot.cmd.panel", locale=app_config.lang))
+        )
     private_commands = [
         BotCommand("buygift", i18n.t("bot.cmd.buygift", locale=app_config.lang)),
         BotCommand("gift", i18n.t("bot.cmd.gift", locale=app_config.lang)),
@@ -221,8 +227,33 @@ async def init_bot(client: Client = client):
             hours=app_config.avatar_change_interval,
         )
 
+    await _setup_menu_button(client)
+
     common.jobqueue.start()
     logger.success(i18n.t("log.inited", locale=app_config.lang))
+
+
+async def _setup_menu_button(client: Client) -> None:
+    """Point the chat menu button at the Mini App panel.
+
+    Applied to the default scope, so it shows for every private chat. Failures are
+    logged and swallowed: the inline button in /start is the primary entry point,
+    this is just a shortcut.
+    """
+    if not (app_config.webapp and app_config.webapp_menu_button):
+        return
+    if not app_config.webapp_url:
+        return
+    try:
+        await client.set_chat_menu_button(
+            menu_button=pyrogram.types.MenuButtonWebApp(
+                text=i18n.t("bot.button.panel", locale=app_config.lang),
+                web_app=pyrogram.types.WebAppInfo(url=app_config.webapp_url),
+            )
+        )
+        logger.debug("webapp: chat menu button set")
+    except Exception as e:
+        logger.warning(f"webapp: failed to set chat menu button: {e}")
 
 
 @client.on_stop()
@@ -257,13 +288,11 @@ async def main():
         )
         loop_monitor.start()
 
-    # Start health check server
-    health_runner = None
-    if app_config.health_check_enabled:
-        health_runner = await start_health_server(
-            host=app_config.health_check_host,
-            port=app_config.health_check_port,
-        )
+    # Start the HTTP server (Mini App panel and/or health endpoints). Started
+    # before the client connects so /health answers 503 while the bot is still
+    # coming up, rather than refusing the connection outright.
+    if app_config.webapp or app_config.health_check_enabled:
+        await webapp_server.start()
 
     await client.start()
 
@@ -284,9 +313,7 @@ async def main():
     await idle()
     await client.stop()  # type: ignore
 
-    # Stop health check server
-    if health_runner:
-        await stop_health_server(health_runner)
+    await webapp_server.stop()
 
     if session_health:
         await session_health.stop()

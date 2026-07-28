@@ -3,6 +3,8 @@ bot:
     lang_changed: 言語が {lang} に変更されました
     no_permission_group: このグループでBotを管理する権限がありませんにゃ
     group_config: ボタンをタップしてグループ設定を変更してにゃ
+    chat_panel: ボタンをタップしてパネルでこのグループを設定してにゃ
+    panel_unavailable: パネルは有効になっていないにゃ
     unknown_operation: 不明な操作です、いたずらは禁止にゃ！
     group_config_saved: グループ設定を保存したよ〜
     refresh_failed: 更新に失敗しました、時間をおいて再試行してくださいにゃ

@@ -4,12 +4,19 @@ from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from kmua import common, database
 from kmua.database.models import ChatConfig
 from kmua.i18n import i18n
+from kmua.plugins.panel import chat_panel_button
 
 
 class ChatConfigMarkup:
-    def __init__(self, chat_config: ChatConfig, lang: str = "zh-CN"):
+    def __init__(
+        self,
+        chat_config: ChatConfig,
+        lang: str = "zh-CN",
+        chat_id: int | None = None,
+    ):
         self.chat_config = chat_config
         self.lang = lang
+        self.chat_id = chat_id
 
     def get_status_emoji(self, boolean: bool):
         if boolean:
@@ -91,7 +98,19 @@ class ChatConfigMarkup:
                     ),
                 ],
             ]
+            + self._panel_row()
         )
+
+    def _panel_row(self) -> list[list[InlineKeyboardButton]]:
+        """A deep link to this chat's page in the Mini App panel.
+
+        Built by `plugins.panel`, which owns the link format and is also what
+        /panel replies with, so the two entry points cannot drift apart.
+        """
+        if self.chat_id is None:
+            return []
+        button = chat_panel_button(self.chat_id, self.lang)
+        return [[button]] if button else []
 
 
 @pyrogram.Client.on_message(
@@ -111,7 +130,7 @@ async def config_chat_cmd(client: pyrogram.Client, message: pyrogram.types.Messa
     lang = chat_config.lang
     await message.reply(
         text=i18n.t("bot.msg.group_config", locale=lang),
-        reply_markup=ChatConfigMarkup(chat_config, lang).build(),
+        reply_markup=ChatConfigMarkup(chat_config, lang, chat.id).build(),
     )
 
 
@@ -177,7 +196,7 @@ async def config_chat(
                 return
         chat_config = await database.update_chat_config(chat, chat_config)
         await callback_query.edit_message_reply_markup(
-            ChatConfigMarkup(chat_config, lang).build()
+            ChatConfigMarkup(chat_config, lang, chat.id).build()
         )
         return
     if data[1] == "save":

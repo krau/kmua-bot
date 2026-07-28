@@ -1,0 +1,47 @@
+{
+  "name": "kmua-webapp",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Telegram Mini App management panel for kmua-bot",
+  "license": "AGPL-3.0",
+  "packageManager": "pnpm@11.3.0",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "vue-tsc --build && vite build",
+    "preview": "vite preview",
+    "typecheck": "vue-tsc --build",
+    "lint": "eslint . --max-warnings 0",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write src",
+    "test": "vitest run --config vitest.config.ts"
+  },
+  "dependencies": {
+    "@telegram-apps/sdk": "3.11.8",
+    "pinia": "4.0.2",
+    "vue": "3.5.40",
+    "vue-router": "5.2.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@tailwindcss/vite": "4.3.3",
+    "@types/node": "26.1.1",
+    "@vitejs/plugin-vue": "6.0.8",
+    "@vue/eslint-config-prettier": "10.2.0",
+    "@vue/eslint-config-typescript": "14.9.0",
+    "@vue/test-utils": "2.4.11",
+    "eslint": "10.8.0",
+    "eslint-plugin-vue": "10.10.0",
+    "jiti": "^2.7.0",
+    "jsdom": "29.1.1",
+    "prettier": "3.9.6",
+    "tailwindcss": "4.3.3",
+    "typescript": "5.9.3",
+    "vite": "8.1.5",
+    "vitest": "4.1.10",
+    "vue-tsc": "3.3.8"
+  }
+}

@@ -1,7 +1,18 @@
 import pyrogram
 
-from kmua import common, database, enums, i18n
+from kmua import common, database, i18n
+from kmua.common import ops
 from kmua.common.utils import is_explicit_reply
+from kmua.config import app_config
+
+_RESULT_MESSAGE_KEYS = {
+    ops.BotAdminResult.INVALID_TARGET: "bot.msg.botadmin.invalid_user",
+    ops.BotAdminResult.TARGET_IS_UPSTREAM: "bot.msg.botadmin.target_is_upstream",
+    ops.BotAdminResult.USER_NOT_FOUND: "bot.msg.botadmin.user_not_found",
+    ops.BotAdminResult.USER_IS_BOT: "bot.msg.botadmin.user_is_bot",
+    ops.BotAdminResult.USER_NOT_IN_CHAT: "bot.msg.botadmin.user_not_in_chat",
+    ops.BotAdminResult.ALREADY_SET: "bot.msg.botadmin.already_set",
+}
 
 
 @pyrogram.Client.on_message(
@@ -38,64 +49,35 @@ async def set_user_bot_admin_in_chat(
             i18n.t("bot.msg.botadmin.invalid_user", locale=chat_config.lang)
         )
         return
-    if not target_user_id or target_user_id in (
-        enums.ChatID.FAKE_CHANNEL,
-        enums.ChatID.SERVICE_CHAT,
-        enums.ChatID.ANONYMOUS_ADMIN,
-        user.id,
-    ):
+    if not target_user_id:
         await message.reply(
             i18n.t("bot.msg.botadmin.invalid_user", locale=chat_config.lang)
         )
         return
+
     demote = message.command[0] == "botdemote"
-    user_association = await database.get_association(user.id, chat.id)
-    if (
-        not user_association
-        or not user_association.is_bot_admin
-        or (
-            user_association.promoted_by is not None
-            and user_association.promoted_by == target_user_id
-        )
-    ):
+    db_actor = await database.get_user_by_id(user.id)
+    actor_is_privileged = user.id in app_config.owners or bool(
+        db_actor and db_actor.is_bot_global_admin
+    )
+
+    result = await ops.set_bot_admin(
+        chat_id=chat.id,
+        actor_id=user.id,
+        target_id=target_user_id,
+        promote=not demote,
+        actor_is_privileged=actor_is_privileged,
+    )
+    if result is not ops.BotAdminResult.OK:
         await message.reply(
-            i18n.t("bot.msg.botadmin.target_is_upstream", locale=chat_config.lang)
+            i18n.t(_RESULT_MESSAGE_KEYS[result], locale=chat_config.lang)
         )
         return
-    db_user = await database.get_user_by_id(target_user_id)
-    if not db_user:
-        await message.reply(
-            i18n.t("bot.msg.botadmin.user_not_found", locale=chat_config.lang)
-        )
-        return
-    if db_user.is_bot:
-        await message.reply(
-            i18n.t("bot.msg.botadmin.user_is_bot", locale=chat_config.lang)
-        )
-        return
-    association = await database.get_association(db_user.id, chat.id)
-    if not association:
-        await message.reply(
-            i18n.t("bot.msg.botadmin.user_not_in_chat", locale=chat_config.lang)
-        )
-        return
-    if association.is_bot_admin == (not demote):
-        await message.reply(
-            i18n.t(
-                "bot.msg.botadmin.already_set",
-                locale=chat_config.lang,
-            )
-        )
-        return
-    association.is_bot_admin = False if demote else True
-    association.promoted_by = user.id if not demote else None
-    await database.update_association(association)
+
+    target = await database.get_user_by_id(target_user_id)
     await message.reply(
-        i18n.t(
-            "bot.msg.botadmin.success",
-            locale=chat_config.lang,
-        ).format(
-            user=db_user.full_name,
-            status=association.is_bot_admin,
+        i18n.t("bot.msg.botadmin.success", locale=chat_config.lang).format(
+            user=target.full_name if target else target_user_id,
+            status=not demote,
         )
     )

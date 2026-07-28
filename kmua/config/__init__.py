@@ -39,9 +39,47 @@ class _AppConfig(pydantic.BaseModel):
     nickname: str = "kmua"
 
     # health check server for container monitoring
+    #
+    # Deprecated: these fields are kept as aliases for the `webapp_*` settings
+    # below. The HTTP server is now provided by `kmua.webapp` (FastAPI), which
+    # serves /health and /ready with identical semantics. When `webapp_host` /
+    # `webapp_port` are left at their defaults, these values are used instead.
     health_check_enabled: bool = False
     health_check_host: str = "localhost"
     health_check_port: int = 8180
+
+    # Telegram Mini App management panel.
+    #
+    # The panel and the health check endpoints share a single FastAPI app on a
+    # single port. When `webapp` is false only /health and /ready are served, so
+    # container health checks keep working with the panel disabled.
+    webapp: bool = False
+    webapp_host: str = "0.0.0.0"
+    webapp_port: int = 8180
+    # Public HTTPS base URL of the panel. Required when `webapp` is enabled:
+    # Telegram refuses to open Mini Apps over plain HTTP.
+    webapp_url: str = ""
+    # Mini App short name registered via BotFather (/newapp). Used to build the
+    # direct link that carries group context: t.me/<bot>/<short_name>?startapp=...
+    webapp_short_name: str = "panel"
+    # Set the chat menu button to open the panel.
+    webapp_menu_button: bool = True
+    # HS256 secret for session tokens. Derived from the bot token when empty.
+    webapp_jwt_secret: str = ""
+    webapp_jwt_ttl: int = 21600  # 6 hours
+    # Max age of Telegram initData, in seconds. Guards against replay.
+    webapp_initdata_ttl: int = 300
+    # CORS origins. Empty means same-origin only; only set this for local dev.
+    webapp_allow_origins: list[str] = []
+    # Addresses whose X-Forwarded-For header is trusted, for rate limiting and logs.
+    # Defaults to loopback, which is right when the reverse proxy runs on the same
+    # host. Widen it only for the proxy's actual address: trusting "*" while the
+    # port is reachable directly lets any client forge its way past the limiter.
+    webapp_trusted_proxies: list[str] = ["127.0.0.1", "::1"]
+    # Static asset directory. Defaults to kmua/webapp/dist when empty.
+    webapp_static_dir: str = ""
+    # Master switch for editing user records from the developer panel.
+    webapp_admin_edit_user: bool = True
 
     # event loop lag monitor: detects when the single asyncio event loop is
     # blocked (the root cause of "bot freezes, no logs, no response"). When the
@@ -281,7 +319,40 @@ _settings = Dynaconf(
     environments=False,
 )
 
+_LEGACY_HEALTH_ALIASES = {
+    "webapp_host": "health_check_host",
+    "webapp_port": "health_check_port",
+}
+"""Deprecated `health_check_*` keys mapped to the `webapp_*` keys replacing them."""
+
+_legacy_health_keys_used: list[str] = []
+
+
+def _apply_legacy_health_aliases(
+    config: _AppConfig, settings_obj: Any = None
+) -> list[str]:
+    """Let deprecated `health_check_*` settings feed the new `webapp_*` fields.
+
+    A deprecated key only wins when the user has not set the replacement key, so
+    an explicit `webapp_port` always takes precedence. Returns the deprecated
+    keys that were actually applied, so the caller can warn about them once.
+    """
+    if settings_obj is None:
+        settings_obj = _settings
+
+    applied: list[str] = []
+    for new_field, legacy_field in _LEGACY_HEALTH_ALIASES.items():
+        if settings_obj.exists(new_field):
+            continue
+        if not settings_obj.exists(legacy_field):
+            continue
+        setattr(config, new_field, getattr(config, legacy_field))
+        applied.append(legacy_field)
+    return applied
+
+
 app_config = _get_typed_config(_AppConfig)
+_legacy_health_keys_used = _apply_legacy_health_aliases(app_config)
 
 if app_config.agent and app_config.agent_powermem_config_path:
     try:
@@ -325,9 +396,19 @@ def reload_config() -> tuple[bool, str, list[str]]:
     try:
         _settings.reload()
         new_config = _get_typed_config(_AppConfig)
+        _apply_legacy_health_aliases(new_config)
 
         # Validate critical fields haven't changed
-        critical_fields = ["token", "db_url", "api_id", "api_hash", "session_name"]
+        critical_fields = [
+            "token",
+            "db_url",
+            "api_id",
+            "api_hash",
+            "session_name",
+            # Rebinding the HTTP listener needs a restart.
+            "webapp_host",
+            "webapp_port",
+        ]
         for field in critical_fields:
             if getattr(new_config, field) != getattr(app_config, field):
                 return False, f"Cannot reload: {field} changed (requires restart)", []

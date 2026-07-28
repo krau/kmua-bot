@@ -1,0 +1,215 @@
+@import "tailwindcss";
+
+/*
+  Design tokens.
+
+  Base colours come from Telegram: the SDK binds --tg-theme-* at boot, so the
+  panel follows the user's own client theme instead of imposing one. That is what
+  makes it read as part of Telegram rather than a website in a WebView.
+
+  There is exactly one colour of our own - kmua ink green, sampled from the bot
+  avatar - and it appears in three places only: an engaged toggle, the current
+  route, and the primary button. Not behind icons, not as a card wash, not as a
+  gradient.
+
+  Note what is deliberately absent: no --shadow-* tokens, so `shadow-lg` and
+  friends cannot be written at all. In a full-screen WebView nothing floats, so a
+  shadow would be pure decoration; separation is a hairline and space. The
+  constraint lives in the build instead of in a review comment.
+*/
+@theme {
+  /* The one accent. */
+  --color-accent: #2f6f5e;
+  --color-accent-dark: #7fbfa8;
+  /* Destructive actions only: delete, leave, demote. */
+  --color-danger: #a04a42;
+  --color-danger-dark: #d98b83;
+
+  /* Telegram theme surface, with fallbacks for a browser opened outside Telegram. */
+  --color-bg: var(--tg-theme-bg-color, #ffffff);
+  --color-surface: var(--tg-theme-secondary-bg-color, #f2f2f7);
+  --color-ink: var(--tg-theme-text-color, #0b0b0c);
+  --color-hint: var(--tg-theme-hint-color, #6d6d72);
+  --color-line: var(--tg-theme-section-separator-color, #d8d8dd);
+  --color-link: var(--tg-theme-link-color, #2f6f5e);
+  --color-header: var(--tg-theme-header-bg-color, var(--tg-theme-bg-color, #ffffff));
+
+  /*
+    Five sizes with real jumps between them. A scale crammed into 14-18px leaves
+    hierarchy to shades of grey and forces the reader to parse every line to find
+    the structure.
+  */
+  --text-display: 2rem; /* 32 - page title, once per page */
+  --text-display--line-height: 1.15;
+  --text-display--letter-spacing: -0.02em;
+  --text-title: 1.375rem; /* 22 - section title */
+  --text-title--line-height: 1.25;
+  --text-title--letter-spacing: -0.01em;
+  --text-body: 1.0625rem; /* 17 - row label, prose */
+  --text-body--line-height: 1.45;
+  --text-sub: 0.9375rem; /* 15 - secondary value */
+  --text-sub--line-height: 1.4;
+  --text-note: 0.8125rem; /* 13 - group label, hint */
+  --text-note--line-height: 1.45;
+
+  /*
+    Spacing is named by relationship, not by number. Writing `gap-tight` forces a
+    decision about how two things relate; `gap-4` everywhere announces that
+    nothing belongs to anything.
+  */
+  --spacing-tight: 0.5rem; /* within a group */
+  --spacing-related: 1rem; /* label to its content */
+  --spacing-group: 1.5rem; /* between groups */
+  --spacing-section: 2.5rem; /* between page sections */
+
+  /* Two radii, and they never nest inside each other: the group container, and the
+     input fields within it. Everything else stays square so corners never fight.
+
+     A field is drawn as a tinted dent in its row - see `.field-input` below for why
+     neither an underline nor a bordered white box works here. */
+  --radius-container: 0.625rem;
+  --radius-field: 0.375rem;
+
+  --font-sans:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans SC", "PingFang SC",
+    "Hiragino Sans GB", "Microsoft YaHei", system-ui, sans-serif;
+  /* Monospace is for identifiers and JSON in the developer panel - real code,
+     not a terminal aesthetic. */
+  --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+}
+
+/*
+  Dark mode follows the flag the app sets from Telegram's themeParams, not the OS
+  preference: a user on a light OS with a dark Telegram must get the dark panel.
+*/
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+/*
+  Contrast fallback. The hint and separator colours are supplied by the user's
+  client and some themes put them below the WCAG AA 4.5:1 minimum against the
+  background. main.ts measures them at boot and sets data-contrast="fallback",
+  which swaps in colours we control.
+*/
+@layer base {
+  :root[data-contrast="fallback"] {
+    --color-hint: #55555c;
+    --color-line: #c7c7cc;
+  }
+
+  :root[data-contrast="fallback"][data-theme="dark"] {
+    --color-hint: #a8a8b0;
+    --color-line: #3a3a3f;
+  }
+
+  html {
+    background-color: var(--color-bg);
+    /* Prevent iOS from resizing text in landscape. */
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    margin: 0;
+    background-color: var(--color-bg);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    font-size: var(--text-body);
+    line-height: 1.45;
+    /* Numbers must not shift width as values update. */
+    font-variant-numeric: tabular-nums;
+    -webkit-font-smoothing: antialiased;
+    overscroll-behavior-y: none;
+  }
+
+  /* Focus is visible for keyboard users without ringing every tap. */
+  :focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+  }
+
+  [data-theme="dark"] :focus-visible {
+    outline-color: var(--color-accent-dark);
+  }
+
+  button {
+    font: inherit;
+    color: inherit;
+    background: none;
+    border: none;
+    padding: 0;
+    /* Suppress the tap flash; feedback is our own :active state plus haptics. */
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  input,
+  textarea,
+  select {
+    font: inherit;
+    color: inherit;
+  }
+
+  /* Motion carries state changes only; honour a stated preference for less. */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      transition-duration: 0.01ms !important;
+      animation-duration: 0.01ms !important;
+    }
+  }
+}
+
+@layer components {
+  /*
+    An editable field inside a settings group.
+
+    Two earlier attempts, both wrong, and worth recording:
+
+    An underline put its own hairline a few pixels above the row separator, so the
+    pair read as one doubled rule instead of as a field.
+
+    A white box with a border fixed that but overcorrected: `--color-bg` against the
+    group's `--color-surface` is the highest-contrast pairing available here, and a
+    bordered white rectangle is exactly what an unstyled `<input>` looks like. The
+    field ended up shouting louder than the label naming it.
+
+    What works is a shade *of* the surface rather than a different surface: a few
+    percent of the text colour mixed into the group's own background. That lands
+    darker than the surface in a light theme and lighter in a dark one - recessed
+    either way, no border needed, and no new colour introduced. It reads as a dent in
+    the row, which is what a text field is.
+
+    Focus is left to the global :focus-visible outline: text inputs match it on a
+    plain click too, so a field-only focus style would be a second vocabulary for a
+    state already covered.
+  */
+  .field-input {
+    width: 100%;
+    padding: 0.4375rem 0.625rem;
+    border: none;
+    border-radius: var(--radius-field);
+    background-color: color-mix(in srgb, var(--color-ink) 6%, var(--color-surface));
+    color: var(--color-ink);
+  }
+
+  .field-input::placeholder {
+    color: var(--color-hint);
+  }
+
+  .field-input:disabled {
+    opacity: 0.5;
+  }
+
+  /*
+    The app shell. Padding accounts for Telegram's safe-area insets plus room for
+    the native main button, which floats over the bottom of the viewport.
+  */
+  .app-shell {
+    min-height: 100vh;
+    padding-top: calc(var(--spacing-related) + var(--tg-safe-area-inset-top, 0px));
+    padding-left: calc(var(--spacing-related) + var(--tg-safe-area-inset-left, 0px));
+    padding-right: calc(var(--spacing-related) + var(--tg-safe-area-inset-right, 0px));
+    padding-bottom: calc(5rem + var(--tg-safe-area-inset-bottom, 0px));
+    max-width: 42rem;
+    margin-inline: auto;
+  }
+}
