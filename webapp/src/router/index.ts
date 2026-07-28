@@ -110,6 +110,12 @@ const routes: RouteRecordRaw[] = [
     component: () => import("@/views/admin/JobsView.vue"),
     meta: { requiresBotAdmin: true },
   },
+  {
+    path: "/admin/chat-policies",
+    name: "admin-chat-policies",
+    component: () => import("@/views/admin/ChatPolicyView.vue"),
+    meta: { requiresBotAdmin: true },
+  },
   // Unknown paths land on the home screen rather than a 404 page: inside a Mini
   // App there is no address bar to correct a typo with.
   { path: "/:pathMatch(.*)*", redirect: { name: "home" } },

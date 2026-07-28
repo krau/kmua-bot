@@ -5,6 +5,8 @@ import type {
   AdminUserPatch,
   AdminUserPatchResult,
   ChatDetail,
+  ChatPolicyList,
+  ChatPolicyPatch,
   ConfigReloadResult,
   ConfigSnapshot,
   Job,
@@ -62,4 +64,18 @@ export function updateUser(userId: number, patch: AdminUserPatch) {
 
 export function fetchJobs(signal?: AbortSignal) {
   return api.get<Job[]>("/api/admin/jobs", signal ? { signal } : {});
+}
+
+export function fetchChatPolicies(signal?: AbortSignal) {
+  return api.get<ChatPolicyList>("/api/admin/chat-policies", signal ? { signal } : {});
+}
+
+// Both writes return the whole list, so the page never has to reconcile a local
+// mutation against what the server actually stored.
+export function setChatPolicy(chatId: number, patch: ChatPolicyPatch) {
+  return api.put<ChatPolicyList>(`/api/admin/chat-policies/${chatId}`, patch);
+}
+
+export function deleteChatPolicy(chatId: number) {
+  return api.delete<ChatPolicyList>(`/api/admin/chat-policies/${chatId}`);
 }

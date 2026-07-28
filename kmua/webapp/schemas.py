@@ -358,6 +358,48 @@ class JobOut(ApiModel):
     next_run_time: str | None
 
 
+# ----------------------------------------------------------------- chat policy
+
+
+class ChatPolicyFlagsOut(ApiModel):
+    """The operator-controlled flags for one chat.
+
+    One model per flag set rather than a bare dict, so adding a flag is a typed change
+    the frontend sees rather than a key that silently appears.
+    """
+
+    agent_enabled: bool
+
+
+class ChatPolicyOut(ApiModel):
+    chat_id: int
+    # None when the bot has never seen the chat, so the panel shows the id alone.
+    chat_title: str | None
+    policy: ChatPolicyFlagsOut
+    updated_by: int | None
+    note: str | None
+    created_at: str
+
+
+class ChatPolicyListOut(ApiModel):
+    """The rows, plus the config flags that decide whether they mean anything.
+
+    `agent_whitelist_mode` is reported alongside the list because the list is inert
+    without it: with the mode off the agent answers everywhere regardless, and the UI
+    has to say so rather than implying these are the only allowed chats.
+    """
+
+    agent_whitelist_mode: bool
+    items: list[ChatPolicyOut]
+
+
+class ChatPolicyIn(ApiModel):
+    """A policy write. Absent flags keep their current value."""
+
+    agent_enabled: bool | None = None
+    note: str | None = Field(default=None, max_length=256)
+
+
 class PageOut[T](ApiModel):
     items: list[T]
     total: int

@@ -1,4 +1,5 @@
 from .chat import *  # noqa
+from .chat_policy import *  # noqa
 from .user import *  # noqa
 from .association import *  # noqa
 from .quote import *  # noqa

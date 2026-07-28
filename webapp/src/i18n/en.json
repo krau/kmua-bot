@@ -205,5 +205,28 @@
     "NOT_MARRIED": "Not married",
     "TELEGRAM_ERROR": "Telegram request failed, kmua may lack permissions",
     "INTERNAL_ERROR": "Server error"
+  },
+  "chatPolicy": {
+    "title": "Chat policies",
+    "subtitle": "Operator-controlled per-chat settings",
+    "agentMode": "Agent whitelist mode",
+    "agentModeOn": "On: Agent is active only in chats enabled below",
+    "agentModeOff": "Off: Agent is active everywhere, the toggles below have no effect",
+    "agentEnabled": "Allow Agent",
+    "chats": "Configured chats",
+    "chatsHint": "The toggle controls whether the Agent may act in that chat",
+    "emptyHint": "No chats configured yet",
+    "add": "Add chat",
+    "addHint": "A chat the bot has not joined yet can be added by id; its title updates once the bot sees it",
+    "chatId": "Chat ID",
+    "chatIdPlaceholder": "e.g. -1001234567890",
+    "note": "Note (optional)",
+    "notePlaceholder": "e.g. Testing group",
+    "alreadyListed": "Chat is already in the list",
+    "added": "Added",
+    "remove": "Remove",
+    "removeHint": "Removing a chat returns all its policies to their defaults",
+    "removeConfirm": "Remove the policy for \"{name}\"? All flags return to their defaults.",
+    "removed": "Removed"
   }
 }

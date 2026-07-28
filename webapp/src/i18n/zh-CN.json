@@ -205,5 +205,28 @@
     "NOT_MARRIED": "还没有结婚",
     "TELEGRAM_ERROR": "Telegram 操作失败, kmua 可能缺少权限",
     "INTERNAL_ERROR": "服务器出错了喵"
+  },
+  "chatPolicy": {
+    "title": "群组策略",
+    "subtitle": "由运维控制的按群设置",
+    "agentMode": "Agent 白名单模式",
+    "agentModeOn": "已开启: Agent 仅在下方启用的群组生效",
+    "agentModeOff": "已关闭: Agent 在所有群组生效, 下方开关不起作用",
+    "agentEnabled": "允许 Agent",
+    "chats": "已配置的群组",
+    "chatsHint": "开关控制该群是否允许 Agent",
+    "emptyHint": "还没有配置任何群组",
+    "add": "添加群组",
+    "addHint": "可以输入还未加入的群组 ID, 等 bot 进群后会自动更新标题",
+    "chatId": "群组 ID",
+    "chatIdPlaceholder": "例: -1001234567890",
+    "note": "备注 (选填)",
+    "notePlaceholder": "例: 测试群",
+    "alreadyListed": "该群已在列表中",
+    "added": "已添加",
+    "remove": "移除",
+    "removeHint": "移除后该群的所有策略恢复默认值",
+    "removeConfirm": "确定移除「{name}」的策略配置? 所有开关将恢复默认值。",
+    "removed": "已移除"
   }
 }

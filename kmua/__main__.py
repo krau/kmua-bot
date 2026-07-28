@@ -80,8 +80,37 @@ async def _should_update_commands(commands_dict: dict[str, list[BotCommand]]) ->
     return False
 
 
+async def _init_chat_policies() -> None:
+    """Load per-chat policy into memory, seeding it from config on first run.
+
+    The seed is one-shot: it only runs while the table is empty, so a chat removed in
+    the panel does not come back on the next restart, and an id dropped from the config
+    file does not linger. After that the table is the only source.
+    """
+    if not app_config.agent_whitelist_mode:
+        return
+    try:
+        if await database.count_chat_policies() == 0 and app_config.agent_whitelist:
+            seeded = await database.seed_agent_enabled_chats(
+                list(app_config.agent_whitelist)
+            )
+            if seeded:
+                logger.info(
+                    f"chat policy: seeded {seeded} chat(s) from agent_whitelist; "
+                    "it is now editable in the panel and the config list is ignored"
+                )
+        loaded = await database.load_agent_enabled_chats()
+        logger.info(f"chat policy: agent allowed in {len(loaded)} chat(s)")
+    except Exception as e:
+        # A failure here leaves the mirror unloaded, which makes `is_chat_allowed`
+        # fall back to the config list rather than blocking every chat.
+        logger.opt(exception=e).error("chat policy: failed to load")
+
+
 @client.on_start()
 async def init_bot(client: Client = client):
+    await _init_chat_policies()
+
     # Initialize code repository for agent self-awareness
     if app_config.agent and app_config.agent_code_awareness:
         try:

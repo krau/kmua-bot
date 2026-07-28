@@ -397,6 +397,90 @@ class BottleReply(Base):
         return f"<BottleReply(id={self.id}, bottle_id={self.bottle_id}, replier_id={self.replier_id})>"
 
 
+@dataclass
+class ChatPolicy:
+    """Per-chat settings the operator controls, as opposed to the group's admins.
+
+    Deliberately separate from `ChatConfig`, which is what `/config` and the group
+    settings page write: that document is saved wholesale by anyone who can manage
+    the bot in the chat, so an operator-only field living there would be clobbered
+    by the next group-admin save.
+
+    Adding a field here needs no migration - the column is JSON and `from_dict`
+    supplies the default for rows written before the field existed. That is the
+    point of the shape: the next "which groups may do X" question is a field, not
+    a table.
+    """
+
+    # Whether the AI agent may act here, when agent_whitelist_mode is on.
+    agent_allowed: bool = False
+
+    @classmethod
+    def from_dict(cls, data: dict | None) -> "ChatPolicy":
+        if data is None:
+            return cls()
+        return cls(agent_enabled=data.get("agent_enabled", False))
+
+    def to_dict(self) -> dict:
+        return asdict(self)
+
+
+class ChatPolicyData(Base):
+    """Operator-controlled policy for one chat.
+
+    A row exists only for chats an operator has actually made a decision about, so
+    the table stays small and its absence is meaningful: no row means every policy
+    is at its default.
+
+    There is no FK to `chat_data`. An operator can grant a group access before the
+    bot has ever seen a message in it, and a chat being purged from `chat_data`
+    should not silently revoke a decision that was made deliberately. `chat_title`
+    is a denormalised copy, kept only so the panel can label a row for a chat that
+    is not in `chat_data` yet.
+    """
+
+    __tablename__ = "chat_policy"
+
+    chat_id: Mapped[int] = mapped_column(
+        BigInteger,
+        primary_key=True,
+        autoincrement=False,
+        index=True,
+    )
+    # Nullable: a row added by id alone has no title until the bot sees the chat.
+    chat_title: Mapped[str | None] = mapped_column(String(256), nullable=True)
+
+    policy: Mapped[dict] = mapped_column(
+        JSON,
+        default=lambda: asdict(ChatPolicy()),
+    )
+
+    # Who last changed it, for the audit trail. Not an FK, as above.
+    updated_by: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    note: Mapped[str | None] = mapped_column(String(256), nullable=True)
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+    )
+
+    @property
+    def chat_policy(self) -> ChatPolicy:
+        return ChatPolicy.from_dict(self.policy)
+
+    @chat_policy.setter
+    def chat_policy(self, policy: ChatPolicy) -> None:
+        self.policy = policy.to_dict()
+
+    def __repr__(self) -> str:
+        return f"<ChatPolicyData(chat_id={self.chat_id}, policy={self.policy})>"
+
+
 class Gift(Base):
     __tablename__ = "gifts"
 

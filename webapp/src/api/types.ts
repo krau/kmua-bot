@@ -236,6 +236,38 @@ export interface Job {
   next_run_time: string | null;
 }
 
+/**
+ * Operator-controlled flags for one chat.
+ *
+ * Distinct from `ChatConfig`, which the chat's own admins edit. A new operator-only
+ * per-chat setting is a field here, not a new endpoint.
+ */
+export interface ChatPolicyFlags {
+  agent_enabled: boolean;
+}
+
+export interface ChatPolicy {
+  chat_id: number;
+  /** Null when the bot has never seen the chat, so only the id can be shown. */
+  chat_title: string | null;
+  policy: ChatPolicyFlags;
+  updated_by: number | null;
+  note: string | null;
+  created_at: string;
+}
+
+export interface ChatPolicyList {
+  /** Whether whitelist mode is on. With it off `agent_enabled` is inert. */
+  agent_whitelist_mode: boolean;
+  items: ChatPolicy[];
+}
+
+/** A policy write. Absent flags keep their current value. */
+export interface ChatPolicyPatch {
+  agent_enabled?: boolean | null;
+  note?: string | null;
+}
+
 export interface Page<T> {
   items: T[];
   total: number;

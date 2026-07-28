@@ -14,7 +14,7 @@ from kmua import database
 from kmua.bot.client import client
 from kmua.common import jobqueue, ops
 from kmua.config import app_config, reload_config
-from kmua.database.models import UserData
+from kmua.database.models import ChatPolicy, UserData
 from kmua.logger import logger
 from kmua.webapp import audit
 from kmua.webapp.deps import RequireAdmin, RequireOwner, client_key
@@ -28,6 +28,10 @@ from kmua.webapp.schemas import (
     AdminUserPatchOut,
     ChatBriefOut,
     ChatDetailOut,
+    ChatPolicyFlagsOut,
+    ChatPolicyIn,
+    ChatPolicyListOut,
+    ChatPolicyOut,
     ConfigReloadOut,
     ConfigSnapshotOut,
     FieldChangeOut,
@@ -365,6 +369,97 @@ async def _apply_user_field(
             return audit.FieldChange(field=field, old=True, new=False)
 
     return None
+
+
+@router.get("/chat-policies", response_model=ChatPolicyListOut)
+async def read_chat_policies(user: RequireAdmin) -> ChatPolicyListOut:
+    """Per-chat operator policy, plus the config flags that gate it."""
+    rows = await database.get_chat_policies()
+    return ChatPolicyListOut(
+        agent_whitelist_mode=app_config.agent_whitelist_mode,
+        items=[
+            ChatPolicyOut(
+                chat_id=row.chat_id,
+                # The live title from chat_data wins; the stored copy is a fallback
+                # for chats the bot has not seen or has since been purged.
+                chat_title=live_title or row.chat_title,
+                policy=ChatPolicyFlagsOut(**row.chat_policy.to_dict()),
+                updated_by=row.updated_by,
+                note=row.note,
+                created_at=timestamp(row.created_at),
+            )
+            for row, live_title in rows
+        ],
+    )
+
+
+@router.put("/chat-policies/{chat_id}", response_model=ChatPolicyListOut)
+async def write_chat_policy(
+    request: Request,
+    user: RequireOwner,
+    payload: ChatPolicyIn,
+    chat_id: int = Path(description="Chat the policy applies to"),
+) -> ChatPolicyListOut:
+    """Set a chat's policy, creating the row if this is the first decision about it.
+
+    Owner only: granting the agent access to a group lets it read and reply there,
+    which is a wider grant than anything a global admin can make elsewhere.
+
+    The chat does not have to be known to the bot yet - an operator onboarding a group
+    can set its policy by id before the first message arrives.
+
+    PUT with absent flags meaning "leave alone", so adding a second flag later does not
+    require every client to send the full set.
+    """
+    write_limiter.check(client_key(request, user.id))
+
+    current = await database.get_chat_policy(chat_id)
+    desired = ChatPolicy(
+        agent_allowed=(
+            current.agent_allowed
+            if payload.agent_enabled is None
+            else payload.agent_enabled
+        )
+    )
+
+    old, new = await database.set_chat_policy(
+        chat_id, desired, updated_by=user.id, note=payload.note
+    )
+
+    changes = [
+        audit.FieldChange(field=field, old=getattr(old, field), new=getattr(new, field))
+        for field in new.to_dict()
+        if getattr(old, field) != getattr(new, field)
+    ]
+    if changes:
+        audit.record(
+            action="chat.policy.update",
+            actor_id=user.id,
+            actor_roles=user.roles,
+            target=chat_id,
+            changes=changes,
+        )
+    return await read_chat_policies(user)
+
+
+@router.delete("/chat-policies/{chat_id}", response_model=ChatPolicyListOut)
+async def delete_chat_policy_entry(
+    request: Request, user: RequireOwner, chat_id: int
+) -> ChatPolicyListOut:
+    """Drop a chat's policy row, returning every flag to its default."""
+    write_limiter.check(client_key(request, user.id))
+
+    removed = await database.delete_chat_policy(chat_id)
+    if not removed:
+        raise not_found(ErrorCode.NOT_FOUND, "Chat has no policy")
+
+    audit.record(
+        action="chat.policy.delete",
+        actor_id=user.id,
+        actor_roles=user.roles,
+        target=chat_id,
+    )
+    return await read_chat_policies(user)
 
 
 @router.get("/jobs", response_model=list[JobOut])

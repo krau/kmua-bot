@@ -84,6 +84,12 @@ function go(name: string): void {
       />
       <SettingsRow :label="t('admin.chatList')" navigable @click="go('admin-chats')" />
       <SettingsRow :label="t('admin.userList')" navigable @click="go('admin-users')" />
+      <SettingsRow
+        :label="t('chatPolicy.title')"
+        :hint="t('chatPolicy.subtitle')"
+        navigable
+        @click="go('admin-chat-policies')"
+      />
       <SettingsRow :label="t('admin.jobs')" navigable @click="go('admin-jobs')" />
     </SettingsSection>
 
