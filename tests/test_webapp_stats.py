@@ -4,12 +4,19 @@ from __future__ import annotations
 
 import pytest
 
+from kmua.plugins.runtime_metrics import _chat_id
 from kmua.webapp.metrics import RuntimeMetrics
 from tests.webapp_helpers import api_client, bearer, make_user
 
 pytestmark = pytest.mark.usefixtures("initialised_db")
 
 ADMIN_ID = 901_000
+
+
+def test_raw_group_peer_ids_match_kmua_ids():
+    assert _chat_id(type("Peer", (), {"channel_id": 123})()) == -1000000000123
+    assert _chat_id(type("Peer", (), {"chat_id": 456})()) == -456
+    assert _chat_id(object()) is None
 
 
 async def test_runtime_snapshot_reports_bounded_recent_windows():
@@ -40,6 +47,8 @@ async def test_runtime_snapshot_reports_bounded_recent_windows():
         {"chat_id": -100_002, "events": 1},
     ]
     assert snapshot.feature_calls == {"ai_chat": 2, "bottle_pick": 1}
+
+
 async def test_admin_stats_includes_runtime_snapshot(monkeypatch):
     await make_user(ADMIN_ID, full_name="Metrics Admin", global_admin=True)
 

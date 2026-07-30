@@ -106,22 +106,26 @@ const updateProfile = computed<DefinitionItem[]>(() => {
   ];
 });
 
-const activeGroups = computed<DefinitionItem[]>(() =>
-  (stats.data.value?.runtime.group_activity ?? []).map((group) => ({
+const activeGroups = computed<DefinitionItem[]>(() => {
+  const groups = stats.data.value?.runtime.group_activity ?? [];
+  if (!groups.length) return [{ label: t("app.none"), value: 0, muted: true }];
+  return groups.map((group) => ({
     label: t("admin.chatId", { id: group.chat_id }),
     value: formatNumber(group.events),
     mono: true,
-  })),
-);
+  }));
+});
 
-const featureCalls = computed<DefinitionItem[]>(() =>
-  Object.entries(stats.data.value?.runtime.feature_calls ?? {})
+const featureCalls = computed<DefinitionItem[]>(() => {
+  const calls = Object.entries(stats.data.value?.runtime.feature_calls ?? {});
+  if (!calls.length) return [{ label: t("app.none"), value: 0, muted: true }];
+  return calls
     .sort(([, left], [, right]) => right - left)
-    .map(([feature, calls]) => ({
+    .map(([feature, count]) => ({
       label: t(`admin.feature.${feature}`),
-      value: formatNumber(calls),
-    })),
-);
+      value: formatNumber(count),
+    }));
+});
 
 let refreshTimer: ReturnType<typeof setInterval> | undefined;
 
@@ -172,11 +176,11 @@ function go(name: string): void {
       <DefinitionList :items="updateProfile" />
     </SettingsSection>
 
-    <SettingsSection v-if="activeGroups.length" :label="t('admin.activeGroups')">
+    <SettingsSection :label="t('admin.activeGroups')">
       <DefinitionList :items="activeGroups" />
     </SettingsSection>
 
-    <SettingsSection v-if="featureCalls.length" :label="t('admin.featureCalls')">
+    <SettingsSection :label="t('admin.featureCalls')">
       <DefinitionList :items="featureCalls" />
     </SettingsSection>
 
