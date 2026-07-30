@@ -162,6 +162,30 @@ export interface AffectionStats {
   max_bucket?: number;
 }
 
+export interface RuntimeStats {
+  uptime_seconds: number;
+  max_rss_bytes: number;
+  threads: number;
+  tasks: number;
+  loop_lag_ms: number | null;
+  loop_lag_p95_ms: number | null;
+  loop_lag_max_ms: number | null;
+  loop_stalls: number;
+  telegram_update_types: Record<string, number>;
+  group_activity: Array<{ chat_id: number; events: number }>;
+  feature_calls: Record<string, number>;
+  telegram_updates: Record<string, number>;
+  api_requests: Record<string, number>;
+  api_latency_ms: { p95: number | null };
+}
+
+export interface DashboardStats {
+  users: number;
+  user_structure: Record<string, number>;
+  recent: Record<string, number>;
+  bottle_interactions: Record<string, number>;
+}
+
 export interface Stats {
   users: number;
   chats: number;
@@ -169,6 +193,8 @@ export interface Stats {
   associations: number;
   bottles: number;
   affection: AffectionStats;
+  runtime: RuntimeStats;
+  dashboard: DashboardStats;
 }
 
 export type ConfigValue = string | number | boolean | null | string[];

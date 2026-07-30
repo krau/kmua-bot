@@ -6,7 +6,7 @@
  * separate cards. They are real measurements of unrelated things, and a stat-card row
  * would give them equal visual weight while implying they belong together.
  */
-import { computed } from "vue";
+import { computed, onBeforeUnmount, onMounted } from "vue";
 import { useRouter } from "vue-router";
 
 import { fetchStats } from "@/api/endpoints/admin";
@@ -54,6 +54,74 @@ const affection = computed<DefinitionItem[]>(() => {
   return items;
 });
 
+const activity = computed<DefinitionItem[]>(() => {
+  const data = stats.data.value?.dashboard;
+  if (!data) return [];
+  return [
+    { label: t("admin.realUsers"), value: formatNumber(data.user_structure.real_users ?? 0) },
+    { label: t("admin.marriedUsers"), value: formatNumber(data.user_structure.married_users ?? 0) },
+    { label: t("admin.quotesWeek"), value: formatNumber(data.recent.quotes ?? 0) },
+    { label: t("admin.bottlesWeek"), value: formatNumber(data.recent.bottles ?? 0) },
+    { label: t("admin.bottlePicks"), value: formatNumber(data.bottle_interactions.picks ?? 0) },
+  ];
+});
+
+const runtime = computed<DefinitionItem[]>(() => {
+  const data = stats.data.value?.runtime;
+  if (!data) return [];
+  const ms = (value: number | null): string =>
+    value === null ? t("app.none") : `${value.toFixed(1)} ms`;
+  return [
+    { label: t("admin.uptime"), value: `${formatNumber(data.uptime_seconds)} s` },
+    { label: t("admin.memory"), value: `${formatNumber(Math.round(data.max_rss_bytes / 1024 / 1024))} MiB` },
+    { label: t("admin.loopLag"), value: ms(data.loop_lag_ms) },
+    { label: t("admin.loopLagP95"), value: ms(data.loop_lag_p95_ms) },
+    { label: t("admin.loopStalls"), value: formatNumber(data.loop_stalls) },
+    { label: t("admin.telegramUpdates"), value: formatNumber(data.telegram_updates["300"] ?? 0) },
+    { label: t("admin.apiRequests"), value: formatNumber(data.api_requests["300"] ?? 0) },
+  ];
+});
+
+const updateProfile = computed<DefinitionItem[]>(() => {
+  const data = stats.data.value?.runtime.telegram_update_types;
+  if (!data) return [];
+  return [
+    { label: t("admin.newMessages"), value: formatNumber((data.UpdateNewMessage ?? 0) + (data.UpdateNewChannelMessage ?? 0)) },
+    { label: t("admin.editedMessages"), value: formatNumber((data.UpdateEditMessage ?? 0) + (data.UpdateEditChannelMessage ?? 0)) },
+    { label: t("admin.callbacks"), value: formatNumber((data.UpdateBotCallbackQuery ?? 0) + (data.UpdateInlineBotCallbackQuery ?? 0)) },
+  ];
+});
+
+const activeGroups = computed<DefinitionItem[]>(() =>
+  (stats.data.value?.runtime.group_activity ?? []).map((group) => ({
+    label: t("admin.chatId", { id: group.chat_id }),
+    value: formatNumber(group.events),
+    mono: true,
+  })),
+);
+
+const featureCalls = computed<DefinitionItem[]>(() =>
+  Object.entries(stats.data.value?.runtime.feature_calls ?? {})
+    .sort(([, left], [, right]) => right - left)
+    .map(([feature, calls]) => ({ label: t(`admin.feature.${feature}`), value: formatNumber(calls) })),
+);
+
+let refreshTimer: ReturnType<typeof setInterval> | undefined;
+
+function refreshRuntime(): void {
+  if (!document.hidden) stats.reload();
+}
+
+onMounted(() => {
+  refreshTimer = setInterval(refreshRuntime, 5_000);
+  document.addEventListener("visibilitychange", refreshRuntime);
+});
+
+onBeforeUnmount(() => {
+  if (refreshTimer) clearInterval(refreshTimer);
+  document.removeEventListener("visibilitychange", refreshRuntime);
+});
+
 function go(name: string): void {
   void router.push({ name });
 }
@@ -73,6 +141,26 @@ function go(name: string): void {
 
     <SettingsSection v-if="affection.length" :label="t('me.affection')">
       <DefinitionList :items="affection" />
+    </SettingsSection>
+
+    <SettingsSection v-if="activity.length" :label="t('admin.activity')">
+      <DefinitionList :items="activity" />
+    </SettingsSection>
+
+    <SettingsSection v-if="runtime.length" :label="t('admin.runtime')">
+      <DefinitionList :items="runtime" />
+    </SettingsSection>
+
+    <SettingsSection v-if="updateProfile.length" :label="t('admin.updateProfile')">
+      <DefinitionList :items="updateProfile" />
+    </SettingsSection>
+
+    <SettingsSection v-if="activeGroups.length" :label="t('admin.activeGroups')">
+      <DefinitionList :items="activeGroups" />
+    </SettingsSection>
+
+    <SettingsSection v-if="featureCalls.length" :label="t('admin.featureCalls')">
+      <DefinitionList :items="featureCalls" />
     </SettingsSection>
 
     <SettingsSection>

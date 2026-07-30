@@ -19,6 +19,7 @@ from kmua.logger import logger
 from kmua.webapp import audit
 from kmua.webapp.deps import RequireAdmin, RequireOwner, client_key
 from kmua.webapp.errors import ApiError, ErrorCode, forbidden, not_found
+from kmua.webapp.metrics import runtime_metrics
 from kmua.webapp.ratelimit import write_limiter
 from kmua.webapp.sanitize import config_snapshot
 from kmua.webapp.schemas import (
@@ -56,6 +57,8 @@ _OWNER_ONLY_FIELDS = frozenset({"coins", "affection", "is_bot_global_admin"})
 @router.get("/stats", response_model=StatsOut)
 async def read_stats(user: RequireAdmin) -> StatsOut:
     stats = await ops.collect_stats()
+    dashboard = await database.get_dashboard_stats()
+    snapshot = runtime_metrics.snapshot()
     return StatsOut(
         users=stats["users"],  # type: ignore[arg-type]
         chats=stats["chats"],  # type: ignore[arg-type]
@@ -63,6 +66,23 @@ async def read_stats(user: RequireAdmin) -> StatsOut:
         associations=stats["associations"],  # type: ignore[arg-type]
         bottles=stats["bottles"],  # type: ignore[arg-type]
         affection=stats["affection"],  # type: ignore[arg-type]
+        runtime={
+            "uptime_seconds": snapshot.uptime_seconds,
+            "max_rss_bytes": snapshot.max_rss_bytes,
+            "threads": snapshot.threads,
+            "tasks": snapshot.tasks,
+            "loop_lag_ms": snapshot.loop_lag_ms,
+            "loop_lag_p95_ms": snapshot.loop_lag_p95_ms,
+            "loop_lag_max_ms": snapshot.loop_lag_max_ms,
+            "loop_stalls": snapshot.loop_stalls,
+            "telegram_updates": snapshot.telegram_updates,
+            "telegram_update_types": snapshot.telegram_update_types,
+            "group_activity": snapshot.group_activity,
+            "feature_calls": snapshot.feature_calls,
+            "api_requests": snapshot.api_requests,
+            "api_latency_ms": snapshot.api_latency_ms,
+        },
+        dashboard=dashboard, 
     )
 
 

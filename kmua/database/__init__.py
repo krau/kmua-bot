@@ -6,3 +6,4 @@ from .quote import *  # noqa
 from .bottle import *  # noqa
 from .affection import *  # noqa
 from .gift import *  # noqa
+from .stats import *  # noqa

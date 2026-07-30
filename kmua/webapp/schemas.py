@@ -282,6 +282,8 @@ class StatsOut(ApiModel):
     associations: int
     bottles: int
     affection: dict[str, Any]
+    runtime: dict[str, Any]
+    dashboard: dict[str, Any]
 
 
 class ConfigSnapshotOut(ApiModel):

@@ -13,6 +13,7 @@ bot hangs, the logs will show which coroutine was on the stack.
 import asyncio
 
 from kmua.logger import logger
+from kmua.webapp.metrics import runtime_metrics
 
 
 class LoopLagMonitor:
@@ -45,7 +46,9 @@ class LoopLagMonitor:
                 break
             elapsed = loop.time() - start
             lag = elapsed - self.interval
-            if lag >= self.warn_threshold:
+            stalled = lag >= self.warn_threshold
+            runtime_metrics.observe_loop_lag(lag, stalled=stalled)
+            if stalled:
                 logger.warning(
                     f"Event loop stalled for ~{lag:.2f}s "
                     f"(expected {self.interval:.2f}s sleep, took {elapsed:.2f}s). "
