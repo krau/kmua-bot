@@ -73,7 +73,10 @@ const runtime = computed<DefinitionItem[]>(() => {
     value === null ? t("app.none") : `${value.toFixed(1)} ms`;
   return [
     { label: t("admin.uptime"), value: `${formatNumber(data.uptime_seconds)} s` },
-    { label: t("admin.memory"), value: `${formatNumber(Math.round(data.max_rss_bytes / 1024 / 1024))} MiB` },
+    {
+      label: t("admin.memory"),
+      value: `${formatNumber(Math.round(data.max_rss_bytes / 1024 / 1024))} MiB`,
+    },
     { label: t("admin.loopLag"), value: ms(data.loop_lag_ms) },
     { label: t("admin.loopLagP95"), value: ms(data.loop_lag_p95_ms) },
     { label: t("admin.loopStalls"), value: formatNumber(data.loop_stalls) },
@@ -86,9 +89,20 @@ const updateProfile = computed<DefinitionItem[]>(() => {
   const data = stats.data.value?.runtime.telegram_update_types;
   if (!data) return [];
   return [
-    { label: t("admin.newMessages"), value: formatNumber((data.UpdateNewMessage ?? 0) + (data.UpdateNewChannelMessage ?? 0)) },
-    { label: t("admin.editedMessages"), value: formatNumber((data.UpdateEditMessage ?? 0) + (data.UpdateEditChannelMessage ?? 0)) },
-    { label: t("admin.callbacks"), value: formatNumber((data.UpdateBotCallbackQuery ?? 0) + (data.UpdateInlineBotCallbackQuery ?? 0)) },
+    {
+      label: t("admin.newMessages"),
+      value: formatNumber((data.UpdateNewMessage ?? 0) + (data.UpdateNewChannelMessage ?? 0)),
+    },
+    {
+      label: t("admin.editedMessages"),
+      value: formatNumber((data.UpdateEditMessage ?? 0) + (data.UpdateEditChannelMessage ?? 0)),
+    },
+    {
+      label: t("admin.callbacks"),
+      value: formatNumber(
+        (data.UpdateBotCallbackQuery ?? 0) + (data.UpdateInlineBotCallbackQuery ?? 0),
+      ),
+    },
   ];
 });
 
@@ -103,7 +117,10 @@ const activeGroups = computed<DefinitionItem[]>(() =>
 const featureCalls = computed<DefinitionItem[]>(() =>
   Object.entries(stats.data.value?.runtime.feature_calls ?? {})
     .sort(([, left], [, right]) => right - left)
-    .map(([feature, calls]) => ({ label: t(`admin.feature.${feature}`), value: formatNumber(calls) })),
+    .map(([feature, calls]) => ({
+      label: t(`admin.feature.${feature}`),
+      value: formatNumber(calls),
+    })),
 );
 
 let refreshTimer: ReturnType<typeof setInterval> | undefined;
