@@ -1995,7 +1995,7 @@ dev = [
 [[package]]
 name = "kurigram"
 version = "2.2.24"
-source = { git = "https://github.com/KurimuzonAkuma/kurigram.git#5826bce63ab6708d9e23f5857494611565a4ca75" }
+source = { git = "https://github.com/KurimuzonAkuma/kurigram.git#f051c8e8ce82f6c70ff12424746425c688434ec3" }
 dependencies = [
     { name = "pyaes" },
     { name = "python-socks" },

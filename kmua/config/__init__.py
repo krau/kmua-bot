@@ -100,6 +100,10 @@ class _AppConfig(pydantic.BaseModel):
     session_health_timeout: float = 15.0  # probe invoke timeout
     session_health_threshold: int = 3  # consecutive failures before restart
     session_health_cooldown: float = 60.0  # min seconds between restarts
+    # Hard cap for a forced session.restart(); a hung restart (kurigram can
+    # block inside stop() on its single crypto thread) must not block the
+    # monitor forever.
+    session_health_restart_timeout: float = 90.0
     # If no update arrives within this many seconds, the recv path is
     # considered dead (half-open TCP) and a restart is forced.
     session_health_stale: float = 300.0
@@ -264,6 +268,15 @@ class _AppConfig(pydantic.BaseModel):
     cachedir: Path = workdir / "cache"
     avatar_cache_dir: Path = cachedir / "avatar"
     avatar_expire: int = 60 * 60 * 24  # 1 day
+    # Cap concurrent avatar network refreshes (get_chat + download_media), so a
+    # burst of cache misses (quote/waifu hot paths) cannot flood the Telegram
+    # session with parallel file downloads.
+    avatar_refresh_concurrency: int = 3
+    # Hard timeout for one avatar refresh. Failures are remembered for
+    # avatar_refresh_retry_after seconds so hot paths fall back to the cached/
+    # default avatar instead of retrying a dead session on every call.
+    avatar_refresh_timeout: float = 30.0
+    avatar_refresh_retry_after: float = 10 * 60
 
     # coin cost
     cost_user_change_waifu_base: int = 16
