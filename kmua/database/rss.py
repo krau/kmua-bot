@@ -291,12 +291,16 @@ async def get_active_feeds(
     effective = sqlalchemy.func.min(
         sqlalchemy.func.coalesce(RssSubscription.interval_minutes, global_minutes)
     )
+    # `GROUP BY rss_feeds.id` already yields one row per feed; the extra
+    # `.distinct()` is not just redundant - on PostgreSQL `SELECT DISTINCT`
+    # compares the whole result row for equality, and `json` columns have no
+    # equality operator (jsonb does, json does not), so the query fails with
+    # "could not identify an equality operator for type json".
     stmt = (
         sqlalchemy.select(RssFeed, effective)
         .join(RssSubscription, RssSubscription.feed_id == RssFeed.id)
         .where(RssSubscription.paused.is_(False))
         .group_by(RssFeed.id)
-        .distinct()
     )
     rows = (await session.execute(stmt)).all()
     return [(feed, int(minutes)) for feed, minutes in rows]
