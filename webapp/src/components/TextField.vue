@@ -16,7 +16,7 @@ withDefaults(
     hint?: string;
     placeholder?: string;
     maxlength?: number;
-    inputmode?: "text" | "numeric" | "decimal" | "search";
+    inputmode?: "text" | "numeric" | "decimal" | "search" | "url";
     changed?: boolean;
     disabled?: boolean;
   }>(),

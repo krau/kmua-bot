@@ -984,6 +984,27 @@ wheels = [
 ]
 
 [[package]]
+name = "feedparser"
+version = "6.0.14"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "feedparser-sgmllib" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/37/8a/a53da4a77352045d277978a2df322d5379369f9deb1707178899ff7e1121/feedparser-6.0.14.tar.gz", hash = "sha256:088679b0c4b543ee211a820dd544698c76a402122eae7473c04a43425f283d06", size = 286108, upload-time = "2026-07-30T14:07:40.491Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/7f/61/f04912e63702e73fb2a378f9c0a1ad9eb17a334a11a6b3fe1daa593903c2/feedparser-6.0.14-py3-none-any.whl", hash = "sha256:e35e3f760151b0c3b22cac9684155cae186a233e16c49bcbc6c49e91e3131137", size = 80668, upload-time = "2026-07-30T14:07:39.175Z" },
+]
+
+[[package]]
+name = "feedparser-sgmllib"
+version = "2.0.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/e7/bf/ae3f20eceaa25fe720ec8f14662d35d39e73839fbbdad3c13bdee5397237/feedparser_sgmllib-2.0.1.tar.gz", hash = "sha256:32d46a92fe429d033c6793a45d4af28a150ff3e74f5bfdb598e26811ce4c2664", size = 22962, upload-time = "2026-07-30T19:18:10.723Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/44/ce/35ac725a2b0e6b3f4e03bb68167501cdecf3935132927c61342747f734a9/feedparser_sgmllib-2.0.1-py3-none-any.whl", hash = "sha256:113d6e0d7e1196200a13013044999aef75772d515f25a3e77c5e2047eb82c212", size = 10008, upload-time = "2026-07-30T19:18:09.237Z" },
+]
+
+[[package]]
 name = "filelock"
 version = "3.32.0"
 source = { registry = "https://pypi.org/simple" }
@@ -1904,6 +1925,7 @@ dependencies = [
     { name = "emoji" },
     { name = "fastapi" },
     { name = "fastmcp" },
+    { name = "feedparser" },
     { name = "google-cloud-aiplatform" },
     { name = "graphviz" },
     { name = "httpx" },
@@ -1956,6 +1978,7 @@ requires-dist = [
     { name = "emoji", specifier = ">=2.11" },
     { name = "fastapi", specifier = ">=0.121.0" },
     { name = "fastmcp", specifier = ">=3.2.0" },
+    { name = "feedparser", specifier = ">=6.0.11" },
     { name = "google-cloud-aiplatform", specifier = ">=1.133.0" },
     { name = "graphviz", specifier = ">=0.20.3" },
     { name = "httpx", specifier = ">=0.28.1" },

@@ -414,12 +414,17 @@ class ChatPolicy:
 
     # Whether the AI agent may act here, when agent_whitelist_mode is on.
     agent_allowed: bool = False
+    # Whether RSS subscriptions may be created here, when rss_whitelist_mode is on.
+    rss_allowed: bool = False
 
     @classmethod
     def from_dict(cls, data: dict | None) -> "ChatPolicy":
         if data is None:
             return cls()
-        return cls(agent_allowed=data.get("agent_allowed", False))
+        return cls(
+            agent_allowed=data.get("agent_allowed", False),
+            rss_allowed=data.get("rss_allowed", False),
+        )
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -509,3 +514,92 @@ class Gift(Base):
         return (
             f"<Gift(id={self.id}, owner_id={self.owner_id}, gift_id='{self.gift_id}')>"
         )
+
+
+class RssFeed(Base):
+    """One remote feed, fetched once however many chats subscribe to it.
+
+    Deduplicated by URL: polling the same feed once per subscriber would multiply
+    outbound requests by the subscriber count for identical bytes.
+
+    `seen_entry_ids` is the newest-N entry ids from the last successful fetch, and it
+    is how "new" is decided. Timestamps are not usable for this: `published_parsed`
+    is missing or wrong on a large share of real feeds, and a feed that republishes
+    with a bumped date would re-push every entry. An id set has no such failure mode.
+    """
+
+    __tablename__ = "rss_feeds"
+
+    id: Mapped[int] = mapped_column(
+        Integer, primary_key=True, autoincrement=True, index=True
+    )
+    url: Mapped[str] = mapped_column(String(1024), nullable=False, unique=True)
+    # Feed's self-reported title, shown in listings. None until the first fetch.
+    title: Mapped[str | None] = mapped_column(String(512), nullable=True)
+
+    # Conditional-GET state, replayed as request headers on the next poll.
+    etag: Mapped[str | None] = mapped_column(String(256), nullable=True)
+    last_modified: Mapped[str | None] = mapped_column(String(256), nullable=True)
+
+    # Entry ids already delivered; see the class docstring.
+    seen_entry_ids: Mapped[list] = mapped_column(JSON, default=list)
+
+    last_fetched_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True, default=None
+    )
+    # Last failure text, cleared on success. Surfaced in /rss list and the panel so a
+    # dead feed is visible instead of silently never pushing.
+    last_error: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    # Consecutive failures. At >= MAX_FAILURES the feed is skipped by the poll job.
+    failure_count: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default=sa.text("0")
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+    def __repr__(self) -> str:
+        return f"<RssFeed(id={self.id}, url='{self.url}')>"
+
+
+class RssSubscription(Base):
+    """One chat's subscription to one feed.
+
+    No FK to `chat_data`: like `chat_policy`, a subscription may be created for a chat
+    before the bot has any row for it, and purging a chat should not silently drop a
+    deliberate subscription. The push job resolves the chat id against Telegram anyway.
+    """
+
+    __tablename__ = "rss_subscriptions"
+
+    id: Mapped[int] = mapped_column(
+        Integer, primary_key=True, autoincrement=True, index=True
+    )
+    feed_id: Mapped[int] = mapped_column(
+        Integer,
+        ForeignKey("rss_feeds.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    chat_id: Mapped[int] = mapped_column(BigInteger, nullable=False, index=True)
+    # Who created it, for the audit trail. Not an FK, as above.
+    created_by: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    paused: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=sa.text("false")
+    )
+    # Per-subscription poll interval in minutes; None means "follow the global
+    # rss_interval". The feed's effective interval is the minimum across its
+    # unpaused subscriptions.
+    interval_minutes: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+    feed: Mapped[RssFeed] = relationship(lazy="joined")
+
+    __table_args__ = (
+        sa.UniqueConstraint("chat_id", "feed_id", name="uq_rss_subscription_chat_feed"),
+    )
+
+    def __repr__(self) -> str:
+        return f"<RssSubscription(chat_id={self.chat_id}, feed_id={self.feed_id})>"

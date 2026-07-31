@@ -283,6 +283,7 @@ export interface Job {
  */
 export interface ChatPolicyFlags {
   agent_allowed: boolean;
+  rss_allowed: boolean;
 }
 
 export interface ChatPolicy {
@@ -298,13 +299,29 @@ export interface ChatPolicy {
 export interface ChatPolicyList {
   /** Whether whitelist mode is on. With it off `agent_allowed` is inert. */
   agent_whitelist_mode: boolean;
+  /** Whether whitelist mode is on. With it off `rss_allowed` is inert. */
+  rss_whitelist_mode: boolean;
   items: ChatPolicy[];
 }
 
 /** A policy write. Absent flags keep their current value. */
 export interface ChatPolicyPatch {
   agent_allowed?: boolean | null;
+  rss_allowed?: boolean | null;
   note?: string | null;
+}
+
+export interface RssSubscription {
+  id: number;
+  feed_id: number;
+  url: string;
+  title: string | null;
+  paused: boolean;
+  /** Minutes; null = follow the global poll interval. */
+  interval_minutes: number | null;
+  last_error: string | null;
+  last_fetched_at: string;
+  created_at: string;
 }
 
 export interface Page<T> {

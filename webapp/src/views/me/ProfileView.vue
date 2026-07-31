@@ -190,6 +190,12 @@ async function onRefreshAvatar(): Promise<void> {
         navigable
         @click="router.push({ name: 'chats' })"
       />
+      <SettingsRow
+        :label="t('me.rss')"
+        :hint="t('me.rssHint')"
+        navigable
+        @click="router.push({ name: 'me-rss' })"
+      />
     </SettingsSection>
 
     <SettingsSection :label="t('me.avatar')">

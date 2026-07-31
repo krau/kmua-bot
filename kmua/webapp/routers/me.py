@@ -16,12 +16,16 @@ from pyrogram.enums import ParseMode
 from kmua import common, database
 from kmua.bot.client import client
 from kmua.common import ops
+from kmua.config import app_config
 from kmua.gift import define as gift_define
 from kmua.gift.service import send_gift_to_bot
 from kmua.i18n import i18n
 from kmua.logger import logger
+from kmua.services import rss as rss_service
+from kmua.services.rss import redact_url
+from kmua.webapp import audit
 from kmua.webapp.deps import CurrentUser, client_key
-from kmua.webapp.errors import ApiError, ErrorCode, not_found
+from kmua.webapp.errors import ApiError, ErrorCode, forbidden, not_found
 from kmua.webapp.ratelimit import write_limiter
 from kmua.webapp.schemas import (
     ChatBriefOut,
@@ -33,10 +37,13 @@ from kmua.webapp.schemas import (
     MeOut,
     PageOut,
     QuoteOut,
+    RssSubscriptionIn,
+    RssSubscriptionOut,
+    RssSubscriptionPatch,
     WaifuEntryOut,
     WaifuOut,
 )
-from kmua.webapp.serializers import quote_out, timestamp
+from kmua.webapp.serializers import quote_out, rss_subscription_out, timestamp
 
 router = APIRouter(prefix="/api/me", tags=["me"])
 
@@ -171,6 +178,150 @@ async def delete_my_quote(
     if quote.user_id != user.id:
         raise not_found(ErrorCode.QUOTE_NOT_FOUND, "Quote not found")
     await database.delete_quote(link)
+
+
+# ------------------------------------------------------------------ rss
+
+# A user's private chat with the bot IS the user's id, so the personal RSS
+# endpoints are the group endpoints applied to `user.id` as the chat. The gates
+# are identical (feature switch + whitelist policy); the subscription CRUD is
+# shared.
+
+
+@router.get("/rss", response_model=PageOut[RssSubscriptionOut])
+async def list_my_rss(
+    user: CurrentUser,
+    page: int = Query(1, ge=1),
+    size: int = Query(20, ge=1, le=100),
+) -> PageOut[RssSubscriptionOut]:
+    if not app_config.rss_enabled:
+        raise ApiError(ErrorCode.FEATURE_DISABLED, "RSS is disabled")
+    if not await database.is_rss_allowed(user.id):
+        raise forbidden(ErrorCode.FORBIDDEN, "RSS is not enabled for this chat")
+
+    result = await database.get_chat_subscriptions_paged(user.id, page=page, size=size)
+    return PageOut[RssSubscriptionOut](
+        items=[rss_subscription_out(sub) for sub in result.items],
+        total=result.total,
+        page=result.page,
+        size=result.size,
+    )
+
+
+@router.post("/rss", response_model=RssSubscriptionOut, status_code=201)
+async def add_my_rss(
+    request: Request, user: CurrentUser, payload: RssSubscriptionIn
+) -> RssSubscriptionOut:
+    if not app_config.rss_enabled:
+        raise ApiError(ErrorCode.FEATURE_DISABLED, "RSS is disabled")
+    if not await database.is_rss_allowed(user.id):
+        raise forbidden(ErrorCode.FORBIDDEN, "RSS is not enabled for this chat")
+    write_limiter.check(client_key(request, user.id))
+
+    url = payload.url.strip()
+    if not url.startswith(("http://", "https://")):
+        raise ApiError(ErrorCode.VALIDATION_FAILED, "URL must be http(s)")
+
+    try:
+        result = await rss_service.fetch_feed(url)
+    except Exception as e:
+        raise ApiError(
+            ErrorCode.VALIDATION_FAILED, f"Feed unreachable: {e.__class__.__name__}"
+        )
+
+    sub, reason = await database.add_subscription(user.id, url, created_by=user.id)
+    if sub is None:
+        if reason == "already_subscribed":
+            raise ApiError(ErrorCode.CONFLICT, "Already subscribed", 409)
+        raise ApiError(ErrorCode.CONFLICT, "Subscription limit reached", 409)
+
+    await database.record_fetch_success(
+        sub.feed_id,
+        title=result.feed_title,
+        etag=result.etag,
+        last_modified=result.last_modified,
+        seen_entry_ids=[e.entry_id for e in result.entries],
+    )
+
+    fresh = next(
+        s
+        for s in await database.get_chat_subscriptions(user.id)
+        if s.feed_id == sub.feed_id
+    )
+
+    audit.record(
+        action="me.rss.add",
+        actor_id=user.id,
+        actor_roles=user.roles,
+        target=f"{user.id}",
+        extra={"url": redact_url(url)},
+    )
+    return rss_subscription_out(fresh)
+
+
+@router.patch("/rss/{feed_id}", response_model=list[RssSubscriptionOut])
+async def update_my_rss(
+    request: Request,
+    user: CurrentUser,
+    payload: RssSubscriptionPatch,
+    feed_id: int = Path(description="Feed the subscription points at"),
+) -> list[RssSubscriptionOut]:
+    if not app_config.rss_enabled:
+        raise ApiError(ErrorCode.FEATURE_DISABLED, "RSS is disabled")
+    if not await database.is_rss_allowed(user.id):
+        raise forbidden(ErrorCode.FORBIDDEN, "RSS is not enabled for this chat")
+    write_limiter.check(client_key(request, user.id))
+
+    fields = payload.model_fields_set
+    updated = False
+    if "paused" in fields and payload.paused is not None:
+        updated = (
+            await database.set_subscription_paused(user.id, feed_id, payload.paused)
+            or updated
+        )
+    if "interval_minutes" in fields:
+        updated = (
+            await database.set_subscription_interval(
+                user.id, feed_id, payload.interval_minutes
+            )
+            or updated
+        )
+    if not updated:
+        raise not_found(ErrorCode.NOT_FOUND, "Subscription not found")
+
+    audit.record(
+        action="me.rss.update",
+        actor_id=user.id,
+        actor_roles=user.roles,
+        target=f"{user.id}",
+        extra={"feed_id": feed_id, "paused": payload.paused},
+    )
+    subs = await database.get_chat_subscriptions(user.id)
+    return [rss_subscription_out(sub) for sub in subs]
+
+
+@router.delete("/rss/{feed_id}", status_code=204)
+async def delete_my_rss(
+    request: Request,
+    user: CurrentUser,
+    feed_id: int = Path(description="Feed the subscription points at"),
+) -> None:
+    if not app_config.rss_enabled:
+        raise ApiError(ErrorCode.FEATURE_DISABLED, "RSS is disabled")
+    if not await database.is_rss_allowed(user.id):
+        raise forbidden(ErrorCode.FORBIDDEN, "RSS is not enabled for this chat")
+    write_limiter.check(client_key(request, user.id))
+
+    if not await database.remove_subscription(user.id, feed_id):
+        raise not_found(ErrorCode.NOT_FOUND, "Subscription not found")
+
+    audit.record(
+        action="me.rss.delete",
+        actor_id=user.id,
+        actor_roles=user.roles,
+        target=f"{user.id}",
+        extra={"feed_id": feed_id},
+    )
 
 
 @router.get("/waifu", response_model=WaifuOut)

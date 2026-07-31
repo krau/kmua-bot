@@ -200,6 +200,12 @@ function go(name: string): void {
         navigable
         @click="go('chat-quotes')"
       />
+      <SettingsRow
+        :label="t('chats.rss')"
+        :hint="t('chats.rssHint')"
+        navigable
+        @click="go('chat-rss')"
+      />
       <SettingsRow :label="t('chats.members')" :value="chat.data.value?.member_count ?? 0" />
     </SettingsSection>
   </StateBlock>

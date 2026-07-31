@@ -71,6 +71,7 @@ bot:
       /syncmembers - Sync group members
       /f5avatar - Refresh your avatar
       /forget - Make the bot forget your conversation history
+      /rss - Manage RSS subscriptions
       </blockquote>
       Use "/" or "\" on another user to cast a spell on them.
     help_inline: |
@@ -182,6 +183,37 @@ bot:
       rendered: "Rendered! Time: {time}ms"
       timeout: Rendering timeout, please try again later.
       error: "Rendering failed: {error}"
+    rss:
+      usage: |
+        <code>/rss sub &lt;url&gt;</code> to subscribe to an RSS/Atom feed
+        <code>/rss list</code> to show current subscriptions
+        <code>/rss unsub &lt;index&gt;</code> to unsubscribe
+        <code>/rss pause &lt;index&gt;</code> to pause push
+        <code>/rss resume &lt;index&gt;</code> to resume push
+        <code>/rss interval &lt;index&gt; &lt;minutes&gt;</code> to set the poll interval; omit minutes to reset to global
+        <code>/rss testpush &lt;index&gt;</code> to push this subscription immediately (for testing)
+      disabled: The RSS subscription feature is disabled.
+      not_allowed: "RSS subscriptions are not enabled for this chat (chat_id={chat_id}); ask the owner to allow it in the panel"
+      invalid_url: "Invalid URL: it must start with http:// or https://"
+      fetch_failed: "Could not fetch this feed: {error}"
+      added: "Subscribed: {title}"
+      already_subscribed: This feed is already in the subscription list.
+      limit_reached: "Subscription limit reached ({limit})"
+      empty: "No subscriptions yet. Try /rss sub <feed URL>"
+      removed: "Unsubscribed: {title}"
+      paused: "Paused: {title}"
+      resumed: "Resumed: {title}"
+      open_panel: Open panel
+      invalid_index: Invalid index.
+      interval_set: "Poll interval set to {minutes} minute(s)"
+      interval_reset: Poll interval reset to the global default.
+      interval_invalid: "Interval must be between {min} and {max} minutes"
+      too_many_requests: "Too many requests, slow down ({error})"
+      testpush_done: "Pushed {count} message(s)"
+      interval_mark: " · every {minutes} min"
+      paused_mark: " (paused)"
+      error_mark: " (push error)"
+      untitled: Untitled
     waifu:
       disabled: The waifu feature is not allowed here.
       not_found: You don't have a waifu right now because I can't find any other members in my records.
@@ -320,6 +352,7 @@ bot:
     greet: Set welcome message
     help: Help|More features
     infographic: Render infographic
+    rss: Manage RSS subscriptions
   button:
     back: Back
     repo: Source Code

@@ -18,14 +18,16 @@ const props = withDefaults(
     disabled?: boolean;
     /** Accessible name, when the visible label lives outside this component. */
     ariaLabel?: string;
+    /** In-flight server write: the knob becomes a spinner and taps are ignored. */
+    busy?: boolean;
   }>(),
-  { disabled: false, ariaLabel: undefined },
+  { disabled: false, ariaLabel: undefined, busy: false },
 );
 
 const emit = defineEmits<{ "update:modelValue": [boolean] }>();
 
 function toggle(): void {
-  if (props.disabled) return;
+  if (props.disabled || props.busy) return;
   haptics.tap();
   emit("update:modelValue", !props.modelValue);
 }
@@ -48,6 +50,11 @@ function toggle(): void {
     <span
       class="absolute top-[3px] left-[3px] block h-6 w-6 rounded-full bg-white transition-transform duration-150 ease-out"
       :class="modelValue ? 'translate-x-5' : 'translate-x-0'"
-    />
+    >
+      <span
+        v-if="busy"
+        class="block h-full w-full rounded-full animate-spin border-2 border-hint border-t-accent"
+      />
+    </span>
   </button>
 </template>

@@ -149,6 +149,7 @@ async def init_bot(client: Client = client):
         BotCommand("pickbottle", i18n.t("bot.cmd.pickbottle", locale=app_config.lang)),
         BotCommand("id", i18n.t("bot.cmd.id", locale=app_config.lang)),
         BotCommand("f5avatar", i18n.t("bot.cmd.f5avatar", locale=app_config.lang)),
+        BotCommand("rss", i18n.t("bot.cmd.rss", locale=app_config.lang)),
     ]
     if app_config.agent:
         common_commands.append(
@@ -254,6 +255,16 @@ async def init_bot(client: Client = client):
             "change_bot_avatar",
             jobs.change_bot_avatar,
             hours=app_config.avatar_change_interval,
+        )
+
+    if app_config.rss_enabled:
+        # The job ticks every minute and each feed decides whether it is due,
+        # so per-subscription intervals (else the global `rss_interval`) are
+        # honored without registering one scheduler job per feed.
+        common.jobqueue.add_interval_job(
+            "rss_push",
+            jobs.rss_push,
+            minutes=1,
         )
 
     await _setup_menu_button(client)

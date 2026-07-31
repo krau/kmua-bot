@@ -83,3 +83,10 @@ manyacg_hybrid_search = true
 # Set to 0 to disable.
 # agent_periodic_sticker_interval = 5
 # agent_periodic_reaction_interval = 3
+
+# RSS 订阅推送
+# rss_enabled = true
+# 白名单模式: 默认开启, 只有 owner 在面板中放行的 chat 可以订阅
+# rss_whitelist_mode = true
+# 轮询间隔(分钟)
+# rss_interval = 30
