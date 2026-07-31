@@ -105,6 +105,30 @@ async def get_chat_policy(
     return row.chat_policy if row else ChatPolicy()
 
 
+@with_session
+async def get_chat_policy_row(
+    chat_id: int, session: AsyncSession | None = None
+) -> tuple[ChatPolicyData, str | None] | None:
+    """One policy row plus the chat's current title, or None when no row exists.
+
+    The panel detail view needs both the row (note, audit trail) and the live
+    title, with the same precedence as the list view: `chat_data` wins, the
+    stored copy is the fallback for chats the bot has not seen.
+    """
+    assert session is not None
+
+    stmt = (
+        sqlalchemy.select(ChatPolicyData, ChatData.title)
+        .outerjoin(ChatData, ChatData.id == ChatPolicyData.chat_id)
+        .where(ChatPolicyData.chat_id == chat_id)
+    )
+    result = await session.execute(stmt)
+    row = result.one_or_none()
+    if row is None:
+        return None
+    return row[0], row[1]
+
+
 @with_tx
 async def set_chat_policy(
     chat_id: int,
@@ -209,6 +233,7 @@ __all__ = [
     "delete_chat_policy",
     "get_chat_policies",
     "get_chat_policy",
+    "get_chat_policy_row",
     "load_agent_allowed_chats",
     "seed_agent_allowed_chats",
     "set_chat_policy",

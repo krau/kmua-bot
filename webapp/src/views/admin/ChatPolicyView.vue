@@ -16,11 +16,15 @@
  * 2. A chat can have policy set before the bot has ever seen it, in which case there is
  *    no title to show. The row falls back to the bare id rather than inventing a name.
  *
- * A second policy flag would be another toggle in the row, not another page.
+ * The rows are a directory: tapping one opens the detail view where the flags live.
+ * A list row has no room to say what each of several flags means, and a second flag
+ * would have made it two toggles with no labels - the detail page is where a flag
+ * gets its explanation next to its switch.
  */
 import { computed, ref } from "vue";
+import { useRouter } from "vue-router";
 
-import { deleteChatPolicy, fetchChatPolicies, setChatPolicy } from "@/api/endpoints/admin";
+import { fetchChatPolicies, setChatPolicy } from "@/api/endpoints/admin";
 import { isApiError } from "@/api/errors";
 import type { ChatPolicy } from "@/api/types";
 import PageHeader from "@/components/PageHeader.vue";
@@ -28,23 +32,21 @@ import SettingsRow from "@/components/SettingsRow.vue";
 import SettingsSection from "@/components/SettingsSection.vue";
 import StateBlock from "@/components/StateBlock.vue";
 import TextField from "@/components/TextField.vue";
-import ToggleSwitch from "@/components/ToggleSwitch.vue";
 import { useAsyncData } from "@/composables/useAsyncData";
 import { useNotice } from "@/composables/useNotice";
 import { t, tError } from "@/i18n";
 import { useSessionStore } from "@/stores/session";
-import { confirm, haptics } from "@/telegram";
+import { haptics } from "@/telegram";
 import { formatDate } from "@/utils/format";
 
 const session = useSessionStore();
+const router = useRouter();
 const { notify, notifyError } = useNotice();
 
 const newChatId = ref("");
 const newNote = ref("");
-/** Which action is in flight: `add`, `toggle:<id>`, `toggle-rss:<id>` or `remove:<id>`. */
-const pending = ref<
-  "add" | `toggle:${number}` | `toggle-rss:${number}` | `remove:${number}` | null
->(null);
+/** Which action is in flight: `add`. */
+const pending = ref<"add" | null>(null);
 const busy = computed(() => pending.value !== null);
 
 const policies = useAsyncData((signal) => fetchChatPolicies(signal));
@@ -106,59 +108,9 @@ async function add(): Promise<void> {
   }
 }
 
-/** Flip one flag. The row stays listed either way - removing it is a separate action. */
-async function toggleAgent(item: ChatPolicy, value: boolean): Promise<void> {
+function open(item: ChatPolicy): void {
   if (busy.value) return;
-
-  pending.value = `toggle:${item.chat_id}`;
-  try {
-    policies.data.value = await setChatPolicy(item.chat_id, { agent_allowed: value });
-    notify(t("app.saved"));
-    haptics.success();
-  } catch (error) {
-    notifyError(isApiError(error) ? tError(error.code) : t("app.loadFailed"));
-    haptics.error();
-  } finally {
-    pending.value = null;
-  }
-}
-
-async function toggleRss(item: ChatPolicy, value: boolean): Promise<void> {
-  if (busy.value) return;
-
-  pending.value = `toggle-rss:${item.chat_id}`;
-  try {
-    policies.data.value = await setChatPolicy(item.chat_id, { rss_allowed: value });
-    notify(t("app.saved"));
-    haptics.success();
-  } catch (error) {
-    notifyError(isApiError(error) ? tError(error.code) : t("app.loadFailed"));
-    haptics.error();
-  } finally {
-    pending.value = null;
-  }
-}
-
-async function remove(item: ChatPolicy): Promise<void> {
-  const ok = await confirm({
-    title: t("chatPolicy.remove"),
-    message: t("chatPolicy.removeConfirm", { name: label(item) }),
-    confirmText: t("chatPolicy.remove"),
-    destructive: true,
-  });
-  if (!ok) return;
-
-  pending.value = `remove:${item.chat_id}`;
-  try {
-    policies.data.value = await deleteChatPolicy(item.chat_id);
-    notify(t("chatPolicy.removed"));
-    haptics.success();
-  } catch (error) {
-    notifyError(isApiError(error) ? tError(error.code) : t("app.loadFailed"));
-    haptics.error();
-  } finally {
-    pending.value = null;
-  }
+  void router.push({ name: "admin-chat-policy", params: { chatId: String(item.chat_id) } });
 }
 </script>
 
@@ -192,25 +144,10 @@ async function remove(item: ChatPolicy): Promise<void> {
         :key="item.chat_id"
         :label="label(item)"
         :hint="hint(item)"
+        navigable
         :disabled="busy"
-      >
-        <template #control>
-          <ToggleSwitch
-            :model-value="item.policy.agent_allowed"
-            :disabled="!session.isOwner || busy"
-            :busy="pending === `toggle:${item.chat_id}`"
-            :aria-label="t('chatPolicy.agentAllowed')"
-            @update:model-value="toggleAgent(item, $event)"
-          />
-          <ToggleSwitch
-            :model-value="item.policy.rss_allowed"
-            :disabled="!session.isOwner || busy"
-            :aria-label="t('chatPolicy.rssAllowed')"
-            :busy="pending === `toggle-rss:${item.chat_id}`"
-            @update:model-value="toggleRss(item, $event)"
-          />
-        </template>
-      </SettingsRow>
+        @click="open(item)"
+      />
       <p v-if="items.length === 0" class="px-related py-related text-sub text-hint">
         {{ t("app.empty") }}
       </p>
@@ -240,20 +177,6 @@ async function remove(item: ChatPolicy): Promise<void> {
           :disabled="!canAdd"
           :busy="pending === 'add'"
           @click="add"
-        />
-      </SettingsSection>
-
-      <SettingsSection v-if="items.length" :hint="t('chatPolicy.removeHint')">
-        <SettingsRow
-          v-for="item in items"
-          :key="item.chat_id"
-          :label="label(item)"
-          :value="t('chatPolicy.remove')"
-          navigable
-          destructive
-          :disabled="busy"
-          :busy="pending === `remove:${item.chat_id}`"
-          @click="remove(item)"
         />
       </SettingsSection>
     </template>

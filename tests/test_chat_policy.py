@@ -199,6 +199,39 @@ async def test_admin_can_read_policy_list(monkeypatch):
     assert body["items"][0]["note"] == "visible"
 
 
+async def test_admin_can_read_one_policy(monkeypatch):
+    set_owners(monkeypatch, [OWNER_ID])
+    await make_user(ADMIN_ID, global_admin=True)
+    await database.set_chat_policy(
+        -100900024, ChatPolicy(agent_allowed=True, rss_allowed=True), note="pinned"
+    )
+
+    async with api_client() as client:
+        response = await client.get(
+            "/api/admin/chat-policies/-100900024", headers=bearer(ADMIN_ID)
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["item"]["chat_id"] == -100900024
+    assert body["item"]["policy"] == {"agent_allowed": True, "rss_allowed": True}
+    assert body["item"]["note"] == "pinned"
+    assert body["agent_whitelist_mode"] is app_config.agent_whitelist_mode
+    assert body["rss_whitelist_mode"] is app_config.rss_whitelist_mode
+
+
+async def test_read_one_policy_for_unknown_chat_is_404(monkeypatch):
+    set_owners(monkeypatch, [OWNER_ID])
+    await make_user(ADMIN_ID, global_admin=True)
+
+    async with api_client() as client:
+        response = await client.get(
+            "/api/admin/chat-policies/-100900025", headers=bearer(ADMIN_ID)
+        )
+
+    assert response.status_code == 404
+
+
 async def test_owner_can_set_policy_and_response_carries_the_new_list(monkeypatch):
     set_owners(monkeypatch, [OWNER_ID])
     await make_user(OWNER_ID)

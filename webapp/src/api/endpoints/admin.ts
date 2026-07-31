@@ -5,6 +5,7 @@ import type {
   AdminUserPatch,
   AdminUserPatchResult,
   ChatDetail,
+  ChatPolicyDetail,
   ChatPolicyList,
   ChatPolicyPatch,
   ConfigReloadResult,
@@ -68,6 +69,10 @@ export function fetchJobs(signal?: AbortSignal) {
 
 export function fetchChatPolicies(signal?: AbortSignal) {
   return api.get<ChatPolicyList>("/api/admin/chat-policies", signal ? { signal } : {});
+}
+
+export function fetchChatPolicy(chatId: number, signal?: AbortSignal) {
+  return api.get<ChatPolicyDetail>(`/api/admin/chat-policies/${chatId}`, signal ? { signal } : {});
 }
 
 // Both writes return the whole list, so the page never has to reconcile a local

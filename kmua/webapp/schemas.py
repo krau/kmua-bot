@@ -440,6 +440,19 @@ class ChatPolicyListOut(ApiModel):
     items: list[ChatPolicyOut]
 
 
+class ChatPolicyDetailOut(ApiModel):
+    """One chat's policy, plus the mode flags that decide whether it is inert.
+
+    The detail view has the same honesty problem as the list: a flag shown as
+    "on" while its whitelist mode is off would imply it does something. The modes
+    travel with the row so the page can say so in place.
+    """
+
+    agent_whitelist_mode: bool
+    rss_whitelist_mode: bool
+    item: ChatPolicyOut
+
+
 class ChatPolicyIn(ApiModel):
     """A policy write. Absent flags keep their current value."""
 

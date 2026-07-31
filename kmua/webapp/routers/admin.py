@@ -29,6 +29,7 @@ from kmua.webapp.schemas import (
     AdminUserPatchOut,
     ChatBriefOut,
     ChatDetailOut,
+    ChatPolicyDetailOut,
     ChatPolicyFlagsOut,
     ChatPolicyIn,
     ChatPolicyListOut,
@@ -391,6 +392,22 @@ async def _apply_user_field(
     return None
 
 
+def _chat_policy_out(row, live_title: str | None) -> ChatPolicyOut:
+    """Serialize one policy row; the live title wins over the stored copy.
+
+    The stored copy exists for chats the bot has not seen or has since been
+    purged, so it is a fallback rather than a cache to refresh.
+    """
+    return ChatPolicyOut(
+        chat_id=row.chat_id,
+        chat_title=live_title or row.chat_title,
+        policy=ChatPolicyFlagsOut(**row.chat_policy.to_dict()),
+        updated_by=row.updated_by,
+        note=row.note,
+        created_at=timestamp(row.created_at),
+    )
+
+
 @router.get("/chat-policies", response_model=ChatPolicyListOut)
 async def read_chat_policies(user: RequireAdmin) -> ChatPolicyListOut:
     """Per-chat operator policy, plus the config flags that gate it."""
@@ -398,19 +415,24 @@ async def read_chat_policies(user: RequireAdmin) -> ChatPolicyListOut:
     return ChatPolicyListOut(
         agent_whitelist_mode=app_config.agent_whitelist_mode,
         rss_whitelist_mode=app_config.rss_whitelist_mode,
-        items=[
-            ChatPolicyOut(
-                chat_id=row.chat_id,
-                # The live title from chat_data wins; the stored copy is a fallback
-                # for chats the bot has not seen or has since been purged.
-                chat_title=live_title or row.chat_title,
-                policy=ChatPolicyFlagsOut(**row.chat_policy.to_dict()),
-                updated_by=row.updated_by,
-                note=row.note,
-                created_at=timestamp(row.created_at),
-            )
-            for row, live_title in rows
-        ],
+        items=[_chat_policy_out(row, live_title) for row, live_title in rows],
+    )
+
+
+@router.get("/chat-policies/{chat_id}", response_model=ChatPolicyDetailOut)
+async def read_chat_policy(
+    user: RequireAdmin,
+    chat_id: int = Path(description="Chat whose policy is shown"),
+) -> ChatPolicyDetailOut:
+    """One chat's policy for the detail view, with the gating modes."""
+    found = await database.get_chat_policy_row(chat_id)
+    if found is None:
+        raise not_found(ErrorCode.NOT_FOUND, "Chat has no policy")
+    row, live_title = found
+    return ChatPolicyDetailOut(
+        agent_whitelist_mode=app_config.agent_whitelist_mode,
+        rss_whitelist_mode=app_config.rss_whitelist_mode,
+        item=_chat_policy_out(row, live_title),
     )
 
 

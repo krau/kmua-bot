@@ -304,6 +304,13 @@ export interface ChatPolicyList {
   items: ChatPolicy[];
 }
 
+/** One chat's policy plus the mode flags that decide whether it is inert. */
+export interface ChatPolicyDetail {
+  agent_whitelist_mode: boolean;
+  rss_whitelist_mode: boolean;
+  item: ChatPolicy;
+}
+
 /** A policy write. Absent flags keep their current value. */
 export interface ChatPolicyPatch {
   agent_allowed?: boolean | null;
