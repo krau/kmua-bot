@@ -82,7 +82,7 @@ async def read_stats(user: RequireAdmin) -> StatsOut:
             "api_requests": snapshot.api_requests,
             "api_latency_ms": snapshot.api_latency_ms,
         },
-        dashboard=dashboard, 
+        dashboard=dashboard,
     )
 
 
@@ -397,6 +397,7 @@ async def read_chat_policies(user: RequireAdmin) -> ChatPolicyListOut:
     rows = await database.get_chat_policies()
     return ChatPolicyListOut(
         agent_whitelist_mode=app_config.agent_whitelist_mode,
+        rss_whitelist_mode=app_config.rss_whitelist_mode,
         items=[
             ChatPolicyOut(
                 chat_id=row.chat_id,
@@ -439,7 +440,10 @@ async def write_chat_policy(
             current.agent_allowed
             if payload.agent_allowed is None
             else payload.agent_allowed
-        )
+        ),
+        rss_allowed=(
+            current.rss_allowed if payload.rss_allowed is None else payload.rss_allowed
+        ),
     )
 
     old, new = await database.set_chat_policy(

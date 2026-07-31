@@ -41,14 +41,17 @@ const { notify, notifyError } = useNotice();
 
 const newChatId = ref("");
 const newNote = ref("");
-/** Which action is in flight: `add`, `toggle:<id>` or `remove:<id>`. */
-const pending = ref<"add" | `toggle:${number}` | `remove:${number}` | null>(null);
+/** Which action is in flight: `add`, `toggle:<id>`, `toggle-rss:<id>` or `remove:<id>`. */
+const pending = ref<
+  "add" | `toggle:${number}` | `toggle-rss:${number}` | `remove:${number}` | null
+>(null);
 const busy = computed(() => pending.value !== null);
 
 const policies = useAsyncData((signal) => fetchChatPolicies(signal));
 
 const items = computed(() => policies.data.value?.items ?? []);
 const whitelistMode = computed(() => policies.data.value?.agent_whitelist_mode ?? false);
+const rssWhitelistMode = computed(() => policies.data.value?.rss_whitelist_mode ?? false);
 
 /**
  * A group id is negative and Telegram supergroup ids are long, so the field is
@@ -120,6 +123,22 @@ async function toggleAgent(item: ChatPolicy, value: boolean): Promise<void> {
   }
 }
 
+async function toggleRss(item: ChatPolicy, value: boolean): Promise<void> {
+  if (busy.value) return;
+
+  pending.value = `toggle-rss:${item.chat_id}`;
+  try {
+    policies.data.value = await setChatPolicy(item.chat_id, { rss_allowed: value });
+    notify(t("app.saved"));
+    haptics.success();
+  } catch (error) {
+    notifyError(isApiError(error) ? tError(error.code) : t("app.loadFailed"));
+    haptics.error();
+  } finally {
+    pending.value = null;
+  }
+}
+
 async function remove(item: ChatPolicy): Promise<void> {
   const ok = await confirm({
     title: t("chatPolicy.remove"),
@@ -157,6 +176,11 @@ async function remove(item: ChatPolicy): Promise<void> {
         :value="whitelistMode ? t('app.yes') : t('app.no')"
         :hint="whitelistMode ? t('chatPolicy.agentModeOn') : t('chatPolicy.agentModeOff')"
       />
+      <SettingsRow
+        :label="t('chatPolicy.rssMode')"
+        :value="rssWhitelistMode ? t('app.yes') : t('app.no')"
+        :hint="rssWhitelistMode ? t('chatPolicy.rssModeOn') : t('chatPolicy.rssModeOff')"
+      />
     </SettingsSection>
 
     <SettingsSection
@@ -169,14 +193,21 @@ async function remove(item: ChatPolicy): Promise<void> {
         :label="label(item)"
         :hint="hint(item)"
         :disabled="busy"
-        :busy="pending === `toggle:${item.chat_id}`"
       >
         <template #control>
           <ToggleSwitch
             :model-value="item.policy.agent_allowed"
             :disabled="!session.isOwner || busy"
+            :busy="pending === `toggle:${item.chat_id}`"
             :aria-label="t('chatPolicy.agentAllowed')"
             @update:model-value="toggleAgent(item, $event)"
+          />
+          <ToggleSwitch
+            :model-value="item.policy.rss_allowed"
+            :disabled="!session.isOwner || busy"
+            :aria-label="t('chatPolicy.rssAllowed')"
+            :busy="pending === `toggle-rss:${item.chat_id}`"
+            @update:model-value="toggleRss(item, $event)"
           />
         </template>
       </SettingsRow>

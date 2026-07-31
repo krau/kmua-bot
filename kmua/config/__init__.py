@@ -287,6 +287,17 @@ class _AppConfig(pydantic.BaseModel):
     # 每次奖励的数量
     coin_daily_add_count: int = 144 * 16
 
+    # RSS subscription push.
+    #
+    # Whitelist mode is ON by default: polling arbitrary URLs on a chat's behalf is an
+    # outbound-request grant, so a chat needs an explicit `rss_allowed` policy row
+    # (set by an owner in the panel) before it can subscribe. Turning this off lets
+    # every chat subscribe.
+    rss_enabled: bool = True
+    rss_whitelist_mode: bool = True
+    # Minutes between polls of every active feed.
+    rss_interval: int = pydantic.Field(default=30, ge=1, le=1440)
+
 
 class _InternalConfig(pydantic.BaseModel):
     db_is_sqlite: bool = False

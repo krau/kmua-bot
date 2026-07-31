@@ -30,3 +30,4 @@ bot:
     randmyavatar: 立刻更换 bot 头像
     reload: 重载配置文件
     infographic: 渲染信息图
+    rss: 管理 RSS 订阅

@@ -6,6 +6,7 @@ import type {
   ChatDetail,
   Page,
   Quote,
+  RssSubscription,
   SyncMembersResult,
 } from "../types";
 
@@ -52,4 +53,29 @@ export function fetchChatQuotes(
 
 export function deleteChatQuote(chatId: number, link: string) {
   return api.delete<void>(`/api/chats/${chatId}/quotes/${encodeURIComponent(link)}`);
+}
+
+export function fetchChatRss(chatId: number, page: number, size: number, signal?: AbortSignal) {
+  return api.get<Page<RssSubscription>>(`/api/chats/${chatId}/rss`, {
+    query: { page, size },
+    ...(signal ? { signal } : {}),
+  });
+}
+
+export function addChatRss(chatId: number, url: string) {
+  return api.post<RssSubscription>(`/api/chats/${chatId}/rss`, { url });
+}
+
+export function setChatRssPaused(chatId: number, feedId: number, paused: boolean) {
+  return api.patch<RssSubscription[]>(`/api/chats/${chatId}/rss/${feedId}`, { paused });
+}
+
+export function setChatRssInterval(chatId: number, feedId: number, minutes: number | null) {
+  return api.patch<RssSubscription[]>(`/api/chats/${chatId}/rss/${feedId}`, {
+    interval_minutes: minutes,
+  });
+}
+
+export function deleteChatRss(chatId: number, feedId: number) {
+  return api.delete<void>(`/api/chats/${chatId}/rss/${feedId}`);
 }

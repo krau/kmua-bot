@@ -272,6 +272,32 @@ class SyncMembersOut(ApiModel):
     checked: int
 
 
+class RssSubscriptionOut(ApiModel):
+    id: int
+    feed_id: int
+    url: str
+    title: str | None
+    paused: bool
+    # None means the subscription follows the global rss_interval.
+    interval_minutes: int | None
+    last_error: str | None
+    last_fetched_at: str
+    created_at: str
+
+
+class RssSubscriptionIn(ApiModel):
+    url: str = Field(min_length=1, max_length=1024)
+
+
+class RssSubscriptionPatch(ApiModel):
+    """A subscription write. Absent fields keep their current value."""
+
+    paused: bool | None = None
+    interval_minutes: int | None = Field(
+        default=None, ge=1, le=1440, description="Minutes; null = global default"
+    )
+
+
 # -------------------------------------------------------------------------- admin
 
 
@@ -388,6 +414,7 @@ class ChatPolicyFlagsOut(ApiModel):
     """
 
     agent_allowed: bool
+    rss_allowed: bool
 
 
 class ChatPolicyOut(ApiModel):
@@ -409,6 +436,7 @@ class ChatPolicyListOut(ApiModel):
     """
 
     agent_whitelist_mode: bool
+    rss_whitelist_mode: bool
     items: list[ChatPolicyOut]
 
 
@@ -416,6 +444,7 @@ class ChatPolicyIn(ApiModel):
     """A policy write. Absent flags keep their current value."""
 
     agent_allowed: bool | None = None
+    rss_allowed: bool | None = None
     note: str | None = Field(default=None, max_length=256)
 
 

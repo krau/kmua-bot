@@ -9,12 +9,19 @@ from __future__ import annotations
 from datetime import datetime
 
 from kmua.config import app_config
-from kmua.database.models import ChatConfig, ChatData, Quote, UserData
+from kmua.database.models import (
+    ChatConfig,
+    ChatData,
+    Quote,
+    RssSubscription,
+    UserData,
+)
 from kmua.webapp.schemas import (
     AdminChatOut,
     AdminUserOut,
     ChatConfigOut,
     QuoteOut,
+    RssSubscriptionOut,
 )
 
 
@@ -116,4 +123,18 @@ def admin_user_out(user: UserData) -> AdminUserOut:
         is_married=user.is_married,
         married_waifu_id=user.married_waifu_id,
         created_at=timestamp(user.created_at),
+    )
+
+
+def rss_subscription_out(sub: RssSubscription) -> RssSubscriptionOut:
+    return RssSubscriptionOut(
+        id=sub.id,
+        feed_id=sub.feed_id,
+        url=sub.feed.url,
+        title=sub.feed.title,
+        paused=sub.paused,
+        interval_minutes=sub.interval_minutes,
+        last_error=sub.feed.last_error,
+        last_fetched_at=timestamp(sub.feed.last_fetched_at),
+        created_at=timestamp(sub.created_at),
     )

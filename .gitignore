@@ -30,3 +30,5 @@ webapp/.env.local
 # Working notes: design plans, local dev scratch. Not user documentation, so they
 # stay out of the repo and out of the docs site.
 .dev-notes/
+# Runtime configuration with real credentials - never commit.
+settings.toml

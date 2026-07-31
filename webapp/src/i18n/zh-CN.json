@@ -62,7 +62,9 @@
     "avatarRefreshed": "头像已刷新",
     "avatarUnchanged": "头像没有变化",
     "waifuInChats": "各群的老婆",
-    "noWaifu": "还没抽到"
+    "noWaifu": "还没抽到",
+    "rss": "RSS 订阅",
+    "rssHint": "管理私聊中的 RSS 订阅"
   },
   "quotes": {
     "title": "语录",
@@ -115,7 +117,24 @@
     "syncMembersHint": "移除已经退群的成员记录",
     "syncMembersDone": "清理了 {count} 个成员记录",
     "quoteProbability": "随机引用概率",
-    "lang": "群组语言"
+    "lang": "群组语言",
+    "rss": "RSS 订阅",
+    "rssHint": "订阅 RSS/Atom feed, 新条目自动推送到群里",
+    "rssAdd": "添加订阅",
+    "rssUrl": "Feed URL",
+    "rssUrlPlaceholder": "https://example.com/feed.xml",
+    "rssEmpty": "还没有订阅任何 feed",
+    "rssAdded": "已添加订阅",
+    "rssRemove": "取消订阅",
+    "rssRemoveConfirm": "确定取消订阅「{name}」吗?",
+    "rssRemoved": "已取消订阅",
+    "rssPaused": "已暂停",
+    "rssActive": "推送中",
+    "rssLastFetched": "上次抓取",
+    "rssNeverFetched": "尚未抓取",
+    "rssError": "抓取出错",
+    "rssEvery": "每 {minutes} 分钟",
+    "rssGlobalInterval": "全局间隔"
   },
   "chatConfig": {
     "waifu_enabled": "抽老婆",
@@ -259,6 +278,10 @@
     "agentModeOn": "已开启: Agent 仅在下方启用的群组生效",
     "agentModeOff": "已关闭: Agent 在所有群组生效, 下方开关不起作用",
     "agentAllowed": "允许 Agent",
+    "rssMode": "RSS 白名单模式",
+    "rssModeOn": "已开启: 仅下方启用的群组可以订阅 RSS",
+    "rssModeOff": "已关闭: 所有群组都可以订阅 RSS, 下方开关不起作用",
+    "rssAllowed": "允许 RSS 订阅",
     "chats": "已配置的群组",
     "chatsHint": "开关控制该群是否允许 Agent",
     "emptyHint": "还没有配置任何群组",

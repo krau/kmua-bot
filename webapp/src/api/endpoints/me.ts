@@ -8,6 +8,7 @@ import type {
   MeConfigPatch,
   Page,
   Quote,
+  RssSubscription,
   Waifu,
 } from "../types";
 
@@ -63,4 +64,27 @@ export function sendGift(giftDbId: number) {
 
 export function refreshMyAvatar() {
   return api.post<{ refreshed: boolean }>("/api/me/avatar/refresh");
+}
+
+export function fetchMyRss(page: number, size: number, signal?: AbortSignal) {
+  return api.get<Page<RssSubscription>>("/api/me/rss", {
+    query: { page, size },
+    ...(signal ? { signal } : {}),
+  });
+}
+
+export function addMyRss(url: string) {
+  return api.post<RssSubscription>("/api/me/rss", { url });
+}
+
+export function setMyRssPaused(feedId: number, paused: boolean) {
+  return api.patch<RssSubscription[]>(`/api/me/rss/${feedId}`, { paused });
+}
+
+export function setMyRssInterval(feedId: number, minutes: number | null) {
+  return api.patch<RssSubscription[]>(`/api/me/rss/${feedId}`, { interval_minutes: minutes });
+}
+
+export function deleteMyRss(feedId: number) {
+  return api.delete<void>(`/api/me/rss/${feedId}`);
 }

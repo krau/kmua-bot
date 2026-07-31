@@ -14,9 +14,11 @@ from kmua.common import ops
 from kmua.config import app_config
 from kmua.database.models import ChatConfig
 from kmua.logger import logger
+from kmua.services import rss as rss_service
+from kmua.services.rss import redact_url
 from kmua.webapp import audit
 from kmua.webapp.deps import ChatAdminCtx, client_key
-from kmua.webapp.errors import ApiError, ErrorCode, not_found
+from kmua.webapp.errors import ApiError, ErrorCode, forbidden, not_found
 from kmua.webapp.ratelimit import write_limiter
 from kmua.webapp.schemas import (
     TITLE_PERMISSION_KEYS,
@@ -27,10 +29,13 @@ from kmua.webapp.schemas import (
     ChatDetailOut,
     PageOut,
     QuoteOut,
+    RssSubscriptionIn,
+    RssSubscriptionOut,
+    RssSubscriptionPatch,
     SyncMembersOut,
     TitlePermissionsIn,
 )
-from kmua.webapp.serializers import chat_config_out, quote_out
+from kmua.webapp.serializers import chat_config_out, quote_out, rss_subscription_out
 
 router = APIRouter(prefix="/api/chats", tags=["chats"])
 
@@ -244,9 +249,7 @@ async def sync_members(request: Request, ctx: ChatAdminCtx) -> SyncMembersOut:
     cooldown_key = f"sync_members:{ctx.chat.id}"
     if await common.memttlcache.get(cooldown_key):
         raise ApiError(ErrorCode.COOLDOWN, "Members were synced recently")
-    await common.memttlcache.set(
-        cooldown_key, True, app_config.cachettl_sync_members
-    )
+    await common.memttlcache.set(cooldown_key, True, app_config.cachettl_sync_members)
 
     try:
         result = await ops.sync_chat_members(ctx.chat.id)
@@ -309,4 +312,155 @@ async def delete_chat_quote(
         actor_roles=ctx.user.roles,
         target=f"{ctx.chat.id}",
         extra={"link": link},
+    )
+
+
+# ------------------------------------------------------------------ rss
+
+
+@router.get("/{chat_id}/rss", response_model=PageOut[RssSubscriptionOut])
+async def list_chat_rss(
+    ctx: ChatAdminCtx,
+    page: int = Query(1, ge=1),
+    size: int = Query(20, ge=1, le=100),
+) -> PageOut[RssSubscriptionOut]:
+    if not app_config.rss_enabled:
+        raise ApiError(ErrorCode.FEATURE_DISABLED, "RSS is disabled")
+    if not await database.is_rss_allowed(ctx.chat.id):
+        raise forbidden(ErrorCode.FORBIDDEN, "RSS is not enabled for this chat")
+
+    result = await database.get_chat_subscriptions_paged(
+        ctx.chat.id, page=page, size=size
+    )
+    return PageOut[RssSubscriptionOut](
+        items=[rss_subscription_out(sub) for sub in result.items],
+        total=result.total,
+        page=result.page,
+        size=result.size,
+    )
+
+
+@router.post("/{chat_id}/rss", response_model=RssSubscriptionOut, status_code=201)
+async def add_chat_rss(
+    request: Request, ctx: ChatAdminCtx, payload: RssSubscriptionIn
+) -> RssSubscriptionOut:
+    if not app_config.rss_enabled:
+        raise ApiError(ErrorCode.FEATURE_DISABLED, "RSS is disabled")
+    if not await database.is_rss_allowed(ctx.chat.id):
+        raise forbidden(ErrorCode.FORBIDDEN, "RSS is not enabled for this chat")
+    write_limiter.check(client_key(request, ctx.user.id))
+
+    url = payload.url.strip()
+    if not url.startswith(("http://", "https://")):
+        raise ApiError(ErrorCode.VALIDATION_FAILED, "URL must be http(s)")
+
+    # Validate synchronously: subscribing to a URL that cannot be fetched would
+    # otherwise be a silent never-pushing subscription.
+    try:
+        result = await rss_service.fetch_feed(url)
+    except Exception as e:
+        raise ApiError(
+            ErrorCode.VALIDATION_FAILED, f"Feed unreachable: {e.__class__.__name__}"
+        )
+
+    sub, reason = await database.add_subscription(
+        ctx.chat.id, url, created_by=ctx.user.id
+    )
+    if sub is None:
+        if reason == "already_subscribed":
+            raise ApiError(ErrorCode.CONFLICT, "Already subscribed", 409)
+        raise ApiError(ErrorCode.CONFLICT, "Subscription limit reached", 409)
+
+    # Seed the seen window immediately, matching the command path and the poll
+    # job's first-fetch rule: no history flood on the next poll.
+    await database.record_fetch_success(
+        sub.feed_id,
+        title=result.feed_title,
+        etag=result.etag,
+        last_modified=result.last_modified,
+        seen_entry_ids=[e.entry_id for e in result.entries],
+    )
+
+    # The response reflects the fetch we just recorded, so re-read with the feed
+    # joined rather than serializing the pre-fetch snapshot.
+    fresh = next(
+        s
+        for s in await database.get_chat_subscriptions(ctx.chat.id)
+        if s.feed_id == sub.feed_id
+    )
+
+    audit.record(
+        action="chat.rss.add",
+        actor_id=ctx.user.id,
+        actor_roles=ctx.user.roles,
+        target=f"{ctx.chat.id}",
+        extra={"url": redact_url(url)},
+    )
+    return rss_subscription_out(fresh)
+
+
+@router.patch("/{chat_id}/rss/{feed_id}", response_model=list[RssSubscriptionOut])
+async def update_chat_rss(
+    request: Request,
+    ctx: ChatAdminCtx,
+    payload: RssSubscriptionPatch,
+    feed_id: int = Path(description="Feed the subscription points at"),
+) -> list[RssSubscriptionOut]:
+    if not app_config.rss_enabled:
+        raise ApiError(ErrorCode.FEATURE_DISABLED, "RSS is disabled")
+    if not await database.is_rss_allowed(ctx.chat.id):
+        raise forbidden(ErrorCode.FORBIDDEN, "RSS is not enabled for this chat")
+    write_limiter.check(client_key(request, ctx.user.id))
+
+    fields = payload.model_fields_set
+    updated = False
+    if "paused" in fields and payload.paused is not None:
+        updated = (
+            await database.set_subscription_paused(ctx.chat.id, feed_id, payload.paused)
+            or updated
+        )
+    if "interval_minutes" in fields:
+        updated = (
+            await database.set_subscription_interval(
+                ctx.chat.id, feed_id, payload.interval_minutes
+            )
+            or updated
+        )
+    if not updated:
+        raise not_found(ErrorCode.NOT_FOUND, "Subscription not found")
+
+    audit.record(
+        action="chat.rss.update",
+        actor_id=ctx.user.id,
+        actor_roles=ctx.user.roles,
+        target=f"{ctx.chat.id}",
+        extra={"feed_id": feed_id, "paused": payload.paused},
+    )
+    # Return the whole list, matching the other chat-level write endpoints: the
+    # frontend gets the server's actual state instead of reconciling itself.
+    subs = await database.get_chat_subscriptions(ctx.chat.id)
+    return [rss_subscription_out(sub) for sub in subs]
+
+
+@router.delete("/{chat_id}/rss/{feed_id}", status_code=204)
+async def delete_chat_rss(
+    request: Request,
+    ctx: ChatAdminCtx,
+    feed_id: int = Path(description="Feed the subscription points at"),
+) -> None:
+    if not app_config.rss_enabled:
+        raise ApiError(ErrorCode.FEATURE_DISABLED, "RSS is disabled")
+    if not await database.is_rss_allowed(ctx.chat.id):
+        raise forbidden(ErrorCode.FORBIDDEN, "RSS is not enabled for this chat")
+    write_limiter.check(client_key(request, ctx.user.id))
+
+    if not await database.remove_subscription(ctx.chat.id, feed_id):
+        raise not_found(ErrorCode.NOT_FOUND, "Subscription not found")
+
+    audit.record(
+        action="chat.rss.delete",
+        actor_id=ctx.user.id,
+        actor_roles=ctx.user.roles,
+        target=f"{ctx.chat.id}",
+        extra={"feed_id": feed_id},
     )

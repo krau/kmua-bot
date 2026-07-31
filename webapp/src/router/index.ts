@@ -38,6 +38,11 @@ const routes: RouteRecordRaw[] = [
     component: () => import("@/views/me/GiftsView.vue"),
   },
   {
+    path: "/me/rss",
+    name: "me-rss",
+    component: () => import("@/views/me/MyRssView.vue"),
+  },
+  {
     path: "/chats",
     name: "chats",
     component: () => import("@/views/chats/ChatListView.vue"),
@@ -64,6 +69,12 @@ const routes: RouteRecordRaw[] = [
     path: "/chats/:chatId/quotes",
     name: "chat-quotes",
     component: () => import("@/views/chats/ChatQuotesView.vue"),
+    props: (route) => ({ chatId: Number(route.params.chatId) }),
+  },
+  {
+    path: "/chats/:chatId/rss",
+    name: "chat-rss",
+    component: () => import("@/views/chats/ChatRssView.vue"),
     props: (route) => ({ chatId: Number(route.params.chatId) }),
   },
   {
