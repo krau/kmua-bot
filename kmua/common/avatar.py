@@ -27,8 +27,21 @@ def _get_avatar_path(user_id: int, big: bool = True) -> Path:
     )
 
 
+# A burst of avatar cache misses (quotes, waifu cards) must not flood the
+# Telegram session: refreshes are serialized through a small semaphore, each
+# one is hard-timed, and a failure is remembered so hot paths back off for a
+# while instead of retrying a dead session on every call.
+_avatar_refresh_semaphore = asyncio.Semaphore(
+    max(1, app_config.avatar_refresh_concurrency)
+)
+_avatar_refresh_failed_at: dict[int, float] = {}
+
+
 async def _get_avatar_bytes(
-    chat_id: int, big: bool = True, force_refresh: bool = False
+    chat_id: int,
+    big: bool = True,
+    force_refresh: bool = False,
+    ignore_backoff: bool = False,
 ) -> tuple[bytes | None, bool]:
     """Get avatar bytes for a chat.
     Returns:
@@ -41,19 +54,38 @@ async def _get_avatar_bytes(
     if await aiofiles.os.path.exists(avatar_path) and not force_refresh:
         async with aiofiles.open(avatar_path, "rb") as avatar_file:
             return (await avatar_file.read(), False)
-    chat_full = await client.get_chat(chat_id, True)
-    if not chat_full.photo:
+    loop = asyncio.get_running_loop()
+    if (
+        not ignore_backoff
+        and loop.time() - _avatar_refresh_failed_at.get(chat_id, 0.0)
+        < app_config.avatar_refresh_retry_after
+    ):
+        # A recent refresh attempt failed; don't hammer the session again.
         return None, False
-    photo_id = chat_full.photo.big_file_id if big else chat_full.photo.small_file_id
-    file = await client.download_media(photo_id, in_memory=True)
-    if not file or not isinstance(file, BytesIO):
-        return None, False
-    file.seek(0)
-    avatar = file.read()
-    await aiofiles.os.makedirs(avatar_path.parent, exist_ok=True)
-    async with aiofiles.open(avatar_path, "wb") as avatar_file:
-        await avatar_file.write(avatar)
-    return avatar, True
+    try:
+        async with _avatar_refresh_semaphore:
+            async with asyncio.timeout(app_config.avatar_refresh_timeout):
+                chat_full = await client.get_chat(chat_id, True)
+                if not chat_full.photo:
+                    return None, False
+                photo_id = (
+                    chat_full.photo.big_file_id
+                    if big
+                    else chat_full.photo.small_file_id
+                )
+                file = await client.download_media(photo_id, in_memory=True)
+                if not file or not isinstance(file, BytesIO):
+                    return None, False
+                file.seek(0)
+                avatar = file.read()
+                await aiofiles.os.makedirs(avatar_path.parent, exist_ok=True)
+                async with aiofiles.open(avatar_path, "wb") as avatar_file:
+                    await avatar_file.write(avatar)
+                _avatar_refresh_failed_at.pop(chat_id, None)
+                return avatar, True
+    except Exception:
+        _avatar_refresh_failed_at[chat_id] = loop.time()
+        raise
 
 
 class ChatAvatar:
@@ -108,16 +140,17 @@ class ChatAvatar:
                     force_refresh = True
                 if force_refresh:
                     logger.debug(f"Refreshing avatar for chat {self.chat_id}")
-                    avatar_b, _ = await _get_avatar_bytes(
-                        self.chat_id, big=True, force_refresh=True
-                    )
-                    avatar_s, _ = await _get_avatar_bytes(
-                        self.chat_id, big=False, force_refresh=True
+                    # Refresh only the requested size; the other size is
+                    # refreshed lazily on its own first use. Downloading both
+                    # here doubles the network load for callers that only need
+                    # one (quote/waifu hot paths).
+                    avatar, _ = await _get_avatar_bytes(
+                        self.chat_id, big=big, force_refresh=True
                     )
                     await database.update_user_avatar(
                         user_id=self.chat_id, refreshed=True
                     )
-                    return avatar_b if big else avatar_s
+                    return avatar
                 else:
                     avatar, _ = await _get_avatar_bytes(self.chat_id, big=big)
                     return avatar
@@ -178,11 +211,13 @@ class ChatAvatar:
     async def force_refresh(self) -> bool:
         try:
             async with self._lock:
+                # Explicit user action: always try, even if a recent refresh
+                # attempt failed (backoff is for the hot paths only).
                 avatar_b, refreshed_big = await _get_avatar_bytes(
-                    self.chat_id, big=True, force_refresh=True
+                    self.chat_id, big=True, force_refresh=True, ignore_backoff=True
                 )
                 avatar_s, refreshed_small = await _get_avatar_bytes(
-                    self.chat_id, big=False, force_refresh=True
+                    self.chat_id, big=False, force_refresh=True, ignore_backoff=True
                 )
                 if all((avatar_b, avatar_s, refreshed_big, refreshed_small)):
                     await database.update_user_avatar(

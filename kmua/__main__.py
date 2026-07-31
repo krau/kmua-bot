@@ -336,6 +336,7 @@ async def main():
             failure_threshold=app_config.session_health_threshold,
             cooldown=app_config.session_health_cooldown,
             stale_threshold=app_config.session_health_stale,
+            restart_timeout=app_config.session_health_restart_timeout,
         )
         session_health.start()
 

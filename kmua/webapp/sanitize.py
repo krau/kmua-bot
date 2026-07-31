@@ -57,6 +57,7 @@ _PUBLIC_FIELDS: dict[str, tuple[str, ...]] = {
         "session_health_threshold",
         "session_health_cooldown",
         "session_health_stale",
+        "session_health_restart_timeout",
     ),
     "agent": (
         "agent",
