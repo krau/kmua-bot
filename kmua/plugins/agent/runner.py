@@ -23,6 +23,7 @@ from kmua.config import app_config
 from kmua.i18n import i18n
 from kmua.logger import logger
 from kmua.plugins.agent import datatype, provider, state
+from kmua.plugins.agent.cache_stats import log_run_cache_stats
 from kmua.plugins.agent.datatype import AskUserOutput, EndTurn
 from kmua.plugins.agent.output import StreamingOutput, TypingKeepAlive, reply_output
 from kmua.plugins.agent.prompt import check_needs_multimodal
@@ -235,7 +236,9 @@ async def _run_agent_impl(
                                     elif streaming_output is not None:
                                         await streaming_output.finalize()
                                     elif output:
-                                        await reply_output(client, message, output, deps=deps)
+                                        await reply_output(
+                                            client, message, output, deps=deps
+                                        )
                         # Save full output for follow-up detection
                         full_output = ""
                         if streaming_output is not None:
@@ -269,6 +272,7 @@ async def _run_agent_impl(
                             agent_run.all_messages(),
                             ttl=app_config.cachettl_agent_history,
                         )
+                        log_run_cache_stats(use_model.model_name, agent_run.usage)
                 except Exception:
                     if streaming_output is not None:
                         await streaming_output.abort()
@@ -340,7 +344,9 @@ async def _run_agent_impl(
                             # In guest mode, send a single collected reply at the end
                             if is_guest_mode and full_output_parts:
                                 full_text = "\n".join(full_output_parts)
-                                await reply_output(client, message, full_text, deps=deps)
+                                await reply_output(
+                                    client, message, full_text, deps=deps
+                                )
                     # Save full output for follow-up detection
                     full_output = "\n".join(full_output_parts)
                     if (
@@ -367,6 +373,7 @@ async def _run_agent_impl(
                         agent_run.all_messages(),
                         ttl=app_config.cachettl_agent_history,
                     )
+                    log_run_cache_stats(use_model.model_name, agent_run.usage)
         finally:
             if ctx is not None:
                 await ctx.__aexit__(None, None, None)

@@ -2,13 +2,22 @@
 
 This module provides a custom OpenAIChatModel subclass that supports video content
 by sending video BinaryContent as video_url parameter to the OpenAI API.
+
+Prompt-cache hit statistics are recorded for every model request via
+:mod:`kmua.plugins.agent.cache_stats`.
 """
 
 import base64
 from typing import Any
 
 from pydantic_ai import BinaryContent
-from pydantic_ai.models.openai import OpenAIChatModel
+from pydantic_ai.messages import ModelResponse
+from pydantic_ai.models.openai import OpenAIChatModel, OpenAIStreamedResponse
+
+from kmua.plugins.agent.cache_stats import (
+    CacheStatsOpenAIStreamedResponse,
+    log_cache_stats,
+)
 
 
 def _is_video_media_type(media_type: str) -> bool:
@@ -23,6 +32,20 @@ class VideoCapableOpenAIChatModel(OpenAIChatModel):
     it to video_url format with base64 data URI, which is supported by
     modern vision models for video input.
     """
+
+    @property
+    def _streamed_response_cls(self) -> type[OpenAIStreamedResponse]:
+        """Return the StreamedResponse type used for streamed responses."""
+        return CacheStatsOpenAIStreamedResponse
+
+    def _process_response(self, response: Any) -> ModelResponse:
+        model_response = super()._process_response(response)
+        log_cache_stats(
+            self.model_name,
+            getattr(response, "usage", None),
+            model_response.usage,
+        )
+        return model_response
 
     async def _map_binary_content_item(self, item: BinaryContent) -> Any:
         """Map a BinaryContent item to a chat completion content part.
