@@ -87,10 +87,25 @@ def test_build_digest_prompt_uses_chat_language():
 
 
 def test_parse_digest_output_filters_valid_ids():
-    out = rss_digest.parse_digest_output(
-        '{"e1": "点评一", "e2": "点评二", "e3": "点评三"}', {"e1", "e2"}
+    payload = (
+        '{"summaries": ['
+        '{"entry_id": "e1", "summary": "点评一"},'
+        '{"entry_id": "e2", "summary": "点评二"},'
+        '{"entry_id": "e3", "summary": "点评三"}'
+        "]}"
     )
+    out = rss_digest.parse_digest_output(payload, {"e1", "e2"})
     assert out == {"e1": "点评一", "e2": "点评二"}
+
+
+def test_parse_digest_output_accepts_instance():
+    article = rss_digest.RssDigestSummaries(
+        summaries=[
+            rss_digest.RssEntrySummary(entry_id="e1", summary="点评一"),
+        ]
+    )
+    out = rss_digest.parse_digest_output(article, {"e1", "e2"})
+    assert out == {"e1": "点评一"}
 
 
 def test_parse_digest_output_rejects_garbage():
@@ -98,6 +113,12 @@ def test_parse_digest_output_rejects_garbage():
     assert rss_digest.parse_digest_output("", {"e1"}) == {}
     assert rss_digest.parse_digest_output('["list"]', {"e1"}) == {}
     assert rss_digest.parse_digest_output('{"e1": 42}', {"e1"}) == {}
+    assert (
+        rss_digest.parse_digest_output(
+            '{"summaries": [{"entry_id": "e1", "summary": 42}]}', {"e1"}
+        )
+        == {}
+    )
 
 
 def test_build_broadcast_prompt_contains_titles_and_links():
@@ -130,7 +151,7 @@ async def test_generate_digest_returns_empty_on_failure(monkeypatch, raise_exc):
 
 
 async def test_generate_digest_parses_agent_output(monkeypatch):
-    fake = _FakeAgent('{"e1": "点评"}')
+    fake = _FakeAgent('{"summaries": [{"entry_id": "e1", "summary": "点评"}]}')
     monkeypatch.setattr(rss_digest, "_make_digest_agent", lambda: fake)
     out = await rss_digest.generate_rss_digest([make_entry("e1")], "feed")
     assert out == {"e1": "点评"}
