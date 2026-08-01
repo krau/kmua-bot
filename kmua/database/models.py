@@ -62,6 +62,7 @@ class ChatConfig:
     parse_artwork_enabled: bool = True
     pick_bottle_enabled: bool = True
     group_memory_enabled: bool = True
+    parse_wechat_enabled: bool = True
     rss_agent_summary: bool = False
     rss_agent_broadcast: bool = False
     lang: str = "zh-CN"
@@ -87,6 +88,7 @@ class ChatConfig:
             pick_bottle_enabled=data.get("pick_bottle_enabled", True),
             ai_comment=data.get("ai_comment", False),
             group_memory_enabled=data.get("group_memory_enabled", True),
+            parse_wechat_enabled=data.get("parse_wechat_enabled", True),
             rss_agent_summary=data.get("rss_agent_summary", False),
             rss_agent_broadcast=data.get("rss_agent_broadcast", False),
             lang=data.get("lang", "zh-CN"),

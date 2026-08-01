@@ -151,6 +151,7 @@
     "pick_bottle_enabled": "Pick drift bottles",
     "group_memory_enabled": "Group memory",
     "group_memory_enabledHint": "Let kmua remember this group's conversations",
+    "parse_wechat_enabled": "Parse WeChat articles",
     "rss_agent_summary": "AI summary on RSS pushes",
     "rss_agent_broadcast": "AI broadcast on new RSS entries"
   },

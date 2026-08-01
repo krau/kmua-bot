@@ -44,6 +44,7 @@ def valid_config(**overrides) -> dict:
         "parse_artwork_enabled": True,
         "pick_bottle_enabled": True,
         "group_memory_enabled": True,
+        "parse_wechat_enabled": True,
         "rss_agent_summary": False,
         "rss_agent_broadcast": False,
         "lang": "zh-CN",

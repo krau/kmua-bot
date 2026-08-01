@@ -125,6 +125,7 @@ export interface ChatConfig {
   parse_artwork_enabled: boolean;
   pick_bottle_enabled: boolean;
   group_memory_enabled: boolean;
+  parse_wechat_enabled: boolean;
   rss_agent_summary: boolean;
   rss_agent_broadcast: boolean;
   lang: string;

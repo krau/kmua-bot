@@ -203,3 +203,5 @@ bot:
       paused_mark: " (已暂停)"
       error_mark: " (推送错误)"
       untitled: 无标题
+    wechat:
+      read_original: 阅读原文
