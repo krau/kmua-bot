@@ -100,6 +100,10 @@ async def rss_command(client: PyrogramClient, message: _T.Message):
             await _rss_manage(message, chat.id, action, lang, command)
         case "interval":
             await _rss_interval(message, chat.id, lang, command)
+        case "digest":
+            await _rss_agent_toggle(message, lang, command, "rss_agent_summary")
+        case "broadcast":
+            await _rss_agent_toggle(message, lang, command, "rss_agent_broadcast")
         case "testpush":
             await _rss_testpush(client, message, chat.id, user.id, lang, command)
         case _:
@@ -285,6 +289,51 @@ async def _rss_interval(
         await message.reply(
             i18n.t("bot.msg.rss.interval_set", locale=lang).format(minutes=minutes)
         )
+
+
+async def _rss_agent_toggle(
+    message: _T.Message, lang: str, command: list[str], field: str
+) -> None:
+    """/rss digest on|off` 与 `/rss broadcast on|off` 的共用实现.
+
+    Reads the current ChatConfig, flips the given field, and writes it back
+    (update_chat_config refreshes the memttlcache, so the change takes effect
+    immediately). The Chat object is passed to get/update so a chat without a
+    ChatData row (e.g. a private chat) is upserted instead of raising.
+    """
+    if message.chat is None:
+        return
+    if len(command) < 3 or command[2].lower() not in ("on", "off"):
+        await message.reply(
+            i18n.t("bot.msg.rss.usage", locale=lang),
+            parse_mode=pyrogram.enums.ParseMode.HTML,
+            reply_markup=_panel_markup(message.chat, lang),
+        )
+        return
+    on = command[2].lower() == "on"
+
+    try:
+        chat_config = await database.get_chat_config(message.chat)
+        if field == "rss_agent_summary":
+            chat_config.rss_agent_summary = on
+            base = "digest"
+        else:
+            chat_config.rss_agent_broadcast = on
+            base = "broadcast"
+        await database.update_chat_config(message.chat, chat_config)
+    except Exception as e:
+        # A chat without a ChatData row (e.g. a private chat) cannot hold a
+        # ChatConfig; fail with a hint instead of crashing the handler.
+        logger.warning(
+            f"rss: toggle {field} failed for chat {message.chat.id}: "
+            f"{e.__class__.__name__}: {e}"
+        )
+        await message.reply(i18n.t("bot.msg.rss.toggle_failed", locale=lang))
+        return
+
+    await message.reply(
+        i18n.t(f"bot.msg.rss.{base}_{'on' if on else 'off'}", locale=lang)
+    )
 
 
 async def _rss_testpush(

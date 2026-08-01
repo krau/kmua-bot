@@ -192,6 +192,8 @@ bot:
         <code>/rss resume &lt;index&gt;</code> to resume push
         <code>/rss interval &lt;index&gt; &lt;minutes&gt;</code> to set the poll interval; omit minutes to reset to global
         <code>/rss testpush &lt;index&gt;</code> to push this subscription immediately (for testing)
+        <code>/rss digest on|off</code> to enable/disable AI summaries on RSS pushes
+        <code>/rss broadcast on|off</code> to enable/disable AI broadcasts on new entries
       disabled: The RSS subscription feature is disabled.
       not_allowed: "RSS subscriptions are not enabled for this chat (chat_id={chat_id}); ask the owner to allow it in the panel"
       invalid_url: "Invalid URL: it must start with http:// or https://"
@@ -210,6 +212,11 @@ bot:
       interval_invalid: "Interval must be between {min} and {max} minutes"
       too_many_requests: "Too many requests, slow down ({error})"
       testpush_done: "Pushed {count} message(s)"
+      digest_on: AI summaries on RSS pushes enabled.
+      digest_off: AI summaries on RSS pushes disabled.
+      broadcast_on: AI broadcasts on new RSS entries enabled.
+      broadcast_off: AI broadcasts on new RSS entries disabled.
+      toggle_failed: This chat cannot store RSS agent settings right now.
       interval_mark: " · every {minutes} min"
       paused_mark: " (paused)"
       error_mark: " (push error)"

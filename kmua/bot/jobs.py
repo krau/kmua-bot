@@ -1,4 +1,5 @@
 import asyncio
+import html
 import io
 import random
 from datetime import UTC, datetime, timedelta
@@ -9,6 +10,7 @@ import pyrogram.errors
 
 from kmua import common, database, enums, i18n
 from kmua.config import app_config
+from kmua.database.models import ChatConfig
 from kmua.logger import logger
 
 
@@ -169,13 +171,73 @@ async def rss_push():
         for chat_id in chat_ids:
             if chat_id not in lang_by_chat:
                 lang_by_chat[chat_id] = await _chat_lang(chat_id)
+
+        # Per-chat agent switches: summary digests are generated once per
+        # language (a feed usually fans out to several chats), broadcasts once
+        # per broadcast-enabled group chat.
+        chat_configs: dict[int, ChatConfig] = {}
+        summary_langs: set[str] = set()
+        broadcast_chats: list[tuple[int, str]] = []
+        for chat_id in chat_ids:
+            try:
+                chat_configs[chat_id] = await database.get_chat_config(chat_id)
+            except ValueError:
+                continue  # chat row missing; _deliver_entry decides cleanup
+            if chat_configs[chat_id].rss_agent_summary:
+                summary_langs.add(lang_by_chat[chat_id])
+            if chat_configs[chat_id].rss_agent_broadcast:
+                broadcast_chats.append((chat_id, lang_by_chat[chat_id]))
+
+        digest_by_lang: dict[str, dict[str, str]] = {}
+        broadcast_by_lang: dict[str, str | None] = {}
+        broadcast_targets: dict[
+            int, str
+        ] = {}  # chat_id -> lang (group, not rate-limited)
+        if app_config.agent and app_config.agent_model:
+            from kmua.plugins.agent.rss_digest import (
+                generate_rss_broadcast,
+                generate_rss_digest,
+            )
+
+            # Never leak a signed feed URL into logs or the model prompt when
+            # the feed has no title (same redaction the fetch path uses).
+            feed_label = result.feed_title or redact_url(feed.url)
+            for lang in summary_langs:
+                digest_by_lang[lang] = await generate_rss_digest(
+                    new_entries, feed_label, lang
+                )
+            # Skip broadcasts while the per-chat rate-limit lock is held:
+            # generating first would burn get_chat + LLM calls every poll.
+            for chat_id, lang in broadcast_chats:
+                if await _broadcast_locked(chat_id):
+                    continue
+                if not await _is_group_chat(chat_id):
+                    continue
+                broadcast_targets[chat_id] = lang
+            for lang in set(broadcast_targets.values()):
+                broadcast_by_lang[lang] = await generate_rss_broadcast(
+                    new_entries, feed_label, lang
+                )
+
+        for chat_id in chat_ids:
             for entry in new_entries:
                 text = rss_service.render_entry(
                     result.feed_title or feed.url, entry, lang_by_chat[chat_id]
                 )
+                chat_config = chat_configs.get(chat_id)
+                if chat_config and chat_config.rss_agent_summary:
+                    digest = digest_by_lang.get(lang_by_chat[chat_id], {}).get(
+                        entry.entry_id
+                    )
+                    if digest:
+                        text = f"💬 {html.escape(digest)}\n\n{text}"
                 if await _deliver_entry(chat_id, text, entry.media_urls):
                     pushed += 1
                 await asyncio.sleep(0.5)
+            if chat_id in broadcast_targets:
+                text = broadcast_by_lang.get(broadcast_targets[chat_id])
+                if text is not None:
+                    await _try_broadcast(chat_id, text)
 
     logger.info(
         f"rss: {len(feeds)} active feed(s), fetched {fetched}, "
@@ -263,3 +325,65 @@ async def _deliver_entry(chat_id: int, text: str, media_urls: list[str]) -> bool
             f"rss: deliver to chat {chat_id} failed: {e.__class__.__name__}: {e}"
         )
         return False
+
+
+async def _is_group_chat(chat_id: int) -> bool:
+    """True when the chat is a supergroup or group (broadcast target only)."""
+    from kmua.bot.client import client
+
+    try:
+        chat = await client.get_chat(chat_id)
+    except Exception as e:
+        logger.warning(
+            f"rss: broadcast chat lookup failed for {chat_id}: "
+            f"{e.__class__.__name__}: {e}"
+        )
+        return False
+    return chat.type in (
+        pyrogram.enums.ChatType.SUPERGROUP,
+        pyrogram.enums.ChatType.GROUP,
+    )
+
+
+async def _broadcast_locked(chat_id: int) -> bool:
+    """True while the per-chat broadcast rate-limit lock is held.
+
+    Read-only peek used before generation so rate-limited chats do not burn
+    LLM calls; the lock itself is only acquired at send time.
+    """
+    return bool(await common.memttlcache.get(f"rss:broadcast:{chat_id}"))
+
+
+async def _broadcast_due(chat_id: int) -> bool:
+    """Rate-limit gate: one broadcast per chat per configured interval.
+
+    Locks via memttlcache; a bot restart resets the lock, which is acceptable
+    (broadcasts are best-effort chatter, not a delivery guarantee).
+    """
+    key = f"rss:broadcast:{chat_id}"
+    if await common.memttlcache.get(key):
+        return False
+    await common.memttlcache.set(
+        key, True, ttl=app_config.rss_agent_broadcast_interval * 60
+    )
+    return True
+
+
+async def _try_broadcast(chat_id: int, text: str | None) -> None:
+    """Send one agent-written broadcast message, rate-limited per chat.
+
+    Sent as plain text (parse_mode=None): the model output is untrusted and
+    must not be interpreted as HTML. Failures are logged and swallowed; a
+    broadcast never cleans up subscriptions or affects the regular push.
+    """
+    if not text or not await _broadcast_due(chat_id):
+        return
+    from kmua.bot.client import client
+
+    try:
+        await client.send_message(chat_id, text, parse_mode=None)
+        logger.debug(f"rss: broadcast sent to {chat_id}")
+    except Exception as e:
+        logger.warning(
+            f"rss: broadcast to chat {chat_id} failed: {e.__class__.__name__}: {e}"
+        )

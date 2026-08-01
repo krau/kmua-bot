@@ -174,6 +174,8 @@ bot:
         <code>/rss resume &lt;序号&gt;</code> 恢复推送
         <code>/rss interval &lt;序号&gt; &lt;分钟&gt;</code> 设置抓取间隔, 留空恢复全局
         <code>/rss testpush &lt;序号&gt;</code> 立即推送一次该订阅 (测试用)
+        <code>/rss digest on|off</code> 开启/关闭 RSS 推送 AI 摘要
+        <code>/rss broadcast on|off</code> 开启/关闭 RSS AI 播报
       disabled: RSS 订阅功能未启用
       not_allowed: "RSS 订阅未对此聊天开放"
       invalid_url: URL 无效, 必须以 http:// 或 https:// 开头
@@ -192,6 +194,11 @@ bot:
       interval_invalid: "间隔必须是 {min}-{max} 之间的分钟数"
       too_many_requests: "操作太频繁, 请稍后再试 ({error})"
       testpush_done: "已推送 {count} 条消息"
+      digest_on: 已开启 RSS 推送 AI 摘要
+      digest_off: 已关闭 RSS 推送 AI 摘要
+      broadcast_on: 已开启 RSS AI 播报
+      broadcast_off: 已关闭 RSS AI 播报
+      toggle_failed: 该聊天的配置暂不可用, 无法保存此开关
       interval_mark: " · 每 {minutes} 分钟"
       paused_mark: " (已暂停)"
       error_mark: " (推送错误)"

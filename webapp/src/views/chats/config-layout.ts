@@ -30,7 +30,14 @@ export const TOGGLE_GROUPS: ToggleGroup[] = [
   },
   {
     labelKey: "ai",
-    keys: ["ai_reply", "ai_reply_other_bots_enabled", "ai_comment", "group_memory_enabled"],
+    keys: [
+      "ai_reply",
+      "ai_reply_other_bots_enabled",
+      "ai_comment",
+      "group_memory_enabled",
+      "rss_agent_summary",
+      "rss_agent_broadcast",
+    ],
   },
   {
     labelKey: "content",

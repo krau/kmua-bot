@@ -104,6 +104,8 @@ async def update_chat_config(
         parse_artwork_enabled=payload.parse_artwork_enabled,
         pick_bottle_enabled=payload.pick_bottle_enabled,
         group_memory_enabled=payload.group_memory_enabled,
+        rss_agent_summary=payload.rss_agent_summary,
+        rss_agent_broadcast=payload.rss_agent_broadcast,
         lang=payload.lang,
     )
 
