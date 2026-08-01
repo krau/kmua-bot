@@ -31,3 +31,7 @@ webapp/.env.local
 # stay out of the repo and out of the docs site.
 .dev-notes/
 # Runtime configuration with real credentials - never commit.
+.omp/
+.claude/
+.codex/
+.opencode/
