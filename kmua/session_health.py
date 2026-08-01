@@ -28,6 +28,7 @@ from datetime import datetime
 
 from pyrogram import raw
 from pyrogram.client import Client
+from pyrogram.errors import RPCError
 
 from kmua.logger import logger
 
@@ -88,9 +89,18 @@ class SessionHealthMonitor:
                     raw.functions.updates.GetState(),
                     retries=1,
                     timeout=self.probe_timeout,
+                    # Never sleep on FloodWait inside a probe: raising is the
+                    # answer we want (the session is alive).
+                    sleep_threshold=0,
                 ),
                 timeout=self.probe_timeout + self.probe_grace,
             )
+            return True
+        except RPCError:
+            # The session answered: the RPC itself was rejected (e.g.
+            # UserMigrate on a media session, whose DC differs from the
+            # account's home DC, or a FloodWait), but the send path is alive.
+            # Only timeouts/connection errors are liveness failures.
             return True
         except Exception as e:
             logger.debug(

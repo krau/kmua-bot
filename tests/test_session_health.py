@@ -20,6 +20,7 @@ import asyncio
 from datetime import datetime, timedelta
 
 import pytest
+from pyrogram.errors import FloodWait, RPCError, UserMigrate
 
 from kmua.session_health import SessionHealthMonitor
 
@@ -35,11 +36,14 @@ class _FakeSession:
         self._hang_invoke = asyncio.Event()
         self._hang_restart = asyncio.Event()
         self._never = asyncio.Event()
+        self._raise: type[Exception] | None = None
 
     async def invoke(self, *args, **kwargs):
         self.invoke_calls += 1
         if self._hang_invoke.is_set():
             await self._never.wait()  # never returns
+        if self._raise is not None:
+            raise self._raise()
         if not self.invoke_ok:
             raise TimeoutError("Request timed out")
         return None
@@ -85,6 +89,31 @@ async def _elapsed(fn) -> tuple[object, float]:
     start = asyncio.get_running_loop().time()
     result = await fn()
     return result, asyncio.get_running_loop().time() - start
+
+
+@pytest.mark.parametrize(
+    "error",
+    [UserMigrate, FloodWait],
+)
+async def test_probe_rpc_error_means_session_alive(error: type[RPCError]) -> None:
+    """A rejected RPC (UserMigrate on media sessions, FloodWait) proves the
+    send path works - only timeouts/connection errors are liveness failures.
+    """
+    session = _FakeSession()
+    session._raise = error
+    monitor = _monitor(_FakeClient(session))
+
+    assert await monitor._probe_session(session) is True
+    assert session.invoke_calls == 1
+
+
+async def test_probe_timeout_means_session_dead() -> None:
+    """A timed-out invoke still counts as a liveness failure."""
+    session = _FakeSession(invoke_ok=False)
+    monitor = _monitor(_FakeClient(session))
+
+    assert await monitor._probe_session(session) is False
+    assert session.invoke_calls == 1
 
 
 async def test_probe_bounded_when_invoke_hangs() -> None:
