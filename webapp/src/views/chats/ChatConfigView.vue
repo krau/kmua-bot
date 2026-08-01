@@ -56,6 +56,8 @@ const EMPTY_CONFIG: ChatConfigInput = {
   parse_artwork_enabled: true,
   pick_bottle_enabled: true,
   group_memory_enabled: true,
+  rss_agent_summary: false,
+  rss_agent_broadcast: false,
   lang: "zh-CN",
 };
 

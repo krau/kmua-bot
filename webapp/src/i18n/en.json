@@ -150,7 +150,9 @@
     "parse_artwork_enabled": "Parse artwork links",
     "pick_bottle_enabled": "Pick drift bottles",
     "group_memory_enabled": "Group memory",
-    "group_memory_enabledHint": "Let kmua remember this group's conversations"
+    "group_memory_enabledHint": "Let kmua remember this group's conversations",
+    "rss_agent_summary": "AI summary on RSS pushes",
+    "rss_agent_broadcast": "AI broadcast on new RSS entries"
   },
   "titlePermissions": {
     "can_change_info": "Change group info",
