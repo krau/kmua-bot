@@ -113,7 +113,11 @@ useMainButton({
 <template>
   <PageHeader :title="t('chatConfig.parseSites')" :subtitle="chat.data.value?.title" />
 
-  <StateBlock :loading="chat.loading.value && !chat.data.value" :error="chat.error.value" @retry="chat.reload">
+  <StateBlock
+    :loading="chat.loading.value && !chat.data.value"
+    :error="chat.error.value"
+    @retry="chat.reload"
+  >
     <SettingsSection :hint="t('chatConfig.parseSitesHint')">
       <SettingsRow v-for="site in PARSE_SITES" :key="site.key" :label="site.label">
         <template #control>

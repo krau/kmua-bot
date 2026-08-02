@@ -41,12 +41,7 @@ export const TOGGLE_GROUPS: ToggleGroup[] = [
   },
   {
     labelKey: "content",
-    keys: [
-      "setu_enabled",
-      "convert_b23_enabled",
-      "parse_artwork_enabled",
-      "parse_wechat_enabled",
-    ],
+    keys: ["setu_enabled", "convert_b23_enabled", "parse_artwork_enabled", "parse_wechat_enabled"],
   },
   {
     labelKey: "housekeeping",
