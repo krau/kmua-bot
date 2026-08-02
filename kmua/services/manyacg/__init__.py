@@ -163,7 +163,8 @@ if app_config.manyacg_api_url:
 PIXIV_REGEX = re.compile(
     r"pixiv\.net/(?:artworks/|i/|member_illust\.php\?(?:[\w=&]*\&|)illust_id=)(\d+)"
 )
-TWITTER_REGEX = re.compile(r"(?:twitter|x)\.com/([^/]+)/status/(\d+)")
+# Twitter/X is handled natively by kmua.plugins.twitter (FxEmbed API); keep
+# manyacg out of it so pure-text tweets no longer fail here.
 BILIBILI_REGEX = re.compile(r"t\.bilibili\.com/(\d+)|bilibili\.com/opus/(\d+)")
 DANBOORU_REGEX = re.compile(r"danbooru\.donmai\.us/posts/\d+")
 KEMONO_REGEX = re.compile(r"kemono\.cr/\w+/user/\d+/post/\d+")
@@ -171,7 +172,6 @@ YANDERE_REGEX = re.compile(r"yande\.re/post/show/\d+")
 NHENTAI_REGEX = re.compile(r"nhentai\.net/g/\d+")
 ARTWORK_ALL_REGEX = [
     PIXIV_REGEX,
-    TWITTER_REGEX,
     BILIBILI_REGEX,
     DANBOORU_REGEX,
     KEMONO_REGEX,

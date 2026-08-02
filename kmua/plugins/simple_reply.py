@@ -138,6 +138,9 @@ _filter = (
     & (_reply_me_filter | filters.private | _mention_me_filter)
     & _not_bottle_reply_filter
     & ~pyrogram.filters.regex("|".join([r.pattern for r in manyacg.ARTWORK_ALL_REGEX]))
+    # Twitter/X links are handled by the native tweet parser (group -1); the
+    # keyword reply must not double-respond to them.
+    & ~pyrogram.filters.regex(r"(?:twitter|x)\.com/[^/]+/status/\d+")
 )
 
 _chat_command_filter = filters.command("chat") & _not_bottle_reply_filter

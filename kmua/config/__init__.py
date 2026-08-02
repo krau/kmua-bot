@@ -313,6 +313,9 @@ class _AppConfig(pydantic.BaseModel):
     # Minimum minutes between agent broadcasts to one chat (per-chat switch:
     # ChatConfig.rss_agent_broadcast).
     rss_agent_broadcast_interval: int = pydantic.Field(default=30, ge=1, le=1440)
+    # FxEmbed-compatible API base for native Twitter/X parsing
+    # (default: public FxTwitter instance; self-hosted workers can replace it).
+    fxembed_api_url: str = "https://api.fxtwitter.com"
 
 
 class _InternalConfig(pydantic.BaseModel):

@@ -221,6 +221,9 @@ bot:
       paused_mark: " (paused)"
       error_mark: " (push error)"
       untitled: Untitled
+    twitter:
+      view_original: View original
+
     waifu:
       disabled: The waifu feature is not allowed here.
       not_found: You don't have a waifu right now because I can't find any other members in my records.
