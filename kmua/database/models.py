@@ -1,4 +1,4 @@
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from datetime import datetime
 
 import sqlalchemy as sa
@@ -49,7 +49,6 @@ class ChatConfig:
     waifu_enabled: bool = True
     delete_events_enabled: bool = False
     unpin_channel_pin_enabled: bool = False
-    message_search_enabled: bool = False
     quote_probability: float = 0.001
     quote_pin_message: bool = True
     title_permissions: dict | None = None
@@ -60,6 +59,7 @@ class ChatConfig:
     setu_enabled: bool = True
     convert_b23_enabled: bool = True
     parse_artwork_enabled: bool = True
+    parse_sites_enabled: dict[str, bool] = field(default_factory=dict)
     pick_bottle_enabled: bool = True
     group_memory_enabled: bool = True
     parse_wechat_enabled: bool = True
@@ -75,7 +75,6 @@ class ChatConfig:
             waifu_enabled=data.get("waifu_enabled", True),
             delete_events_enabled=data.get("delete_events_enabled", False),
             unpin_channel_pin_enabled=data.get("unpin_channel_pin_enabled", False),
-            message_search_enabled=data.get("message_search_enabled", False),
             quote_probability=data.get("quote_probability", 0.001),
             quote_pin_message=data.get("quote_pin_message", False),
             title_permissions=data.get("title_permissions", {}),
@@ -85,6 +84,7 @@ class ChatConfig:
             setu_enabled=data.get("setu_enabled", True),
             convert_b23_enabled=data.get("convert_b23_enabled", False),
             parse_artwork_enabled=data.get("parse_artwork_enabled", True),
+            parse_sites_enabled=data.get("parse_sites_enabled") or {},
             pick_bottle_enabled=data.get("pick_bottle_enabled", True),
             ai_comment=data.get("ai_comment", False),
             group_memory_enabled=data.get("group_memory_enabled", True),

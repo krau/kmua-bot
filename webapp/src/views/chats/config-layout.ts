@@ -46,7 +46,6 @@ export const TOGGLE_GROUPS: ToggleGroup[] = [
       "convert_b23_enabled",
       "parse_artwork_enabled",
       "parse_wechat_enabled",
-      "message_search_enabled",
     ],
   },
   {

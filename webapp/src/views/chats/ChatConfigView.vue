@@ -44,7 +44,6 @@ const EMPTY_CONFIG: ChatConfigInput = {
   waifu_enabled: true,
   delete_events_enabled: false,
   unpin_channel_pin_enabled: false,
-  message_search_enabled: false,
   quote_probability: 0.001,
   quote_pin_message: true,
   greeting: null,
@@ -54,6 +53,7 @@ const EMPTY_CONFIG: ChatConfigInput = {
   setu_enabled: true,
   convert_b23_enabled: true,
   parse_artwork_enabled: true,
+  parse_sites_enabled: {},
   pick_bottle_enabled: true,
   group_memory_enabled: true,
   parse_wechat_enabled: true,
@@ -164,6 +164,14 @@ function go(name: string): void {
         v-if="group.labelKey === 'interaction'"
         v-model="form.draft.value.quote_probability"
         :label="t('chats.quoteProbability')"
+      />
+
+      <SettingsRow
+        v-if="group.labelKey === 'content'"
+        :label="t('chatConfig.parseSites')"
+        :hint="t('chatConfig.parseSitesHint')"
+        navigable
+        @click="go('chat-parse-sites')"
       />
     </SettingsSection>
 

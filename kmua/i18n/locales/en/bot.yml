@@ -381,7 +381,6 @@ bot:
     chat_config:
       waifu: Daily Waifu
       delete_events: Delete Events
-      message_search: Message Search
       quote_pin_message: Pin Quoted Message
       ai_reply: AI Reply
       ai_reply_other_bots_enabled: Reply to Other Bots

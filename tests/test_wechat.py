@@ -182,8 +182,6 @@ def test_build_rich_blocks_interleaves_images_and_quotes():
     assert blocks2[photo_idx].photo_id == 42
 
     # Consecutive paragraphs share one block quote, separated by blank lines.
-    from pyrogram.raw.types.text_plain import TextPlain
-
     article3 = wechat_service.WechatArticle(
         url=ARTICLE_URL,
         blocks=[

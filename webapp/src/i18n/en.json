@@ -140,7 +140,6 @@
     "waifu_enabled": "Daily waifu",
     "delete_events_enabled": "Delete join and leave messages",
     "unpin_channel_pin_enabled": "Unpin channel pins",
-    "message_search_enabled": "Message search",
     "quote_pin_message": "Pin quoted messages",
     "ai_reply": "AI reply",
     "ai_reply_other_bots_enabled": "Reply to other bots",
@@ -151,6 +150,8 @@
     "pick_bottle_enabled": "Pick drift bottles",
     "group_memory_enabled": "Group memory",
     "group_memory_enabledHint": "Let kmua remember this group's conversations",
+    "parseSites": "Parse sites",
+    "parseSitesHint": "Requires the “Parse artwork links” master switch; unlisted sites default to on",
     "parse_wechat_enabled": "Parse WeChat articles",
     "rss_agent_summary": "AI summary on RSS pushes",
     "rss_agent_broadcast": "AI broadcast on new RSS entries"

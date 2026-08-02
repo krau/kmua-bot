@@ -282,7 +282,6 @@ bot:
     chat_config:
       waifu: 오늘의 와이프
       delete_events: 이벤트 메시지 삭제
-      message_search: 메시지 검색
       quote_pin_message: 인용 메시지 고정
       ai_reply: AI 답장
       ai_reply_other_bots_enabled: 다른 봇에 응답

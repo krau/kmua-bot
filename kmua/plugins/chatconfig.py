@@ -163,10 +163,6 @@ async def config_chat(
                 chat_config.unpin_channel_pin_enabled = (
                     not chat_config.unpin_channel_pin_enabled
                 )
-            case "message_search_enabled":
-                chat_config.message_search_enabled = (
-                    not chat_config.message_search_enabled
-                )
             case "quote_pin_message":
                 chat_config.quote_pin_message = not chat_config.quote_pin_message
             case "ai_reply":

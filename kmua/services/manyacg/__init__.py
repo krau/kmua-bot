@@ -179,5 +179,17 @@ ARTWORK_ALL_REGEX = [
     NHENTAI_REGEX,
 ]
 
+# Stable site keys used by the per-site parse switch (webapp panel); order
+# must match ARTWORK_ALL_REGEX.
+ARTWORK_SITES = ["pixiv", "bilibili", "danbooru", "kemono", "yandere", "nhentai"]
 
-__all__ = ["manyacg_client", "ARTWORK_ALL_REGEX"]
+
+def match_artwork_site(url: str) -> str | None:
+    """Return the site key whose regex matches *url*, or None."""
+    for site, pattern in zip(ARTWORK_SITES, ARTWORK_ALL_REGEX):
+        if pattern.search(url):
+            return site
+    return None
+
+
+__all__ = ["manyacg_client", "ARTWORK_ALL_REGEX", "ARTWORK_SITES", "match_artwork_site"]

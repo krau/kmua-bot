@@ -32,6 +32,9 @@ async def parse_tweet(client: PyrogramClient, message: pyrogram.types.Message):
         # The same link-parsing switch as artwork parsing governs tweets.
         if not chat_config.parse_artwork_enabled:
             return
+        # Per-site switch: "twitter" is off for this chat.
+        if not chat_config.parse_sites_enabled.get("twitter", True):
+            return
         lang = chat_config.lang
     else:
         user_config = await database.get_user_config(user.id)

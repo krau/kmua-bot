@@ -184,7 +184,6 @@ class ChatConfigOut(ApiModel):
     waifu_enabled: bool
     delete_events_enabled: bool
     unpin_channel_pin_enabled: bool
-    message_search_enabled: bool
     quote_probability: float
     quote_pin_message: bool
     title_permissions: dict[str, bool]
@@ -195,6 +194,7 @@ class ChatConfigOut(ApiModel):
     setu_enabled: bool
     convert_b23_enabled: bool
     parse_artwork_enabled: bool
+    parse_sites_enabled: dict[str, bool] = {}
     pick_bottle_enabled: bool
     group_memory_enabled: bool
     parse_wechat_enabled: bool
@@ -207,7 +207,6 @@ class ChatConfigIn(ApiModel):
     waifu_enabled: bool
     delete_events_enabled: bool
     unpin_channel_pin_enabled: bool
-    message_search_enabled: bool
     quote_probability: float = Field(ge=0.0, le=1.0)
     quote_pin_message: bool
     greeting: str | None = Field(default=None, max_length=1024)
@@ -217,6 +216,7 @@ class ChatConfigIn(ApiModel):
     setu_enabled: bool
     convert_b23_enabled: bool
     parse_artwork_enabled: bool
+    parse_sites_enabled: dict[str, bool] = {}
     pick_bottle_enabled: bool
     group_memory_enabled: bool
     parse_wechat_enabled: bool

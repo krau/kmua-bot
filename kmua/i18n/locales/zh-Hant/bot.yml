@@ -283,7 +283,6 @@ bot:
     chat_config:
       waifu: 每日老婆
       delete_events: 刪除事件
-      message_search: 消息蒐索
       quote_pin_message: 語錄置頂
       ai_reply: AI回複
       ai_reply_other_bots_enabled: 回覆其他Bot

@@ -283,7 +283,6 @@ bot:
     chat_config:
       waifu: "毎日嫁"
       delete_events: "イベント削除"
-      message_search: "メッセージ検索"
       quote_pin_message: "名言ピン留め"
       ai_reply: "AI返信"
       ai_reply_other_bots_enabled: "他Botに返信"

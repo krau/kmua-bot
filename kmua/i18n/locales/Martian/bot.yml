@@ -283,7 +283,6 @@ bot:
     chat_config:
       waifu: 每ㄖ佬嘙
       delete_events: 刪滁亊件
-      message_search: 銷蒠蒐索
       quote_pin_message: 語錄置頂
       ai_reply: AI徊複
       ai_reply_other_bots_enabled: 徊複萁牠Bot

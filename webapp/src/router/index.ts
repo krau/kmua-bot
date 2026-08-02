@@ -60,6 +60,12 @@ const routes: RouteRecordRaw[] = [
     props: (route) => ({ chatId: Number(route.params.chatId) }),
   },
   {
+    path: "/chats/:chatId/parse-sites",
+    name: "chat-parse-sites",
+    component: () => import("@/views/chats/ChatParseSitesView.vue"),
+    props: (route) => ({ chatId: Number(route.params.chatId) }),
+  },
+  {
     path: "/chats/:chatId/admins",
     name: "chat-admins",
     component: () => import("@/views/chats/ChatAdminsView.vue"),

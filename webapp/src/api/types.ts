@@ -112,7 +112,6 @@ export interface ChatConfig {
   waifu_enabled: boolean;
   delete_events_enabled: boolean;
   unpin_channel_pin_enabled: boolean;
-  message_search_enabled: boolean;
   quote_probability: number;
   quote_pin_message: boolean;
   title_permissions: Record<string, boolean>;
@@ -123,6 +122,8 @@ export interface ChatConfig {
   setu_enabled: boolean;
   convert_b23_enabled: boolean;
   parse_artwork_enabled: boolean;
+  /** Per-site link-parsing switches; an absent key defaults to enabled. */
+  parse_sites_enabled: Record<string, boolean>;
   pick_bottle_enabled: boolean;
   group_memory_enabled: boolean;
   parse_wechat_enabled: boolean;
