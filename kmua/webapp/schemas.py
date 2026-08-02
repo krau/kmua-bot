@@ -197,6 +197,7 @@ class ChatConfigOut(ApiModel):
     parse_artwork_enabled: bool
     pick_bottle_enabled: bool
     group_memory_enabled: bool
+    parse_wechat_enabled: bool
     rss_agent_summary: bool
     rss_agent_broadcast: bool
     lang: str
@@ -218,6 +219,7 @@ class ChatConfigIn(ApiModel):
     parse_artwork_enabled: bool
     pick_bottle_enabled: bool
     group_memory_enabled: bool
+    parse_wechat_enabled: bool
     rss_agent_summary: bool
     rss_agent_broadcast: bool
     lang: LocaleStr

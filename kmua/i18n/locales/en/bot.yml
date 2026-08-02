@@ -221,6 +221,8 @@ bot:
       paused_mark: " (paused)"
       error_mark: " (push error)"
       untitled: Untitled
+    wechat:
+      read_original: Read original
     twitter:
       view_original: View original
 
