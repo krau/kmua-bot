@@ -20,11 +20,18 @@ FROM ghcr.io/astral-sh/uv:debian-slim
 WORKDIR /kmua
 COPY pyproject.toml uv.lock ./
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends gcc g++ make build-essential git graphviz ca-certificates ffmpeg curl && \
+    apt-get install -y --no-install-recommends gcc g++ make build-essential git graphviz ca-certificates ffmpeg curl \
+        python3 python3-dev jq zip unzip sqlite3 wget tree nodejs npm tini && \
     uv sync --frozen --no-dev && \
     uv pip install pip && \
-    apt-get purge -y --auto-remove gcc g++ make build-essential && \
+    apt-get purge -y --auto-remove gcc g++ make build-essential python3-dev && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# landrun: landlock sandbox for the agent shell (pinned version).
+RUN curl -fsSL -o /usr/local/bin/landrun \
+      https://github.com/Zouuup/landrun/releases/download/v0.1.17/landrun-linux-amd64 \
+    && chmod +x /usr/local/bin/landrun
+
 COPY . .
 # Where the FastAPI app looks for the bundle by default.
 COPY --from=webui /build/kmua/webapp/dist /kmua/kmua/webapp/dist
@@ -32,4 +39,4 @@ COPY --from=webui /build/kmua/webapp/dist /kmua/kmua/webapp/dist
 # Health check and Mini App panel share this port
 EXPOSE 8180
 
-ENTRYPOINT ["uv", "run", "--no-sync", "python", "-m", "kmua"]
+ENTRYPOINT ["tini", "--", "uv", "run", "--no-sync", "python", "-m", "kmua"]

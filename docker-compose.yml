@@ -3,6 +3,10 @@ services:
     image: ghcr.io/krau/kmua-bot:v2
     container_name: kmua-bot
     restart: unless-stopped
+    # Cap the container's process count so a runaway agent shell (fork bomb)
+    # is contained instead of exhausting the host. Requires tini as PID 1,
+    # which the image entrypoint already provides.
+    pids_limit: 256
     # Health check and the Mini App panel share this port.
     # Note: `network_mode: host` below makes this mapping a no-op - the container
     # already uses the host's network stack, so the port is reachable directly.
