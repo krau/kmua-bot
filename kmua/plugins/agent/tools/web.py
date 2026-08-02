@@ -1,17 +1,14 @@
-import asyncio
 import re
 from dataclasses import dataclass
-from typing import Any, cast
+from typing import Any
 from urllib.parse import urlparse
 
 import aiohttp
-from crawl4ai import AsyncWebCrawler, CacheMode, CrawlerRunConfig, HTTPCrawlerConfig
-from crawl4ai.async_crawler_strategy import AsyncHTTPCrawlerStrategy
-from crawl4ai.models import CrawlResult, StringCompatibleMarkdown
 from pydantic_ai import ModelRetry, RunContext
 from pyrogram.errors import ChannelInvalid, ChannelPrivate, MessageIdsEmpty
 from pyrogram.types import Message
 
+from kmua.common.safe_http import UnsafeUrlError, is_safe_web_url, safe_fetch_text
 from kmua.common.utils import is_explicit_reply
 from kmua.config import app_config
 from kmua.database import get_chat_by_id
@@ -20,16 +17,6 @@ from kmua.logger import logger
 from .. import datatype
 
 MAX_CONTENT_LENGTH = 64000
-
-_http_strategy = AsyncHTTPCrawlerStrategy(
-    browser_config=HTTPCrawlerConfig(method="GET", verify_ssl=False)
-)
-
-_run_config = CrawlerRunConfig(
-    cache_mode=CacheMode.ENABLED,
-    word_count_threshold=10,
-    excluded_tags=["nav", "footer", "aside", "script", "style"],
-)
 
 
 @dataclass
@@ -50,26 +37,25 @@ def _truncate(text: str) -> str:
 
 
 async def _fetch_http(url: str) -> WebFetchResult:
-    timeout = app_config.agent_webfetch_timeout
-    async with AsyncWebCrawler(crawler_strategy=_http_strategy) as crawler:
-        coro = crawler.arun(url, config=_run_config)
-        if timeout and timeout > 0:
-            raw = await asyncio.wait_for(coro, timeout=timeout)
-        else:
-            raw = await coro
-    result = cast(CrawlResult, raw)
-    if not result.success:
+    timeout = app_config.agent_webfetch_timeout or 30
+    try:
+        text = await safe_fetch_text(url, timeout=float(timeout))
+    except UnsafeUrlError as e:
+        return WebFetchResult(success=False, url=url, error=str(e))
+    except TimeoutError:
+        logger.warning(f"webfetch timed out for {url}")
         return WebFetchResult(
             success=False,
             url=url,
-            error=result.error_message or "Fetch failed",
+            error="Fetch timed out",
         )
-    md = result.markdown
-    text: str
-    if isinstance(md, StringCompatibleMarkdown):
-        text = md.raw_markdown
-    else:
-        text = str(md) if md else ""
+    except Exception as e:
+        logger.error(f"webfetch error for {url}: {e.__class__.__name__}: {e}")
+        return WebFetchResult(
+            success=False,
+            url=url,
+            error=f"{e.__class__.__name__}: {e}",
+        )
     if not text.strip():
         return WebFetchResult(
             success=False,
@@ -80,6 +66,10 @@ async def _fetch_http(url: str) -> WebFetchResult:
 
 
 async def _fetch_crawl_api(url: str) -> WebFetchResult:
+    if not is_safe_web_url(url):
+        return WebFetchResult(
+            success=False, url=url, error="URL is not a public internet address"
+        )
     api_url = app_config.agent_crawl_api_url
     if not api_url:
         raise ValueError("Crawl API URL is not configured")
@@ -365,13 +355,19 @@ def _format_telegram_message(
     return WebFetchResult(success=True, url=url, content=_truncate(content))
 
 
-async def webfetch(ctx: RunContext[datatype.ContextDeps], url: str) -> WebFetchResult:
+async def fetch_web_page(
+    ctx: RunContext[datatype.ContextDeps], url: str
+) -> WebFetchResult:
     """Fetch a web page and return its content as Markdown.
+
+    Internal helper backing the http(s):// branch of the agent's read tool.
     Args:
         url: Full URL to fetch (http:// or https://).
     """
     if not url.startswith(("http://", "https://")):
         raise ModelRetry("URL must start with http:// or https://")
+    if not is_safe_web_url(url):
+        raise ModelRetry("URL is not a public internet address")
 
     # Try to fetch Telegram messages directly if it's a Telegram link
     if _is_telegram_url(url):
@@ -400,4 +396,4 @@ async def webfetch(ctx: RunContext[datatype.ContextDeps], url: str) -> WebFetchR
         )
 
 
-__all__ = ["webfetch"]
+__all__ = ["fetch_web_page"]

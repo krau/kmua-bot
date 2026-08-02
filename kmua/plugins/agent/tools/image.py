@@ -1,6 +1,7 @@
 import asyncio
 from dataclasses import dataclass
 from io import BytesIO
+from typing import Literal
 
 import pyrogram
 from pydantic_ai import ModelRetry, RunContext, ToolReturn
@@ -87,7 +88,7 @@ async def _find_image_in_history(
     return None
 
 
-async def generate_image(
+async def _generate_image(
     ctx: RunContext[datatype.ContextDeps],
     prompt: str,
     size: str = "1024x1024",
@@ -152,7 +153,7 @@ async def generate_image(
     )
 
 
-async def edit_image(
+async def _edit_image(
     ctx: RunContext[datatype.ContextDeps],
     prompt: str,
 ) -> ToolReturn:
@@ -285,3 +286,31 @@ async def edit_image(
             BinaryContent(data=result.data, media_type="image/png"),
         ],
     )
+
+
+async def image_ops(
+    ctx: RunContext[datatype.ContextDeps],
+    operation: Literal["generate", "edit"],
+    prompt: str,
+    size: str = "1024x1024",
+) -> ToolReturn:
+    """Generate or edit an image and send the result to the chat.
+
+    Use "generate" when the user asks you to draw, create or produce an image
+    from a text description. Use "edit" when the user attached an image (or
+    replied to one) and asks you to modify it.
+
+    Args:
+        operation: "generate" creates a new image; "edit" transforms the
+            user's image (found in the message, its reply, or recent history).
+        prompt: Describe what to create or what changes to make — be specific
+            about subject, style, colors, composition.
+        size: Only used for "generate" — image dimensions: "1024x1024"
+            (default), "1792x1024" or "1024x1792" (model dependent).
+    """
+    if operation == "generate":
+        return await _generate_image(ctx, prompt, size)
+    return await _edit_image(ctx, prompt)
+
+
+__all__ = ["image_ops"]

@@ -7,13 +7,17 @@ from typing import Literal
 import pyrogram
 import pyrogram.errors
 from pydantic_ai import ModelRetry, RunContext
-from pyrogram.raw.functions.messages import SetBotGuestChatResult
-from pyrogram.raw.types import (
-    DocumentAttributeImageSize,
-    InputBotInlineMessageMediaAuto,
-    InputBotInlineResult,
-    InputWebDocument,
+from pyrogram.raw.functions.messages.set_bot_guest_chat_result import (
+    SetBotGuestChatResult,
 )
+from pyrogram.raw.types.document_attribute_image_size import (
+    DocumentAttributeImageSize,
+)
+from pyrogram.raw.types.input_bot_inline_message_media_auto import (
+    InputBotInlineMessageMediaAuto,
+)
+from pyrogram.raw.types.input_bot_inline_result import InputBotInlineResult
+from pyrogram.raw.types.input_web_document import InputWebDocument
 
 from kmua import common, database, i18n
 from kmua.bot.client import client
@@ -128,7 +132,7 @@ async def _scheduled_poll_job(
         await client.send_poll(
             chat_id=chat_id,
             question=question,
-            options=options,
+            options=list(options),  # type: ignore[arg-type]
             is_anonymous=is_anonymous,
             allows_multiple_answers=allows_multiple_answers,
         )
@@ -354,7 +358,7 @@ async def send_poll(
         await ctx.deps.client.send_poll(
             chat_id=chat_id,
             question=question,
-            options=options,
+            options=list(options),  # type: ignore[arg-type]
             is_anonymous=is_anonymous,
             allows_multiple_answers=allows_multiple_answers,
             reply_parameters=reply_params,
@@ -560,9 +564,7 @@ async def _send_anime_photo_guest(
 ) -> AnimePhotoResult:
     query_id = ctx.deps.message.guest_query_id
     if ctx.deps.guest_replied or not query_id:
-        return AnimePhotoResult(
-            success=False, message="Guest query already replied."
-        )
+        return AnimePhotoResult(success=False, message="Guest query already replied.")
     photo_url = picture["regular"]
     caption = f"{artwork['title']}\n{artwork['source_url']}"
 
@@ -716,10 +718,24 @@ async def send_anime_photo(
         )
 
 
-__all__ = [
-    "schedule_message",
-    "send_anime_photo",
-    "send_poll",
-    "send_reaction",
-    "send_sticker",
-]
+async def _send_sticker_checked(
+    ctx: RunContext[datatype.ContextDeps], query: str
+) -> str:
+    """Send a sticker, after the availability checks that used to gate the tool."""
+    if not app_config.agent_sticker_memory or sticker_memory.embedder is None:
+        return "Error: Sticker sending is not available (sticker memory is disabled)."
+    if ctx.deps.chat_id is None or ctx.deps.chat_id >= -100:
+        return "Error: Stickers are only available in group chats."
+    try:
+        sticker_count = await sticker_vec.count(ctx.deps.chat_id)
+    except Exception as e:
+        logger.warning(
+            f"Failed to check sticker count for chat {ctx.deps.chat_id}: {e}"
+        )
+        return f"Error: Failed to check sticker availability: {e}"
+    if sticker_count < 20:
+        return "Error: Not enough stickers stored in this chat yet (need at least 20)."
+    return await send_sticker(ctx, query)
+
+
+__all__ = ["send_anime_photo", "send_sticker"]
