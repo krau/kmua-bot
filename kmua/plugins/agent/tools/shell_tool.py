@@ -172,11 +172,8 @@ async def prepare_shell_tools(
 
 
 def _shell_allowed_in_chat(chat_id: int) -> bool:
-    """Private chats and whitelisted groups only, per agent_shell_* settings."""
-    if chat_id > 0:
-        return app_config.agent_shell_allow_private
-    groups = app_config.agent_shell_allowed_groups
-    return not groups or chat_id in groups
+    """Only chats listed in agent_shell_allowed_chats (positive = private)."""
+    return chat_id in app_config.agent_shell_allowed_chats
 
 
 __all__ = ["shell", "prepare_shell_tools"]

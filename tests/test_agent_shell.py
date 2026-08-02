@@ -174,21 +174,21 @@ async def test_shell_prepare_gates(fake_landrun, monkeypatch):
 
     monkeypatch.setattr(sandbox, "landrun_available", unavailable)
     assert await shell_tool.prepare_shell_tools(ctx, td) is None
-    # enabled + available
+    # enabled + available + chat listed
     monkeypatch.setattr(sandbox, "landrun_available", available)
+    monkeypatch.setattr(app_config, "agent_shell_allowed_chats", [-100123])
     assert await shell_tool.prepare_shell_tools(ctx, td) is not None
-    # group allowlist: listed group passes, other group is hidden
-    monkeypatch.setattr(app_config, "agent_shell_allowed_groups", [-100123])
-    assert await shell_tool.prepare_shell_tools(ctx, td) is not None
-    monkeypatch.setattr(app_config, "agent_shell_allowed_groups", [-100999])
+    # chat allowlist: unlisted chats are hidden
+    monkeypatch.setattr(app_config, "agent_shell_allowed_chats", [])
     assert await shell_tool.prepare_shell_tools(ctx, td) is None
-    monkeypatch.setattr(app_config, "agent_shell_allowed_groups", [])
-    # private chats gated by agent_shell_allow_private
+    monkeypatch.setattr(app_config, "agent_shell_allowed_chats", [-100999])
+    assert await shell_tool.prepare_shell_tools(ctx, td) is None
+    # positive id = private chat
     deps.chat_id = 12345
-    monkeypatch.setattr(app_config, "agent_shell_allow_private", False)
-    assert await shell_tool.prepare_shell_tools(ctx, td) is None
-    monkeypatch.setattr(app_config, "agent_shell_allow_private", True)
+    monkeypatch.setattr(app_config, "agent_shell_allowed_chats", [12345])
     assert await shell_tool.prepare_shell_tools(ctx, td) is not None
+    monkeypatch.setattr(app_config, "agent_shell_allowed_chats", [54321])
+    assert await shell_tool.prepare_shell_tools(ctx, td) is None
 
 
 async def test_shell_files_alias_renames(fake_landrun, monkeypatch):
