@@ -18,7 +18,7 @@ from kmua.common.safe_http import DEFAULT_MAX_BYTES, UnsafeUrlError, safe_downlo
 from kmua.logger import logger
 
 from .. import datatype
-from . import block, send_ops, workspace
+from . import block, code_repo, send_ops, workspace
 
 # method -> (pyrogram client method, allowed params, required params)
 _METHODS: dict[str, tuple[str, set[str], set[str]]] = {
@@ -186,6 +186,24 @@ async def _convert_params(
         elif (
             key in _MEDIA_FIELDS
             and isinstance(value, str)
+            and value.startswith("kmua://")
+        ):
+            # kmua:// references read a file from the bot's own codebase
+            # (read-only, same access as the read tool).
+            rest = "/" + value[len("kmua://") :].lstrip("/")
+            try:
+                agent = await code_repo.get_code_agentfs()
+                if agent is None:
+                    return None, "Error: Code repository not initialized."
+                raw = await agent.fs.read_file(rest)
+                if isinstance(raw, str):
+                    raw = raw.encode("utf-8")
+            except Exception as e:
+                return None, f"Error: {e}"
+            kwargs[key] = _named_media(method, value, raw)
+        elif (
+            key in _MEDIA_FIELDS
+            and isinstance(value, str)
             and value.startswith("work://")
         ):
             # work:// references read a file from this session's workspace.
@@ -230,33 +248,6 @@ _DEFAULT_MEDIA_EXT: dict[str, str] = {
     "sendAnimation": ".gif",
 }
 
-_KNOWN_MEDIA_EXT = {
-    ".jpg",
-    ".jpeg",
-    ".png",
-    ".gif",
-    ".webp",
-    ".mp4",
-    ".webm",
-    ".avi",
-    ".mov",
-    ".mp3",
-    ".ogg",
-    ".wav",
-    ".pdf",
-    ".zip",
-    ".txt",
-    ".md",
-    ".html",
-    ".json",
-    ".csv",
-    ".bin",
-    ".svg",
-    ".heic",
-    ".webp",
-}
-
-
 def _named_media(method: str, url: str, raw: bytes) -> BytesIO:
     """Wrap bytes in a BytesIO carrying a filename for pyrogram.
 
@@ -274,7 +265,9 @@ def _named_media(method: str, url: str, raw: bytes) -> BytesIO:
     if not name or name in (".", ".."):
         name = "file"
     suffix = name.rsplit(".", 1)[-1].lower() if "." in name else ""
-    if not suffix or f".{suffix}" not in _KNOWN_MEDIA_EXT:
+    if not suffix:
+        # No extension: fall back to the method's default so pyrogram can
+        # infer the media type. Any explicit extension is kept as-is.
         name += _DEFAULT_MEDIA_EXT.get(method, ".bin")
     media = BytesIO(raw)
     media.name = name
@@ -303,9 +296,9 @@ async def tg(
     - sendDice: emoji (🎲 🎯 🎳 🎰 🎲 variants)
     - sendAudio / sendVideo / sendVoice / sendAnimation: the media field, caption, reply_to_message_id
 
-    Media fields accept a Telegram file_id, a work:// file reference from this
-    chat's workspace, or a public http(s) URL (the bot downloads it itself;
-    private/intranet addresses are rejected).
+    Media fields accept a Telegram file_id, a kmua:// codebase file (read-only),
+    a work:// file reference from this chat's workspace, or a public http(s)
+    URL (the bot downloads it itself; private/intranet addresses are rejected).
 
     kmua extensions:
     - scheduleMessage: text, schedule_time (ISO 8601, must be in the future).

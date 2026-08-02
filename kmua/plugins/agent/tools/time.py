@@ -10,14 +10,8 @@ from pydantic_ai import RunContext
 
 from .. import datatype
 
-TimezoneName = Literal[
-    "local",
-    "UTC",
-    "Asia/Shanghai",
-    "Asia/Tokyo",
-    "America/New_York",
-    "Europe/London",
-]
+# Any IANA timezone name is accepted; "local" and "UTC" are special-cased.
+TimezoneName = str
 
 
 @dataclass
@@ -145,8 +139,9 @@ async def time_info(
         time1, time2: Required for "difference" — timestamps in ISO format
             (e.g. "2026-08-02T10:00:00+08:00") or natural strings such as
             "2026-08-02 10:00" or "now"; formats are detected automatically.
-        timezone_name: The timezone "now" is reported in; "local" (default)
-            is the bot's timezone. Ignored for "difference".
+        timezone_name: The timezone "now" is reported in — "local" (default)
+            is the bot's timezone, or any IANA name like "Asia/Shanghai",
+            "Europe/Berlin". Ignored for "difference".
         format_type: How "now" is formatted: "iso", "readable", or "both" (default).
     """
     if operation == "now":
