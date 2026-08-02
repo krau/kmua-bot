@@ -260,6 +260,11 @@ class _AppConfig(pydantic.BaseModel):
     agent_shell_enabled: bool = False
     agent_shell_timeout: int = 30
     agent_shell_concurrency: int = 2
+    # Shell availability per chat. Empty group list = every group (still gated
+    # by agent_shell_enabled and the global agent whitelist); private chats are
+    # allowed only when agent_shell_allow_private is true.
+    agent_shell_allowed_groups: list[int] = []
+    agent_shell_allow_private: bool = True
     # Outbound TCP ports allowed from the sandbox; empty = no network.
     agent_shell_network_ports: list[int] = [80, 443]
     agent_landrun_path: str = "/usr/local/bin/landrun"

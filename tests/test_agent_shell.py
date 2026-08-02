@@ -177,6 +177,18 @@ async def test_shell_prepare_gates(fake_landrun, monkeypatch):
     # enabled + available
     monkeypatch.setattr(sandbox, "landrun_available", available)
     assert await shell_tool.prepare_shell_tools(ctx, td) is not None
+    # group allowlist: listed group passes, other group is hidden
+    monkeypatch.setattr(app_config, "agent_shell_allowed_groups", [-100123])
+    assert await shell_tool.prepare_shell_tools(ctx, td) is not None
+    monkeypatch.setattr(app_config, "agent_shell_allowed_groups", [-100999])
+    assert await shell_tool.prepare_shell_tools(ctx, td) is None
+    monkeypatch.setattr(app_config, "agent_shell_allowed_groups", [])
+    # private chats gated by agent_shell_allow_private
+    deps.chat_id = 12345
+    monkeypatch.setattr(app_config, "agent_shell_allow_private", False)
+    assert await shell_tool.prepare_shell_tools(ctx, td) is None
+    monkeypatch.setattr(app_config, "agent_shell_allow_private", True)
+    assert await shell_tool.prepare_shell_tools(ctx, td) is not None
 
 
 async def test_shell_files_alias_renames(fake_landrun, monkeypatch):
@@ -222,9 +234,7 @@ async def test_shell_clean_removes_leftovers(fake_landrun, monkeypatch):
     (workdir / "tmp").mkdir(exist_ok=True)
     (workdir / "kmua").symlink_to("/nonexistent", target_is_directory=True)
 
-    monkeypatch.setattr(
-        sandbox, "clean_session", lambda key: None
-    ) if False else None
+    monkeypatch.setattr(sandbox, "clean_session", lambda key: None) if False else None
 
     # use the real clean_session (no monkeypatch): run through shell with clean
     result = await shell_tool.shell(_ctx(), "ls", clean=True)

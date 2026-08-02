@@ -161,12 +161,22 @@ async def shell(
 async def prepare_shell_tools(
     ctx: RunContext[datatype.ContextDeps], tool_def: ToolDefinition
 ) -> ToolDefinition | None:
-    """Show the shell tool only when enabled and landrun is usable."""
+    """Show the shell tool only when enabled, allowed in this chat, and usable."""
     if not app_config.agent_shell_enabled:
+        return None
+    if not _shell_allowed_in_chat(ctx.deps.chat_id):
         return None
     if not await sandbox.landrun_available():
         return None
     return tool_def
+
+
+def _shell_allowed_in_chat(chat_id: int) -> bool:
+    """Private chats and whitelisted groups only, per agent_shell_* settings."""
+    if chat_id > 0:
+        return app_config.agent_shell_allow_private
+    groups = app_config.agent_shell_allowed_groups
+    return not groups or chat_id in groups
 
 
 __all__ = ["shell", "prepare_shell_tools"]
