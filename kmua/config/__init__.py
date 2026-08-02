@@ -251,6 +251,16 @@ class _AppConfig(pydantic.BaseModel):
     # Agent workspace: sandboxed files the agent can write and send as documents
     agent_workspace_enabled: bool = True
 
+    # Agent shell: run commands in a landlock sandbox (landrun).
+    # The shell works in a per-session real directory; files are moved in and
+    # out via work:// references by trusted bot code. Disabled by default.
+    agent_shell_enabled: bool = False
+    agent_shell_timeout: int = 30
+    agent_shell_concurrency: int = 2
+    # Outbound TCP ports allowed from the sandbox; empty = no network.
+    agent_shell_network_ports: list[int] = [80, 443]
+    agent_landrun_path: str = "/usr/local/bin/landrun"
+
     # experimental, maybe removed in the future
     agent_whitelist_mode: bool = False
     agent_whitelist: list[int] = []

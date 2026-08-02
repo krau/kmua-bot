@@ -232,6 +232,13 @@ if app_config.agent and app_config.agent_model:
                     tools.prepare_io_tools, tools.prepare_not_guest_mode
                 ),
             ),
+            Tool(
+                tools.shell,
+                prepare=tools.compose_prepare(
+                    tools.prepare_shell_tools, tools.prepare_not_guest_mode
+                ),
+                sequential=True,
+            ),
         ],
         deps_type=datatype.ContextDeps,
         capabilities=[ProcessHistory(history_processor)],

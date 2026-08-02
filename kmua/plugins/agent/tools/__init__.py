@@ -12,6 +12,7 @@ from .image import *  # noqa: F403
 from .io import *  # noqa: F403
 from .prepare import *  # noqa: F403
 from .send_ops import *  # noqa: F403
+from .shell_tool import *  # noqa: F403
 from .tg_ops import *  # noqa: F403
 from .time import *  # noqa: F403
 from .web import *  # noqa: F403

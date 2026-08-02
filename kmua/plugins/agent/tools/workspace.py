@@ -80,26 +80,54 @@ async def write_file(session_key: str, path: str, content: str) -> None:
     await agent.fs.write_file(path, content)
 
 
+async def write_file_bytes(session_key: str, path: str, data: bytes) -> None:
+    """Write raw bytes to a file in the session's workspace. Raises when oversize."""
+    agent = await get_workspace_agentfs(session_key)
+    path = _normalize_workspace_path(path)
+    if len(data) > MAX_WORKSPACE_FILE_SIZE:
+        raise ValueError(f"Content exceeds the {MAX_WORKSPACE_FILE_SIZE} byte limit")
+    await agent.fs.write_file(path, data)
+
+
 async def edit_file(
     session_key: str,
     path: str,
     old_text: str,
     new_text: str,
     replace_all: bool = False,
+    line: int | None = None,
 ) -> None:
-    """Replace old_text in an existing workspace file. Raises on no/multiple matches."""
+    """Replace old_text in an existing workspace file. Raises on no/multiple matches.
+
+    When *line* is given, only that 1-indexed line is searched and edited.
+    """
     agent = await get_workspace_agentfs(session_key)
     path = _normalize_workspace_path(path)
     raw = await agent.fs.read_file(path)
     content = raw.decode("utf-8") if isinstance(raw, bytes) else raw
-    count = content.count(old_text)
-    if count == 0:
-        raise ValueError(f"old_text not found in {path}")
-    if count > 1 and not replace_all:
-        raise ValueError(
-            f"old_text matches {count} times in {path}; make old_text unique or pass replace_all=True"
-        )
-    updated = content.replace(old_text, new_text, -1 if replace_all else 1)
+    if line is not None:
+        lines = content.splitlines(keepends=True)
+        if line < 1 or line > len(lines):
+            raise ValueError(f"line {line} out of range (file has {len(lines)} lines)")
+        target = lines[line - 1]
+        count = target.count(old_text)
+        if count == 0:
+            raise ValueError(f"old_text not found on line {line}")
+        if count > 1 and not replace_all:
+            raise ValueError(
+                f"old_text matches {count} times on line {line}; make old_text unique or pass replace_all=True"
+            )
+        lines[line - 1] = target.replace(old_text, new_text, -1 if replace_all else 1)
+        updated = "".join(lines)
+    else:
+        count = content.count(old_text)
+        if count == 0:
+            raise ValueError(f"old_text not found in {path}")
+        if count > 1 and not replace_all:
+            raise ValueError(
+                f"old_text matches {count} times in {path}; make old_text unique or pass replace_all=True"
+            )
+        updated = content.replace(old_text, new_text, -1 if replace_all else 1)
     if len(updated.encode("utf-8")) > MAX_WORKSPACE_FILE_SIZE:
         raise ValueError(f"Result exceeds the {MAX_WORKSPACE_FILE_SIZE} byte limit")
     await agent.fs.write_file(path, updated)
