@@ -209,8 +209,10 @@ async def write(
     - memory://               — store content as a fact about this group in its
         long-term memory
 
-    content can be plain text or a reference to another target (e.g.
-    work://notes/hello.html) whose content is used as the payload.
+    content can be plain text or a reference to another target whose content
+    is used as the payload — e.g. work://notes/hello.html (workspace file) or
+    kmua://kmua/services/wechat.py (codebase file, read-only), handy for
+    copying files between targets.
 
     Files in the workspace are sandboxed. Large content (over 5 MB) is rejected.
     Prefer edit when modifying an existing workspace file.
@@ -261,13 +263,15 @@ async def edit(
     old_text: str,
     new_text: str,
     replace_all: bool = False,
+    line: int | None = None,
 ) -> str:
     """Edit a file in the chat's workspace (work:// only).
 
     Replaces old_text with new_text in the file. Give enough surrounding text
     to make old_text unique — the edit is refused when it matches nothing or
     matches multiple places (pass replace_all=True only when you really want
-    every occurrence changed).
+    every occurrence changed). Pass line (1-indexed) to restrict the edit to a
+    single line, which is handy for long files.
     """
     try:
         protocol, rest = _split_target(path)
@@ -280,7 +284,7 @@ async def edit(
         return denied
     try:
         await workspace.edit_file(
-            _session_key(ctx), rest, old_text, new_text, replace_all
+            _session_key(ctx), rest, old_text, new_text, replace_all, line
         )
     except Exception as e:
         logger.error(f"edit error for {path}: {e}")

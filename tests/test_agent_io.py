@@ -398,3 +398,26 @@ async def test_delete_missing_file(ws):
 async def test_delete_rejects_codebase(ws):
     result = await io.delete(_ctx(), "kmua://kmua/x.py")
     assert "not deletable" in result
+
+
+async def test_edit_with_line_number(ws):
+    # line 2 only: replace "line" on that line, leave others untouched
+    result = await io.edit(_ctx(), "work://demo.py", "line", "LINE", line=2)
+    assert "Edited" in result
+    content = await io.read(_ctx(), "work://demo.py")
+    assert "LINE2" in content
+    assert "line1" in content  # line 1 untouched
+    assert "line3" in content  # line 3 untouched
+
+
+async def test_edit_line_out_of_range(ws):
+    result = await io.edit(_ctx(), "work://demo.py", "x", "y", line=99)
+    assert "out of range" in result
+
+
+async def test_edit_line_missing_text(ws):
+    result = await io.edit(_ctx(), "work://demo.py", "zzz", "y", line=1)
+    assert "not found on line 1" in result
+
+
+
