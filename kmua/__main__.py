@@ -310,6 +310,16 @@ async def stop_bot(client: Client = client):
         except Exception as e:
             logger.warning(f"Error closing code repository: {e}")
 
+    # Close workspace sessions
+    if app_config.agent:
+        try:
+            from kmua.plugins.agent.tools import close_workspace_agentfs
+
+            await close_workspace_agentfs()
+            logger.debug("Workspace sessions closed")
+        except Exception as e:
+            logger.warning(f"Error closing workspace sessions: {e}")
+
     common.jobqueue.shutdown()
     await db.close_db()
     logger.success(i18n.t("log.exit", locale=app_config.lang))

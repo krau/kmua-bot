@@ -248,6 +248,9 @@ class _AppConfig(pydantic.BaseModel):
     # Example: ["*.md", "docs/**/*", "tests/**/*"]
     agent_code_exclude_patterns: list[str] = []
 
+    # Agent workspace: sandboxed files the agent can write and send as documents
+    agent_workspace_enabled: bool = True
+
     # experimental, maybe removed in the future
     agent_whitelist_mode: bool = False
     agent_whitelist: list[int] = []

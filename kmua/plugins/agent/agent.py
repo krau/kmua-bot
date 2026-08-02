@@ -2,7 +2,6 @@ import asyncio
 import random
 
 import pyrogram
-from ddgs import DDGS
 from powermem import AsyncMemory
 from pydantic_ai import (
     Agent,
@@ -11,7 +10,6 @@ from pydantic_ai import (
     Tool,
 )
 from pydantic_ai.capabilities import ProcessHistory
-from pydantic_ai.common_tools.duckduckgo import DuckDuckGoSearchTool
 from pyrogram import filters
 from pyrogram.client import Client as PyrogramClient
 
@@ -164,24 +162,30 @@ if app_config.agent and app_config.agent_model:
         # instructions=app_config.agent_prompt,
         output_type=[str, datatype.EndTurn, tools.ask_user],
         tools=[
-            Tool(tools.get_chat_info, prepare=tools.prepare_group_tools),
             Tool(
-                tools.get_history_messages,
+                tools.image_ops,
                 prepare=tools.compose_prepare(
-                    tools.prepare_not_guest_mode, tools.prepare_group_tools
+                    tools.prepare_not_guest_mode, tools.prepare_image_tools
                 ),
             ),
             Tool(
-                DuckDuckGoSearchTool(DDGS(), max_results=3).__call__,
-                name="websearch",
-                description="Searches on web for the given query and returns the results.",
-                prepare=tools.prepare_configurable_tools,
+                tools.tg,
+                prepare=tools.prepare_not_guest_mode,
+                sequential=True,
             ),
             Tool(
-                tools.search_messages,
+                tools.send_anime_photo,
                 prepare=tools.compose_prepare(
-                    tools.prepare_not_guest_mode, tools.prepare_message_search_tool
+                    tools.prepare_not_guest_mode, tools.prepare_manyacg_tools
                 ),
+                sequential=True,
+            ),
+            Tool(
+                tools.send_sticker,
+                prepare=tools.compose_prepare(
+                    tools.prepare_not_guest_mode, tools.prepare_sticker_tools
+                ),
+                sequential=True,
             ),
             Tool(
                 tools.send_chat_quote,
@@ -189,69 +193,44 @@ if app_config.agent and app_config.agent_model:
                     tools.prepare_not_guest_mode, tools.prepare_group_tools
                 ),
             ),
-            Tool(
-                tools.search_group_memory,
-                prepare=tools.compose_prepare(
-                    tools.prepare_not_guest_mode, tools.prepare_powermem_tool
-                ),
-            ),
-            Tool(
-                tools.update_group_memory,
-                prepare=tools.compose_prepare(
-                    tools.prepare_not_guest_mode, tools.prepare_powermem_tool
-                ),
-            ),
-            Tool(
-                tools.generate_image,
-                prepare=tools.compose_prepare(
-                    tools.prepare_not_guest_mode, tools.prepare_image_gen_tools
-                ),
-            ),
-            Tool(
-                tools.edit_image,
-                prepare=tools.compose_prepare(
-                    tools.prepare_not_guest_mode, tools.prepare_image_edit_tools
-                ),
-            ),
-            Tool(tools.webfetch, prepare=tools.prepare_configurable_tools),
-            Tool(
-                tools.send_sticker,
-                prepare=tools.compose_prepare(
-                    tools.prepare_not_guest_mode, tools.prepare_periodic_sticker
-                ),
-                sequential=True,
-            ),
-            Tool(
-                tools.send_anime_photo,
-                sequential=True,
-            ),
-            Tool(
-                tools.send_reaction,
-                prepare=tools.compose_prepare(
-                    tools.prepare_not_guest_mode, tools.prepare_periodic_reaction
-                ),
-            ),
-            Tool(
-                tools.schedule_message,
-                prepare=tools.prepare_not_guest_mode,
-                sequential=True,
-            ),
-            Tool(
-                tools.send_poll,
-                prepare=tools.prepare_not_guest_mode,
-                sequential=True,
-            ),
-            Tool(tools.block_user, prepare=tools.prepare_not_guest_mode),
             # Time tools
-            Tool(tools.get_current_time),
-            Tool(tools.calculate_time_difference),
-            # Code self-awareness tools
-            Tool(tools.list_my_code_files, prepare=tools.prepare_code_awareness_tools),
-            Tool(tools.read_my_code_file, prepare=tools.prepare_code_awareness_tools),
-            Tool(tools.search_my_code, prepare=tools.prepare_code_awareness_tools),
+            Tool(tools.time_info),
+            # Unified IO tools (protocol prefixes: kmua://, work://, telegram://, http(s)://)
             Tool(
-                tools.get_my_codebase_overview,
-                prepare=tools.prepare_code_awareness_tools,
+                tools.read,
+                prepare=tools.compose_prepare(
+                    tools.prepare_io_tools, tools.prepare_not_guest_mode
+                ),
+            ),
+            Tool(
+                tools.write,
+                prepare=tools.compose_prepare(
+                    tools.prepare_io_tools, tools.prepare_not_guest_mode
+                ),
+            ),
+            Tool(
+                tools.edit,
+                prepare=tools.compose_prepare(
+                    tools.prepare_io_tools, tools.prepare_not_guest_mode
+                ),
+            ),
+            Tool(
+                tools.list,
+                prepare=tools.compose_prepare(
+                    tools.prepare_io_tools, tools.prepare_not_guest_mode
+                ),
+            ),
+            Tool(
+                tools.search,
+                prepare=tools.compose_prepare(
+                    tools.prepare_io_tools, tools.prepare_not_guest_mode
+                ),
+            ),
+            Tool(
+                tools.delete,
+                prepare=tools.compose_prepare(
+                    tools.prepare_io_tools, tools.prepare_not_guest_mode
+                ),
             ),
         ],
         deps_type=datatype.ContextDeps,
