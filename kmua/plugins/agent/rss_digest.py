@@ -12,8 +12,8 @@ import asyncio
 import json
 from typing import Any
 
-from pydantic import BaseModel
-from pydantic_ai import Agent
+from pydantic import BaseModel, Field
+from pydantic_ai import Agent, PromptedOutput
 
 from kmua.config import app_config
 from kmua.logger import logger
@@ -24,8 +24,17 @@ _DIGEST_TIMEOUT = 30.0
 """Hard timeout in seconds for one LLM call; the poll job must never stall."""
 
 
+class RssEntrySummary(BaseModel):
+    """One entry's chat-flavored take, keyed by the entry's stable id."""
+
+    entry_id: str = Field(description="条目 ID, 必须是输入中给出的 [entry_id]")
+    summary: str = Field(description="该条目的 1-2 句群聊口吻点评, 指出它为什么值得看")
+
+
 class RssDigestSummaries(BaseModel):
-    items: dict[str, str]  # entry_id -> 1-2 sentence chat-flavored take
+    """Digest of a push batch: per-entry takes for the entries worth mentioning."""
+
+    summaries: list[RssEntrySummary] = Field(description="值得点评的条目列表")
 
 
 _digest_agent: Agent[Any, RssDigestSummaries] | None = None
@@ -36,7 +45,13 @@ def _make_digest_agent() -> Agent[Any, RssDigestSummaries]:
     assert app_config.agent_model is not None, "agent_model must be set"
     return Agent(
         model=provider.make_chat_model(app_config.agent_model),
-        output_type=RssDigestSummaries,
+        # PromptedOutput: the model returns the JSON as text, which pydantic-ai
+        # parses afterwards. Native output forces tool_choice, which some
+        # providers reject (DeepSeek with thinking enabled -> HTTP 400).
+        output_type=PromptedOutput(
+            RssDigestSummaries,
+            description="返回条目点评列表: summaries 为数组, 每项含 entry_id 与 summary",
+        ),
         retries=2,
     )
 
@@ -73,7 +88,19 @@ def build_digest_prompt(
         f"\n要求: 对每条值得群友关注的条目输出 1-2 句点评, 指出它为什么值得看; "
         f"不值得提的条目可以省略。点评用 {lang} 语言, 口语化, 不要复述原文。"
     )
+    lines.append(
+        "\n输出格式: 一个 JSON 对象, summaries 为数组, 每项为 "
+        '{"entry_id": "<条目ID>", "summary": "<点评>"}。只输出 JSON, 不要输出其它内容。'
+    )
     return "\n".join(lines)
+
+
+def _summaries_list(raw: Any) -> list[Any]:
+    """Extract the summary item list from a parsed JSON value."""
+    if not isinstance(raw, dict):
+        return []
+    data = raw.get("summaries")
+    return data if isinstance(data, list) else []
 
 
 def parse_digest_output(
@@ -81,28 +108,35 @@ def parse_digest_output(
 ) -> dict[str, str]:
     """Parse the digest agent's output into an entry_id -> summary map.
 
-    The output arrives as a ``RssDigestSummaries`` instance from the agent, but
-    may also be JSON text or a plain dict in tests. Anything that does not
+    Accepts a ``RssDigestSummaries`` instance, JSON text (``{"summaries":
+    [{entry_id, summary}, ...]}``) or a plain dict. Anything that does not
     parse, and any entry_id outside ``valid_ids``, is dropped.
     """
     if isinstance(raw, RssDigestSummaries):
-        data = raw.items
-    elif isinstance(raw, dict):
-        data = raw
+        items = raw.summaries
     elif isinstance(raw, str):
         try:
-            data = json.loads(raw)
+            raw = json.loads(raw)
         except (json.JSONDecodeError, ValueError):
             return {}
+        items = _summaries_list(raw)
+    elif isinstance(raw, dict):
+        items = _summaries_list(raw)
     else:
         return {}
-    if not isinstance(data, dict):
-        return {}
-    return {
-        str(key): str(value)
-        for key, value in data.items()
-        if str(key) in valid_ids and isinstance(value, str) and value.strip()
-    }
+    out: dict[str, str] = {}
+    for item in items:
+        if isinstance(item, dict):
+            entry_id = str(item.get("entry_id", ""))
+            summary = item.get("summary", "")
+        elif isinstance(item, RssEntrySummary):
+            entry_id = item.entry_id
+            summary = item.summary
+        else:
+            continue
+        if entry_id in valid_ids and isinstance(summary, str) and summary.strip():
+            out[entry_id] = summary
+    return out
 
 
 def build_broadcast_prompt(

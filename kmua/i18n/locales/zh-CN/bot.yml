@@ -205,3 +205,6 @@ bot:
       untitled: 无标题
     wechat:
       read_original: 阅读原文
+    twitter:
+      view_original: 查看原推
+
