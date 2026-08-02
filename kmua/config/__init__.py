@@ -213,7 +213,10 @@ class _AppConfig(pydantic.BaseModel):
     # Overall wall-clock timeout for a single agent run (the whole iter loop,
     # including all tool calls and streaming). Prevents a stuck model/tool call
     # from blocking a dispatcher worker indefinitely. 0 = no timeout.
-    agent_run_timeout: int = 180
+    agent_run_timeout: int = 600
+    # Max seconds a streaming reply keeps editing its message before the bot
+    # stops updating it (the final text is still delivered).
+    agent_streaming_max_time: int = 300
     # Timeout for a single webfetch (_fetch_http via crawl4ai). 0 = no timeout.
     agent_webfetch_timeout: int = 45
     # Image generation/editing: "provider/model" spec.

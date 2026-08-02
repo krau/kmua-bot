@@ -8,6 +8,7 @@ import pyrogram.errors
 from pyrogram.client import Client as PyrogramClient
 
 from kmua.common.memory_store import memttlcache
+from kmua.config import app_config
 from kmua.logger import logger
 from kmua.plugins.agent import datatype, state
 from kmua.plugins.agent.guest_mode import answer_guest_query
@@ -191,7 +192,7 @@ class StreamingOutput:
     STREAM_EDIT_INTERVAL = 1.5
     MAX_MESSAGE_LENGTH = 4000
     MAX_EDIT_COUNT = 20
-    MAX_TOTAL_TIME = 120.0
+    MAX_TOTAL_TIME = float(app_config.agent_streaming_max_time)
 
     def __init__(
         self,
