@@ -1,12 +1,30 @@
+from __future__ import annotations
+
+from typing import Any
+
 from pydantic_ai.embeddings import EmbeddingSettings
 from pydantic_ai.embeddings.openai import OpenAIEmbeddingModel
 from pydantic_ai.models.openai import OpenAIResponsesModel
 from pydantic_ai.providers.openai import OpenAIProvider
+from pydantic_ai.settings import ModelSettings
 
 from kmua.config import ProviderConfig, app_config
 
 # Import video-capable model
 from .video_model import VideoCapableOpenAIChatModel
+
+
+def make_model_settings(
+    options: dict[str, Any] | None,
+) -> ModelSettings | None:
+    """Build pydantic-ai ModelSettings from a config options dict.
+
+    Returns None for an empty/absent dict so callers can skip the argument
+    entirely and keep model defaults.
+    """
+    if not options:
+        return None
+    return ModelSettings(**options)
 
 
 def _parse_spec(spec: str) -> tuple[str, str]:

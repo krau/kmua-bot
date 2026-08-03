@@ -180,6 +180,14 @@ class _AppConfig(pydantic.BaseModel):
     agent_model_multimodal: str | None = None  # falls back to agent_model if unset
     agent_model_small: str | None = None  # falls back to agent_model if unset
     agent_struct_model: str | None = None
+    # Per-model pydantic-ai ModelSettings overrides: temperature, top_p,
+    # max_tokens, thinking (minimal/low/medium/high/xhigh), openai_reasoning_effort,
+    # extra_body for provider-native params, ... Empty dict = model defaults.
+    # Keys are forwarded verbatim as ModelSettings; unknown keys are ignored.
+    agent_model_options: dict[str, Any] = {}
+    agent_model_multimodal_options: dict[str, Any] = {}
+    agent_model_small_options: dict[str, Any] = {}
+    agent_struct_model_options: dict[str, Any] = {}
     agent_messages_threshold: int = 20
     agent_context_window_tokens: int = 0
     agent_context_compress_ratio: float = 0.8

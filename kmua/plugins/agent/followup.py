@@ -30,6 +30,9 @@ class RelevanceCheck(BaseModel):
 if small_model:
     _default_relevance_check_agent = Agent(
         model=small_model or model,
+        model_settings=provider.make_model_settings(
+            app_config.agent_model_small_options
+        ),
         output_type=RelevanceCheck,
         system_prompt="你是一个对话相关性判断助手。判断用户的新消息是否是对之前对话的延续。",
         retries=2,
@@ -46,6 +49,9 @@ def _make_relevance_check_agent(
     if override_model_spec:
         return Agent(
             model=provider.make_chat_model(override_model_spec),
+            model_settings=provider.make_model_settings(
+                app_config.agent_model_small_options
+            ),
             output_type=RelevanceCheck,
             system_prompt="你是一个对话相关性判断助手。判断用户的新消息是否是对之前对话的延续。",
             retries=2,

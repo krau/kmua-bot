@@ -193,6 +193,16 @@ async def _run_agent_impl(
     else:
         use_model = effective_multimodal if needs_multimodal else model
 
+    # Pair the per-model config options with the model actually used. Override
+    # models (per-chat /command) have no options of their own and fall back to
+    # the main model's settings.
+    if use_model is effective_multimodal:
+        model_settings = provider.make_model_settings(
+            app_config.agent_model_multimodal_options
+        )
+    else:
+        model_settings = provider.make_model_settings(app_config.agent_model_options)
+
     try:
         ctx = TypingKeepAlive(client, message) if not is_guest_mode else None
         if ctx is not None:
@@ -204,6 +214,7 @@ async def _run_agent_impl(
                 try:
                     async with agi.iter(
                         model=use_model,
+                        model_settings=model_settings,
                         instructions=additional_instructions,
                         user_prompt=user_prompt,
                         message_history=history,
@@ -321,6 +332,7 @@ async def _run_agent_impl(
             else:
                 async with agi.iter(
                     model=use_model,
+                    model_settings=model_settings,
                     user_prompt=user_prompt,
                     instructions=additional_instructions,
                     message_history=history,

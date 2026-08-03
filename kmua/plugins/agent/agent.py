@@ -159,6 +159,7 @@ if app_config.agent and app_config.agent_model:
     )
     agent = Agent(
         model=model,
+        model_settings=provider.make_model_settings(app_config.agent_model_options),
         # instructions=app_config.agent_prompt,
         output_type=[str, datatype.EndTurn, tools.ask_user],
         tools=[
@@ -249,9 +250,16 @@ if app_config.agent and app_config.agent_model:
     async def _dynamic_instructions(ctx: RunContext[datatype.ContextDeps]) -> str:
         return ctx.deps.instructions
 
-    summary_agent = Agent(model=model, instructions=app_config.agent_summary_prompt)
+    summary_agent = Agent(
+        model=model,
+        model_settings=provider.make_model_settings(app_config.agent_model_options),
+        instructions=app_config.agent_summary_prompt,
+    )
     memory_agent = Agent(
         model=struct_model,
+        model_settings=provider.make_model_settings(
+            app_config.agent_struct_model_options
+        ),
         output_type=datatype.UserMemoryResult,
         instructions=app_config.agent_memory_prompt,
         retries=5,
