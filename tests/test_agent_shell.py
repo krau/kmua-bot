@@ -284,3 +284,35 @@ async def test_shell_stage_replaces_symlink(fake_landrun, monkeypatch):
     assert (workdir / "target.txt").is_file()
     assert not (workdir / "target.txt").is_symlink()
     assert outside.read_text() == "original"
+
+
+async def test_shell_concurrency_limits_parallel_runs(monkeypatch):
+    """agent_shell_concurrency bounds simultaneous shell executions."""
+    import asyncio as _asyncio
+
+    monkeypatch.setattr(app_config, "agent_shell_concurrency", 1)
+    monkeypatch.setattr(shell_tool, "_shell_semaphore", None)
+    monkeypatch.setattr(shell_tool, "_shell_semaphore_limit", 0)
+
+    active = 0
+    peak = 0
+
+    async def fake_run_shell(key, command, timeout):
+        nonlocal active, peak
+        active += 1
+        peak = max(peak, active)
+        await _asyncio.sleep(0.05)
+        active -= 1
+        return SimpleNamespace(timed_out=False, exit_code=0, output="ok")
+
+    monkeypatch.setattr(sandbox, "run_shell", fake_run_shell)
+    try:
+        await _asyncio.gather(
+            shell_tool.shell(_ctx(), "a"),
+            shell_tool.shell(_ctx(), "b"),
+            shell_tool.shell(_ctx(), "c"),
+        )
+    finally:
+        shell_tool._shell_semaphore = None
+        shell_tool._shell_semaphore_limit = 0
+    assert peak == 1

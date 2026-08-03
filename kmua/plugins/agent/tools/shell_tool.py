@@ -8,6 +8,7 @@ files.
 
 from __future__ import annotations
 
+import asyncio
 import os
 
 from pydantic_ai import RunContext
@@ -22,6 +23,21 @@ from . import workspace
 # The sandbox only sees work:// file basenames; deeper paths are not supported.
 _MAX_IO_FILES = 10
 _MAX_EXPORT_BYTES = 5 * 1024 * 1024  # matches MAX_WORKSPACE_FILE_SIZE
+
+# Limits how many shell executions run at once across all chats/sessions
+# (config: agent_shell_concurrency). Guards the shared runner and the
+# container's CPU/process quota against concurrent agent turns.
+_shell_semaphore: asyncio.Semaphore | None = None
+_shell_semaphore_limit: int = 0
+
+
+def _get_shell_semaphore() -> asyncio.Semaphore:
+    global _shell_semaphore, _shell_semaphore_limit
+    limit = max(1, app_config.agent_shell_concurrency)
+    if _shell_semaphore is None or _shell_semaphore_limit != limit:
+        _shell_semaphore = asyncio.Semaphore(limit)
+        _shell_semaphore_limit = limit
+    return _shell_semaphore
 
 
 def _split_alias(ref: str) -> tuple[str, str | None]:
@@ -164,7 +180,8 @@ async def shell(
     error = await _stage_inputs(ctx, files)
     if error:
         return error
-    result = await sandbox.run_shell(io_tools._session_key(ctx), command, timeout)
+    async with _get_shell_semaphore():
+        result = await sandbox.run_shell(io_tools._session_key(ctx), command, timeout)
     if result.timed_out:
         return (
             f"Error: Command timed out after {timeout or app_config.agent_shell_timeout}s. "
