@@ -14,8 +14,14 @@ from typing import Any
 
 import httpx
 
+from kmua import common
 from kmua.config import app_config
 from kmua.logger import logger
+
+# Fetched tweets are cached per tweet id for 30 minutes. Tweets can be
+# edited/deleted, so keep the stale window short; media file ids are cached
+# separately per URL (see plugins/twitter.py).
+_TWEET_CACHE_TTL = 1800
 
 # twitter.com/<handle>/status/<id> or x.com/... (no scheme, substring match)
 TWITTER_URL_RE = re.compile(r"(?:twitter|x)\.com/([^/]+)/status/(\d+)")
@@ -110,6 +116,12 @@ async def fetch_tweet(url: str) -> TweetData | None:
     tweet_id = extract_tweet_id(url)
     if not tweet_id:
         return None
+    # Cache by tweet id so x.com/... and twitter.com/... variants share one
+    # entry; a repeated share of the same tweet costs no API request.
+    cache_key = f"twitter:tweet:{tweet_id}"
+    cached = await common.memttlcache.get(cache_key)
+    if cached is not None:
+        return cached
     api_url = f"{app_config.fxembed_api_url.rstrip('/')}/2/status/{tweet_id}"
     try:
         async with httpx.AsyncClient(
@@ -133,6 +145,8 @@ async def fetch_tweet(url: str) -> TweetData | None:
     tweet = parse_tweet_response(data, url)
     if tweet is None:
         logger.debug(f"twitter: no status in api response for {tweet_id}")
+    else:
+        await common.memttlcache.set(cache_key, tweet, ttl=_TWEET_CACHE_TTL)
     return tweet
 
 

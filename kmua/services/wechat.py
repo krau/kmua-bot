@@ -20,6 +20,13 @@ import httpx
 from lxml import html as lxml_html
 from PIL import Image
 
+from kmua import common
+
+# Parsed articles are cached per URL: WeChat pages are multi-megabyte and
+# several people may share the same link; 1h keeps repeats cheap while still
+# picking up edits. Images are deliberately not cached (each send re-uploads).
+_ARTICLE_CACHE_TTL = 3600
+
 _WECHAT_HOST = "mp.weixin.qq.com"
 _IMAGE_HOSTS = ("mmbiz.qpic.cn", "mmbiz.wxpic.cn")
 _TIMEOUT = httpx.Timeout(20.0, connect=10.0)
@@ -274,7 +281,14 @@ def parse_article_html(raw_html: str, url: str) -> WechatArticle:
 
 
 async def fetch_article(url: str) -> WechatArticle:
-    """Fetch and parse one article. Raises on network/parse failure."""
+    """Fetch and parse one article, cached per URL for an hour.
+
+    Raises on network/parse failure.
+    """
+    cache_key = f"wechat:article:{url}"
+    cached = await common.memttlcache.get(cache_key)
+    if cached is not None:
+        return cached
     if not is_wechat_url(url):
         raise ValueError(f"not a wechat article url: {url!r}")
     async with httpx.AsyncClient(
@@ -284,7 +298,10 @@ async def fetch_article(url: str) -> WechatArticle:
     ) as client:
         resp = await client.get(url)
         resp.raise_for_status()
-        return parse_article_html(resp.text, str(resp.url))
+        article = parse_article_html(resp.text, str(resp.url))
+    if article.title or article.paragraphs:
+        await common.memttlcache.set(cache_key, article, ttl=_ARTICLE_CACHE_TTL)
+    return article
 
 
 def _truncate(text: str, limit: int) -> str:

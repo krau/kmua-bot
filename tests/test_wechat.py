@@ -499,3 +499,48 @@ async def test_plugin_falls_back_to_text_when_images_fail(fake_message, monkeypa
 
     # rich upload/send failed: fell back to the media group
     assert len(media_calls) == 1
+
+
+async def test_fetch_article_caches_per_url(monkeypatch):
+    """Repeated fetches of one URL hit the network once; other URLs re-fetch."""
+    import uuid
+
+    from kmua import common
+
+    class FakeResp:
+        status_code = 200
+        text = _ARTICLE_HTML
+        url = "https://mp.weixin.qq.com/s/testid123"
+
+        def raise_for_status(self):
+            pass
+
+    class FakeClient:
+        calls = 0
+
+        def __init__(self, *a, **kw):
+            self.calls = 0
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *a):
+            return False
+
+        async def get(self, url):
+            type(self).calls += 1
+            return FakeResp()
+
+    monkeypatch.setattr(wechat_service.httpx, "AsyncClient", FakeClient)
+    url = f"https://mp.weixin.qq.com/s/cachetest{uuid.uuid4().hex[:8]}"
+    try:
+        first = await wechat_service.fetch_article(url)
+        second = await wechat_service.fetch_article(url)
+        assert first.title == second.title == "测试文章标题"
+        assert FakeClient.calls == 1
+        await wechat_service.fetch_article(
+            f"https://mp.weixin.qq.com/s/cachetest{uuid.uuid4().hex[:8]}"
+        )
+        assert FakeClient.calls == 2
+    finally:
+        await common.memttlcache.delete(f"wechat:article:{url}")

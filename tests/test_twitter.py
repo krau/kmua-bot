@@ -294,3 +294,47 @@ async def test_plugin_silent_when_fetch_fails(fake_message, monkeypatch):
 
     chat, user, reply = fake_message
     assert reply.texts == []
+
+
+async def test_fetch_tweet_caches_by_tweet_id(monkeypatch):
+    """Same tweet via x.com and twitter.com shares one API call."""
+    import uuid
+
+    from kmua import common
+
+    calls = []
+
+    class FakeResp:
+        status_code = 200
+
+        def json(self):
+            return _IMG_TWEET
+
+    class FakeClient:
+        def __init__(self, *a, **kw):
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *a):
+            return False
+
+        async def get(self, url):
+            calls.append(url)
+            return FakeResp()
+
+    monkeypatch.setattr(twitter_service.httpx, "AsyncClient", FakeClient)
+    tweet_id = str(uuid.uuid4().int)[:16]
+    try:
+        first = await twitter_service.fetch_tweet(
+            f"https://x.com/foo/status/{tweet_id}"
+        )
+        second = await twitter_service.fetch_tweet(
+            f"https://twitter.com/foo/status/{tweet_id}?s=20"
+        )
+        assert first is not None and second is not None
+        assert first.tweet_id == second.tweet_id == "266031293945503744"
+        assert len(calls) == 1
+    finally:
+        await common.memttlcache.delete(f"twitter:tweet:{tweet_id}")
