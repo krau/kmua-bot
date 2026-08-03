@@ -106,24 +106,25 @@ def _normalize_newlines(text: str) -> str:
     return re.sub(r"[\u200b-\u200f\ufeff]", "", text)
 
 
-def _paragraphs_from_html(raw_html: str) -> list[str]:
-    """Body text from the #js_content node, split into non-empty paragraphs.
+# Elements that start a new paragraph. Everything else (span, section, div,
+# a, em, ...) is treated as inline: its text folds into the current paragraph
+# and whitespace around it collapses to a single space, so formatted HTML
+# can never split every word onto its own line.
+_PARAGRAPH_TAGS = frozenset(
+    {"p", "blockquote", "li", "pre", "h1", "h2", "h3", "h4", "h5", "h6"}
+)
 
-    WeChat embeds literal ``\\x0a`` (and ``\\n``) escape sequences in the
-    HTML to represent line breaks; those are converted to real newlines
-    before splitting.
+
+def _paragraphs_from_html(raw_html: str) -> list[str]:
+    """Body text as paragraphs, split on real block elements only.
+
+    WeChat stores the body as a stream of ``<span>`` leaves wrapped in nested
+    ``<section>``s; the block boundaries that matter are ``<p>`` and ``<br>``.
+    Inline elements and the whitespace between them fold into the current
+    paragraph, so a formatted/pretty-printed page (or one whose spans carry
+    stray newlines) does not split every word onto its own line.
     """
-    doc = lxml_html.fromstring(raw_html)
-    node = doc.xpath('//*[@id="js_content"]')
-    if not node:
-        return []
-    text = _normalize_newlines(node[0].text_content())
-    paragraphs = []
-    for para in re.split(r"\n+", text):
-        para = re.sub(r"[ \t\r\u00a0]+", " ", para).strip()
-        if para:
-            paragraphs.append(para)
-    return paragraphs
+    return [b.content for b in _blocks_from_html(raw_html) if b.kind == "text"]
 
 
 def _images_from_html(raw_html: str) -> list[str]:
@@ -143,58 +144,79 @@ def _images_from_html(raw_html: str) -> list[str]:
 def _blocks_from_html(raw_html: str) -> list[WechatBlock]:
     """Body items in document order: paragraphs interleaved with images.
 
-    Walks the #js_content tree keeping text and <img> order, so the rich
-    message can interleave images into the body exactly where WeChat put them.
+    Walks the #js_content tree treating ``<p>``/``<blockquote>``/``<li>`` and
+    ``<br>`` as paragraph boundaries; ``<img>`` becomes an image block in
+    place. Every other tag (``<span>``, ``<section>``, ``<a>``, ...) is inline:
+    its text and the whitespace around it join the current paragraph, so the
+    rich message reads as continuous text instead of one line per word.
     """
     doc = lxml_html.fromstring(raw_html)
     node = doc.xpath('//*[@id="js_content"]')
     if not node:
         return []
-    root = node[0]
-    blocks: list[WechatBlock] = []
 
-    def walk(el: Any) -> None:
-        # Text before this element's children.
-        if el.text and el.text.strip():
-            blocks.append(WechatBlock(kind="text", content=el.text))
+    raw_blocks: list[WechatBlock] = []
+    segment: list[str] = []
+
+    def fold(text: str) -> str:
+        """Collapse any whitespace (including newlines inside text nodes)
+        to a single space; only explicit <br> keeps a paragraph break."""
+        return re.sub(r"[ \t\r\n\u00a0]+", " ", text)
+
+    def flush() -> None:
+        # Only collapse runs of spaces here; newlines (from <br>) survive so
+        # the final split keeps real line breaks.
+        text = re.sub(r"[ \t\r\u00a0]{2,}", " ", "".join(segment)).strip()
+        if text:
+            raw_blocks.append(WechatBlock(kind="text", content=text))
+        segment.clear()
+
+    def visit(el: Any) -> None:
+        if not isinstance(el.tag, str):
+            return
+        tag = el.tag.lower()
+        if tag == "img":
+            flush()
+            url = el.get("data-src") or el.get("src") or ""
+            if _is_wechat_image_url(url):
+                raw_blocks.append(WechatBlock(kind="image", content=url))
+            return
+        if tag == "br":
+            segment.append("\n")
+            return
+        if tag in _PARAGRAPH_TAGS:
+            flush()
+            if el.text:
+                segment.append(fold(el.text))
+            for child in el:
+                visit(child)
+                if child.tail:
+                    segment.append(fold(child.tail))
+            flush()
+            return
+        # inline / container: fold into the current segment
+        if el.text:
+            segment.append(fold(el.text))
         for child in el:
-            if isinstance(child.tag, str):
-                if child.tag.lower() == "img":
-                    url = child.get("data-src") or child.get("src") or ""
-                    if _is_wechat_image_url(url):
-                        blocks.append(WechatBlock(kind="image", content=url))
-                else:
-                    walk(child)
-            if child.tail and child.tail.strip():
-                blocks.append(WechatBlock(kind="text", content=child.tail))
+            visit(child)
+            if child.tail:
+                segment.append(fold(child.tail))
 
-    walk(root)
+    visit(node[0])
+    flush()
 
-    # Merge adjacent text blocks, then normalize into paragraphs.
-    merged: list[WechatBlock] = []
-    for block in blocks:
-        if block.kind == "text":
-            text = _normalize_newlines(block.content)
-            text = re.sub(r"[ \t\r\u00a0]+", " ", text).strip()
-            if not text:
-                continue
-            if merged and merged[-1].kind == "text":
-                merged[-1].content += "\n" + text
-            else:
-                merged.append(WechatBlock(kind="text", content=text))
-        else:
-            merged.append(block)
-
-    # Split multi-paragraph text blocks, keeping image positions.
+    # Normalize: convert WeChat \\x0a escapes, then split paragraphs on the
+    # newlines that came from <br> boundaries.
     result: list[WechatBlock] = []
     image_count = 0
-    for block in merged:
+    for block in raw_blocks:
         if block.kind == "image":
             if image_count < _MAX_IMAGES:
                 image_count += 1
                 result.append(block)
             continue
-        for para in re.split(r"\n+", block.content):
+        text = _normalize_newlines(block.content)
+        for para in re.split(r"\n+", text):
             para = para.strip()
             if para:
                 result.append(WechatBlock(kind="text", content=para))

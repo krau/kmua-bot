@@ -79,6 +79,43 @@ def test_parse_article_html_falls_back_to_description():
     assert article.images == []
 
 
+def test_parse_article_html_folds_inline_span_breaks():
+    """Span boundaries with stray newlines must not split words apart.
+
+    WeChat stores the body as a stream of <span> leaves; some page variants
+    (formatted HTML, other editors) put a newline between every span, which
+    used to turn each word into its own paragraph.
+    """
+    html = """
+    <html><head>
+    <meta property="og:title" content="测试">
+    </head><body><div id="js_content">
+    <section><p><span>我听到你们喊我们了</span>\n<span>，但不敢回应</span><span>\n</span>\n<span>7</span>\n<span>月</span>\n<span>29</span>\n<span>日</span>\n<span>21时06分</span></p></section>
+    </div></body></html>
+    """
+    article = wechat_service.parse_article_html(html, ARTICLE_URL)
+    # Stray whitespace between spans folds into single spaces (browser
+    # behaviour); crucially no word ends up on its own line.
+    assert article.paragraphs == ["我听到你们喊我们了 ，但不敢回应 7 月 29 日 21时06分"]
+    blocks = [b for b in article.blocks if b.kind == "text"]
+    assert len(blocks) == 1
+    assert blocks[0].content == "我听到你们喊我们了 ，但不敢回应 7 月 29 日 21时06分"
+
+
+def test_parse_article_html_splits_paragraph_tags():
+    """Real paragraph elements still start new paragraphs."""
+    html = """
+    <html><head>
+    <meta property="og:title" content="测试">
+    </head><body><div id="js_content">
+    <p><span>第一段</span></p><p><span>第二段</span></p>
+    <p><span>第三段</span><br><span>第三段续</span></p>
+    </div></body></html>
+    """
+    article = wechat_service.parse_article_html(html, ARTICLE_URL)
+    assert article.paragraphs == ["第一段", "第二段", "第三段", "第三段续"]
+
+
 def test_download_image_rejects_extreme_aspect_ratio():
     """Telegram rejects >20:1 photos; such WeChat strips must be dropped."""
     import io
