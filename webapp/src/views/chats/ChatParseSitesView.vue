@@ -41,6 +41,7 @@ const EMPTY_CONFIG: ChatConfigInput = {
   ai_comment: false,
   setu_enabled: true,
   convert_b23_enabled: true,
+  parse_links_enabled: true,
   parse_artwork_enabled: true,
   parse_sites_enabled: {},
   pick_bottle_enabled: true,
@@ -62,6 +63,9 @@ const chat = useAsyncData(async (signal) => {
 
 /** Per-site link parsers; keys must match the backend parse_sites_enabled keys. */
 const PARSE_SITES = [
+  { key: "wechat", label: "微信公众号" },
+  { key: "coolapk", label: "酷安" },
+  { key: "tieba", label: "贴吧" },
   { key: "pixiv", label: "Pixiv" },
   { key: "bilibili", label: "Bilibili" },
   { key: "danbooru", label: "Danbooru" },

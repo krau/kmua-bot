@@ -52,6 +52,7 @@ const EMPTY_CONFIG: ChatConfigInput = {
   ai_comment: false,
   setu_enabled: true,
   convert_b23_enabled: true,
+  parse_links_enabled: true,
   parse_artwork_enabled: true,
   parse_sites_enabled: {},
   pick_bottle_enabled: true,

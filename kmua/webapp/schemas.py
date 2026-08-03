@@ -193,6 +193,7 @@ class ChatConfigOut(ApiModel):
     ai_comment: bool
     setu_enabled: bool
     convert_b23_enabled: bool
+    parse_links_enabled: bool
     parse_artwork_enabled: bool
     parse_sites_enabled: dict[str, bool] = {}
     pick_bottle_enabled: bool
@@ -215,6 +216,7 @@ class ChatConfigIn(ApiModel):
     ai_comment: bool
     setu_enabled: bool
     convert_b23_enabled: bool
+    parse_links_enabled: bool
     parse_artwork_enabled: bool
     parse_sites_enabled: dict[str, bool] = {}
     pick_bottle_enabled: bool

@@ -52,10 +52,12 @@ async def parse_artwork(client: PyrogramClient, message: pyrogram.types.Message)
     )
     if is_group:
         chat_config = await database.get_chat_config(chat.id)
-        if not chat_config.parse_artwork_enabled:
+        if not chat_config.parse_links_enabled or not chat_config.parse_artwork_enabled:
             return
         site = manyacg_service.match_artwork_site(artwork_url)
-        if site and not chat_config.parse_sites_enabled.get(site, True):
+        if site and not chat_config.parse_sites_enabled.get(
+            site, chat_config.parse_artwork_enabled
+        ):
             return
         lang = chat_config.lang
     else:

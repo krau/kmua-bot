@@ -121,6 +121,7 @@ export interface ChatConfig {
   ai_comment: boolean;
   setu_enabled: boolean;
   convert_b23_enabled: boolean;
+  parse_links_enabled: boolean;
   parse_artwork_enabled: boolean;
   /** Per-site link-parsing switches; an absent key defaults to enabled. */
   parse_sites_enabled: Record<string, boolean>;

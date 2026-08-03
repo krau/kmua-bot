@@ -40,6 +40,7 @@ def valid_config(**overrides) -> dict:
         "ai_comment": False,
         "setu_enabled": True,
         "convert_b23_enabled": True,
+        "parse_links_enabled": True,
         "parse_artwork_enabled": True,
         "parse_sites_enabled": {},
         "pick_bottle_enabled": True,

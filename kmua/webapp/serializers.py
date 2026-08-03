@@ -69,6 +69,7 @@ def chat_config_out(config: ChatConfig) -> ChatConfigOut:
         ai_comment=config.ai_comment,
         setu_enabled=config.setu_enabled,
         convert_b23_enabled=config.convert_b23_enabled,
+        parse_links_enabled=config.parse_links_enabled,
         parse_artwork_enabled=config.parse_artwork_enabled,
         parse_sites_enabled=config.parse_sites_enabled,
         pick_bottle_enabled=config.pick_bottle_enabled,
