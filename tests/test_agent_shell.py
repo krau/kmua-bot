@@ -7,6 +7,7 @@ from types import SimpleNamespace
 import pytest
 
 from kmua.config import app_config
+from kmua.plugins.agent.tools import io as io_tools
 from kmua.plugins.agent.tools import shell_tool
 from kmua.services import sandbox
 
@@ -25,7 +26,6 @@ def _ctx():
 
 
 def _ws_ctx(session_key="sess-a"):
-    from kmua.plugins.agent.tools import io as io_tools
 
     return io_tools._session_key(_ctx()), session_key
 
@@ -78,7 +78,6 @@ async def test_shell_empty_command(fake_landrun):
 
 async def test_shell_stages_work_files(fake_landrun, monkeypatch):
     """work:// inputs land in the sandbox as their basename."""
-    from kmua.plugins.agent.tools import io as io_tools
     from kmua.plugins.agent.tools import workspace
 
     session_key = io_tools._session_key(_ctx())
@@ -101,7 +100,6 @@ async def test_shell_stages_work_files(fake_landrun, monkeypatch):
 
 async def test_shell_exports_work_files(fake_landrun, monkeypatch):
     """Export copies the produced basename back into the workspace."""
-    from kmua.plugins.agent.tools import io as io_tools
     from kmua.plugins.agent.tools import workspace
 
     session_key = io_tools._session_key(_ctx())
@@ -225,7 +223,6 @@ async def test_shell_export_alias_source(fake_landrun, monkeypatch):
 
 async def test_shell_clean_removes_leftovers(fake_landrun, monkeypatch):
     """clean=true starts from an empty sandbox (except kmua link and tmp)."""
-    from kmua.plugins.agent.tools import io as io_tools
 
     session_key = io_tools._session_key(_ctx())
     workdir = sandbox.session_shell_dir(session_key)
@@ -243,3 +240,47 @@ async def test_shell_clean_removes_leftovers(fake_landrun, monkeypatch):
     assert "old.txt" not in leftovers
     assert "tmp" in leftovers
     assert "kmua" in leftovers
+
+
+async def test_shell_export_rejects_symlink_escape(fake_landrun, monkeypatch):
+    """A symlink pointing outside the sandbox must not be followed."""
+    from kmua.plugins.agent.tools import workspace
+
+    session_key = io_tools._session_key(_ctx())
+    workdir = sandbox.session_shell_dir(session_key)
+    workdir.mkdir(parents=True, exist_ok=True)
+    (workdir / "leak.txt").symlink_to("/etc/passwd")
+    written = {}
+
+    async def fake_write_bytes(key, path, data):
+        written[(key, path)] = data
+
+    monkeypatch.setattr(workspace, "write_file_bytes", fake_write_bytes)
+    result = await shell_tool.shell(_ctx(), "ls", export=["work://out/leak.txt"])
+    assert "was not produced" in result
+    assert written == {}
+
+
+async def test_shell_stage_replaces_symlink(fake_landrun, monkeypatch):
+    """Staging must not write through a pre-existing symlink."""
+    from kmua.plugins.agent.tools import workspace
+
+    session_key = io_tools._session_key(_ctx())
+    workdir = sandbox.session_shell_dir(session_key)
+    workdir.mkdir(parents=True, exist_ok=True)
+    outside = workdir.parent / "outside-target.txt"
+    (workdir / "target.txt").symlink_to(outside)
+    outside.write_text("original")
+
+    async def fake_read_bytes(key, path):
+        return b"staged-data"
+
+    monkeypatch.setattr(workspace, "read_file_bytes", fake_read_bytes)
+    result = await shell_tool.shell(
+        _ctx(), "cat target.txt", files=["work://in/target.txt"]
+    )
+    # The symlink was replaced by a real file; the outside target is intact.
+    assert "staged-data" in result
+    assert (workdir / "target.txt").is_file()
+    assert not (workdir / "target.txt").is_symlink()
+    assert outside.read_text() == "original"

@@ -8,6 +8,8 @@ files.
 
 from __future__ import annotations
 
+import os
+
 from pydantic_ai import RunContext
 from pydantic_ai.tools import ToolDefinition
 
@@ -19,6 +21,7 @@ from . import workspace
 
 # The sandbox only sees work:// file basenames; deeper paths are not supported.
 _MAX_IO_FILES = 10
+_MAX_EXPORT_BYTES = 5 * 1024 * 1024  # matches MAX_WORKSPACE_FILE_SIZE
 
 
 def _split_alias(ref: str) -> tuple[str, str | None]:
@@ -59,7 +62,15 @@ async def _stage_inputs(
         except Exception as e:
             return f"Error: Cannot read {ref}: {e}"
         name = alias or ws_path.rsplit("/", 1)[-1]
-        (workdir / name).write_bytes(data)
+        dest = workdir / name
+        # A leftover symlink pointing outside the sandbox must not be
+        # followed: unlink it first so staged input becomes a real file.
+        try:
+            if dest.is_symlink():
+                dest.unlink()
+            dest.write_bytes(data)
+        except Exception as e:
+            return f"Error: Cannot write {ref}: {e}"
     return None
 
 
@@ -79,10 +90,22 @@ async def _export_outputs(
             return f"Error: {e}"
         name = alias or ws_path.rsplit("/", 1)[-1]
         src = workdir / name
-        if not src.exists():
+        if src.is_symlink() or not src.exists():
             return f"Error: {name} was not produced in the sandbox."
         try:
-            await workspace.write_file_bytes(session_key, ws_path, src.read_bytes())
+            # O_NOFOLLOW: a symlink pointing outside the sandbox must not be
+            # followed, or export would read arbitrary bot-readable files.
+            fd = os.open(src, os.O_RDONLY | os.O_NOFOLLOW)
+            try:
+                data = os.read(fd, _MAX_EXPORT_BYTES + 1)
+            finally:
+                os.close(fd)
+        except OSError:
+            return f"Error: {name} was not produced in the sandbox."
+        if len(data) > _MAX_EXPORT_BYTES:
+            return f"Error: {name} exceeds the {_MAX_EXPORT_BYTES} byte export limit."
+        try:
+            await workspace.write_file_bytes(session_key, ws_path, data)
         except Exception as e:
             return f"Error: Cannot write {ref}: {e}"
     return None
