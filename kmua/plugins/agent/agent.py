@@ -16,7 +16,7 @@ from pyrogram.client import Client as PyrogramClient
 from kmua import common, database, i18n
 from kmua.config import app_config
 from kmua.logger import logger
-from kmua.services import manyacg
+from kmua.services import link_parse, manyacg
 
 from . import datatype, myfilter, provider, runner, state, tools, utils
 from .history import (
@@ -674,10 +674,12 @@ _filter = (
     & (myfilter.reply_me_filter | filters.private | myfilter.mention_me_filter)
     & myfilter.not_bottle_reply_filter
     & ~pyrogram.filters.regex("|".join([r.pattern for r in manyacg.ARTWORK_ALL_REGEX]))
-    # WeChat article links are handled by the wechat parser (group -1).
+    # WeChat article links are handled by the link parser (group -1).
     & ~pyrogram.filters.regex(r"https?://mp\.weixin\.qq\.com/s/[A-Za-z0-9_-]+")
     # Twitter/X links are handled by the native tweet parser (group -1).
     & ~pyrogram.filters.regex(r"(?:twitter|x)\.com/[^/]+/status/\d+")
+    # Coolapk/Tieba links are handled by the link parser (group -1).
+    & ~pyrogram.filters.regex(link_parse.SOCIAL_URL_RE.pattern)
 )
 
 _chat_command_filter = (

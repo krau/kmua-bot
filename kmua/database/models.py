@@ -58,6 +58,7 @@ class ChatConfig:
     ai_comment: bool = False
     setu_enabled: bool = True
     convert_b23_enabled: bool = True
+    parse_links_enabled: bool = True
     parse_artwork_enabled: bool = True
     parse_sites_enabled: dict[str, bool] = field(default_factory=dict)
     pick_bottle_enabled: bool = True
@@ -83,6 +84,7 @@ class ChatConfig:
             ai_reply_other_bots_enabled=data.get("ai_reply_other_bots_enabled", False),
             setu_enabled=data.get("setu_enabled", True),
             convert_b23_enabled=data.get("convert_b23_enabled", False),
+            parse_links_enabled=data.get("parse_links_enabled", True),
             parse_artwork_enabled=data.get("parse_artwork_enabled", True),
             parse_sites_enabled=data.get("parse_sites_enabled") or {},
             pick_bottle_enabled=data.get("pick_bottle_enabled", True),

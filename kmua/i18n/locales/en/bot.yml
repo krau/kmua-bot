@@ -223,6 +223,8 @@ bot:
       untitled: Untitled
     wechat:
       read_original: Read original
+    link_parse:
+      view_original: View original
     twitter:
       view_original: View original
 
