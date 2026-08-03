@@ -176,6 +176,12 @@ class SessionHealthMonitor:
                     f"{self._consecutive_failures} failure(s)"
                 )
             self._consecutive_failures = 0
+            # A live connection with no incoming updates is normal for an idle
+            # bot. Refresh the update timestamp so the staleness check below
+            # does not mistake a quiet channel for a dead one (which would
+            # force a session restart every few minutes and drop messages in
+            # the restart window).
+            self.client.last_update_time = datetime.now()
         else:
             self._consecutive_failures += 1
             logger.warning(

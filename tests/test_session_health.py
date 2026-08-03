@@ -189,8 +189,9 @@ async def test_media_session_recovers_and_clears_failure_count() -> None:
     assert monitor._media_failures == {}
 
 
-async def test_stale_main_session_triggers_restart_and_resets_clock() -> None:
-    """No updates for longer than stale_threshold force-restarts the session."""
+async def test_quiet_channel_with_live_probe_never_restarts() -> None:
+    """An idle bot receives no updates; a live probe means the connection is
+    healthy, so an old update timestamp must not force a session restart."""
     main = _FakeSession()
     client = _FakeClient(main)
     client.last_update_time = datetime.now() - timedelta(seconds=1000)
@@ -200,12 +201,9 @@ async def test_stale_main_session_triggers_restart_and_resets_clock() -> None:
     for _ in range(3):
         await monitor._check_once(loop)
 
-    assert main.restart_calls == 1
-    # A successful restart resets the staleness clock...
+    assert main.restart_calls == 0
+    # The successful probe refreshes the staleness clock.
     assert datetime.now() - client.last_update_time < timedelta(seconds=1)
-    # ...so the next cycle does not immediately re-trigger.
-    await monitor._check_once(loop)
-    assert main.restart_calls == 1
 
 
 async def test_healthy_main_session_never_restarts() -> None:
