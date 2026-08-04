@@ -72,6 +72,7 @@ _PUBLIC_FIELDS: dict[str, tuple[str, ...]] = {
         "agent_compaction_keep_pairs",
         "agent_compaction_summarize",
         "agent_compaction_summary_instruction",
+        "agent_clamp_max_part_ratio",
         "agent_multimodal",
         "agent_streaming",
         "agent_multimodal_inputs",

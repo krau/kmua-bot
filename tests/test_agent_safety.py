@@ -10,6 +10,7 @@ disable-able; capability assembly must follow the config switches.
 from __future__ import annotations
 
 from datetime import timedelta
+from types import SimpleNamespace
 
 from pydantic_ai_harness.guardrails import ToolResultInfo
 
@@ -125,7 +126,7 @@ def test_build_agent_capabilities_follows_switches(monkeypatch):
     assert "ProcessHistory" in kinds
     assert "ToolGuardrail" in kinds
     assert "OutputGuardrail" in kinds
-    assert "ToolOutputLimits" in kinds
+    assert "_SilentToolOutputLimits" in kinds
     # Always-on context guards (runaway generations, near-limit warnings).
     assert "ClampOversizedMessages" in kinds
     assert "WarnNearLimits" in kinds
@@ -139,3 +140,53 @@ def test_build_agent_capabilities_follows_switches(monkeypatch):
         "ClampOversizedMessages",
         "WarnNearLimits",
     }
+
+
+async def test_read_spill_handle_via_read_tool(tmp_path, monkeypatch):
+    """The spill reader is folded into `read` (spill:// protocol); it is
+    implemented locally over the public OverflowStore protocol, not extracted
+    from harness internals."""
+    monkeypatch.setattr(app_config, "cachedir", tmp_path)
+    safety.build_agent_capabilities(_fake_history_processor)
+    from pydantic_ai_harness.tool_output_limits import LocalFileStore
+
+    from kmua.plugins.agent.tools import io
+
+    store = LocalFileStore(base_dir=tmp_path / "overflow")
+    handle = await store.write("k", b"line1\nline2\nline3")
+    ctx = SimpleNamespace(deps=SimpleNamespace())
+
+    first = await io.read(ctx, f"spill://{handle}", start_line=1, max_lines=10)
+    assert "line1" in first and "line2" in first
+    paged = await io.read(ctx, f"spill://{handle}", start_line=2, max_lines=10)
+    assert "line2" in paged and "line1" not in paged
+
+
+def test_clamp_threshold_scales_with_window(monkeypatch):
+    monkeypatch.setattr(app_config, "agent_context_window_tokens", 128_000)
+    monkeypatch.setattr(app_config, "agent_clamp_max_part_ratio", 0.4)
+    caps = safety.build_agent_capabilities(_fake_history_processor)
+    clamp = next(c for c in caps if type(c).__name__ == "ClampOversizedMessages")
+    assert clamp.max_part_tokens == 51_200
+
+    # A smaller-window model tightens the guard automatically.
+    monkeypatch.setattr(app_config, "agent_context_window_tokens", 32_000)
+    caps = safety.build_agent_capabilities(_fake_history_processor)
+    clamp = next(c for c in caps if type(c).__name__ == "ClampOversizedMessages")
+    assert clamp.max_part_tokens == 12_800
+
+
+def test_clamp_fallback_when_window_unset(monkeypatch):
+    monkeypatch.setattr(app_config, "agent_context_window_tokens", 0)
+    caps = safety.build_agent_capabilities(_fake_history_processor)
+    clamp = next(c for c in caps if type(c).__name__ == "ClampOversizedMessages")
+    assert clamp.max_part_tokens == 50_000
+
+
+def test_silent_tool_output_limits_registers_no_tool(monkeypatch):
+    """The read_tool_result tool must not be registered; the subclass returns
+    None from the capability protocol hook instead of monkeypatching."""
+    limits = safety.build_tool_output_limits()
+    assert limits is not None
+    assert limits.get_toolset() is None
+    assert type(limits).__name__ == "_SilentToolOutputLimits"

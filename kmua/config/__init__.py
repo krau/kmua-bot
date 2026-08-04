@@ -207,6 +207,11 @@ class _AppConfig(pydantic.BaseModel):
     agent_compaction_clear_tool_results: bool = True
     agent_compaction_keep_pairs: int = 3
     agent_compaction_summarize: bool = True
+    # Single-part clamp threshold as a fraction of the context window
+    # (agent_context_window_tokens): a runaway response or tool-call payload
+    # larger than this is head/tail-clamped before the next request. Scaling
+    # with the window keeps the guard correct when the model changes.
+    agent_clamp_max_part_ratio: float = 0.4
     # Instruction for the in-place summary call (runs on the conversation's
     # own model and system prompt; only this wording is customizable).
     agent_compaction_summary_instruction: str = (

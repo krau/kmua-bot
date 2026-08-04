@@ -14,9 +14,11 @@ burning tokens.
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from datetime import timedelta
 from typing import Any
 
+from pydantic_ai import ModelRetry
 from pydantic_ai.capabilities import ProcessHistory
 from pydantic_ai.usage import UsageLimits
 from pydantic_ai_harness.compaction import ClampOversizedMessages, WarnNearLimits
@@ -77,12 +79,7 @@ def build_usage_limits() -> UsageLimits | None:
 
 def build_tool_output_limits() -> ToolOutputLimits | None:
     """Tool-return reduction for the main agent; None when disabled.
-
-    Spill mode (default) persists the full payload to a local store under the
-    cache dir and hands the model a ``read_tool_result`` handle, so it can
-    page through or grep the original instead of living with a clamp; a
-    bounded truncation is only the fallback when the store write fails.
-    ``agent_tool_output_spill=False`` restores pure truncation (no read-back).
+    Returns the silent subclass, so no read_tool_result tool is registered.
     """
     over = app_config.agent_tool_output_limit
     if over <= 0:
@@ -97,38 +94,110 @@ def build_tool_output_limits() -> ToolOutputLimits | None:
     else:
         store = None
         action = truncate
-    return ToolOutputLimits(
+    return _SilentToolOutputLimits(
         bands=[Band(over=over, action=action)],
         strip_ansi=True,
         store=store,
     )
 
 
-# The read_tool_result closure, extracted from ToolOutputLimits and folded
-# into kmua's `read` tool (spill:// protocol) so the model faces fewer tools.
-_spill_reader: Any | None = None
+@dataclass
+class _SilentToolOutputLimits(ToolOutputLimits):
+    """ToolOutputLimits that does not register its read_tool_result tool.
+
+    kmua folds spill reading into its own `read` tool (spill:// protocol) so
+    the model faces one tool instead of two. The overflow logic and the spill
+    store stay fully active; only the model-facing tool is suppressed, by
+    overriding the capability protocol hook ``get_toolset()`` to return None
+    (a legal return - the core ToolSearch capability does the same when its
+    corpus is empty).
+
+    WHY a subclass instead of poking at the internals: an earlier version
+    extracted the tool's closure from ``get_toolset().tools[...].function``
+    and monkeypatched ``get_toolset`` on the instance. Both touch harness
+    internals (FunctionToolset layout, instance-attribute shadowing) that can
+    change on any 0.x release. This version depends only on the public
+    capability protocol (``AbstractCapability.get_toolset``) plus the public
+    ``OverflowStore`` protocol, and implements the slice/pattern logic itself.
+    When upgrading pydantic-ai-harness, re-check: (1) ``get_toolset`` is still
+    the tool-registration hook, (2) ``OverflowStore.read`` semantics
+    (handle → bytes, OSError on unknown handle).
+    """
+
+    def get_toolset(self) -> None:  # type: ignore[override]
+        return None
+
+
+# The spill store the read tool pages through; set whenever the capability is
+# built with spill mode enabled.
+_spill_store: LocalFileStore | None = None
+
+_MAX_READ_LINES = 500
+_MAX_READ_CHARS = 50_000
+
+
+async def _read_spill(
+    store: LocalFileStore,
+    handle: str,
+    offset: int,
+    limit: int,
+    from_end: bool,
+    pattern: str | None,
+) -> str:
+    """Read a slice of a spilled payload, mirroring read_tool_result's
+    semantics (bounded in both axes; pattern is a literal substring, never a
+    regex, so a model-supplied value cannot hang the host)."""
+    if offset < 0:
+        raise ModelRetry("`offset` must be >= 0.")
+    if limit < 1:
+        raise ModelRetry("`limit` must be >= 1.")
+    limit = min(limit, _MAX_READ_LINES)
+    try:
+        data = await store.read(handle)
+    except OSError:
+        return (
+            f"Spilled payload for handle '{handle}' is unavailable (wrong "
+            "handle or already pruned). Use a handle from an overflowed tool "
+            "return."
+        )
+    text = data.decode("utf-8", errors="replace")
+    lines = text.splitlines()
+    if from_end:
+        lines = list(reversed(lines))
+    if pattern:
+        lines = [line for line in lines if pattern in line]
+    selected = lines[offset : offset + limit]
+    joined = "\n".join(selected)
+    if len(joined) > _MAX_READ_CHARS:
+        joined = joined[:_MAX_READ_CHARS] + "\n...[truncated]"
+    return joined
 
 
 def get_spill_reader() -> Any | None:
-    """The read_tool_result closure, bound to the configured overflow store."""
-    return _spill_reader
+    """A (ctx, handle, offset, limit, from_end, pattern) callable over the
+    configured spill store, or None when spill reading is disabled."""
+
+    async def reader(
+        ctx: Any,
+        handle: str,
+        offset: int = 0,
+        limit: int = 200,
+        from_end: bool = False,
+        pattern: str | None = None,
+    ) -> str:
+        return await _read_spill(_spill_store, handle, offset, limit, from_end, pattern)  # type: ignore[arg-type]
+
+    return reader if _spill_store is not None else None
 
 
-def _extract_tool_function(cap: Any, tool_name: str) -> Any | None:
-    """Pull one tool's callable out of a capability's toolset."""
-    toolset = cap.get_toolset()
-    if toolset is None:
-        return None
-    tools = getattr(toolset, "tools", None)
-    if isinstance(tools, dict):
-        tool = tools.get(tool_name)
-    elif tools:
-        tool = next((t for t in tools if getattr(t, "name", None) == tool_name), None)
-    else:
-        return None
-    if tool is None:
-        return None
-    return getattr(tool, "function", None)
+def _clamp_max_part_tokens() -> int:
+    """Single-part clamp threshold: a fraction of the model's context window,
+    so switching to a smaller-window model tightens the guard automatically.
+    Falls back to a fixed 50k when the window is unset (compaction disabled)."""
+    window = app_config.agent_context_window_tokens
+    if window > 0:
+        return max(1, int(window * app_config.agent_clamp_max_part_ratio))
+    return 50_000
 
 
 def build_agent_capabilities(history_processor: Any) -> list[Any]:
@@ -136,24 +205,25 @@ def build_agent_capabilities(history_processor: Any) -> list[Any]:
 
     ``ProcessHistory`` is always present (core); the harness safety
     capabilities follow the ``agent_secret_masking`` /
-    ``agent_tool_output_limit`` switches; step persistence and conversation
-    tools and the capabilities' own tools are not registered.
+    ``agent_tool_output_limit`` switches; the harness tool closure (spill
+    reading) is folded into kmua's ``read`` tool and not registered.
     """
-    global _spill_reader
+    global _spill_store
     caps: list[Any] = [ProcessHistory(history_processor)]
     if app_config.agent_secret_masking:
         caps.append(ToolGuardrail(result_guard=scrub_tool_result))
         caps.append(OutputGuardrail(guard=scrub_output))
     limits = build_tool_output_limits()
     if limits is not None:
-        _spill_reader = _extract_tool_function(limits, "read_tool_result")
-        setattr(limits, "get_toolset", lambda: None)  # folded into `read`
+        _spill_store = (
+            limits.store if isinstance(limits.store, LocalFileStore) else None
+        )
         caps.append(limits)
     else:
-        _spill_reader = None
+        _spill_store = None
     # Runaway-generation guard: clamp a single oversized response text or
     # tool-call args before the next request can exceed the context cap.
-    caps.append(ClampOversizedMessages(max_part_tokens=50_000))
+    caps.append(ClampOversizedMessages(max_part_tokens=_clamp_max_part_tokens()))
     # Warn the model to wrap up as the per-run usage ceilings approach, so a
     # long task concludes instead of being hard-cut by UsageLimits.
     caps.append(
