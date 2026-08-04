@@ -197,8 +197,12 @@ class InPlaceSummarizingCompaction(SummarizingCompaction):
         if previous_summary is not None:
             instruction = (
                 f"{instruction}\n\n"
-                "Update the previous summary in place: preserve still-true "
-                "details, remove stale ones, and merge in new facts.\n\n"
+                "Incorporate the new messages above into the existing summary "
+                "in <previous-summary> tags: MUST preserve all still-true "
+                "information, MUST add new progress, decisions, and context, "
+                "MUST move completed items out of In Progress, MUST update "
+                "Next Steps, and MAY remove anything no longer relevant. "
+                "Keep the same section format.\n\n"
                 f"<previous-summary>\n{previous_summary}\n</previous-summary>"
             )
         async with self.agent.iter(

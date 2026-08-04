@@ -223,6 +223,7 @@ async def test_compact_history_summarizes_in_place(monkeypatch):
     assert kwargs["model"] is model
     assert kwargs["model_settings"] == {"tool_choice": "none"}
     assert "Summarize the conversation above" in kwargs["user_prompt"]
+    assert "never merge two speakers' words" in kwargs["user_prompt"]
     # The summary lands in the compacted history as a system prompt part.
     summary_parts = [
         p.content for m in result for p in m.parts if isinstance(p, SystemPromptPart)
