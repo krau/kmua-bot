@@ -35,6 +35,7 @@ dependencies = [
     "pyasn1>=0.6.4",
     "pydantic>=2.11.4",
     "pydantic-ai>=2.22.0,<3",
+    "pydantic-ai-harness>=0.16.0",
     "pyjwt>=2.13.0",
     "pyopenssl>=26.0.0",
     "pyyaml>=6.0.2",

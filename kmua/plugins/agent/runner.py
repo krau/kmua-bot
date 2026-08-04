@@ -55,7 +55,7 @@ def _log_tool_return(name: str, content: Any, user_id: int, chat_id: int) -> Non
     )
 
 
-from kmua.plugins.agent import datatype, provider, state
+from kmua.plugins.agent import datatype, provider, safety, state
 from kmua.plugins.agent.cache_stats import log_run_cache_stats
 from kmua.plugins.agent.datatype import AskUserOutput, EndTurn
 from kmua.plugins.agent.output import StreamingOutput, TypingKeepAlive, reply_output
@@ -219,6 +219,7 @@ async def _run_agent_impl(
                         user_prompt=user_prompt,
                         message_history=history,
                         deps=deps,
+                        usage_limits=safety.build_usage_limits(),
                     ) as agent_run:
                         async for node in agent_run:
                             if Agent.is_model_request_node(node):
@@ -337,6 +338,7 @@ async def _run_agent_impl(
                     instructions=additional_instructions,
                     message_history=history,
                     deps=deps,
+                    usage_limits=safety.build_usage_limits(),
                 ) as agent_run:
                     replied = False
                     full_output_parts: list[str] = []

@@ -9,7 +9,7 @@ from pydantic_ai import (
     RunContext,
     Tool,
 )
-from pydantic_ai.capabilities import ProcessHistory
+from pydantic_ai.models import Model
 from pyrogram import filters
 from pyrogram.client import Client as PyrogramClient
 
@@ -18,12 +18,8 @@ from kmua.config import app_config
 from kmua.logger import logger
 from kmua.services import link_parse, manyacg
 
-from . import datatype, myfilter, provider, runner, state, tools, utils
-from .history import (
-    CompressionConfig,
-    HistoryCompressor,
-    get_history_text,
-)
+from . import datatype, myfilter, provider, runner, safety, state, tools, utils
+from .history import compact_history
 from .prompt import build_ctx_info, get_input_prompt
 from .runner import (
     get_chat_model_override,
@@ -40,8 +36,7 @@ model = None
 small_model = None
 multimodal_model = None
 struct_model = None
-summary_agent = None
-memory_agent = None
+memory_agent: Agent[None, datatype.UserMemoryResult] | None = None
 powermemory = None
 # Becomes True only after AsyncMemory.initialize() succeeds. The powermem
 # tools are gated on this so a failed/slow init degrades gracefully (the
@@ -68,7 +63,6 @@ if app_config.agent_powermem_config is not None:
     common.spawn(_init_powermem(), name="powermem-init")
 
 
-_history_compressor: HistoryCompressor | None = None
 _bot_user_wake_locks: dict[int, asyncio.Lock] = {}
 
 _BOT_WAKE_DELAY_MIN_SECONDS = 0.721
@@ -83,42 +77,35 @@ def _get_bot_user_wake_lock(user_id: int) -> asyncio.Lock:
     return lock
 
 
-def _get_history_compressor() -> HistoryCompressor:
-    """Get or create the history compressor instance."""
-    global _history_compressor
-    if _history_compressor is None:
-        config = CompressionConfig(
-            token_window=app_config.agent_context_window_tokens,
-            compress_ratio=app_config.agent_context_compress_ratio,
-            message_threshold=app_config.agent_messages_threshold,
-            recent_keep_count=app_config.agent_compression_recent_keep,
-            compress_tool_returns=app_config.agent_compression_compress_tool_returns,
-            tool_return_max_length=app_config.agent_compression_tool_return_max_length,
-            multimodal_max_items=app_config.agent_multimodal_max_items,
-            summary_timeout=app_config.agent_model_timeout,
-            use_summary=True,
+async def _get_compaction_model(chat_id: int) -> Model | None:
+    """The model the chat's next run would use: per-chat override, else the
+    main model. The in-place summary tier compacts with this model so the
+    summary call matches the conversation's model and prompt-cache prefix.
+    """
+    try:
+        override = await runner.get_chat_model_override(chat_id, "main")
+        if override:
+            return provider.make_chat_model(override)
+    except Exception as e:
+        logger.error(
+            f"Failed to resolve compaction model override: {e.__class__.__name__} - {e}"
         )
-        _history_compressor = HistoryCompressor(
-            summary_agent=summary_agent,
-            config=config,
-        )
-    return _history_compressor
+    return model  # the main agent's model; summary_agent was removed with the
+    # in-place compaction (the summary run reuses the conversation's model)
 
 
 async def history_processor(
     ctx: RunContext[datatype.ContextDeps], messages: list[ModelMessage]
 ) -> list[ModelMessage]:
-    assert summary_agent is not None, "summary_agent is not initialized"
-    assert memory_agent is not None, "memory_agent is not initialized"
-
-    # Update compressor with current summary_agent (may have been reinitialized)
-    compressor = _get_history_compressor()
-    compressor.summary_agent = summary_agent
-
-    # Apply layered compression
-    # The compressor automatically preserves deferred tool calls
-    result = await compressor.compress(messages)
-    compressed = result.messages
+    # Compaction (pydantic-ai-harness TieredCompaction, see
+    # history.compact_history): preserves deferred tool calls and trims
+    # multimodal content. The summary tier runs in place on the chat's current
+    # model with the same system prompt as the conversation, so the provider
+    # prompt cache is reused. Skipped entirely when disabled in config.
+    # Compaction is pure history rewriting; user-memory extraction is a
+    # separate, independently-triggered mechanism (kmua.plugins.agent.memory).
+    model = await _get_compaction_model(ctx.deps.chat_id)
+    compressed = await compact_history(messages, model, deps=ctx.deps, agent=agent)
 
     # Cache the compressed history
     await common.memttlcache.set(
@@ -126,16 +113,6 @@ async def history_processor(
         compressed,
         ttl=app_config.cachettl_agent_history,
     )
-
-    # Update user memory if compression was triggered
-    if result.was_compressed:
-        try:
-            history_text = get_history_text(messages)
-            await utils.update_user_memory(memory_agent, history_text, ctx.deps.user_id)
-        except Exception as e:
-            logger.error(
-                f"Error updating memory for user {ctx.deps.user_id}: {e.__class__.__name__} - {e}"
-            )
 
     return compressed
 
@@ -242,7 +219,7 @@ if app_config.agent and app_config.agent_model:
             ),
         ],
         deps_type=datatype.ContextDeps,
-        capabilities=[ProcessHistory(history_processor)],
+        capabilities=safety.build_agent_capabilities(history_processor),
         retries=5,
     )
 
@@ -250,11 +227,6 @@ if app_config.agent and app_config.agent_model:
     async def _dynamic_instructions(ctx: RunContext[datatype.ContextDeps]) -> str:
         return ctx.deps.instructions
 
-    summary_agent = Agent(
-        model=model,
-        model_settings=provider.make_model_settings(app_config.agent_model_options),
-        instructions=app_config.agent_summary_prompt,
-    )
     memory_agent = Agent(
         model=struct_model,
         model_settings=provider.make_model_settings(

@@ -5,13 +5,6 @@ from kmua.common.utils import is_explicit_reply
 from kmua.config import app_config
 from kmua.plugins.agent import state
 
-from .history import (
-    filter_tool_return_if_needed,
-    get_history_text,
-    get_history_token_count,
-    should_compress_by_tokens,
-    summarize_history,
-)
 from .output import StreamingOutput, TypingKeepAlive, reply_output
 from .prompt import (
     build_ctx_info,
@@ -27,12 +20,6 @@ __all__ = [
     "reply_output",
     "TypingKeepAlive",
     "StreamingOutput",
-    # history
-    "get_history_text",
-    "get_history_token_count",
-    "filter_tool_return_if_needed",
-    "summarize_history",
-    "should_compress_by_tokens",
     # prompt
     "get_input_prompt",
     "build_ctx_info",

@@ -195,15 +195,25 @@ class _AppConfig(pydantic.BaseModel):
     agent_model_multimodal_options: dict[str, Any] = {}
     agent_model_small_options: dict[str, Any] = {}
     agent_struct_model_options: dict[str, Any] = {}
-    agent_messages_threshold: int = 20
-    agent_context_window_tokens: int = 0
+    # Conversation compaction (pydantic-ai-harness TieredCompaction): when the
+    # loaded history exceeds the compression threshold, cheap passes run first
+    # (clear old tool results) and an LLM summary is only spent if the
+    # conversation still does not fit. The threshold is the model's context
+    # window (agent_context_window_tokens) times the trigger ratio
+    # (agent_context_compress_ratio); 0 window disables compaction.
+    agent_context_window_tokens: int = 128_000
     agent_context_compress_ratio: float = 0.8
-    # Layered compression: number of recent messages to keep fully intact
-    agent_compression_recent_keep: int = 6
-    # Whether to compress tool return content (truncates long outputs)
-    agent_compression_compress_tool_returns: bool = True
-    # Max length for compressed tool return content
-    agent_compression_tool_return_max_length: int = 200
+    agent_compaction_keep_messages: int = 20
+    agent_compaction_clear_tool_results: bool = True
+    agent_compaction_keep_pairs: int = 3
+    agent_compaction_summarize: bool = True
+    # Instruction for the in-place summary call (runs on the conversation's
+    # own model and system prompt; only this wording is customizable).
+    agent_compaction_summary_instruction: str = (
+        "Summarize the conversation above into a concise summary that preserves "
+        "all facts, decisions, user preferences, and any context needed to "
+        "continue the conversation."
+    )
     agent_multimodal: bool = True
     agent_streaming: bool = True
     agent_multimodal_inputs: list[str] = [
@@ -288,11 +298,33 @@ class _AppConfig(pydantic.BaseModel):
     agent_whitelist_mode: bool = False
     agent_whitelist: list[int] = []
     agent_channel_comment_prompt: str = "评论这条频道的帖子"
+
+    # Agent safety (pydantic-ai-harness): mask credentials (API keys, tokens,
+    # private keys) out of tool returns and agent replies before they reach
+    # the model or the chat. User input is deliberately left untouched.
+    agent_secret_masking: bool = True
+    # Tool returns over this many characters are reduced before they persist
+    # in history (re-sent on every later model request otherwise). 0 disables.
+    agent_tool_output_limit: int = 10_000
+    # Character budget for the reduced tool return (head+tail clamp), used as
+    # the fallback when spill mode cannot write.
+    agent_tool_output_max_chars: int = 4_000
+    # Spill mode (default): the full payload is persisted to a local store and
+    # the model gets a read_tool_result handle to page/search the original
+    # losslessly; truncation only kicks in if the store write fails. False =
+    # pure truncation, no read-back.
+    agent_tool_output_spill: bool = True
+    # Per-run usage ceilings for the main agent (pydantic-ai UsageLimits);
+    # 0 disables an individual limit. The ceilings are deliberately generous
+    # (5x the earlier values): long multi-step tasks routinely exceed a
+    # request count of 10, and the request limit binds before the tool-call
+    # budget does.
+    agent_usage_request_limit: int = 50
+    agent_usage_tool_calls_limit: int = 150
+    agent_usage_total_tokens_limit: int = 600_000
     ############################################################################
     agent_prompt: str = """"""
     agent_group_prompt: str = """"""
-    ############################################################################
-    agent_summary_prompt: str = """"""
     ############################################################################
     agent_memory_prompt: str = """"""
     agent_affection_prompts: dict[str, str] = {}
