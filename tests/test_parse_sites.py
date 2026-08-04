@@ -48,6 +48,16 @@ def test_match_artwork_site():
         manyacg_service.match_artwork_site("https://pixiv.net/artworks/123") == "pixiv"
     )
     assert (
+        manyacg_service.match_artwork_site(
+            "https://www.pixiv.net/en/artworks/128546841"
+        )
+        == "pixiv"
+    )
+    assert (
+        manyacg_service.match_artwork_site("https://www.pixiv.net/zh-cn/artworks/1")
+        == "pixiv"
+    )
+    assert (
         manyacg_service.match_artwork_site("https://t.bilibili.com/123") == "bilibili"
     )
     assert (
@@ -161,3 +171,30 @@ async def test_manyacg_runs_when_other_sites_off(chat_config_factory, monkeypatc
     message, reply = _make_message("https://danbooru.donmai.us/posts/1")
     await manyacg_plugin.parse_artwork(None, message)
     assert calls == ["https://danbooru.donmai.us/posts/1"]
+
+
+async def test_manyacg_runs_with_locale_pixiv_url(chat_config_factory, monkeypatch):
+    chat_config_factory({"twitter": False})
+    monkeypatch.setattr("kmua.config.app_config.manyacg_api_key", "fake-key")
+    calls = []
+
+    async def fake_fetch(url):
+        calls.append(url)
+        return manyacg_service.FetchArtworkResponse(
+            status=200,
+            message="ok",
+            data=manyacg_service.FetchedArtwork(
+                title="x",
+                description="",
+                tags=[],
+                source_url=url,
+                artist=None,
+                source_type="pixiv",
+                r18=False,
+            ),
+        )
+
+    monkeypatch.setattr(manyacg_plugin.manyacg_client, "fetch_artwork", fake_fetch)
+    message, reply = _make_message("https://www.pixiv.net/en/artworks/128546841")
+    await manyacg_plugin.parse_artwork(None, message)
+    assert calls == ["https://www.pixiv.net/en/artworks/128546841"]
