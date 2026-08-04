@@ -190,3 +190,22 @@ def test_silent_tool_output_limits_registers_no_tool(monkeypatch):
     assert limits is not None
     assert limits.get_toolset() is None
     assert type(limits).__name__ == "_SilentToolOutputLimits"
+
+
+async def test_read_spill_line_cap_matches_read_tool(tmp_path, monkeypatch):
+    """The spill branch must honor the read tool's documented max_lines
+    ceiling (1500), not a smaller internal cap."""
+    monkeypatch.setattr(app_config, "cachedir", tmp_path)
+    safety.build_agent_capabilities(_fake_history_processor)
+    from pydantic_ai_harness.tool_output_limits import LocalFileStore
+
+    from kmua.plugins.agent.tools import io
+
+    store = LocalFileStore(base_dir=tmp_path / "overflow")
+    payload = "\n".join(f"line{i}" for i in range(1, 601)).encode()
+    handle = await store.write("k", payload)
+    ctx = SimpleNamespace(deps=SimpleNamespace())
+
+    result = await io.read(ctx, f"spill://{handle}", start_line=1, max_lines=600)
+    assert "line1" in result and "line600" in result
+    assert result.count("\n") >= 599  # all 600 lines survived

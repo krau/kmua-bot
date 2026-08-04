@@ -132,7 +132,10 @@ class _SilentToolOutputLimits(ToolOutputLimits):
 # built with spill mode enabled.
 _spill_store: LocalFileStore | None = None
 
-_MAX_READ_LINES = 500
+# Must match the read tool's max_lines ceiling (io.py): the spill:// branch
+# reuses the read tool's start_line/max_lines parameters, so a silent lower
+# cap here would contradict the tool's documented range.
+_MAX_READ_LINES = 1500
 _MAX_READ_CHARS = 50_000
 
 
