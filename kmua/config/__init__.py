@@ -107,6 +107,13 @@ class _AppConfig(pydantic.BaseModel):
     # If no update arrives within this many seconds, the recv path is
     # considered dead (half-open TCP) and a restart is forced.
     session_health_stale: float = 300.0
+    # Hard bound (seconds) for one job on a session's crypto executor
+    # (pack/unpack/encrypt/decrypt). kurigram awaits those with no timeout:
+    # when the queue backs up, a handler stuck on one of them freezes the
+    # dispatcher and the session goes deaf while the process stays alive.
+    # Timeouts surface as TimeoutError (an OSError subclass), which triggers
+    # kurigram's own recovery (ping failure -> session restart).
+    session_crypto_timeout: float = 15.0
 
     # external services
     redis: bool = False

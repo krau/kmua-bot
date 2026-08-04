@@ -4,6 +4,7 @@ from pathlib import Path
 from pyrogram.client import Client
 from pyrogram.session import Session
 
+from kmua.bot.kurigram_patch import install as install_kurigram_patch
 from kmua.config import app_config
 
 # kurigram/pyrogram serialize ALL MTProto crypto through a single
@@ -19,6 +20,11 @@ from kmua.config import app_config
 # setattr: the class attribute is inferred as Literal[1], so a direct
 # assignment would be a type error in pyright/pyrefly.
 setattr(Session, "CRYPTO_EXECUTOR_WORKERS", min(4, cpu_count() or 1))
+# Workers reduce the chance of saturation but cannot prevent the deadlock:
+# every crypto await is still unbounded, so a backlog that does form freezes
+# whatever handler is mid-send (the dispatcher processes updates one at a
+# time) and never drains. Bound every crypto job (see kurigram_patch).
+install_kurigram_patch()
 
 
 def _build_plugins_config() -> dict[str, object]:
