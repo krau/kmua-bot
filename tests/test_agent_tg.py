@@ -241,14 +241,6 @@ async def test_prepare_sticker_gates_private(monkeypatch):
     assert await _prepare(tool, _run_ctx(-100123, 1001))
 
 
-async def test_prepare_group_gates_quote(monkeypatch):
-    from kmua.plugins.agent.tools import prepare
-
-    tool = SimpleNamespace(prepare=prepare.prepare_group_tools, name="send_chat_quote")
-    assert not await _prepare(tool, _run_ctx(1001, 1001))  # private hidden
-    assert await _prepare(tool, _run_ctx(-100123, 1001))  # group visible
-
-
 async def test_send_document_work_reference(monkeypatch, tmp_path):
     """sendDocument accepts work:// references to this session's workspace."""
     from agentfs_sdk import AgentFS, AgentFSOptions

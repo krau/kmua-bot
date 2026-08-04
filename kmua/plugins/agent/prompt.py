@@ -203,6 +203,21 @@ async def get_input_prompt(
     smart text model is not swapped out just because unrelated media exists nearby.
     """
 
+    def sender_label(sender: Any) -> str:
+        """Label a message sender as 'name(id)' so history recall can tell
+        speakers apart in shared group conversations."""
+        if sender is None:
+            return "未知用户"
+        name = (
+            getattr(sender, "first_name", None)
+            or getattr(sender, "title", None)
+            or "未知用户"
+        )
+        sender_id = getattr(sender, "id", None)
+        if sender_id is None:
+            return name
+        return f"{name}({sender_id})"
+
     # 公共的单条消息提取逻辑：只获取当前消息本身的媒体，不获取回复消息的媒体
     def get_media_and_message(
         m: pyrogram.types.Message,
@@ -490,11 +505,7 @@ async def get_input_prompt(
                 if prev_msg.id in seen_msg_ids:
                     continue
                 seen_msg_ids.add(prev_msg.id)
-                sender_name = "未知用户"
-                if prev_msg.from_user:
-                    sender_name = prev_msg.from_user.first_name or "未知用户"
-                elif prev_msg.sender_chat:
-                    sender_name = prev_msg.sender_chat.title or "未知频道"
+                sender_name = sender_label(prev_msg.from_user or prev_msg.sender_chat)
                 include_media = (
                     not has_reply
                     and closest_media_msg is not None
@@ -515,11 +526,7 @@ async def get_input_prompt(
             if reply_msg.id in seen_msg_ids:
                 continue
             seen_msg_ids.add(reply_msg.id)
-            sender_name = "未知用户"
-            if reply_msg.from_user:
-                sender_name = reply_msg.from_user.first_name or "未知用户"
-            elif reply_msg.sender_chat:
-                sender_name = reply_msg.sender_chat.title or "未知频道"
+            sender_name = sender_label(reply_msg.from_user or reply_msg.sender_chat)
             user_prompt.extend(
                 await build_contents_from_message(
                     reply_msg,
@@ -530,15 +537,7 @@ async def get_input_prompt(
 
     # 最后追加当前消息（带 ctx），并检测是否含有需要多模态理解的媒体
     sender = message.sender_chat or message.from_user
-    sender_name: str = (
-        (
-            getattr(sender, "first_name", None)
-            or getattr(sender, "title", None)
-            or "未知用户"
-        )
-        if sender
-        else "未知用户"
-    )
+    sender_name = sender_label(sender)
     current_msg_label = f"[当前消息|发送者:{sender_name}|消息ID:{message.id}]"
     if ctx is None:
         ctx_str = ""
@@ -575,6 +574,8 @@ async def build_ctx_info(
     of a conversation).
     """
     if len(history) != 0:
+        return None
+    if user.id is None:
         return None
 
     ctx_info = datatype.ContextInfo(

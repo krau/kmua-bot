@@ -104,22 +104,53 @@ def build_tool_output_limits() -> ToolOutputLimits | None:
     )
 
 
-def build_agent_capabilities(
-    history_processor: Any,
-) -> list[Any]:
+# The read_tool_result closure, extracted from ToolOutputLimits and folded
+# into kmua's `read` tool (spill:// protocol) so the model faces fewer tools.
+_spill_reader: Any | None = None
+
+
+def get_spill_reader() -> Any | None:
+    """The read_tool_result closure, bound to the configured overflow store."""
+    return _spill_reader
+
+
+def _extract_tool_function(cap: Any, tool_name: str) -> Any | None:
+    """Pull one tool's callable out of a capability's toolset."""
+    toolset = cap.get_toolset()
+    if toolset is None:
+        return None
+    tools = getattr(toolset, "tools", None)
+    if isinstance(tools, dict):
+        tool = tools.get(tool_name)
+    elif tools:
+        tool = next((t for t in tools if getattr(t, "name", None) == tool_name), None)
+    else:
+        return None
+    if tool is None:
+        return None
+    return getattr(tool, "function", None)
+
+
+def build_agent_capabilities(history_processor: Any) -> list[Any]:
     """Assemble the main agent's capabilities from config.
 
     ``ProcessHistory`` is always present (core); the harness safety
     capabilities follow the ``agent_secret_masking`` /
-    ``agent_tool_output_limit`` switches.
+    ``agent_tool_output_limit`` switches; step persistence and conversation
+    tools and the capabilities' own tools are not registered.
     """
+    global _spill_reader
     caps: list[Any] = [ProcessHistory(history_processor)]
     if app_config.agent_secret_masking:
         caps.append(ToolGuardrail(result_guard=scrub_tool_result))
         caps.append(OutputGuardrail(guard=scrub_output))
     limits = build_tool_output_limits()
     if limits is not None:
+        _spill_reader = _extract_tool_function(limits, "read_tool_result")
+        setattr(limits, "get_toolset", lambda: None)  # folded into `read`
         caps.append(limits)
+    else:
+        _spill_reader = None
     # Runaway-generation guard: clamp a single oversized response text or
     # tool-call args before the next request can exceed the context cap.
     caps.append(ClampOversizedMessages(max_part_tokens=50_000))
@@ -138,6 +169,7 @@ __all__ = [
     "build_agent_capabilities",
     "build_tool_output_limits",
     "build_usage_limits",
+    "get_spill_reader",
     "scrub_output",
     "scrub_tool_result",
 ]

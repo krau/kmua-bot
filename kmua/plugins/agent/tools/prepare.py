@@ -38,15 +38,6 @@ async def prepare_not_guest_mode(
     return tool_def
 
 
-async def prepare_group_tools(
-    ctx: RunContext[datatype.ContextDeps], tool_def: ToolDefinition
-) -> ToolDefinition | None:
-    """Prepare tools for group chat."""
-    if ctx.deps.chat_id and ctx.deps.chat_id < -100:
-        return tool_def
-    return None
-
-
 async def prepare_configurable_tools(
     ctx: RunContext[datatype.ContextDeps], tool_def: ToolDefinition
 ) -> ToolDefinition | None:

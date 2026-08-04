@@ -24,7 +24,14 @@ from kmua.logger import logger
 
 from . import bot, chat, code_repo, datatype, db, web, workspace
 
-_PROTOCOLS = ("kmua://", "work://", "chat://", "memory://", "web://")
+_PROTOCOLS = (
+    "kmua://",
+    "work://",
+    "chat://",
+    "memory://",
+    "web://",
+    "spill://",
+)
 
 
 def _split_target(path: str) -> tuple[str, str]:
@@ -181,15 +188,32 @@ async def read(
     - chat://info             — information about the current group
     - chat://history?direction=latest|before|after|between&count=N&anchor_id=N&start_id=N&end_id=N
                               — messages from the current group
+    - spill://<handle>        — the original payload of an overflowed tool
+                                return (page with start_line/max_lines)
     - https://example.com     — a web page as markdown/text
 
-    Use start_line/max_lines to page through kmua:// and work:// files
-    (1-indexed; max_lines up to 1500).
+    Use start_line/max_lines to page through kmua://, work:// and spill://
+    targets (1-indexed; max_lines up to 1500).
     """
     if max_lines < 1 or max_lines > 1500:
         raise ModelRetry("max_lines must be between 1 and 1500")
     if start_line < 1:
         raise ModelRetry("start_line must be >= 1")
+    if path.startswith("spill://"):
+        # Overflowed tool returns (ToolOutputLimits): read back the original
+        # payload from the spill store by handle, paging with start_line/
+        # max_lines (1-indexed lines, matching the file semantics above).
+        from kmua.plugins.agent import safety as _safety
+
+        reader = _safety.get_spill_reader()
+        if reader is None:
+            return "Error: Spill reading is disabled (agent_tool_output_limit = 0)."
+        return await reader(
+            ctx,
+            path.removeprefix("spill://"),
+            offset=start_line - 1,
+            limit=max_lines,
+        )
     try:
         return await _read_content(ctx, path, start_line, max_lines)
     except Exception as e:

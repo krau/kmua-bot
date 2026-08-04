@@ -165,15 +165,10 @@ if app_config.agent and app_config.agent_model:
                 ),
                 sequential=True,
             ),
-            Tool(
-                tools.send_chat_quote,
-                prepare=tools.compose_prepare(
-                    tools.prepare_not_guest_mode, tools.prepare_group_tools
-                ),
-            ),
             # Time tools
-            Tool(tools.time_info),
-            # Unified IO tools (protocol prefixes: kmua://, work://, telegram://, http(s)://)
+            Tool(
+                tools.time_info
+            ),  # Unified IO tools (protocol prefixes: kmua://, work://, telegram://, http(s)://)
             Tool(
                 tools.read,
                 prepare=tools.compose_prepare(
