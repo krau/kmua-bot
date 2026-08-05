@@ -312,6 +312,7 @@ if app_config.agent and app_config.agent_model:
             return
         await common.memttlcache.delete(state.history_key(chat_id, user.id))
         await tools.clear_ask_state(chat_id, user.id)
+        safety.delete_spill_session(f"{chat_id}_{user.id}")
         await message.reply_text(
             i18n.t("bot.msg.agent.forgot", locale=user_config.lang)
         )
@@ -343,6 +344,7 @@ if app_config.agent and app_config.agent_model:
             state.history_key(target_chat_id, target_user_id)
         )
         await tools.clear_ask_state(target_chat_id, target_user_id)
+        safety.delete_spill_session(f"{target_chat_id}_{target_user_id}")
 
         await callback_query.answer(
             i18n.t("bot.msg.agent.forgot", locale=lang), show_alert=False

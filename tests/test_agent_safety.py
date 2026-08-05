@@ -94,8 +94,9 @@ def test_build_tool_output_limits_spills_by_default():
     assert isinstance(limits.bands[0].action, Spill)
     assert limits.bands[0].action.then is not None
     assert limits.store is not None
-    assert limits.store.base_dir == app_config.cachedir / "overflow"
-    assert limits.store.cleanup_after == timedelta(hours=6)
+    # The store is session-scoped; the underlying file store keeps the TTL.
+    assert limits.store._inner.base_dir == app_config.cachedir / "overflow"
+    assert limits.store._inner.cleanup_after == timedelta(hours=6)
 
 
 def test_build_tool_output_limits_truncate_only_when_spill_off(monkeypatch):
@@ -209,3 +210,54 @@ async def test_read_spill_line_cap_matches_read_tool(tmp_path, monkeypatch):
     result = await io.read(ctx, f"spill://{handle}", start_line=1, max_lines=600)
     assert "line1" in result and "line600" in result
     assert result.count("\n") >= 599  # all 600 lines survived
+
+
+async def test_spill_scoped_to_session(tmp_path, monkeypatch):
+    """A spill written in one session must be unreadable from another, and
+    readable again within the same session."""
+    monkeypatch.setattr(app_config, "cachedir", tmp_path)
+    safety.build_agent_capabilities(_fake_history_processor)
+    from kmua.plugins.agent.tools import io
+
+    token_a = safety.set_spill_session("c_1")
+    handle = await safety._spill_store.write("k", b"secret of c1")
+    safety.reset_spill_session(token_a)
+    ctx = SimpleNamespace(deps=SimpleNamespace())
+
+    # Same session can read it back.
+    token_a2 = safety.set_spill_session("c_1")
+    try:
+        result = await io.read(ctx, f"spill://{handle}")
+        assert "secret of c1" in result
+    finally:
+        safety.reset_spill_session(token_a2)
+
+    # Another session is rejected even with the exact handle.
+    token_b = safety.set_spill_session("c_2")
+    try:
+        result = await io.read(ctx, f"spill://{handle}")
+        assert "secret of c1" not in result
+        assert "unavailable" in result
+    finally:
+        safety.reset_spill_session(token_b)
+
+
+async def test_delete_spill_session_removes_payloads(tmp_path, monkeypatch):
+    monkeypatch.setattr(app_config, "cachedir", tmp_path)
+    safety.build_agent_capabilities(_fake_history_processor)
+
+    token = safety.set_spill_session("c_9")
+    handle = await safety._spill_store.write("k", b"forget me")
+    safety.reset_spill_session(token)
+
+    safety.delete_spill_session("c_9")
+    token2 = safety.set_spill_session("c_9")
+    try:
+        from kmua.plugins.agent.tools import io
+
+        result = await io.read(
+            SimpleNamespace(deps=SimpleNamespace()), f"spill://{handle}"
+        )
+        assert "forget me" not in result
+    finally:
+        safety.reset_spill_session(token2)

@@ -1,6 +1,7 @@
 import asyncio
 import time
 from collections import deque
+from contextlib import asynccontextmanager
 from typing import Any
 
 import pydantic_ai
@@ -91,6 +92,40 @@ async def set_chat_prompt_override(chat_id: int, prompt: str | None) -> None:
         await memttlcache.delete(key)
     else:
         await memttlcache.set(key, prompt)
+
+
+@asynccontextmanager
+async def _iter_with_spill_session(
+    agi: Agent[Any, Any],
+    *,
+    chat_id: int,
+    user_id: int,
+    model: Any,
+    model_settings: Any,
+    user_prompt: Any,
+    instructions: Any,
+    message_history: Any,
+    deps: Any,
+    usage_limits: Any,
+):
+    """Run agi.iter with the current (chat, user) bound as the spill session,
+    so spilled tool outputs are scoped to this conversation and unreadable
+    from any other. Parameters are explicit (no **kwargs) so type checkers
+    resolve the Agent.iter overload correctly."""
+    token = safety.set_spill_session(f"{chat_id}_{user_id}")
+    try:
+        async with agi.iter(
+            model=model,
+            model_settings=model_settings,
+            user_prompt=user_prompt,
+            instructions=instructions,
+            message_history=message_history,
+            deps=deps,
+            usage_limits=usage_limits,
+        ) as agent_run:
+            yield agent_run
+    finally:
+        safety.reset_spill_session(token)
 
 
 async def run_agent(
@@ -212,7 +247,10 @@ async def _run_agent_impl(
                 streaming_output: StreamingOutput | None = None
                 output: Any = None
                 try:
-                    async with agi.iter(
+                    async with _iter_with_spill_session(
+                        agi,
+                        chat_id=chat_id,
+                        user_id=user_id,
                         model=use_model,
                         model_settings=model_settings,
                         instructions=additional_instructions,
@@ -331,7 +369,10 @@ async def _run_agent_impl(
                         await streaming_output.abort()
                     raise
             else:
-                async with agi.iter(
+                async with _iter_with_spill_session(
+                    agi,
+                    chat_id=chat_id,
+                    user_id=user_id,
                     model=use_model,
                     model_settings=model_settings,
                     user_prompt=user_prompt,
@@ -436,12 +477,9 @@ async def _run_agent_impl(
         logger.exception(f"Agent run error: {e}")
         err_text = i18n.t("bot.msg.agent.errors.too_fast", locale=lang)
         if is_guest_mode:
-            await reply_output(client, message, f"{err_text}\n{e}", deps=deps)
+            await reply_output(client, message, err_text, deps=deps)
         else:
-            await message.reply_text(
-                f"{err_text}\n<code>{e}</code>",
-                parse_mode=pyrogram.enums.ParseMode.HTML,
-            )
+            await message.reply_text(err_text)
     except (
         pydantic_ai.exceptions.ModelHTTPError,
         pydantic_ai.exceptions.ModelAPIError,
@@ -460,7 +498,7 @@ async def _run_agent_impl(
         status_code = getattr(e, "status_code", None)
         if is_guest_mode:
             base = i18n.t("bot.msg.agent.errors.interrupted", locale=lang).format(
-                error=f"{e.__class__.__name__}"
+                error="Error"
             )
             await reply_output(client, message, base, deps=deps)
         elif status_code == 400:
@@ -477,14 +515,14 @@ async def _run_agent_impl(
         else:
             await message.reply_text(
                 i18n.t("bot.msg.agent.errors.interrupted", locale=lang).format(
-                    error=f"{e.__class__.__name__}"
+                    error="Error"
                 ),
                 reply_markup=markup,
             )
     except Exception as e:
         logger.error(f"Agent run error: {e.__class__.__name__} - {e}")
         err_text = i18n.t("bot.msg.agent.errors.interrupted", locale=lang).format(
-            error=f"{e.__class__.__name__}"
+            error="Error"
         )
         if is_guest_mode:
             await reply_output(client, message, err_text, deps=deps)

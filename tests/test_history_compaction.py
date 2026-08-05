@@ -262,3 +262,33 @@ async def test_compact_history_uses_custom_instruction(monkeypatch):
     assert result != messages
     assert main_agent.kwargs["user_prompt"].startswith("CUSTOM summary wording.")
     assert main_agent.kwargs["model"] is model  # model is never overridden
+
+
+async def test_compaction_runs_concurrently_across_tasks(monkeypatch):
+    """Compaction is per-session: two compactions in different tasks must not
+    serialize (no shared state to protect), so the re-entrancy guard is a
+    task-scoped ContextVar, not a mutex."""
+    monkeypatch.setattr(app_config, "agent_context_window_tokens", 5)
+    monkeypatch.setattr(app_config, "agent_compaction_summarize", False)
+
+    assert not history._compacting_ctx.get()
+    # Simulate two sessions compacting at once: each task's flag is isolated.
+    token_a = history._compacting_ctx.set(True)
+    assert history._compacting_ctx.get() is True
+    history._compacting_ctx.reset(token_a)
+    assert not history._compacting_ctx.get()
+
+
+async def test_compaction_reentrant_call_skips(monkeypatch):
+    """A re-entrant compact_history from the summary run's own ProcessHistory
+    (same task) must skip immediately - it would otherwise recurse forever."""
+    monkeypatch.setattr(app_config, "agent_context_window_tokens", 5)
+    monkeypatch.setattr(app_config, "agent_compaction_summarize", False)
+
+    token = history._compacting_ctx.set(True)
+    try:
+        messages = _messages()
+        result = await history.compact_history(messages, "test", deps=None)
+        assert result == messages, "re-entrant call must return unchanged"
+    finally:
+        history._compacting_ctx.reset(token)

@@ -57,19 +57,19 @@ def _split_target(path: str) -> tuple[str, str]:
 def _require(protocol: str, deps: datatype.ContextDeps) -> str | None:
     """Return an error message when a protocol is disabled, else None."""
     if protocol == "kmua://" and not app_config.agent_code_awareness:
-        return "Error: Codebase access is disabled (agent_code_awareness=false)."
+        return "Error: Codebase access is disabled."
     if protocol == "work://" and not app_config.agent_workspace_enabled:
-        return "Error: Workspace access is disabled (agent_workspace_enabled=false)."
+        return "Error: Workspace access is disabled."
     if protocol == "http" and not (
         "read" in app_config.agent_extra_tools
         or "webfetch" in app_config.agent_extra_tools
     ):
-        return "Error: Web access is disabled (add read to agent_extra_tools)."
+        return "Error: Web access is disabled."
     if protocol == "web://" and not (
         "search" in app_config.agent_extra_tools
         or "websearch" in app_config.agent_extra_tools
     ):
-        return "Error: Web search is disabled (add search to agent_extra_tools)."
+        return "Error: Web search is disabled."
     if protocol == "chat://" and deps.chat_id == deps.user_id:
         return "Error: chat:// is only available in group chats."
     if protocol == "memory://" and not deps.powermemory:
@@ -207,7 +207,7 @@ async def read(
 
         reader = _safety.get_spill_reader()
         if reader is None:
-            return "Error: Spill reading is disabled (agent_tool_output_limit = 0)."
+            return "Error: Spill reading is unavailable."
         return await reader(
             ctx,
             path.removeprefix("spill://"),

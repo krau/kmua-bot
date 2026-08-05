@@ -16,8 +16,8 @@ kmua-specific invariants kept on top of the harness:
 
 from __future__ import annotations
 
-import asyncio
 from collections.abc import Sequence
+from contextvars import ContextVar
 from dataclasses import dataclass
 from typing import Any
 
@@ -265,9 +265,15 @@ def build_compaction_strategy(agent: Any | None = None) -> TieredCompaction | No
     )
 
 
-# Serializes compaction across chats and prevents recursion when the summary
-# run's ProcessHistory re-enters compact_history.
-_compaction_lock = asyncio.Lock()
+# Re-entrancy guard, not a mutex: compaction is per-session (each chat's
+# history, summary run, and spills are independent), so concurrent
+# compactions from different chats share no state and must NOT serialize.
+# The only hazard is recursion: the summary run goes through the main agent,
+# whose ProcessHistory calls history_processor -> compact_history again in
+# the SAME task. A task-scoped flag (ContextVar) makes that call skip;
+# without the task scoping, two concurrent compactions would overwrite each
+# other's module-level holder and defeat the check.
+_compacting_ctx: ContextVar[bool] = ContextVar("kmua_compacting", default=False)
 
 
 async def compact_history(
@@ -289,10 +295,9 @@ async def compact_history(
     """
     if not messages:
         return []
-    if _compaction_lock.locked():
-        # A compaction (possibly our own summary run) is in progress: skip so
-        # cross-chat compactions never serialize and the summary run's
-        # ProcessHistory cannot recurse.
+    if _compacting_ctx.get():
+        # Re-entrant call from the summary run's ProcessHistory (same task):
+        # skip, the in-flight compaction is this call's own ancestor.
         return list(messages)
     strategy = build_compaction_strategy(agent)
     if strategy is None:
@@ -306,14 +311,14 @@ async def compact_history(
     if not prefix:
         return list(messages)
 
-    async with _compaction_lock:
-        try:
-            compacted = await compact_now(
-                strategy, list(prefix), model=model, deps=deps
-            )
-        except Exception as e:
-            logger.error(f"compact_history failed: {e.__class__.__name__} - {e}")
-            return list(messages)
+    token = _compacting_ctx.set(True)
+    try:
+        compacted = await compact_now(strategy, list(prefix), model=model, deps=deps)
+    except Exception as e:
+        logger.error(f"compact_history failed: {e.__class__.__name__} - {e}")
+        return list(messages)
+    finally:
+        _compacting_ctx.reset(token)
 
     result: list[ModelMessage] = compacted + tail
     if app_config.agent_multimodal_max_items > 0:

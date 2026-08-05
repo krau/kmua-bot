@@ -14,6 +14,8 @@ burning tokens.
 
 from __future__ import annotations
 
+import shutil
+from contextvars import ContextVar, Token
 from dataclasses import dataclass
 from datetime import timedelta
 from typing import Any
@@ -39,6 +41,7 @@ from pydantic_ai_harness.tool_output_limits import (
 )
 
 from kmua.config import app_config
+from kmua.logger import logger
 
 _scrub_text_output = for_text(redact_secrets, on_other="allow")
 
@@ -86,10 +89,11 @@ def build_tool_output_limits() -> ToolOutputLimits | None:
         return None
     truncate = Truncate(max_chars=app_config.agent_tool_output_max_chars)
     if app_config.agent_tool_output_spill:
-        store: LocalFileStore | None = LocalFileStore(
+        inner = LocalFileStore(
             base_dir=app_config.cachedir / "overflow",
             cleanup_after=timedelta(hours=6),
         )
+        store: _SessionScopedOverflowStore | None = _SessionScopedOverflowStore(inner)
         action: Action = Spill(then=truncate)
     else:
         store = None
@@ -128,9 +132,68 @@ class _SilentToolOutputLimits(ToolOutputLimits):
         return None
 
 
+# Session binding for spilled payloads: kmua's conversations have no durable
+# session object - the per-(chat, user) history is the session, cleared by
+# /forget. Spilled payloads must follow the same lifecycle: they are written
+# under a session prefix captured from the running agent's context and become
+# unreadable from any other session, and /forget deletes the whole prefix.
+_spill_session_ctx: ContextVar[str | None] = ContextVar(
+    "kmua_spill_session", default=None
+)
+
+
+def set_spill_session(session: str) -> Token[str | None]:
+    """Bind the current task's spill session (set by the runner around runs)."""
+    return _spill_session_ctx.set(session)
+
+
+def reset_spill_session(token: Token[str | None]) -> None:
+    _spill_session_ctx.reset(token)
+
+
+class _SessionScopedOverflowStore:
+    """OverflowStore wrapper that scopes every payload to the current session.
+
+    ``write`` prefixes the harness-generated key with the session captured
+    from the context var, so handles carry their session; ``read`` rejects any
+    handle that is not under the current session's prefix, so a model in one
+    conversation cannot read another conversation's spilled payload even with
+    a guessed handle. Outside an agent run (no context var) writes stay
+    unscoped, matching the harness behavior.
+    """
+
+    def __init__(self, inner: LocalFileStore) -> None:
+        self._inner = inner
+
+    async def write(self, key: str, data: bytes) -> str:
+        session = _spill_session_ctx.get()
+        if session:
+            key = f"{session}/{key}"
+        return await self._inner.write(key, data)
+
+    async def read(self, handle: str) -> bytes:
+        session = _spill_session_ctx.get()
+        if session and not handle.startswith(f"{session}/"):
+            raise OSError(f"handle {handle!r} is not in this session")
+        return await self._inner.read(handle)
+
+
+def delete_spill_session(session: str) -> None:
+    """Delete every spilled payload bound to a session (/forget clears the
+    conversation, so its spills must go with it)."""
+    store = _spill_store
+    if store is None:
+        return
+    base_dir = store._inner.base_dir
+    if base_dir is None:
+        return
+    target = base_dir / session
+    shutil.rmtree(target, ignore_errors=True)
+
+
 # The spill store the read tool pages through; set whenever the capability is
 # built with spill mode enabled.
-_spill_store: LocalFileStore | None = None
+_spill_store: _SessionScopedOverflowStore | None = None
 
 # Must match the read tool's max_lines ceiling (io.py): the spill:// branch
 # reuses the read tool's start_line/max_lines parameters, so a silent lower
@@ -140,7 +203,7 @@ _MAX_READ_CHARS = 50_000
 
 
 async def _read_spill(
-    store: LocalFileStore,
+    store: _SessionScopedOverflowStore,
     handle: str,
     offset: int,
     limit: int,
@@ -178,7 +241,16 @@ async def _read_spill(
 
 def get_spill_reader() -> Any | None:
     """A (ctx, handle, offset, limit, from_end, pattern) callable over the
-    configured spill store, or None when spill reading is disabled."""
+    configured spill store, or None when spill reading is unavailable."""
+    if _spill_store is None:
+        if app_config.agent_tool_output_limit <= 0:
+            reason = "agent_tool_output_limit = 0"
+        elif not app_config.agent_tool_output_spill:
+            reason = "agent_tool_output_spill = false"
+        else:
+            reason = "capabilities not initialized"
+        logger.debug(f"spill reader unavailable: {reason}")
+        return None
 
     async def reader(
         ctx: Any,
@@ -219,7 +291,9 @@ def build_agent_capabilities(history_processor: Any) -> list[Any]:
     limits = build_tool_output_limits()
     if limits is not None:
         _spill_store = (
-            limits.store if isinstance(limits.store, LocalFileStore) else None
+            limits.store
+            if isinstance(limits.store, _SessionScopedOverflowStore)
+            else None
         )
         caps.append(limits)
     else:
