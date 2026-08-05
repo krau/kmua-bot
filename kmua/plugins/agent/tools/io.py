@@ -150,7 +150,7 @@ async def _read_sandbox_lines(
 
 
 async def _write_persisted(
-    ctx: RunContext[datatype.ContextDeps], name: str, content: str
+    ctx: RunContext[datatype.ContextDeps], name: str, content: str | bytes
 ) -> str:
     """Persist a file: send it to the chat as a document and record it.
 
@@ -161,12 +161,7 @@ async def _write_persisted(
     name = name.lstrip("/")
     if not name or "/" in name or len(name) > 256:
         return "Error: name must be a plain name of 1-256 characters."
-    try:
-        _split_target(content)
-    except ValueError:
-        data = content.encode("utf-8")
-    else:
-        data = await _read_bytes(content, ctx)
+    data = content.encode("utf-8") if isinstance(content, str) else content
     if not data:
         return "Error: The content is empty."
     if len(data) > workspace.MAX_WORKSPACE_FILE_SIZE:
@@ -192,17 +187,27 @@ async def _write_persisted(
     doc = sent.document
     from kmua.database import persistent_file as pf_db
 
-    await pf_db.upsert_persistent_file(
-        chat_id=ctx.deps.chat_id,
-        name=name,
-        description=None,
-        tg_message_id=sent.id,
-        file_id=doc.file_id,
-        file_unique_id=doc.file_unique_id,
-        file_name=doc.file_name,
-        mime_type=doc.mime_type,
-        file_size=doc.file_size,
-    )
+    try:
+        await pf_db.upsert_persistent_file(
+            chat_id=ctx.deps.chat_id,
+            name=name,
+            description=None,
+            tg_message_id=sent.id,
+            file_id=doc.file_id,
+            file_unique_id=doc.file_unique_id,
+            file_name=doc.file_name,
+            mime_type=doc.mime_type,
+            file_size=doc.file_size,
+        )
+    except Exception as e:
+        # The document was already sent; a failed record would leave an
+        # orphan file in chat history, so remove it again.
+        logger.error(f"persist record failed for {name!r}: {e}")
+        try:
+            await client.delete_messages(ctx.deps.chat_id, sent.id)
+        except Exception:
+            pass
+        return "Error: Failed to record the file; the sent document was removed."
     logger.info(
         f"agent persisted file {name!r} to chat {ctx.deps.chat_id} (message {sent.id})"
     )
@@ -405,11 +410,11 @@ async def write(
         except ValueError:
             pass  # plain text
         else:
-            # Protocol reference: resolve the referenced content as the payload.
-            # Non-readable protocols (memory://, web://) are rejected by
-            # _read_content.
+            # Protocol reference: resolve the referenced content as raw bytes
+            # (lossless for binary payloads; text round-tripping would
+            # corrupt non-UTF-8 bytes).
             try:
-                content = await _read_content(ctx, content, raw=True)
+                content = await _read_bytes(content, ctx)
             except Exception as e:
                 logger.error(f"write error for {path}: resolving {content}: {e}")
                 return f"Error: {e}"
@@ -417,7 +422,12 @@ async def write(
         return f"Error: content is required for {path} targets."
     try:
         if protocol == "memory://":
-            return await chat.update_group_memory(ctx, content)
+            text = (
+                content
+                if isinstance(content, str)
+                else content.decode("utf-8")
+            )
+            return await chat.update_group_memory(ctx, text)
         if protocol == "persist://":
             return await _write_persisted(ctx, rest, content)
         if protocol == "sandbox://":
@@ -433,8 +443,13 @@ async def write(
     except Exception as e:
         logger.error(f"write error for {path}: {e}")
         return f"Error: {e}"
+    size = (
+        len(content)
+        if isinstance(content, bytes)
+        else len(content.encode("utf-8"))
+    )
     return (
-        f"Wrote {len(content.encode('utf-8'))} bytes to {path}. "
+        f"Wrote {size} bytes to {path}. "
         f"Use read to verify, or tg sendDocument to share it."
     )
 

@@ -205,7 +205,9 @@ async def read_file_bytes(session_key: str, path: str) -> bytes:
     """Return raw file bytes (for send). Raises when missing."""
     agent = await get_workspace_agentfs(session_key)
     path = _normalize_workspace_path(path)
-    raw = await agent.fs.read_file(path)
+    # encoding=None: agentfs returns raw bytes; the default utf-8 decode
+    # would reject non-UTF-8 payloads (binary copies).
+    raw = await agent.fs.read_file(path, encoding=None)
     if isinstance(raw, str):
         raw = raw.encode("utf-8")
     return raw

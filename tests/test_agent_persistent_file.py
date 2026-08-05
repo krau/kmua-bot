@@ -286,3 +286,5 @@ async def test_sandbox_symlink_delete_rejected(ctx, sandbox_dir, tmp_path):
     result = await io.delete(ctx, "sandbox://evil")
     assert "Error" in result
     assert secret.exists()
+
+

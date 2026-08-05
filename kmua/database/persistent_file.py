@@ -27,24 +27,56 @@ async def upsert_persistent_file(
     file_size: int | None,
     session: AsyncSession | None = None,
 ) -> AgentPersistentFile:
-    """Insert a record or overwrite the existing one for (chat_id, name)."""
+    """Insert a record or overwrite the existing one for (chat_id, name).
+
+    Atomic ON CONFLICT upsert (SQLite and PostgreSQL), so two concurrent
+    first writes for the same (chat_id, name) cannot race into a unique
+    violation.
+    """
     assert session is not None, "Session must be provided"
-    stmt = sqlalchemy.select(AgentPersistentFile).where(
-        AgentPersistentFile.chat_id == chat_id,
-        AgentPersistentFile.name == name,
+    values = {
+        "chat_id": chat_id,
+        "name": name,
+        "description": description,
+        "tg_message_id": tg_message_id,
+        "file_id": file_id,
+        "file_unique_id": file_unique_id,
+        "file_name": file_name,
+        "mime_type": mime_type,
+        "file_size": file_size,
+    }
+    dialect = session.get_bind().dialect.name
+    if dialect == "sqlite":
+        from sqlalchemy.dialects.sqlite import insert as sqlite_insert
+
+        stmt = sqlite_insert(AgentPersistentFile).values(**values)
+    else:
+        from sqlalchemy.dialects.postgresql import insert as pg_insert
+
+        stmt = pg_insert(AgentPersistentFile).values(**values)
+    stmt = stmt.on_conflict_do_update(
+        index_elements=["chat_id", "name"],
+        set_={
+            "description": description,
+            "tg_message_id": tg_message_id,
+            "file_id": file_id,
+            "file_unique_id": file_unique_id,
+            "file_name": file_name,
+            "mime_type": mime_type,
+            "file_size": file_size,
+            "updated_at": sqlalchemy.func.now(),
+        },
     )
-    record = (await session.execute(stmt)).scalar_one_or_none()
-    if record is None:
-        record = AgentPersistentFile(chat_id=chat_id, name=name)
-        session.add(record)
-    record.description = description
-    record.tg_message_id = tg_message_id
-    record.file_id = file_id
-    record.file_unique_id = file_unique_id
-    record.file_name = file_name
-    record.mime_type = mime_type
-    record.file_size = file_size
+    await session.execute(stmt)
     await session.flush()
+    record = (
+        await session.execute(
+            sqlalchemy.select(AgentPersistentFile).where(
+                AgentPersistentFile.chat_id == chat_id,
+                AgentPersistentFile.name == name,
+            )
+        )
+    ).scalar_one()
     return record
 
 
