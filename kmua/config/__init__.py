@@ -341,7 +341,7 @@ class _AppConfig(pydantic.BaseModel):
     # the fallback when spill mode cannot write.
     agent_tool_output_max_chars: int = 4_000
     # Spill mode (default): the full payload is persisted to a local store and
-    # the model gets a read_tool_result handle to page/search the original
+    # the model pages the original back via read(path="spill://<handle>")
     # losslessly; truncation only kicks in if the store write fails. False =
     # pure truncation, no read-back.
     agent_tool_output_spill: bool = True

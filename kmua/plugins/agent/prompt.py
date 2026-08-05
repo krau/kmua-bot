@@ -205,18 +205,19 @@ async def get_input_prompt(
 
     def sender_label(sender: Any) -> str:
         """Label a message sender as 'name(id)' so history recall can tell
-        speakers apart in shared group conversations."""
+        speakers apart in shared group conversations. Users fall back to
+        '未知用户', channels/groups to '未知频道'."""
         if sender is None:
             return "未知用户"
-        name = (
-            getattr(sender, "first_name", None)
-            or getattr(sender, "title", None)
-            or "未知用户"
-        )
-        sender_id = getattr(sender, "id", None)
-        if sender_id is None:
-            return name
-        return f"{name}({sender_id})"
+        name = getattr(sender, "first_name", None) or getattr(sender, "title", None)
+        if name:
+            sender_id = getattr(sender, "id", None)
+            if sender_id is None:
+                return name
+            return f"{name}({sender_id})"
+        if hasattr(sender, "first_name"):
+            return "未知用户"
+        return "未知频道"
 
     # 公共的单条消息提取逻辑：只获取当前消息本身的媒体，不获取回复消息的媒体
     def get_media_and_message(
