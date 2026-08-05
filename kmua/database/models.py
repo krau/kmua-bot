@@ -611,3 +611,45 @@ class RssSubscription(Base):
 
     def __repr__(self) -> str:
         return f"<RssSubscription(chat_id={self.chat_id}, feed_id={self.feed_id})>"
+
+
+class AgentPersistentFile(Base):
+    """One file the agent chose to persist for a chat.
+
+    The payload lives in Telegram chat history (a document message sent by
+    the bot); this row records where, so the agent can list, re-fetch and
+    overwrite files by name. Deleting the row never deletes the message: the
+    file stays in chat history, it just leaves the agent's managed set.
+    """
+
+    __tablename__ = "agent_persistent_files"
+
+    id: Mapped[int] = mapped_column(
+        Integer, primary_key=True, autoincrement=True, index=True
+    )
+    # Scope: group chats share their files, private chats are user-scoped.
+    chat_id: Mapped[int] = mapped_column(BigInteger, nullable=False, index=True)
+    name: Mapped[str] = mapped_column(String(256), nullable=False)
+    description: Mapped[str | None] = mapped_column(String(1024), nullable=True)
+    # The document message sent to the chat and the download credential.
+    tg_message_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    file_id: Mapped[str] = mapped_column(String(512), nullable=False)
+    file_unique_id: Mapped[str] = mapped_column(String(512), nullable=False)
+    file_name: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    mime_type: Mapped[str | None] = mapped_column(String(256), nullable=True)
+    file_size: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+    )
+
+    __table_args__ = (
+        sa.UniqueConstraint("chat_id", "name", name="uq_agent_persistent_chat_name"),
+    )
+
+    def __repr__(self) -> str:
+        return f"<AgentPersistentFile(chat_id={self.chat_id}, name={self.name!r})>"

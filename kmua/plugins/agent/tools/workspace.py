@@ -71,11 +71,14 @@ def _normalize_workspace_path(path: str) -> str:
     return path
 
 
-async def write_file(session_key: str, path: str, content: str) -> None:
+async def write_file(session_key: str, path: str, content: str | bytes) -> None:
     """Write or overwrite a file in the session's workspace. Raises on invalid paths or oversize content."""
     agent = await get_workspace_agentfs(session_key)
     path = _normalize_workspace_path(path)
-    if len(content.encode("utf-8")) > MAX_WORKSPACE_FILE_SIZE:
+    if (
+        len(content.encode("utf-8") if isinstance(content, str) else content)
+        > MAX_WORKSPACE_FILE_SIZE
+    ):
         raise ValueError(f"Content exceeds the {MAX_WORKSPACE_FILE_SIZE} byte limit")
     await agent.fs.write_file(path, content)
 

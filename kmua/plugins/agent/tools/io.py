@@ -12,6 +12,7 @@ Protocols:
 from __future__ import annotations
 
 import json
+from pathlib import Path
 from urllib.parse import parse_qs, urlsplit
 
 from ddgs import DDGS
@@ -27,6 +28,8 @@ from . import bot, chat, code_repo, datatype, db, web, workspace
 _PROTOCOLS = (
     "kmua://",
     "work://",
+    "sandbox://",
+    "persist://",
     "chat://",
     "memory://",
     "web://",
@@ -47,8 +50,9 @@ def _split_target(path: str) -> tuple[str, str]:
     if path.startswith(("http://", "https://")):
         return "http", path
     raise ValueError(
-        f"Unsupported target: {path}. Use kmua:// (codebase), work:// (workspace), "
-        f"chat:// (group), memory:// (memory), web:// (web search) "
+        f"Unsupported target: {path}. Use kmua:// (codebase), work:// "
+        f"(workspace), sandbox:// (shell sandbox), persist:// (persisted "
+        f"files), chat:// (group), memory:// (memory), web:// (web search) "
         f"or http(s):// (web)."
     )
 
@@ -74,6 +78,156 @@ def _require(protocol: str, deps: datatype.ContextDeps) -> str | None:
     if protocol == "memory://" and not deps.powermemory:
         return "Error: Group memory is not available in this chat."
     return None
+
+
+def _safe_sandbox_path(rel: str) -> Path:
+    """Resolve a sandbox-relative path, rejecting escapes."""
+    p = Path(rel.lstrip("/"))
+    if p.is_absolute() or ".." in p.parts:
+        raise ValueError(f"Path escapes the sandbox: {rel}")
+    return p
+
+
+def _sandbox_target(session_key: str, rel: str) -> Path:
+    """The real path for a sandbox:// target, refusing symlink traversal.
+
+    Sandbox commands may create symlinks pointing outside the sandbox;
+    following one would let the io tools read or write arbitrary
+    bot-readable files. Every path component must be a real directory or
+    file, never a symlink.
+    """
+    from kmua.services import sandbox
+
+    root = sandbox.session_shell_dir(session_key)
+    rel_path = _safe_sandbox_path(rel)
+    probe = root
+    for part in rel_path.parts:
+        probe = probe / part
+        if probe.is_symlink():
+            raise ValueError(f"sandbox:// paths must not use symlinks: {rel}")
+    return root / rel_path
+
+
+async def _read_bytes(path: str, ctx: RunContext[datatype.ContextDeps]) -> bytes:
+    """Read a target as raw bytes (persist payloads and binary copies)."""
+    protocol, rest = _split_target(path)
+    denied = _require(protocol, ctx.deps)
+    if denied:
+        raise ValueError(denied)
+    if protocol == "work://":
+        return await workspace.read_file_bytes(_session_key(ctx), rest)
+    if protocol == "sandbox://":
+        target = _sandbox_target(_session_key(ctx), rest)
+        return target.read_bytes()
+    if protocol == "kmua://":
+        agent = await code_repo.get_code_agentfs()
+        if agent is None:
+            raise ValueError("Code repository not initialized")
+        raw = await agent.fs.read_file(rest)
+        if isinstance(raw, str):
+            raw = raw.encode("utf-8")
+        return raw
+    if protocol == "persist://":
+        return await _download_persisted(ctx, rest)
+    raise ValueError(f"Target {path} is not readable.")
+
+
+async def _read_sandbox_lines(
+    ctx: RunContext[datatype.ContextDeps],
+    rel: str,
+    start_line: int,
+    max_lines: int,
+) -> str | None:
+    """Line-numbered view of a sandbox file (None when missing)."""
+    try:
+        target = _sandbox_target(_session_key(ctx), rel)
+        text = target.read_text(encoding="utf-8", errors="replace")
+    except (OSError, ValueError):
+        return None
+    lines = text.splitlines()
+    selected = lines[start_line - 1 : start_line - 1 + max_lines]
+    return "\n".join(selected)
+
+
+async def _write_persisted(
+    ctx: RunContext[datatype.ContextDeps], name: str, content: str
+) -> str:
+    """Persist a file: send it to the chat as a document and record it.
+
+    content may be plain text or a protocol reference (work://, sandbox://,
+    kmua://, persist://) whose bytes are persisted; binary payloads go
+    through references so they are not round-tripped through text.
+    """
+    name = name.lstrip("/")
+    if not name or "/" in name or len(name) > 256:
+        return "Error: name must be a plain name of 1-256 characters."
+    try:
+        _split_target(content)
+    except ValueError:
+        data = content.encode("utf-8")
+    else:
+        data = await _read_bytes(content, ctx)
+    if not data:
+        return "Error: The content is empty."
+    if len(data) > workspace.MAX_WORKSPACE_FILE_SIZE:
+        return (
+            f"Error: File exceeds the {workspace.MAX_WORKSPACE_FILE_SIZE} byte limit."
+        )
+    from io import BytesIO
+
+    from kmua.bot.client import client
+
+    try:
+        sent = await client.send_document(
+            ctx.deps.chat_id,
+            document=BytesIO(data),
+            file_name=name,
+            caption=name,
+        )
+    except Exception as e:
+        logger.error(f"persist write failed for {name!r}: {e}")
+        return "Error: Failed to send the file to this chat."
+    assert sent is not None, "send_document returned None"
+    assert sent.document is not None, "sent message has no document"
+    doc = sent.document
+    from kmua.database import persistent_file as pf_db
+
+    await pf_db.upsert_persistent_file(
+        chat_id=ctx.deps.chat_id,
+        name=name,
+        description=None,
+        tg_message_id=sent.id,
+        file_id=doc.file_id,
+        file_unique_id=doc.file_unique_id,
+        file_name=doc.file_name,
+        mime_type=doc.mime_type,
+        file_size=doc.file_size,
+    )
+    logger.info(
+        f"agent persisted file {name!r} to chat {ctx.deps.chat_id} (message {sent.id})"
+    )
+    return f"Persisted {name} for this chat (sent as a document)."
+
+
+async def _download_persisted(
+    ctx: RunContext[datatype.ContextDeps], name: str
+) -> bytes:
+    """Download a persisted file's bytes from chat history."""
+    from kmua.database import persistent_file as pf_db
+
+    name = name.lstrip("/")
+    record = await pf_db.get_persistent_file(ctx.deps.chat_id, name)
+    if record is None:
+        raise ValueError(f"No persisted file named {name!r} in this chat.")
+    from pyrogram.file_id import FileId
+
+    from kmua.bot.client import client
+
+    file_id = FileId.decode(record.file_id)
+    if file_id is None:
+        raise ValueError("The stored file id is invalid.")
+    chunks = [chunk async for chunk in client.get_file(file_id)]
+    return b"".join(chunks)
 
 
 def _session_key(ctx: RunContext[datatype.ContextDeps]) -> str:
@@ -150,19 +304,27 @@ async def _read_content(
         if content is None:
             raise ValueError(f"File not found: {path}")
         return content
-    if protocol == "work://":
+    if protocol in ("work://", "sandbox://"):
         if raw:
-            try:
-                raw_bytes = await workspace.read_file_bytes(_session_key(ctx), rest)
-            except Exception:
-                raise ValueError(f"File not found: {path}") from None
+            raw_bytes = await _read_bytes(path, ctx)
             return raw_bytes.decode("utf-8", errors="replace")
-        content = await workspace.read_file(
-            _session_key(ctx), rest, start_line, max_lines
-        )
+        if protocol == "work://":
+            content = await workspace.read_file(
+                _session_key(ctx), rest, start_line, max_lines
+            )
+        else:
+            content = await _read_sandbox_lines(ctx, rest, start_line, max_lines)
         if content is None:
             raise ValueError(f"File not found: {path}")
         return content
+    if protocol == "persist://":
+        data = await _download_persisted(ctx, rest)
+        if raw:
+            return data.decode("utf-8", errors="replace")
+        text = data.decode("utf-8", errors="replace")
+        lines = text.splitlines()
+        selected = lines[start_line - 1 : start_line - 1 + max_lines]
+        return "\n".join(selected)
     if protocol == "chat://":
         return await _read_chat(ctx, rest, max_lines)
     if protocol == "http":
@@ -184,13 +346,15 @@ async def read(
     Protocols:
     - kmua://kmua/plugins/x.py — a file from the bot's own codebase (read-only)
     - work://notes/hello.html — a file from this chat's workspace
+    - sandbox://out/data.txt  — a file in this session's shell sandbox
+    - persist://report.txt    — a file the agent persisted for this chat
     - chat://info             — information about the current group
     - chat://history?direction=latest|before|after|between&count=N&anchor_id=N&start_id=N&end_id=N
                               — messages from the current group
     - https://example.com     — a web page as markdown/text
 
-    Use start_line/max_lines to page through kmua:// and work:// targets
-    (1-indexed; max_lines up to 1500).
+    Use start_line/max_lines to page through kmua://, work://, sandbox:// and
+    persist:// targets (1-indexed; max_lines up to 1500).
     """
     if max_lines < 1 or max_lines > 1500:
         raise ModelRetry("max_lines must be between 1 and 1500")
@@ -212,13 +376,18 @@ async def write(
 
     Protocols:
     - work://notes/hello.html — save content as a file in the chat's workspace
+    - sandbox://out/result.json — save content into the shell sandbox
+    - persist://report.txt    — persist a file for this chat: it is sent as a
+        document to the chat and recorded; later runs can read, list, delete
+        and overwrite it by name. The chat message stays after delete.
     - memory://               — store content as a fact about this group in its
         long-term memory
 
     content can be plain text or a reference to another target whose content
     is used as the payload — e.g. work://notes/hello.html (workspace file) or
     kmua://kmua/services/wechat.py (codebase file, read-only), handy for
-    copying files between targets.
+    copying files between targets. Binary payloads must go through a
+    reference (work://, sandbox://, persist://).
 
     Files in the workspace are sandboxed. Large content (over 5 MB) is rejected.
     Prefer edit when modifying an existing workspace file.
@@ -244,15 +413,22 @@ async def write(
             except Exception as e:
                 logger.error(f"write error for {path}: resolving {content}: {e}")
                 return f"Error: {e}"
+    if content is None:
+        return f"Error: content is required for {path} targets."
     try:
         if protocol == "memory://":
-            if content is None:
-                return "Error: content is required for memory:// targets."
             return await chat.update_group_memory(ctx, content)
+        if protocol == "persist://":
+            return await _write_persisted(ctx, rest, content)
+        if protocol == "sandbox://":
+            target = _sandbox_target(_session_key(ctx), rest)
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_bytes(
+                content.encode("utf-8") if isinstance(content, str) else content
+            )
+            return f"Wrote {len(content) if isinstance(content, bytes) else len(content.encode('utf-8'))} bytes to {path}."
         if protocol != "work://":
-            return f"Error: {path} is read-only or not writable; only work:// and memory:// targets accept writes."
-        if content is None:
-            return "Error: content is required for work:// targets."
+            return f"Error: {path} is read-only or not writable; only work://, sandbox://, persist:// and memory:// targets accept writes."
         await workspace.write_file(_session_key(ctx), rest, content)
     except Exception as e:
         logger.error(f"write error for {path}: {e}")
@@ -304,6 +480,8 @@ async def list(ctx: RunContext[datatype.ContextDeps], path: str = "work://") -> 
     Protocols:
     - work://             — agent workspace (default)
     - work://subdir       — workspace subdirectory
+    - sandbox://          — this session's shell sandbox
+    - persist://          — files persisted for this chat
     - kmua://kmua/plugins — a codebase directory (read-only)
     """
     try:
@@ -314,6 +492,27 @@ async def list(ctx: RunContext[datatype.ContextDeps], path: str = "work://") -> 
     if denied:
         return denied
     try:
+        if protocol == "persist://":
+            from kmua.database import persistent_file as pf_db
+
+            files = await pf_db.list_persistent_files(ctx.deps.chat_id)
+            _ = rest
+            if not files:
+                return "No persisted files for this chat."
+            lines = ["name | size | updated"]
+            for f in files:
+                kb = (f.file_size or 0) / 1024
+                lines.append(f"{f.name} | {kb:.1f} KB | {f.updated_at:%Y-%m-%d %H:%M}")
+            return "\n".join(lines)
+        if protocol == "sandbox://":
+            root = _sandbox_target(_session_key(ctx), rest)
+            if not root.exists():
+                return f"Path not found: {path}"
+            lines = ["name | size | type"]
+            for item in sorted(root.iterdir(), key=lambda p: p.name):
+                kind = "dir" if item.is_dir() else str(item.stat().st_size)
+                lines.append(f"{item.name} | {kind}")
+            return "\n".join(lines)
         if protocol == "kmua://":
             entries = await code_repo.list_files(rest, include_dirs=True)
             if not entries:
@@ -433,21 +632,33 @@ async def delete(
     ctx: RunContext[datatype.ContextDeps],
     path: str,
 ) -> str:
-    """Delete a file from the chat's workspace (work:// only).
+    """Delete a file from the workspace, sandbox, or the persisted set.
 
-    The file is removed permanently from this session's workspace. Deleting
-    codebase files (kmua://) or any other target is not allowed.
+    work:// and sandbox:// remove the local file. persist:// removes the
+    record only - the document message stays in chat history.
     """
     try:
         protocol, rest = _split_target(path)
     except ValueError as e:
         return f"Error: {e}"
-    if protocol != "work://":
-        return f"Error: {path} is not deletable; only work:// targets can be deleted."
     denied = _require(protocol, ctx.deps)
     if denied:
         return denied
     try:
+        if protocol == "persist://":
+            from kmua.database import persistent_file as pf_db
+
+            name = rest.lstrip("/")
+            deleted = await pf_db.delete_persistent_file(ctx.deps.chat_id, name)
+            if not deleted:
+                return f"Error: No persisted file named {name!r} in this chat."
+            return f"Removed {name} from the managed set; the chat message stays."
+        if protocol == "sandbox://":
+            target = _sandbox_target(_session_key(ctx), rest)
+            target.unlink(missing_ok=True)
+            return f"Deleted {path}."
+        if protocol != "work://":
+            return f"Error: {path} is not deletable; only work://, sandbox:// and persist:// targets can be deleted."
         await workspace.delete_file(_session_key(ctx), rest)
     except Exception as e:
         logger.error(f"delete error for {path}: {e}")
