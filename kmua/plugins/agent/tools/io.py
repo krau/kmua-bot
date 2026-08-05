@@ -30,7 +30,6 @@ _PROTOCOLS = (
     "chat://",
     "memory://",
     "web://",
-    "spill://",
 )
 
 
@@ -188,31 +187,15 @@ async def read(
     - chat://info             — information about the current group
     - chat://history?direction=latest|before|after|between&count=N&anchor_id=N&start_id=N&end_id=N
                               — messages from the current group
-    - spill://<handle>        — the original payload of an overflowed tool
-                                return (page with start_line/max_lines)
     - https://example.com     — a web page as markdown/text
 
-    Use start_line/max_lines to page through kmua://, work:// and spill://
-    targets (1-indexed; max_lines up to 1500).
+    Use start_line/max_lines to page through kmua:// and work:// targets
+    (1-indexed; max_lines up to 1500).
     """
     if max_lines < 1 or max_lines > 1500:
         raise ModelRetry("max_lines must be between 1 and 1500")
     if start_line < 1:
         raise ModelRetry("start_line must be >= 1")
-    if path.startswith("spill://"):
-        # Read back an overflowed tool return by handle; start_line/max_lines
-        # page through it (1-indexed, same as file targets).
-        from kmua.plugins.agent import safety as _safety
-
-        reader = _safety.get_spill_reader()
-        if reader is None:
-            return "Error: Spill reading is unavailable."
-        return await reader(
-            ctx,
-            path.removeprefix("spill://"),
-            offset=start_line - 1,
-            limit=max_lines,
-        )
     try:
         return await _read_content(ctx, path, start_line, max_lines)
     except Exception as e:
