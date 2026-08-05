@@ -21,9 +21,33 @@ async def cleanup():
         await database.cleanup_waifu_data()
         # await database.cleanup_user_avatar()
         # common.cleanup_avatar_cache()
+        if app_config.agent:
+            await _cleanup_agent_workspaces()
     finally:
         logger.info("clean data done")
         await common.memstore.delete(enums.GLockKey.CLEANING)
+
+
+async def _cleanup_agent_workspaces() -> None:
+    """Sweep local agent session files (shell sandbox dirs, workspace
+    databases) untouched beyond the retention window. Persisted files backed
+    by Telegram are exempt: they live in chat history, not on local disk."""
+    retention = app_config.agent_workspace_retention_days
+    if retention <= 0:
+        return
+    try:
+        from kmua.plugins.agent.tools import workspace as agent_workspace
+        from kmua.services import sandbox as agent_sandbox
+
+        shells = await agent_sandbox.cleanup_stale_sessions(retention)
+        workspaces = await agent_workspace.cleanup_stale_workspaces(retention)
+        if shells or workspaces:
+            logger.info(
+                f"cleaned stale agent workspaces: {shells} shell dirs, "
+                f"{workspaces} workspace databases"
+            )
+    except Exception as e:
+        logger.warning(f"agent workspace cleanup failed: {e.__class__.__name__} - {e}")
 
 
 async def change_bot_avatar():

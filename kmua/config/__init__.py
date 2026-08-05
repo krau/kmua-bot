@@ -309,6 +309,10 @@ class _AppConfig(pydantic.BaseModel):
 
     # Agent workspace: sandboxed files the agent can write and send as documents
     agent_workspace_enabled: bool = True
+    # Local session files (shell sandbox dirs, workspace databases) not
+    # touched for this many days are removed by the daily cleanup job; 0
+    # disables the sweep. Persisted files (Telegram-backed) are exempt.
+    agent_workspace_retention_days: int = 30
 
     # Agent shell: run commands in a landlock sandbox (landrun).
     # The shell works in a per-session real directory; files are moved in and

@@ -302,3 +302,26 @@ async def test_compaction_reentrant_call_skips(monkeypatch):
         assert result == messages, "re-entrant call must return unchanged"
     finally:
         history._compacting_ctx.reset(token)
+
+
+async def test_clear_prefix_helpers():
+    """Prefix clearing removes every matching key and counts them."""
+    from kmua.plugins.agent import agent as agent_mod
+
+    cache = agent_mod.common.memttlcache
+    store = agent_mod.common.memstore
+    await cache.set("message_history_with_agent:1:1", b"a")
+    await cache.set("message_history_with_agent:1:2", b"b")
+    await cache.set("other:key", b"c")
+    store._data["agent_waiting:1"] = True
+    store._data["agent_ask_state:1:1"] = {"options": []}
+    store._data["unrelated"] = 1
+
+    assert await agent_mod._clear_memttlcache_prefix("message_history_with_agent:") == 2
+    assert await cache.get("message_history_with_agent:1:1") is None
+    assert await cache.get("other:key") == b"c"
+
+    assert agent_mod._clear_memstore_prefix("agent_") == 2
+    assert "agent_waiting:1" not in store._data
+    assert "agent_ask_state:1:1" not in store._data
+    assert "unrelated" in store._data

@@ -272,3 +272,24 @@ async def test_spill_preview_names_read_tool_result(tmp_path, monkeypatch):
         if part.part_kind == "tool-return" and part.tool_name == "read_tool_result"
     )
     assert "xxx" in text
+
+
+async def test_clear_all_spills_removes_every_session(tmp_path, monkeypatch):
+    store = await _make_spill_store(tmp_path, monkeypatch)
+
+    token_a = safety.set_spill_session("c_1")
+    await store.write("k", b"one")
+    safety.reset_spill_session(token_a)
+    token_b = safety.set_spill_session("c_2")
+    await store.write("k", b"two")
+    safety.reset_spill_session(token_b)
+
+    assert safety.clear_all_spills() == 2
+
+    for session in ("c_1", "c_2"):
+        token = safety.set_spill_session(session)
+        try:
+            with pytest.raises(OSError):
+                await store.read("k")
+        finally:
+            safety.reset_spill_session(token)

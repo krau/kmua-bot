@@ -9,6 +9,7 @@ evicted and shutdown paths close the underlying connections.
 from __future__ import annotations
 
 import re
+import time
 from collections import OrderedDict
 from pathlib import Path
 from typing import Any
@@ -61,6 +62,38 @@ async def close_workspace_agentfs() -> None:
         except Exception:
             pass
     _workspace_agentfs.clear()
+
+
+async def delete_workspace_session(session_key: str) -> None:
+    """Close and delete one session's workspace database."""
+    global _workspace_agentfs
+    agent = _workspace_agentfs.pop(session_key, None)
+    if agent is not None:
+        try:
+            await agent.close()
+        except Exception:
+            pass
+    _session_db_path(session_key).unlink(missing_ok=True)
+
+
+async def cleanup_stale_workspaces(max_age_days: int) -> int:
+    """Delete every workspace database untouched for max_age_days; returns
+    the number removed. max_age_days <= 0 sweeps everything."""
+    if max_age_days < 0:
+        return 0
+    if not WORKSPACE_AGENTFS_DIR.exists():
+        return 0
+    cutoff = time.time() - max_age_days * 86400
+    count = 0
+    for db_path in WORKSPACE_AGENTFS_DIR.glob("*.db"):
+        try:
+            if db_path.stat().st_mtime >= cutoff:
+                continue
+        except OSError:
+            continue
+        await delete_workspace_session(db_path.stem)
+        count += 1
+    return count
 
 
 def _normalize_workspace_path(path: str) -> str:

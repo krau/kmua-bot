@@ -210,6 +210,53 @@ async def test_sandbox_path_escape_rejected(ctx, sandbox_dir):
 # ---- local workspace sweeps (retention) ----
 
 
+async def test_cleanup_stale_sessions_removes_old_only(tmp_path, monkeypatch):
+    monkeypatch.setattr(sandbox, "shell_root_dir", lambda: tmp_path)
+    fresh = tmp_path / "fresh"
+    fresh.mkdir()
+    (fresh / "f.txt").write_text("x")
+    stale = tmp_path / "stale"
+    stale.mkdir()
+    (stale / "f.txt").write_text("x")
+    old = time.time() - 40 * 86400
+    os.utime(stale / "f.txt", (old, old))
+    os.utime(stale, (old, old))
+
+    assert await sandbox.cleanup_stale_sessions(30) == 1
+    assert fresh.exists()
+    assert not stale.exists()
+
+
+async def test_cleanup_stale_workspaces_removes_old_only(tmp_path, monkeypatch):
+    monkeypatch.setattr(workspace, "WORKSPACE_AGENTFS_DIR", tmp_path)
+    (tmp_path / "fresh.db").touch()
+    (tmp_path / "stale.db").touch()
+    old = time.time() - 40 * 86400
+    os.utime(tmp_path / "stale.db", (old, old))
+
+    assert await workspace.cleanup_stale_workspaces(30) == 1
+    assert (tmp_path / "fresh.db").exists()
+    assert not (tmp_path / "stale.db").exists()
+
+
+async def test_delete_workspace_session_closes_and_removes(tmp_path, monkeypatch):
+    monkeypatch.setattr(workspace, "WORKSPACE_AGENTFS_DIR", tmp_path)
+    db_path = tmp_path / "s1.db"
+    db_path.touch()
+    closed = []
+
+    class FakeAgent:
+        async def close(self):
+            closed.append(True)
+
+    workspace._workspace_agentfs["s1"] = FakeAgent()  # type: ignore[assignment]
+    await workspace.delete_workspace_session("s1")
+    assert closed == [True]
+    assert not db_path.exists()
+    assert "s1" not in workspace._workspace_agentfs
+    workspace._workspace_agentfs.clear()
+
+
 async def test_sandbox_symlink_read_rejected(ctx, sandbox_dir, tmp_path):
     """A sandbox symlink pointing outside must not be followed by io."""
     secret = tmp_path / "secret.txt"

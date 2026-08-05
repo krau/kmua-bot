@@ -164,6 +164,23 @@ def delete_spill_session(session: str) -> None:
     shutil.rmtree(target, ignore_errors=True)
 
 
+def clear_all_spills() -> int:
+    """Delete every spilled payload directory (all sessions); returns the
+    number of sessions cleared. For post-upgrade resets."""
+    store = build_tool_output_limits()
+    if store is None or not isinstance(store.store, _SessionScopedOverflowStore):
+        return 0
+    base_dir = store.store._inner.base_dir
+    if base_dir is None or not base_dir.exists():
+        return 0
+    count = 0
+    for child in base_dir.iterdir():
+        if child.is_dir():
+            shutil.rmtree(child, ignore_errors=True)
+            count += 1
+    return count
+
+
 def _clamp_max_part_tokens() -> int:
     """Single-part clamp threshold: a fraction of the context window, so a
     smaller-window model tightens the guard automatically. Falls back to a

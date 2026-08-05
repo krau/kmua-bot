@@ -12,6 +12,7 @@ from __future__ import annotations
 import asyncio
 import os
 import signal
+import time
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -82,6 +83,49 @@ async def clean_session(session_key: str) -> None:
             shutil.rmtree(item, ignore_errors=True)
         else:
             item.unlink(missing_ok=True)
+
+
+def _last_activity_mtime(root: Path) -> float:
+    """Latest mtime anywhere under *root* (a directory's own mtime does not
+    move when an existing file inside it is edited)."""
+    latest = root.stat().st_mtime
+    if not root.is_dir():
+        return latest
+    for item in root.rglob("*"):
+        try:
+            mtime = item.stat().st_mtime
+        except OSError:
+            continue
+        if mtime > latest:
+            latest = mtime
+    return latest
+
+
+async def cleanup_stale_sessions(max_age_days: int) -> int:
+    """Delete every session sandbox untouched for max_age_days; returns the
+    number of directories removed. max_age_days <= 0 sweeps everything."""
+    if max_age_days < 0:
+        return 0
+    root = shell_root_dir()
+    if not root.exists():
+        return 0
+    import shutil
+
+    cutoff = time.time() - max_age_days * 86400
+    count = 0
+    for workdir in root.iterdir():
+        if not workdir.is_dir():
+            continue
+        try:
+            stale = _last_activity_mtime(workdir) < cutoff
+        except OSError:
+            continue
+        if not stale:
+            continue
+        _kill_workdir_processes(workdir)
+        shutil.rmtree(workdir, ignore_errors=True)
+        count += 1
+    return count
 
 
 def _kill_workdir_processes(workdir: Path) -> None:
@@ -164,8 +208,7 @@ def _build_landrun_cmd(command: str, workdir: Path) -> list[str]:
         "-c",
         (
             "ulimit -t 30 -v 262144 -u 16 -f 10240 2>/dev/null; "
-            "ulimit -n 256 2>/dev/null; "
-            + command
+            "ulimit -n 256 2>/dev/null; " + command
         ),
     ]
     return cmd
