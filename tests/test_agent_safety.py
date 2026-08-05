@@ -12,6 +12,7 @@ from __future__ import annotations
 from datetime import timedelta
 from types import SimpleNamespace
 
+import pytest
 from pydantic_ai_harness.guardrails import ToolResultInfo
 
 from kmua.config import app_config
@@ -149,18 +150,19 @@ async def test_read_spill_handle_via_read_tool(tmp_path, monkeypatch):
     from harness internals."""
     monkeypatch.setattr(app_config, "cachedir", tmp_path)
     safety.build_agent_capabilities(_fake_history_processor)
-    from pydantic_ai_harness.tool_output_limits import LocalFileStore
 
     from kmua.plugins.agent.tools import io
 
-    store = LocalFileStore(base_dir=tmp_path / "overflow")
-    handle = await store.write("k", b"line1\nline2\nline3")
-    ctx = SimpleNamespace(deps=SimpleNamespace())
-
-    first = await io.read(ctx, f"spill://{handle}", start_line=1, max_lines=10)
-    assert "line1" in first and "line2" in first
-    paged = await io.read(ctx, f"spill://{handle}", start_line=2, max_lines=10)
-    assert "line2" in paged and "line1" not in paged
+    token = safety.set_spill_session("c_t1")
+    try:
+        handle = await safety._spill_store.write("k", b"line1\nline2\nline3")
+        ctx = SimpleNamespace(deps=SimpleNamespace())
+        first = await io.read(ctx, f"spill://{handle}", start_line=1, max_lines=10)
+        assert "line1" in first and "line2" in first
+        paged = await io.read(ctx, f"spill://{handle}", start_line=2, max_lines=10)
+        assert "line2" in paged and "line1" not in paged
+    finally:
+        safety.reset_spill_session(token)
 
 
 def test_clamp_threshold_scales_with_window(monkeypatch):
@@ -198,18 +200,19 @@ async def test_read_spill_line_cap_matches_read_tool(tmp_path, monkeypatch):
     ceiling (1500), not a smaller internal cap."""
     monkeypatch.setattr(app_config, "cachedir", tmp_path)
     safety.build_agent_capabilities(_fake_history_processor)
-    from pydantic_ai_harness.tool_output_limits import LocalFileStore
 
     from kmua.plugins.agent.tools import io
 
-    store = LocalFileStore(base_dir=tmp_path / "overflow")
-    payload = "\n".join(f"line{i}" for i in range(1, 601)).encode()
-    handle = await store.write("k", payload)
-    ctx = SimpleNamespace(deps=SimpleNamespace())
-
-    result = await io.read(ctx, f"spill://{handle}", start_line=1, max_lines=600)
-    assert "line1" in result and "line600" in result
-    assert result.count("\n") >= 599  # all 600 lines survived
+    token = safety.set_spill_session("c_t2")
+    try:
+        payload = "\n".join(f"line{i}" for i in range(1, 601)).encode()
+        handle = await safety._spill_store.write("k", payload)
+        ctx = SimpleNamespace(deps=SimpleNamespace())
+        result = await io.read(ctx, f"spill://{handle}", start_line=1, max_lines=600)
+        assert "line1" in result and "line600" in result
+        assert result.count("\n") >= 599  # all 600 lines survived
+    finally:
+        safety.reset_spill_session(token)
 
 
 async def test_spill_scoped_to_session(tmp_path, monkeypatch):
@@ -261,3 +264,52 @@ async def test_delete_spill_session_removes_payloads(tmp_path, monkeypatch):
         assert "forget me" not in result
     finally:
         safety.reset_spill_session(token2)
+
+
+async def test_spill_preview_points_to_merged_read_tool(tmp_path, monkeypatch):
+    """End-to-end: an oversized tool return spilled by the real capability
+    must tell the model to use `read(path="spill://<handle>")` - the tool that
+    is actually registered - never the suppressed read_tool_result."""
+    monkeypatch.setattr(app_config, "cachedir", tmp_path)
+    from pydantic_ai import Agent
+    from pydantic_ai.models.test import TestModel
+
+    from kmua.plugins.agent import safety
+
+    def big_output() -> str:
+        return "x" * 12_000
+
+    agent = Agent(
+        TestModel(call_tools=["big_output"]),
+        capabilities=[safety.build_tool_output_limits()],
+        tools=[big_output],
+    )
+    token = safety.set_spill_session("c_preview")
+    try:
+        result = await agent.run("run it")
+    finally:
+        safety.reset_spill_session(token)
+    messages = result.all_messages()
+    preview = ""
+    for msg in messages:
+        for part in msg.parts:
+            if part.part_kind == "tool-return" and part.tool_name == "big_output":
+                preview = str(part.content)
+    assert preview, "spilled tool return not found"
+    assert "spill://" in preview
+    assert 'read(path="spill://' in preview
+    assert "read_tool_result(" not in preview
+
+
+async def test_spill_requires_bound_session(tmp_path, monkeypatch):
+    """Without a bound spill session, reads and writes are refused: no
+    payload may be written or read without an owner."""
+    monkeypatch.setattr(app_config, "cachedir", tmp_path)
+    safety.build_agent_capabilities(_fake_history_processor)
+    from kmua.plugins.agent.tools import io
+
+    with pytest.raises(OSError):
+        await safety._spill_store.write("k", b"data")
+    ctx = SimpleNamespace(deps=SimpleNamespace())
+    result = await io.read(ctx, "spill://any/handle")
+    assert "unavailable" in result

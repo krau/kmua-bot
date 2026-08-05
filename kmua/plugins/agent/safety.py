@@ -84,6 +84,7 @@ def build_tool_output_limits() -> ToolOutputLimits | None:
     """Tool-return reduction for the main agent; None when disabled.
     Returns the silent subclass, so no read_tool_result tool is registered.
     """
+    _patch_spill_preview()
     over = app_config.agent_tool_output_limit
     if over <= 0:
         return None
@@ -119,6 +120,36 @@ class _SilentToolOutputLimits(ToolOutputLimits):
         return None
 
 
+def _patch_spill_preview() -> None:
+    """Point the spill preview's read-back guidance at kmua's merged tool.
+
+    The harness's spill stand-in text says "Read it with
+    read_tool_result(handle=...)"; that tool is not registered (folded into
+    `read` as spill://), so the guidance must name the actual tool or the
+    model would call a nonexistent one. Replaces only the tool-call fragment;
+    if a harness upgrade rewords it, the replacement silently no-ops and the
+    old text returns - re-check on upgrade.
+    """
+    import pydantic_ai_harness.tool_output_limits._capability as cap_mod
+
+    original = cap_mod._build_spill_preview
+    if getattr(original, "_kmua_patched", False):
+        return
+
+    def patched(
+        handle: str, unit: Any, preview_chars: int, *, over_tokens: bool
+    ) -> str:
+        text = original(handle, unit, preview_chars, over_tokens=over_tokens)
+        return text.replace(
+            f"read_tool_result(handle={handle!r}, offset=0, limit=200, "
+            "from_end=False, pattern=None)",
+            f'read(path="spill://{handle}", start_line=1, max_lines=200)',
+        )
+
+    setattr(patched, "_kmua_patched", True)
+    cap_mod._build_spill_preview = patched
+
+
 # Spill payloads follow the conversation lifecycle: written under the current
 # (chat, user) session prefix, unreadable from any other session, deleted by
 # /forget.
@@ -141,8 +172,9 @@ class _SessionScopedOverflowStore:
 
     ``write`` prefixes the harness-generated key with the session, so handles
     carry their session; ``read`` rejects handles outside the current
-    session's prefix. Outside an agent run (no context var) writes stay
-    unscoped.
+    session's prefix. Both require a bound session: unbound access is
+    refused, never unscoped, so no payload can be written or read without an
+    owner.
     """
 
     def __init__(self, inner: LocalFileStore) -> None:
@@ -150,13 +182,15 @@ class _SessionScopedOverflowStore:
 
     async def write(self, key: str, data: bytes) -> str:
         session = _spill_session_ctx.get()
-        if session:
-            key = f"{session}/{key}"
-        return await self._inner.write(key, data)
+        if not session:
+            raise OSError("spill write requires a bound session")
+        return await self._inner.write(f"{session}/{key}", data)
 
     async def read(self, handle: str) -> bytes:
         session = _spill_session_ctx.get()
-        if session and not handle.startswith(f"{session}/"):
+        if not session:
+            raise OSError("spill read requires a bound session")
+        if not handle.startswith(f"{session}/"):
             raise OSError(f"handle {handle!r} is not in this session")
         return await self._inner.read(handle)
 
