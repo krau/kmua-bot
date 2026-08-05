@@ -24,7 +24,13 @@ from kmua.logger import logger
 
 from . import bot, chat, code_repo, datatype, db, web, workspace
 
-_PROTOCOLS = ("kmua://", "work://", "chat://", "memory://", "web://")
+_PROTOCOLS = (
+    "kmua://",
+    "work://",
+    "chat://",
+    "memory://",
+    "web://",
+)
 
 
 def _split_target(path: str) -> tuple[str, str]:
@@ -50,19 +56,19 @@ def _split_target(path: str) -> tuple[str, str]:
 def _require(protocol: str, deps: datatype.ContextDeps) -> str | None:
     """Return an error message when a protocol is disabled, else None."""
     if protocol == "kmua://" and not app_config.agent_code_awareness:
-        return "Error: Codebase access is disabled (agent_code_awareness=false)."
+        return "Error: Codebase access is disabled."
     if protocol == "work://" and not app_config.agent_workspace_enabled:
-        return "Error: Workspace access is disabled (agent_workspace_enabled=false)."
+        return "Error: Workspace access is disabled."
     if protocol == "http" and not (
         "read" in app_config.agent_extra_tools
         or "webfetch" in app_config.agent_extra_tools
     ):
-        return "Error: Web access is disabled (add read to agent_extra_tools)."
+        return "Error: Web access is disabled."
     if protocol == "web://" and not (
         "search" in app_config.agent_extra_tools
         or "websearch" in app_config.agent_extra_tools
     ):
-        return "Error: Web search is disabled (add search to agent_extra_tools)."
+        return "Error: Web search is disabled."
     if protocol == "chat://" and deps.chat_id == deps.user_id:
         return "Error: chat:// is only available in group chats."
     if protocol == "memory://" and not deps.powermemory:
@@ -183,7 +189,7 @@ async def read(
                               — messages from the current group
     - https://example.com     — a web page as markdown/text
 
-    Use start_line/max_lines to page through kmua:// and work:// files
+    Use start_line/max_lines to page through kmua:// and work:// targets
     (1-indexed; max_lines up to 1500).
     """
     if max_lines < 1 or max_lines > 1500:

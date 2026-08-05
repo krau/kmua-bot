@@ -131,7 +131,8 @@ async def record_memory(client: Client, message: pyrogram.types.Message):
             if not last_updated:
                 await memttlcache.set(last_update_key, True, ttl=3600)
                 texts = "\n".join([um.text for um in user_messages])
-                await update_user_memory(memory_agent, texts, user.id)
+                if memory_agent is not None:
+                    await update_user_memory(memory_agent, texts, user.id)
             # 清空记录
             user_messages = []
         await memttlcache.set(

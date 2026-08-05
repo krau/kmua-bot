@@ -2,9 +2,9 @@
 
 ## Project Overview
 
-kmua-bot is a Telegram bot (AGPL-3.0, Python 3.13, Pyrogram/kurigram) with an integrated admin panel: a FastAPI webapp serving a Telegram Mini App built with Vue 3 + TypeScript. The bot and panel share **one process and one asyncio event loop** (uvloop): bot client, uvicorn task, APScheduler jobs, and watchdog monitors all run together. Entry point: `python -m kmua` (v2.x, currently 2.9.0).
+kmua-bot is a Telegram bot (Python 3.13, Pyrogram/kurigram) with an integrated admin panel: a FastAPI webapp serving a Telegram Mini App built with Vue 3 + TypeScript. The bot and panel share **one process and one asyncio event loop** (uvloop): bot client, uvicorn task, APScheduler jobs, and watchdog monitors all run together. Entry point: `python -m kmua`.
 
-Features: group management, quotes, bottles, RSS, link parsing (coolapk/tieba/twitter/wechat), in-chat AI agent (sandboxed shell/io/tg tools), affection system, waifu, wordcloud, chat titles, gifts. All user-facing strings are Chinese.
+Features: group management, quotes, bottles, RSS, link parsing (coolapk/tieba/twitter/wechat), in-chat AI agent (sandboxed shell/io/tg tools), affection system, waifu, wordcloud, chat titles, gifts.
 
 Note: "v2" in branch names is a design generation, not semver-major (README). Breaking changes can land anytime — check commit history.
 
@@ -31,8 +31,6 @@ Note: "v2" in branch names is a design generation, not semver-major (README). Br
 | `alembic/` | DB migrations (`versions/`, linear chain) |
 | `scripts/` | Dev helpers: `dev_server.py` (panel without Telegram), `dev_init_data.py` (signed initData) |
 | `docs/` | mkdocs site (zh, Material theme); `docs/docs/*.md` content |
-| `.dev-notes/` | Agent system prompts + internal webapp design docs (NOT part of docs site) |
-| `.omp/skills/` | `kmua-remote-deploy` — testvps deployment skill |
 
 ## Development Commands
 
@@ -58,8 +56,6 @@ pnpm typecheck / pnpm lint / pnpm lint:fix / pnpm format / pnpm test
 # Docker
 docker compose up -d             # image ghcr.io/krau/kmua-bot:v2; needs settings.toml (token + owner IDs)
 ```
-
-Test-server deployment (file-overwrite into container, health port **8281**, `uv sync --frozen --no-dev` after dep changes): read `.omp/skills/kmua-remote-deploy/SKILL.md` first.
 
 ## Code Conventions & Common Patterns
 
@@ -107,16 +103,3 @@ Test-server deployment (file-overwrite into container, health port **8281**, `uv
 - Docker image pushes on `v2`/`dev` branches (GHCR, amd64 only); docs deploy via mkdocs gh-deploy.
 - System deps for self-host: graphviz (per `docs/docs/self-host.md`); image adds ffmpeg, sqlite3, tini.
 - Panel ports: 8180 local default, **8281 on test server** (remote settings). `/health` must pass before considering a deploy good.
-
-## Testing & QA
-
-- Run: `uv run pytest` (pytest 9 + pytest-asyncio, `asyncio_mode = "auto"`; `testpaths = ["tests"]`). CI does NOT run backend tests — run them locally before pushing.
-- **Environment is the trick**: `tests/conftest.py` sets env vars at import time, before any `kmua` import (temp SQLite via `KMUA_DB_URL`, fake token, `KMUA_WEBAPP=true`, monitors off). Never import kmua in a new top-level conftest.
-- Two tiers:
-  1. **Unit/plugin** (`test_agent_*.py`, `test_wechat.py`, `test_link_parse.py`, `test_twitter.py`, …): import modules directly; fake Telegram clients (`SimpleNamespace` with async methods + `calls` dict) and `httpx.AsyncClient` via `monkeypatch`.
-  2. **API integration** (`test_webapp_*.py`, `test_chat_policy.py`, `test_rss.py`): real FastAPI app over `httpx.ASGITransport` using `tests/webapp_helpers.py` (`api_client()`, `bearer(user_id)`, `make_user`/`make_chat`, `set_owners`, `stub_chat_member_lookup`); real SQLite, schema from session-scoped `initialised_db` fixture (opt in via `pytestmark = pytest.mark.usefixtures("initialised_db")`).
-- State hazards: DB rows persist across tests — use unique numeric ID ranges per file (900_001…, 9100001…), rely on autouse cleaners (`clean_rss`, `clean_policy`), reset monkeypatched module singletons in teardown, close AgentFS files in `finally`.
-- **Patch at import sites**: patch `httpx.AsyncClient` on the module that imported it (e.g. `link_parse.httpx`), patch `kmua.bot.client` (the submodule — `kmua.bot` re-exports the instance so patching the package attr silently fails).
-- API error asserts: `pytest.raises(ApiError)` + `exc.value.code == ErrorCode.X`, or `response.json()["code"]` string codes (`VALIDATION_FAILED`, `OWNER_REQUIRED`, …).
-- `test_webapp_static.py` skips unless the frontend bundle exists (`requires_bundle`; run `pnpm build` in `webapp/` first). No network-dependent tests, no xfails.
-- Conventions: `test_*.py`, `test_<behavior>` names, docstrings pin the contract/regression intent, plain asserts, inline `parametrize`, section-divider comments (`# ---- storage layer`). No coverage gate configured.
