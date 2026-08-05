@@ -40,6 +40,8 @@ from pydantic_ai_harness.tool_output_limits import (
 
 from kmua.config import app_config
 
+from .model_log import ModelActivityLog
+
 _scrub_text_output = for_text(redact_secrets, on_other="allow")
 
 
@@ -179,7 +181,7 @@ def build_agent_capabilities(history_processor: Any) -> list[Any]:
     ``agent_secret_masking`` / ``agent_tool_output_limit`` switches; spill
     mode registers the harness's read_tool_result tool.
     """
-    caps: list[Any] = [ProcessHistory(history_processor)]
+    caps: list[Any] = [ProcessHistory(history_processor), ModelActivityLog()]
     if app_config.agent_secret_masking:
         caps.append(ToolGuardrail(result_guard=scrub_tool_result))
         caps.append(OutputGuardrail(guard=scrub_output))

@@ -30,7 +30,7 @@ def _result_info(result: object) -> ToolResultInfo:
 def test_scrub_tool_result_redacts_credentials():
     result = safety.scrub_tool_result(_result_info(f"token: {_FAKE_KEY}"))
     assert result.action == "replace"
-    assert result.replacement is not None
+    assert isinstance(result.replacement, str)
     assert _FAKE_KEY not in result.replacement
 
 
@@ -56,7 +56,9 @@ def test_scrub_tool_result_disabled(monkeypatch):
 def test_scrub_output_redacts_text_and_skips_structured():
     result = safety.scrub_output(f"here is my {_FAKE_KEY}")
     assert result.action == "replace"
-    assert _FAKE_KEY not in (result.replacement or "")
+    replacement = result.replacement or ""
+    assert isinstance(replacement, str)
+    assert _FAKE_KEY not in replacement
     assert safety.scrub_output(42).action == "allow"
 
 
@@ -93,7 +95,7 @@ def test_build_tool_output_limits_spills_by_default():
 
     assert isinstance(limits.bands[0].action, Spill)
     assert limits.bands[0].action.then is not None
-    assert limits.store is not None
+    assert isinstance(limits.store, safety._SessionScopedOverflowStore)
     # The store is session-scoped; the underlying file store keeps the TTL.
     assert limits.store._inner.base_dir == app_config.cachedir / "overflow"
     assert limits.store._inner.cleanup_after == timedelta(hours=6)
@@ -138,6 +140,7 @@ def test_build_agent_capabilities_follows_switches(monkeypatch):
     kinds = {type(c).__name__ for c in caps}
     assert kinds == {
         "ProcessHistory",
+        "ModelActivityLog",
         "ClampOversizedMessages",
         "WarnNearLimits",
     }
@@ -215,6 +218,7 @@ async def test_spill_preview_names_read_tool_result(tmp_path, monkeypatch):
         return "x" * 12_000
 
     limits = safety.build_tool_output_limits()
+    assert limits is not None
     agent = Agent(
         TestModel(call_tools=["big_output"]),
         capabilities=[limits],
@@ -250,6 +254,7 @@ async def test_spill_preview_names_read_tool_result(tmp_path, monkeypatch):
         def gen_tool_args(self, tool_def):  # noqa: ANN001
             return {"handle": handle, "limit": 3}
 
+    assert limits is not None
     reader = AgentCls(
         _HandleReaderModel(call_tools=["read_tool_result"]),
         capabilities=[limits],

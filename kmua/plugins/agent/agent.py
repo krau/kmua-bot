@@ -19,6 +19,7 @@ from kmua.services import link_parse, manyacg
 
 from . import datatype, myfilter, provider, runner, safety, state, tools, utils
 from .history import compact_history
+from .model_log import ModelActivityLog
 from .prompt import build_ctx_info, get_input_prompt
 from .runner import (
     get_chat_model_override,
@@ -210,6 +211,7 @@ if app_config.agent and app_config.agent_model:
         ),
         output_type=datatype.UserMemoryResult,
         instructions=app_config.agent_memory_prompt,
+        capabilities=[ModelActivityLog()],
         retries=5,
     )
 

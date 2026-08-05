@@ -263,7 +263,7 @@ _compacting_ctx: ContextVar[bool] = ContextVar("kmua_compacting", default=False)
 
 
 async def compact_history(
-    messages: list[ModelMessage],
+    messages: Sequence[ModelMessage],
     model: Model | None,
     deps: object | None = None,
     agent: Any | None = None,

@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from contextlib import asynccontextmanager
 from types import SimpleNamespace
+from typing import cast
 
 from pydantic_ai import ModelMessage
 from pydantic_ai.messages import (
@@ -22,6 +23,7 @@ from pydantic_ai.messages import (
     ToolReturnPart,
     UserPromptPart,
 )
+from pydantic_ai.models import Model, infer_model
 from pydantic_ai.usage import RunUsage
 from pydantic_ai_harness.compaction import TieredCompaction
 from pydantic_graph import End
@@ -110,7 +112,7 @@ async def test_compact_history_preserves_deferred_tail(monkeypatch):
     messages = _messages()
     # "test" is the built-in test model; only the clear tier runs here, so no
     # model request is ever issued (production passes a real Model instance).
-    result = await history.compact_history(messages, "test", deps=None)
+    result = await history.compact_history(messages, infer_model("test"), deps=None)
     assert result != messages  # the old tool return was blanked
     # The deferred call message and the following user message survive verbatim.
     assert result[-2:] == messages[-2:]
@@ -131,7 +133,10 @@ def test_truncate_multimodal_removes_oldest_items():
         )
     ]
     result = history.truncate_multimodal(messages, max_items=1)
-    content = result[0].parts[0].content
+    first_part = result[0].parts[0]
+    assert isinstance(first_part, UserPromptPart)
+    content = first_part.content
+    assert isinstance(content, list)
     placeholders = [c for c in content if c == "[multimodal content removed]"]
     assert len(placeholders) == 1
     assert BinaryContent(data=b"img2", media_type="image/jpeg") in content
@@ -210,7 +215,7 @@ async def test_compact_history_summarizes_in_place(monkeypatch):
     usage = RunUsage()
     result = await history.compact_history(
         messages,
-        model,
+        cast(Model, model),  # model_name-only stand-in; no request is issued
         deps=deps,
         agent=main_agent,  # type: ignore[arg-type]
         usage=usage,
@@ -260,7 +265,7 @@ async def test_compact_history_uses_custom_instruction(monkeypatch):
 
     result = await history.compact_history(
         messages,
-        model,
+        cast(Model, model),  # model_name-only stand-in; no request is issued
         deps=deps,
         agent=main_agent,  # type: ignore[arg-type]
     )
@@ -293,7 +298,7 @@ async def test_compaction_reentrant_call_skips(monkeypatch):
     token = history._compacting_ctx.set(True)
     try:
         messages = _messages()
-        result = await history.compact_history(messages, "test", deps=None)
+        result = await history.compact_history(messages, infer_model("test"), deps=None)
         assert result == messages, "re-entrant call must return unchanged"
     finally:
         history._compacting_ctx.reset(token)
