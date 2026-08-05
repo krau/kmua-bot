@@ -9,7 +9,6 @@ from pydantic_ai import (
     RunContext,
     Tool,
 )
-from pydantic_ai.models import Model
 from pyrogram import filters
 from pyrogram.client import Client as PyrogramClient
 
@@ -77,35 +76,15 @@ def _get_bot_user_wake_lock(user_id: int) -> asyncio.Lock:
     return lock
 
 
-async def _get_compaction_model(chat_id: int) -> Model | None:
-    """The model the chat's next run would use: per-chat override, else the
-    main model. The in-place summary tier compacts with this model so the
-    summary call matches the conversation's model and prompt-cache prefix.
-    """
-    try:
-        override = await runner.get_chat_model_override(chat_id, "main")
-        if override:
-            return provider.make_chat_model(override)
-    except Exception as e:
-        logger.error(
-            f"Failed to resolve compaction model override: {e.__class__.__name__} - {e}"
-        )
-    return model  # the main agent's model; summary_agent was removed with the
-    # in-place compaction (the summary run reuses the conversation's model)
-
-
 async def history_processor(
     ctx: RunContext[datatype.ContextDeps], messages: list[ModelMessage]
 ) -> list[ModelMessage]:
-    # Compaction (pydantic-ai-harness TieredCompaction, see
-    # history.compact_history): preserves deferred tool calls and trims
-    # multimodal content. The summary tier runs in place on the chat's current
-    # model with the same system prompt as the conversation, so the provider
-    # prompt cache is reused. Skipped entirely when disabled in config.
-    # Compaction is pure history rewriting; user-memory extraction is a
-    # separate, independently-triggered mechanism (kmua.plugins.agent.memory).
-    model = await _get_compaction_model(ctx.deps.chat_id)
-    compressed = await compact_history(messages, model, deps=ctx.deps, agent=agent)
+    # Compaction (history.compact_history): runs on the current run's model
+    # with the same system prompt as the conversation, so the provider prompt
+    # cache is reused. Preserves deferred tool calls and trims multimodal
+    # content; skipped entirely when disabled in config. Compaction is pure
+    # history rewriting; user-memory extraction is a separate mechanism.
+    compressed = await compact_history(messages, ctx.model, deps=ctx.deps, agent=agent)
 
     # Cache the compressed history
     await common.memttlcache.set(

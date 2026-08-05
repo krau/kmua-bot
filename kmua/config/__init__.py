@@ -195,22 +195,18 @@ class _AppConfig(pydantic.BaseModel):
     agent_model_multimodal_options: dict[str, Any] = {}
     agent_model_small_options: dict[str, Any] = {}
     agent_struct_model_options: dict[str, Any] = {}
-    # Conversation compaction (pydantic-ai-harness TieredCompaction): when the
-    # loaded history exceeds the compression threshold, cheap passes run first
-    # (clear old tool results) and an LLM summary is only spent if the
-    # conversation still does not fit. The threshold is the model's context
-    # window (agent_context_window_tokens) times the trigger ratio
-    # (agent_context_compress_ratio); 0 window disables compaction.
+    # Conversation compaction: cheap passes first (clear old tool results),
+    # an LLM summary only if the history still does not fit. The threshold is
+    # the model's context window times the trigger ratio; 0 window disables
+    # compaction.
     agent_context_window_tokens: int = 128_000
     agent_context_compress_ratio: float = 0.8
     agent_compaction_keep_messages: int = 20
     agent_compaction_clear_tool_results: bool = True
     agent_compaction_keep_pairs: int = 3
     agent_compaction_summarize: bool = True
-    # Single-part clamp threshold as a fraction of the context window
-    # (agent_context_window_tokens): a runaway response or tool-call payload
-    # larger than this is head/tail-clamped before the next request. Scaling
-    # with the window keeps the guard correct when the model changes.
+    # Single-part clamp threshold as a fraction of the context window; scales
+    # with the window so the guard stays correct when the model changes.
     agent_clamp_max_part_ratio: float = 0.4
     # Instruction for the in-place summary call (runs on the conversation's
     # own model and system prompt; only this wording is customizable).
@@ -334,9 +330,9 @@ class _AppConfig(pydantic.BaseModel):
     agent_whitelist: list[int] = []
     agent_channel_comment_prompt: str = "评论这条频道的帖子"
 
-    # Agent safety (pydantic-ai-harness): mask credentials (API keys, tokens,
-    # private keys) out of tool returns and agent replies before they reach
-    # the model or the chat. User input is deliberately left untouched.
+    # Mask credentials (API keys, tokens, private keys) out of tool returns
+    # and agent replies before they reach the model or the chat. User input
+    # is deliberately left untouched.
     agent_secret_masking: bool = True
     # Tool returns over this many characters are reduced before they persist
     # in history (re-sent on every later model request otherwise). 0 disables.

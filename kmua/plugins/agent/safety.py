@@ -107,36 +107,21 @@ def build_tool_output_limits() -> ToolOutputLimits | None:
 
 @dataclass
 class _SilentToolOutputLimits(ToolOutputLimits):
-    """ToolOutputLimits that does not register its read_tool_result tool.
+    """ToolOutputLimits whose read_tool_result tool is not registered.
 
-    kmua folds spill reading into its own `read` tool (spill:// protocol) so
-    the model faces one tool instead of two. The overflow logic and the spill
-    store stay fully active; only the model-facing tool is suppressed, by
-    overriding the capability protocol hook ``get_toolset()`` to return None
-    (a legal return - the core ToolSearch capability does the same when its
-    corpus is empty).
-
-    WHY a subclass instead of poking at the internals: an earlier version
-    extracted the tool's closure from ``get_toolset().tools[...].function``
-    and monkeypatched ``get_toolset`` on the instance. Both touch harness
-    internals (FunctionToolset layout, instance-attribute shadowing) that can
-    change on any 0.x release. This version depends only on the public
-    capability protocol (``AbstractCapability.get_toolset``) plus the public
-    ``OverflowStore`` protocol, and implements the slice/pattern logic itself.
-    When upgrading pydantic-ai-harness, re-check: (1) ``get_toolset`` is still
-    the tool-registration hook, (2) ``OverflowStore.read`` semantics
-    (handle → bytes, OSError on unknown handle).
+    kmua folds spill reading into its own `read` tool (spill:// protocol).
+    The overflow logic and store stay active; only the model-facing tool is
+    suppressed, via the capability protocol hook ``get_toolset()`` returning
+    None (a legal return, like core ToolSearch with an empty corpus).
     """
 
     def get_toolset(self) -> None:  # type: ignore[override]
         return None
 
 
-# Session binding for spilled payloads: kmua's conversations have no durable
-# session object - the per-(chat, user) history is the session, cleared by
-# /forget. Spilled payloads must follow the same lifecycle: they are written
-# under a session prefix captured from the running agent's context and become
-# unreadable from any other session, and /forget deletes the whole prefix.
+# Spill payloads follow the conversation lifecycle: written under the current
+# (chat, user) session prefix, unreadable from any other session, deleted by
+# /forget.
 _spill_session_ctx: ContextVar[str | None] = ContextVar(
     "kmua_spill_session", default=None
 )
@@ -152,14 +137,12 @@ def reset_spill_session(token: Token[str | None]) -> None:
 
 
 class _SessionScopedOverflowStore:
-    """OverflowStore wrapper that scopes every payload to the current session.
+    """OverflowStore that scopes every payload to the current session.
 
-    ``write`` prefixes the harness-generated key with the session captured
-    from the context var, so handles carry their session; ``read`` rejects any
-    handle that is not under the current session's prefix, so a model in one
-    conversation cannot read another conversation's spilled payload even with
-    a guessed handle. Outside an agent run (no context var) writes stay
-    unscoped, matching the harness behavior.
+    ``write`` prefixes the harness-generated key with the session, so handles
+    carry their session; ``read`` rejects handles outside the current
+    session's prefix. Outside an agent run (no context var) writes stay
+    unscoped.
     """
 
     def __init__(self, inner: LocalFileStore) -> None:
@@ -266,9 +249,9 @@ def get_spill_reader() -> Any | None:
 
 
 def _clamp_max_part_tokens() -> int:
-    """Single-part clamp threshold: a fraction of the model's context window,
-    so switching to a smaller-window model tightens the guard automatically.
-    Falls back to a fixed 50k when the window is unset (compaction disabled)."""
+    """Single-part clamp threshold: a fraction of the context window, so a
+    smaller-window model tightens the guard automatically. Falls back to a
+    fixed 50k when the window is unset (compaction disabled)."""
     window = app_config.agent_context_window_tokens
     if window > 0:
         return max(1, int(window * app_config.agent_clamp_max_part_ratio))
@@ -278,10 +261,9 @@ def _clamp_max_part_tokens() -> int:
 def build_agent_capabilities(history_processor: Any) -> list[Any]:
     """Assemble the main agent's capabilities from config.
 
-    ``ProcessHistory`` is always present (core); the harness safety
-    capabilities follow the ``agent_secret_masking`` /
-    ``agent_tool_output_limit`` switches; the harness tool closure (spill
-    reading) is folded into kmua's ``read`` tool and not registered.
+    ``ProcessHistory`` is always present; the safety capabilities follow the
+    ``agent_secret_masking`` / ``agent_tool_output_limit`` switches; the
+    spill reader is folded into kmua's ``read`` tool, not registered.
     """
     global _spill_store
     caps: list[Any] = [ProcessHistory(history_processor)]

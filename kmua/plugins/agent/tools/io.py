@@ -200,9 +200,8 @@ async def read(
     if start_line < 1:
         raise ModelRetry("start_line must be >= 1")
     if path.startswith("spill://"):
-        # Overflowed tool returns (ToolOutputLimits): read back the original
-        # payload from the spill store by handle, paging with start_line/
-        # max_lines (1-indexed lines, matching the file semantics above).
+        # Read back an overflowed tool return by handle; start_line/max_lines
+        # page through it (1-indexed, same as file targets).
         from kmua.plugins.agent import safety as _safety
 
         reader = _safety.get_spill_reader()

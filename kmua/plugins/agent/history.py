@@ -1,17 +1,12 @@
-"""Conversation-history compaction for the agent.
+"""Conversation-history compaction.
 
-Compaction is delegated to pydantic-ai-harness's ``TieredCompaction``:
-cheap zero-LLM passes first (clear old tool results), an LLM summary last,
-escalating only while the history exceeds ``agent_compaction_target_tokens``.
-The summary model inherits the run's model (the summary agent's).
-
-kmua-specific invariants kept on top of the harness:
-- The pair-complete prefix before the last deferred (unresolved) tool call is
-  the only part compaction may touch; the deferred call and everything after
-  it survive verbatim, so a pending ask_user answer can still resolve.
-- Multimodal content is trimmed to ``agent_multimodal_max_items`` after
-  compaction (the harness counts binary parts as zero tokens and never
-  touches them).
+Compaction delegates to pydantic-ai-harness's TieredCompaction: cheap
+zero-LLM passes first, an LLM summary last, stopping once the history fits
+the compression threshold (window x ratio). Two kmua invariants on top:
+- the pair-complete prefix before the last deferred (unresolved) tool call
+  is the only part compaction may touch (a pending ask_user answer must
+  still resolve);
+- multimodal content is trimmed to agent_multimodal_max_items afterwards.
 """
 
 from __future__ import annotations
@@ -163,26 +158,20 @@ def truncate_multimodal(
 
 @dataclass
 class InPlaceSummarizingCompaction(SummarizingCompaction):
-    """SummarizingCompaction whose summary call reuses the run's own context.
+    """SummarizingCompaction whose summary runs through the main agent itself.
 
-    The harness's ``_summarize`` renders the history into a text prompt and
-    calls a fresh ``Agent`` with a hardcoded generic instruction, so the
-    summary request shares no prompt-cache prefix with the conversation.
-    This subclass instead runs the summary through the main agent itself:
-    the request is built by the agent's own graph from the same system prompt
-    (``ctx.deps.instructions``), the same tool schemas, and the verbatim
-    message history - byte-identical to the conversation's cached prefix -
-    plus the summary instruction (``agent_compaction_summary_instruction``,
-    the one customizable part; the model is always the conversation's own).
-    ``tool_choice='none'`` keeps the tool schemas in the request (cache
-    alignment) while making tool execution impossible. All other mechanisms
-    (incremental anchoring, safe cutoffs, keep_user_messages, receipts,
-    pinning) are inherited unchanged.
+    The summary request is built by the agent's graph from the same system
+    prompt, tool schemas, and verbatim history as the conversation - a
+    byte-identical cache prefix - plus the summary instruction.
+    ``tool_choice='none'`` keeps the tool schemas in the request while making
+    tool execution impossible. Other harness mechanisms (incremental
+    anchoring, safe cutoffs, keep_user_messages, receipts, pinning) are
+    inherited unchanged.
     """
 
     agent: Any = None
-    """The main agent instance; its summary run reproduces the conversation's
-    request shape exactly."""
+    """The main agent; its summary run reproduces the conversation's request
+    shape exactly."""
 
     async def _summarize(
         self,
@@ -265,14 +254,10 @@ def build_compaction_strategy(agent: Any | None = None) -> TieredCompaction | No
     )
 
 
-# Re-entrancy guard, not a mutex: compaction is per-session (each chat's
-# history, summary run, and spills are independent), so concurrent
-# compactions from different chats share no state and must NOT serialize.
-# The only hazard is recursion: the summary run goes through the main agent,
-# whose ProcessHistory calls history_processor -> compact_history again in
-# the SAME task. A task-scoped flag (ContextVar) makes that call skip;
-# without the task scoping, two concurrent compactions would overwrite each
-# other's module-level holder and defeat the check.
+# Re-entrancy guard: the summary run goes through the main agent, whose
+# ProcessHistory would call compact_history again in the same task. The
+# ContextVar scopes the flag per task, so concurrent compactions from
+# different chats stay independent.
 _compacting_ctx: ContextVar[bool] = ContextVar("kmua_compacting", default=False)
 
 

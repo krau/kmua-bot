@@ -109,9 +109,7 @@ async def _iter_with_spill_session(
     usage_limits: Any,
 ):
     """Run agi.iter with the current (chat, user) bound as the spill session,
-    so spilled tool outputs are scoped to this conversation and unreadable
-    from any other. Parameters are explicit (no **kwargs) so type checkers
-    resolve the Agent.iter overload correctly."""
+    so spilled tool outputs are scoped to this conversation."""
     token = safety.set_spill_session(f"{chat_id}_{user_id}")
     try:
         async with agi.iter(
