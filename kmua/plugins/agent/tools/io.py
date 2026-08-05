@@ -375,7 +375,7 @@ async def read(
 async def write(
     ctx: RunContext[datatype.ContextDeps],
     path: str,
-    content: str | None = None,
+    content: str | bytes | None = None,
 ) -> str:
     """Write content to a target. The path is the destination; content is the payload.
 
@@ -422,11 +422,7 @@ async def write(
         return f"Error: content is required for {path} targets."
     try:
         if protocol == "memory://":
-            text = (
-                content
-                if isinstance(content, str)
-                else content.decode("utf-8")
-            )
+            text = content if isinstance(content, str) else content.decode("utf-8")
             return await chat.update_group_memory(ctx, text)
         if protocol == "persist://":
             return await _write_persisted(ctx, rest, content)
@@ -443,11 +439,7 @@ async def write(
     except Exception as e:
         logger.error(f"write error for {path}: {e}")
         return f"Error: {e}"
-    size = (
-        len(content)
-        if isinstance(content, bytes)
-        else len(content.encode("utf-8"))
-    )
+    size = len(content) if isinstance(content, bytes) else len(content.encode("utf-8"))
     return (
         f"Wrote {size} bytes to {path}. "
         f"Use read to verify, or tg sendDocument to share it."
