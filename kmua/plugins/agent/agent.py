@@ -84,7 +84,9 @@ async def history_processor(
     # cache is reused. Preserves deferred tool calls and trims multimodal
     # content; skipped entirely when disabled in config. Compaction is pure
     # history rewriting; user-memory extraction is a separate mechanism.
-    compressed = await compact_history(messages, ctx.model, deps=ctx.deps, agent=agent)
+    compressed = await compact_history(
+        messages, ctx.model, deps=ctx.deps, agent=agent, usage=ctx.usage
+    )
 
     # Cache the compressed history
     await common.memttlcache.set(

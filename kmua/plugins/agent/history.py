@@ -27,6 +27,7 @@ from pydantic_ai.messages import (
 )
 from pydantic_ai.models import Model
 from pydantic_ai.settings import ModelSettings
+from pydantic_ai.usage import RunUsage
 from pydantic_ai_harness.compaction import (
     ClearToolResults,
     SummarizingCompaction,
@@ -266,6 +267,7 @@ async def compact_history(
     model: Model | None,
     deps: object | None = None,
     agent: Any | None = None,
+    usage: RunUsage | None = None,
 ) -> list[ModelMessage]:
     """Compact a conversation history with the configured strategy.
 
@@ -275,8 +277,8 @@ async def compact_history(
     content is trimmed after compaction. ``model`` is the run's model, ``deps``
     carries the run's instructions (the summary run reuses them as its system
     prompt), and ``agent`` is the main agent whose request shape the summary
-    run reproduces for prompt-cache hits. Returns the (possibly unchanged)
-    history.
+    run reproduces for prompt-cache hits, and ``usage`` is the run's RunUsage
+    the summary call is billed to. Returns the (possibly unchanged) history.
     """
     if not messages:
         return []
@@ -298,7 +300,9 @@ async def compact_history(
 
     token = _compacting_ctx.set(True)
     try:
-        compacted = await compact_now(strategy, list(prefix), model=model, deps=deps)
+        compacted = await compact_now(
+            strategy, list(prefix), model=model, deps=deps, usage=usage
+        )
     except Exception as e:
         logger.error(f"compact_history failed: {e.__class__.__name__} - {e}")
         return list(messages)

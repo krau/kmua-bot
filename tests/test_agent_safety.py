@@ -313,3 +313,26 @@ async def test_spill_requires_bound_session(tmp_path, monkeypatch):
     ctx = SimpleNamespace(deps=SimpleNamespace())
     result = await io.read(ctx, "spill://any/handle")
     assert "unavailable" in result
+
+
+def test_build_disabled_skips_patch(monkeypatch):
+    """agent_tool_output_limit=0 must not touch the harness patch at all."""
+    monkeypatch.setattr(app_config, "agent_tool_output_limit", 0)
+
+    def boom():
+        raise ImportError("no harness module")
+
+    monkeypatch.setattr(safety, "_patch_spill_preview", boom)
+    assert safety.build_tool_output_limits() is None
+
+
+def test_build_falls_back_to_truncation_when_patch_fails(monkeypatch):
+    """If the preview cannot be patched, spill is not enabled: a spill whose
+    preview names an unregistered tool would mislead the model."""
+    from pydantic_ai_harness.tool_output_limits import Truncate
+
+    monkeypatch.setattr(safety, "_patch_spill_preview", lambda: False)
+    limits = safety.build_tool_output_limits()
+    assert limits is not None
+    assert isinstance(limits.bands[0].action, Truncate)
+    assert limits.store is None

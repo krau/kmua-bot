@@ -84,12 +84,11 @@ def build_tool_output_limits() -> ToolOutputLimits | None:
     """Tool-return reduction for the main agent; None when disabled.
     Returns the silent subclass, so no read_tool_result tool is registered.
     """
-    _patch_spill_preview()
     over = app_config.agent_tool_output_limit
     if over <= 0:
         return None
     truncate = Truncate(max_chars=app_config.agent_tool_output_max_chars)
-    if app_config.agent_tool_output_spill:
+    if app_config.agent_tool_output_spill and _patch_spill_preview():
         inner = LocalFileStore(
             base_dir=app_config.cachedir / "overflow",
             cleanup_after=timedelta(hours=6),
@@ -97,6 +96,11 @@ def build_tool_output_limits() -> ToolOutputLimits | None:
         store: _SessionScopedOverflowStore | None = _SessionScopedOverflowStore(inner)
         action: Action = Spill(then=truncate)
     else:
+        # Spill requested but the preview cannot be fixed: fall back to
+        # truncation-only rather than hand the model guidance that names an
+        # unregistered tool.
+        if app_config.agent_tool_output_spill:
+            logger.error("spill preview unavailable; falling back to truncation-only")
         store = None
         action = truncate
     return _SilentToolOutputLimits(
@@ -120,7 +124,7 @@ class _SilentToolOutputLimits(ToolOutputLimits):
         return None
 
 
-def _patch_spill_preview() -> None:
+def _patch_spill_preview() -> bool:
     """Point the spill preview's read-back guidance at kmua's merged tool.
 
     The harness's spill stand-in text says "Read it with
@@ -129,25 +133,34 @@ def _patch_spill_preview() -> None:
     model would call a nonexistent one. Replaces only the tool-call fragment;
     if a harness upgrade rewords it, the replacement silently no-ops and the
     old text returns - re-check on upgrade.
+
+    Returns False when the private harness module cannot be patched; the
+    caller then falls back to truncation-only, because a spill whose preview
+    names an unregistered tool would mislead the model.
     """
-    import pydantic_ai_harness.tool_output_limits._capability as cap_mod
+    try:
+        import pydantic_ai_harness.tool_output_limits._capability as cap_mod
 
-    original = cap_mod._build_spill_preview
-    if getattr(original, "_kmua_patched", False):
-        return
+        original = cap_mod._build_spill_preview
+        if getattr(original, "_kmua_patched", False):
+            return True
 
-    def patched(
-        handle: str, unit: Any, preview_chars: int, *, over_tokens: bool
-    ) -> str:
-        text = original(handle, unit, preview_chars, over_tokens=over_tokens)
-        return text.replace(
-            f"read_tool_result(handle={handle!r}, offset=0, limit=200, "
-            "from_end=False, pattern=None)",
-            f'read(path="spill://{handle}", start_line=1, max_lines=200)',
-        )
+        def patched(
+            handle: str, unit: Any, preview_chars: int, *, over_tokens: bool
+        ) -> str:
+            text = original(handle, unit, preview_chars, over_tokens=over_tokens)
+            return text.replace(
+                f"read_tool_result(handle={handle!r}, offset=0, limit=200, "
+                "from_end=False, pattern=None)",
+                f'read(path="spill://{handle}", start_line=1, max_lines=200)',
+            )
 
-    setattr(patched, "_kmua_patched", True)
-    cap_mod._build_spill_preview = patched
+        setattr(patched, "_kmua_patched", True)
+        cap_mod._build_spill_preview = patched
+        return True
+    except Exception as e:
+        logger.error(f"spill preview patch failed: {e.__class__.__name__} - {e}")
+        return False
 
 
 # Spill payloads follow the conversation lifecycle: written under the current

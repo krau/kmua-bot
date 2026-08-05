@@ -22,6 +22,7 @@ from pydantic_ai.messages import (
     ToolReturnPart,
     UserPromptPart,
 )
+from pydantic_ai.usage import RunUsage
 from pydantic_ai_harness.compaction import TieredCompaction
 from pydantic_graph import End
 
@@ -206,15 +207,19 @@ async def test_compact_history_summarizes_in_place(monkeypatch):
         ModelRequest(parts=[UserPromptPart(content="and this")]),
     ]
 
+    usage = RunUsage()
     result = await history.compact_history(
         messages,
         model,
         deps=deps,
         agent=main_agent,  # type: ignore[arg-type]
+        usage=usage,
     )
     assert result != messages
     assert main_agent.kwargs, "summary run was never issued"
     kwargs = main_agent.kwargs
+    # The summary run is billed to the caller's usage, not a throwaway.
+    assert kwargs["usage"] is usage
     # The summarized prefix is sent verbatim, unchanged, as message history.
     assert kwargs["message_history"] == messages[:2]
     # The run's instructions become the summary request's system prompt.
