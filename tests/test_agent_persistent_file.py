@@ -288,3 +288,54 @@ async def test_sandbox_symlink_delete_rejected(ctx, sandbox_dir, tmp_path):
     assert secret.exists()
 
 
+
+
+async def test_cleanup_keeps_workspace_with_fresh_wal(tmp_path, monkeypatch):
+    """WAL mode: writes touch the -wal sidecar, so a workspace written today
+    must not be swept even when its main db file is old."""
+    monkeypatch.setattr(workspace, "WORKSPACE_AGENTFS_DIR", tmp_path)
+    db_path = tmp_path / "active.db"
+    db_path.touch()
+    old = time.time() - 40 * 86400
+    os.utime(db_path, (old, old))
+    (tmp_path / "active.db-wal").touch()  # fresh sidecar = recent write
+
+    assert await workspace.cleanup_stale_workspaces(30) == 0
+    assert db_path.exists()
+
+
+async def test_clear_conversation_session_private_cleans_files(
+    monkeypatch, tmp_path
+):
+    """The shared helper clears workspace files in private chats (used by
+    both /forget and the clear-history button)."""
+    from kmua.plugins.agent import agent as agent_mod
+
+    monkeypatch.setattr(sandbox, "shell_root_dir", lambda: tmp_path)
+    monkeypatch.setattr(workspace, "WORKSPACE_AGENTFS_DIR", tmp_path)
+    (tmp_path / "999.db").touch()
+    workdir = tmp_path / "999"
+    workdir.mkdir()
+    (workdir / "f.txt").write_text("x")
+    await agent_mod.common.memttlcache.set("message_history_with_agent:999:999", b"h")
+
+    await agent_mod._clear_conversation_session(999, 999)
+
+    assert not (tmp_path / "999.db").exists()
+    assert not (workdir / "f.txt").exists()
+    assert await agent_mod.common.memttlcache.get("message_history_with_agent:999:999") is None
+
+
+async def test_clear_conversation_session_group_keeps_files(
+    monkeypatch, tmp_path
+):
+    """Group chats share their sandbox: the helper must not touch files."""
+    from kmua.plugins.agent import agent as agent_mod
+
+    monkeypatch.setattr(sandbox, "shell_root_dir", lambda: tmp_path)
+    monkeypatch.setattr(workspace, "WORKSPACE_AGENTFS_DIR", tmp_path)
+    (tmp_path / "-100.db").touch()
+
+    await agent_mod._clear_conversation_session(-100, 555)
+
+    assert (tmp_path / "-100.db").exists()

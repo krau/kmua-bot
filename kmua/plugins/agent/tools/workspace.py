@@ -86,10 +86,16 @@ async def cleanup_stale_workspaces(max_age_days: int) -> int:
     cutoff = time.time() - max_age_days * 86400
     count = 0
     for db_path in WORKSPACE_AGENTFS_DIR.glob("*.db"):
+        # SQLite WAL: writes touch the -wal sidecar, not the main db file,
+        # so a workspace written today must not look stale by its db mtime.
+        sidecars = [Path(f"{db_path}-wal"), Path(f"{db_path}-shm")]
         try:
-            if db_path.stat().st_mtime >= cutoff:
-                continue
+            latest = max(
+                c.stat().st_mtime for c in [db_path, *sidecars] if c.exists()
+            )
         except OSError:
+            continue
+        if latest >= cutoff:
             continue
         await delete_workspace_session(db_path.stem)
         count += 1

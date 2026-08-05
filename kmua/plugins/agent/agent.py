@@ -99,6 +99,21 @@ async def _clear_memttlcache_prefix(prefix: str) -> int:
     return len(keys)
 
 
+async def _clear_conversation_session(chat_id: int, user_id: int) -> None:
+    """Clear one conversation's agent session: history, ask state, spills,
+    and (private chats only) the session workspace files. Group sandboxes
+    are shared by the whole chat and stay untouched."""
+    await common.memttlcache.delete(state.history_key(chat_id, user_id))
+    await tools.clear_ask_state(chat_id, user_id)
+    safety.delete_spill_session(f"{chat_id}_{user_id}")
+    if chat_id == user_id:
+        from kmua.plugins.agent.tools import workspace as workspace_tools
+        from kmua.services import sandbox
+
+        await sandbox.clean_session(str(user_id))
+        await workspace_tools.delete_workspace_session(str(user_id))
+
+
 def _clear_memstore_prefix(prefix: str) -> int:
     """Delete every memstore key starting with prefix; returns the count."""
     data = common.memstore._data
@@ -324,19 +339,7 @@ if app_config.agent and app_config.agent_model:
             return
         if not is_chat_allowed(chat_id):
             return
-        await common.memttlcache.delete(state.history_key(chat_id, user.id))
-        await tools.clear_ask_state(chat_id, user.id)
-        safety.delete_spill_session(f"{chat_id}_{user.id}")
-        if chat_id == user.id:
-            # Private chat: the session workspace (shell sandbox contents,
-            # workspace database) is user-scoped, so forgetting the
-            # conversation clears it too. Group sandboxes are shared by the
-            # whole chat and stay untouched.
-            from kmua.plugins.agent.tools import workspace as workspace_tools
-            from kmua.services import sandbox
-
-            await sandbox.clean_session(str(user.id))
-            await workspace_tools.delete_workspace_session(str(user.id))
+        await _clear_conversation_session(chat_id, user.id)
         await message.reply_text(
             i18n.t("bot.msg.agent.forgot", locale=user_config.lang)
         )
@@ -413,11 +416,7 @@ if app_config.agent and app_config.agent_model:
         user_config = await database.get_user_config(caller.id)
         lang = user_config.lang
 
-        await common.memttlcache.delete(
-            state.history_key(target_chat_id, target_user_id)
-        )
-        await tools.clear_ask_state(target_chat_id, target_user_id)
-        safety.delete_spill_session(f"{target_chat_id}_{target_user_id}")
+        await _clear_conversation_session(target_chat_id, target_user_id)
 
         await callback_query.answer(
             i18n.t("bot.msg.agent.forgot", locale=lang), show_alert=False
