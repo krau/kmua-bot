@@ -294,7 +294,9 @@ async def compact_history(
 
     deferred_idx = find_deferred_tool_call_index(messages)
     prefix = messages if deferred_idx is None else messages[:deferred_idx]
-    tail: list[ModelMessage] = [] if deferred_idx is None else messages[deferred_idx:]
+    tail: list[ModelMessage] = (
+        [] if deferred_idx is None else list(messages[deferred_idx:])
+    )
     if not prefix:
         return list(messages)
 

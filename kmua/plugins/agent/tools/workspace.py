@@ -9,6 +9,7 @@ evicted and shutdown paths close the underlying connections.
 from __future__ import annotations
 
 import re
+import time
 from collections import OrderedDict
 from pathlib import Path
 from typing import Any
@@ -63,6 +64,46 @@ async def close_workspace_agentfs() -> None:
     _workspace_agentfs.clear()
 
 
+async def delete_workspace_session(session_key: str) -> None:
+    """Close and delete one session's workspace database, WAL sidecars
+    included (a closed SQLite database can still leave -wal/-shm files)."""
+    global _workspace_agentfs
+    agent = _workspace_agentfs.pop(session_key, None)
+    if agent is not None:
+        try:
+            await agent.close()
+        except Exception:
+            pass
+    db_path = _session_db_path(session_key)
+    db_path.unlink(missing_ok=True)
+    Path(f"{db_path}-wal").unlink(missing_ok=True)
+    Path(f"{db_path}-shm").unlink(missing_ok=True)
+
+
+async def cleanup_stale_workspaces(max_age_days: int) -> int:
+    """Delete every workspace database untouched for max_age_days; returns
+    the number removed. max_age_days <= 0 sweeps everything."""
+    if max_age_days < 0:
+        return 0
+    if not WORKSPACE_AGENTFS_DIR.exists():
+        return 0
+    cutoff = time.time() - max_age_days * 86400
+    count = 0
+    for db_path in WORKSPACE_AGENTFS_DIR.glob("*.db"):
+        # SQLite WAL: writes touch the -wal sidecar, not the main db file,
+        # so a workspace written today must not look stale by its db mtime.
+        sidecars = [Path(f"{db_path}-wal"), Path(f"{db_path}-shm")]
+        try:
+            latest = max(c.stat().st_mtime for c in [db_path, *sidecars] if c.exists())
+        except OSError:
+            continue
+        if latest >= cutoff:
+            continue
+        await delete_workspace_session(db_path.stem)
+        count += 1
+    return count
+
+
 def _normalize_workspace_path(path: str) -> str:
     if not path.startswith("/"):
         path = "/" + path
@@ -71,11 +112,14 @@ def _normalize_workspace_path(path: str) -> str:
     return path
 
 
-async def write_file(session_key: str, path: str, content: str) -> None:
+async def write_file(session_key: str, path: str, content: str | bytes) -> None:
     """Write or overwrite a file in the session's workspace. Raises on invalid paths or oversize content."""
     agent = await get_workspace_agentfs(session_key)
     path = _normalize_workspace_path(path)
-    if len(content.encode("utf-8")) > MAX_WORKSPACE_FILE_SIZE:
+    if (
+        len(content.encode("utf-8") if isinstance(content, str) else content)
+        > MAX_WORKSPACE_FILE_SIZE
+    ):
         raise ValueError(f"Content exceeds the {MAX_WORKSPACE_FILE_SIZE} byte limit")
     await agent.fs.write_file(path, content)
 
@@ -169,7 +213,9 @@ async def read_file_bytes(session_key: str, path: str) -> bytes:
     """Return raw file bytes (for send). Raises when missing."""
     agent = await get_workspace_agentfs(session_key)
     path = _normalize_workspace_path(path)
-    raw = await agent.fs.read_file(path)
+    # encoding=None: agentfs returns raw bytes; the default utf-8 decode
+    # would reject non-UTF-8 payloads (binary copies).
+    raw = await agent.fs.read_file(path, encoding=None)
     if isinstance(raw, str):
         raw = raw.encode("utf-8")
     return raw

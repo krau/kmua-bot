@@ -2,6 +2,7 @@ import asyncio
 import random
 
 import pyrogram
+from aiocache import SimpleMemoryCache
 from powermem import AsyncMemory
 from pydantic_ai import (
     Agent,
@@ -75,6 +76,51 @@ def _get_bot_user_wake_lock(user_id: int) -> asyncio.Lock:
         lock = asyncio.Lock()
         _bot_user_wake_locks[user_id] = lock
     return lock
+
+
+async def _clear_memttlcache_prefix(prefix: str) -> int:
+    """Delete every memttlcache key starting with prefix; returns the count.
+
+    The local SimpleMemoryCache exposes its backing dict; the Redis backend
+    is scanned through its client (keys carry the cache namespace), so both
+    setups are cleared.
+    """
+    cache = common.memttlcache.cache
+    if isinstance(cache, SimpleMemoryCache):
+        keys = [key for key in cache._cache if key.startswith(prefix)]
+        for key in keys:
+            await cache.delete(key)
+        return len(keys)
+    namespace = getattr(cache, "namespace", None)
+    pattern = f"{namespace}:{prefix}" if namespace else prefix
+    keys = [key async for key in cache.client.scan_iter(match=f"{pattern}*")]
+    if keys:
+        await cache.client.delete(*keys)
+    return len(keys)
+
+
+async def _clear_conversation_session(chat_id: int, user_id: int) -> None:
+    """Clear one conversation's agent session: history, ask state, spills,
+    and (private chats only) the session workspace files. Group sandboxes
+    are shared by the whole chat and stay untouched."""
+    await common.memttlcache.delete(state.history_key(chat_id, user_id))
+    await tools.clear_ask_state(chat_id, user_id)
+    safety.delete_spill_session(f"{chat_id}_{user_id}")
+    if chat_id == user_id:
+        from kmua.plugins.agent.tools import workspace as workspace_tools
+        from kmua.services import sandbox
+
+        await sandbox.clean_session(str(user_id))
+        await workspace_tools.delete_workspace_session(str(user_id))
+
+
+def _clear_memstore_prefix(prefix: str) -> int:
+    """Delete every memstore key starting with prefix; returns the count."""
+    data = common.memstore._data
+    keys = [key for key in data if key.startswith(prefix)]
+    for key in keys:
+        del data[key]
+    return len(keys)
 
 
 async def history_processor(
@@ -293,11 +339,58 @@ if app_config.agent and app_config.agent_model:
             return
         if not is_chat_allowed(chat_id):
             return
-        await common.memttlcache.delete(state.history_key(chat_id, user.id))
-        await tools.clear_ask_state(chat_id, user.id)
-        safety.delete_spill_session(f"{chat_id}_{user.id}")
+        await _clear_conversation_session(chat_id, user.id)
         await message.reply_text(
             i18n.t("bot.msg.agent.forgot", locale=user_config.lang)
+        )
+
+    @PyrogramClient.on_message(pyrogram.filters.command("clear_sessions"), group=0)
+    async def clear_sessions_command(
+        client: PyrogramClient, message: pyrogram.types.Message
+    ):
+        """Owner-only: wipe every agent conversation session (history,
+        pending asks, waiting flags, spilled payloads) for post-upgrade
+        resets. Requires an explicit `confirm` argument."""
+        if not app_config.agent:
+            return
+        user = message.from_user
+        if not user or not user.id:
+            return
+        db_user = await database.get_user_by_id(user.id)
+        if not db_user:
+            return
+        if not db_user.is_bot_global_admin and user.id not in app_config.owners:
+            return
+        raw_args = message.text.split() if message.text else []
+        if len(raw_args) < 2 or raw_args[1] != "confirm":
+            await message.reply_text(
+                "This clears every agent conversation (histories, pending "
+                "questions, waiting states, stored overflow data) and "
+                "cannot be undone. Run /clear_sessions confirm to proceed."
+            )
+            return
+        histories = await _clear_memttlcache_prefix("message_history_with_agent:")
+        waits = _clear_memstore_prefix("agent_waiting:")
+        asks = _clear_memstore_prefix("agent_ask_state:")
+        spills = safety.clear_all_spills()
+        from kmua.plugins.agent.tools import workspace as workspace_tools
+        from kmua.services import sandbox
+
+        shells = await sandbox.cleanup_stale_sessions(0)
+        workspaces = await workspace_tools.cleanup_stale_workspaces(0)
+        from kmua.database import persistent_file as persistent_file_db
+
+        persisted = await persistent_file_db.delete_all_persistent_files()
+        logger.info(
+            f"All agent sessions cleared by {user.id}: "
+            f"histories={histories} waits={waits} asks={asks} spills={spills} "
+            f"shells={shells} workspaces={workspaces} persisted={persisted}"
+        )
+        await message.reply_text(
+            f"Cleared {histories} conversation histories, {asks} pending "
+            f"questions, {spills} stored overflow entries, {shells} shell "
+            f"workspaces, {workspaces} workspace databases, {persisted} "
+            f"persisted files (chat messages stay)."
         )
 
     @PyrogramClient.on_callback_query(
@@ -323,11 +416,7 @@ if app_config.agent and app_config.agent_model:
         user_config = await database.get_user_config(caller.id)
         lang = user_config.lang
 
-        await common.memttlcache.delete(
-            state.history_key(target_chat_id, target_user_id)
-        )
-        await tools.clear_ask_state(target_chat_id, target_user_id)
-        safety.delete_spill_session(f"{target_chat_id}_{target_user_id}")
+        await _clear_conversation_session(target_chat_id, target_user_id)
 
         await callback_query.answer(
             i18n.t("bot.msg.agent.forgot", locale=lang), show_alert=False

@@ -1,4 +1,4 @@
-"""Shell tool: landlock sandboxed execution with work:// staging/export."""
+"""Shell tool: landlock sandboxed execution with work:// staging."""
 
 from __future__ import annotations
 
@@ -13,15 +13,20 @@ from kmua.services import sandbox
 
 
 def _ctx():
-    return SimpleNamespace(
-        deps=SimpleNamespace(
-            client=SimpleNamespace(),
-            chat_id=-100_123,
+    from pydantic_ai import RunContext, RunUsage
+    from pydantic_ai.models.test import TestModel
+
+    from kmua.plugins.agent import datatype
+
+    return RunContext(
+        deps=datatype.ContextDeps(
+            client=SimpleNamespace(),  # type: ignore[arg-type]
             user_id=1001,
-            message=SimpleNamespace(id=7, guest_query_id=None),
-            is_guest_mode=False,
-            tools_called_this_turn=set(),
-        )
+            chat_id=-100_123,
+            message=SimpleNamespace(id=7, guest_query_id=None),  # type: ignore[arg-type]
+        ),
+        model=TestModel(),
+        usage=RunUsage(),
     )
 
 
@@ -98,29 +103,6 @@ async def test_shell_stages_work_files(fake_landrun, monkeypatch):
     assert "staged" in result
 
 
-async def test_shell_exports_work_files(fake_landrun, monkeypatch):
-    """Export copies the produced basename back into the workspace."""
-    from kmua.plugins.agent.tools import workspace
-
-    session_key = io_tools._session_key(_ctx())
-    written = {}
-
-    async def fake_write_bytes(key, path, data):
-        written[(key, path)] = data
-
-    monkeypatch.setattr(workspace, "write_file_bytes", fake_write_bytes)
-    result = await shell_tool.shell(
-        _ctx(), "echo data > out.txt", export=["work://out/out.txt"]
-    )
-    assert "Exported 1 file(s)" in result
-    assert written[(session_key, "/out/out.txt")] == b"data\n"
-
-
-async def test_shell_export_missing_file(fake_landrun):
-    result = await shell_tool.shell(_ctx(), "echo x", export=["work://o/nope.txt"])
-    assert "was not produced" in result
-
-
 async def test_shell_stage_missing_workspace_file(fake_landrun, monkeypatch):
     from kmua.plugins.agent.tools import workspace
 
@@ -146,14 +128,15 @@ async def test_shell_prepare_gates(fake_landrun, monkeypatch):
     from kmua.plugins.agent import datatype
 
     deps = datatype.ContextDeps(
-        client=SimpleNamespace(),
+        client=SimpleNamespace(),  # type: ignore[arg-type]
         user_id=1001,
         chat_id=-100123,
-        message=SimpleNamespace(id=1, guest_query_id=None),
+        message=SimpleNamespace(id=1, guest_query_id=None),  # type: ignore[arg-type]
     )
-    ctx = RunContext(
-        deps=deps, model=SimpleNamespace(), usage=SimpleNamespace(), messages=[]
-    )
+    from pydantic_ai import RunUsage
+    from pydantic_ai.models.test import TestModel
+
+    ctx = RunContext(deps=deps, model=TestModel(), usage=RunUsage())
     td = pai_tools.ToolDefinition(
         name="shell", description="", parameters_json_schema={}
     )
@@ -204,23 +187,6 @@ async def test_shell_files_alias_renames(fake_landrun, monkeypatch):
     assert result is not None  # command ran; alias landed as myrun.py
 
 
-async def test_shell_export_alias_source(fake_landrun, monkeypatch):
-    """export work://dst:source copies ./source into the workspace."""
-    from kmua.plugins.agent.tools import workspace
-
-    written = {}
-
-    async def fake_write_bytes(key, path, data):
-        written[(key, path)] = data
-
-    monkeypatch.setattr(workspace, "write_file_bytes", fake_write_bytes)
-    result = await shell_tool.shell(
-        _ctx(), "echo zz > data.json", export=["work://out/result.json:data.json"]
-    )
-    assert "Exported 1 file(s)" in result
-    assert written[("-100123", "/out/result.json")] == b"zz\n"
-
-
 async def test_shell_clean_removes_leftovers(fake_landrun, monkeypatch):
     """clean=true starts from an empty sandbox (except kmua link and tmp)."""
 
@@ -240,25 +206,6 @@ async def test_shell_clean_removes_leftovers(fake_landrun, monkeypatch):
     assert "old.txt" not in leftovers
     assert "tmp" in leftovers
     assert "kmua" in leftovers
-
-
-async def test_shell_export_rejects_symlink_escape(fake_landrun, monkeypatch):
-    """A symlink pointing outside the sandbox must not be followed."""
-    from kmua.plugins.agent.tools import workspace
-
-    session_key = io_tools._session_key(_ctx())
-    workdir = sandbox.session_shell_dir(session_key)
-    workdir.mkdir(parents=True, exist_ok=True)
-    (workdir / "leak.txt").symlink_to("/etc/passwd")
-    written = {}
-
-    async def fake_write_bytes(key, path, data):
-        written[(key, path)] = data
-
-    monkeypatch.setattr(workspace, "write_file_bytes", fake_write_bytes)
-    result = await shell_tool.shell(_ctx(), "ls", export=["work://out/leak.txt"])
-    assert "was not produced" in result
-    assert written == {}
 
 
 async def test_shell_stage_replaces_symlink(fake_landrun, monkeypatch):
