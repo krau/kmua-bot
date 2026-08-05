@@ -14,6 +14,64 @@ from kmua.database.db import with_session, with_tx
 from kmua.database.models import AgentPersistentFile
 
 
+def _upsert_stmt(values: dict, dialect: str):
+    """A dialect-correct atomic upsert statement for (chat_id, name).
+
+    SQLite and PostgreSQL use ON CONFLICT DO UPDATE, MySQL uses ON DUP
+    KEY UPDATE; anything else is rejected rather than guessed, so a
+    misconfigured backend fails loudly before any document is sent.
+    """
+    if dialect == "sqlite":
+        from sqlalchemy.dialects.sqlite import insert as sqlite_insert
+
+        stmt = sqlite_insert(AgentPersistentFile).values(**values)
+        return stmt.on_conflict_do_update(
+            index_elements=["chat_id", "name"],
+            set_={
+                "description": values["description"],
+                "tg_message_id": values["tg_message_id"],
+                "file_id": values["file_id"],
+                "file_unique_id": values["file_unique_id"],
+                "file_name": values["file_name"],
+                "mime_type": values["mime_type"],
+                "file_size": values["file_size"],
+                "updated_at": sqlalchemy.func.now(),
+            },
+        )
+    if dialect == "postgresql":
+        from sqlalchemy.dialects.postgresql import insert as pg_insert
+
+        stmt = pg_insert(AgentPersistentFile).values(**values)
+        return stmt.on_conflict_do_update(
+            index_elements=["chat_id", "name"],
+            set_={
+                "description": values["description"],
+                "tg_message_id": values["tg_message_id"],
+                "file_id": values["file_id"],
+                "file_unique_id": values["file_unique_id"],
+                "file_name": values["file_name"],
+                "mime_type": values["mime_type"],
+                "file_size": values["file_size"],
+                "updated_at": sqlalchemy.func.now(),
+            },
+        )
+    if dialect == "mysql":
+        from sqlalchemy.dialects.mysql import insert as mysql_insert
+
+        stmt = mysql_insert(AgentPersistentFile).values(**values)
+        return stmt.on_duplicate_key_update(
+            description=values["description"],
+            tg_message_id=values["tg_message_id"],
+            file_id=values["file_id"],
+            file_unique_id=values["file_unique_id"],
+            file_name=values["file_name"],
+            mime_type=values["mime_type"],
+            file_size=values["file_size"],
+            updated_at=sqlalchemy.func.now(),
+        )
+    raise ValueError(f"Unsupported database dialect for persisted files: {dialect}")
+
+
 @with_tx
 async def upsert_persistent_file(
     chat_id: int,
@@ -45,28 +103,7 @@ async def upsert_persistent_file(
         "mime_type": mime_type,
         "file_size": file_size,
     }
-    dialect = session.get_bind().dialect.name
-    if dialect == "sqlite":
-        from sqlalchemy.dialects.sqlite import insert as sqlite_insert
-
-        stmt = sqlite_insert(AgentPersistentFile).values(**values)
-    else:
-        from sqlalchemy.dialects.postgresql import insert as pg_insert
-
-        stmt = pg_insert(AgentPersistentFile).values(**values)
-    stmt = stmt.on_conflict_do_update(
-        index_elements=["chat_id", "name"],
-        set_={
-            "description": description,
-            "tg_message_id": tg_message_id,
-            "file_id": file_id,
-            "file_unique_id": file_unique_id,
-            "file_name": file_name,
-            "mime_type": mime_type,
-            "file_size": file_size,
-            "updated_at": sqlalchemy.func.now(),
-        },
-    )
+    stmt = _upsert_stmt(values, session.get_bind().dialect.name)
     await session.execute(stmt)
     await session.flush()
     record = (

@@ -288,8 +288,6 @@ async def test_sandbox_symlink_delete_rejected(ctx, sandbox_dir, tmp_path):
     assert secret.exists()
 
 
-
-
 async def test_cleanup_keeps_workspace_with_fresh_wal(tmp_path, monkeypatch):
     """WAL mode: writes touch the -wal sidecar, so a workspace written today
     must not be swept even when its main db file is old."""
@@ -304,9 +302,7 @@ async def test_cleanup_keeps_workspace_with_fresh_wal(tmp_path, monkeypatch):
     assert db_path.exists()
 
 
-async def test_clear_conversation_session_private_cleans_files(
-    monkeypatch, tmp_path
-):
+async def test_clear_conversation_session_private_cleans_files(monkeypatch, tmp_path):
     """The shared helper clears workspace files in private chats (used by
     both /forget and the clear-history button)."""
     from kmua.plugins.agent import agent as agent_mod
@@ -323,12 +319,13 @@ async def test_clear_conversation_session_private_cleans_files(
 
     assert not (tmp_path / "999.db").exists()
     assert not (workdir / "f.txt").exists()
-    assert await agent_mod.common.memttlcache.get("message_history_with_agent:999:999") is None
+    assert (
+        await agent_mod.common.memttlcache.get("message_history_with_agent:999:999")
+        is None
+    )
 
 
-async def test_clear_conversation_session_group_keeps_files(
-    monkeypatch, tmp_path
-):
+async def test_clear_conversation_session_group_keeps_files(monkeypatch, tmp_path):
     """Group chats share their sandbox: the helper must not touch files."""
     from kmua.plugins.agent import agent as agent_mod
 
@@ -339,3 +336,52 @@ async def test_clear_conversation_session_group_keeps_files(
     await agent_mod._clear_conversation_session(-100, 555)
 
     assert (tmp_path / "-100.db").exists()
+
+
+def test_upsert_stmt_supports_all_supported_dialects():
+    """SQLite, PostgreSQL and MySQL must each compile their own upsert; an
+    unknown dialect is rejected instead of guessing."""
+    from sqlalchemy.dialects import mysql, postgresql, sqlite
+
+    values = {
+        "chat_id": -1,
+        "name": "n",
+        "description": None,
+        "tg_message_id": 1,
+        "file_id": "f",
+        "file_unique_id": "fu",
+        "file_name": None,
+        "mime_type": None,
+        "file_size": None,
+    }
+    sql = str(pf._upsert_stmt(values, "sqlite").compile(dialect=sqlite.dialect()))
+    assert "ON CONFLICT" in sql
+    sql = str(
+        pf._upsert_stmt(values, "postgresql").compile(dialect=postgresql.dialect())
+    )
+    assert "ON CONFLICT" in sql
+    sql = str(pf._upsert_stmt(values, "mysql").compile(dialect=mysql.dialect()))
+    assert "ON DUPLICATE KEY UPDATE" in sql
+    with pytest.raises(ValueError):
+        pf._upsert_stmt(values, "oracle")
+
+
+async def test_delete_workspace_session_removes_wal_sidecars(tmp_path, monkeypatch):
+    from pathlib import Path
+
+    monkeypatch.setattr(workspace, "WORKSPACE_AGENTFS_DIR", tmp_path)
+    db_path = tmp_path / "s1.db"
+    for suffix in ("", "-wal", "-shm"):
+        Path(f"{db_path}{suffix}").touch()
+    closed = []
+
+    class FakeAgent:
+        async def close(self):
+            closed.append(True)
+
+    workspace._workspace_agentfs["s1"] = FakeAgent()  # type: ignore[assignment]
+    await workspace.delete_workspace_session("s1")
+    assert closed == [True]
+    for suffix in ("", "-wal", "-shm"):
+        assert not Path(f"{db_path}{suffix}").exists()
+    workspace._workspace_agentfs.clear()

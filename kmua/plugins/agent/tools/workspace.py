@@ -65,7 +65,8 @@ async def close_workspace_agentfs() -> None:
 
 
 async def delete_workspace_session(session_key: str) -> None:
-    """Close and delete one session's workspace database."""
+    """Close and delete one session's workspace database, WAL sidecars
+    included (a closed SQLite database can still leave -wal/-shm files)."""
     global _workspace_agentfs
     agent = _workspace_agentfs.pop(session_key, None)
     if agent is not None:
@@ -73,7 +74,10 @@ async def delete_workspace_session(session_key: str) -> None:
             await agent.close()
         except Exception:
             pass
-    _session_db_path(session_key).unlink(missing_ok=True)
+    db_path = _session_db_path(session_key)
+    db_path.unlink(missing_ok=True)
+    Path(f"{db_path}-wal").unlink(missing_ok=True)
+    Path(f"{db_path}-shm").unlink(missing_ok=True)
 
 
 async def cleanup_stale_workspaces(max_age_days: int) -> int:
@@ -90,9 +94,7 @@ async def cleanup_stale_workspaces(max_age_days: int) -> int:
         # so a workspace written today must not look stale by its db mtime.
         sidecars = [Path(f"{db_path}-wal"), Path(f"{db_path}-shm")]
         try:
-            latest = max(
-                c.stat().st_mtime for c in [db_path, *sidecars] if c.exists()
-            )
+            latest = max(c.stat().st_mtime for c in [db_path, *sidecars] if c.exists())
         except OSError:
             continue
         if latest >= cutoff:
