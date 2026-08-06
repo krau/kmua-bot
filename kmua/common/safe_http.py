@@ -80,6 +80,20 @@ async def safe_download_bytes(
                         request=resp.request,
                         response=resp,
                     )
+                # First layer: the declared Content-Length, when present.
+                # Malformed or absent headers fall through to the streaming
+                # count below (which is the authoritative second layer and
+                # also covers servers that under-declare).
+                content_length = resp.headers.get("content-length")
+                if content_length is not None:
+                    try:
+                        declared = int(content_length)
+                    except ValueError:
+                        declared = None
+                    if declared is not None and declared > max_bytes:
+                        raise httpx.HTTPError(
+                            f"Content exceeds {max_bytes} bytes: {current}"
+                        )
                 chunks: list[bytes] = []
                 total = 0
                 async for chunk in resp.aiter_bytes():

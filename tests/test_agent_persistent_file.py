@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import os
 import time
 from types import SimpleNamespace
@@ -16,6 +17,14 @@ from kmua.plugins.agent.tools import io, workspace
 from kmua.services import sandbox
 
 pytestmark = pytest.mark.usefixtures("initialised_db")
+
+
+@pytest.fixture(autouse=True)
+async def _close_agentfs():
+    """agentfs keeps SQLite connections bound to the loop that opened them;
+    close per test so a later test's new loop never reuses them."""
+    yield
+    await workspace.close_workspace_agentfs()
 
 
 @pytest.fixture
@@ -40,8 +49,7 @@ def sandbox_dir(tmp_path, monkeypatch):
     return workdir
 
 
-def _fake_client(monkeypatch, sent=None, file_chunks=None):
-    import importlib
+def _fake_client(sent=None, file_chunks=None):
 
     class FakeClient:
         def __init__(self):
@@ -61,10 +69,7 @@ def _fake_client(monkeypatch, sent=None, file_chunks=None):
 
             return gen()
 
-    fake = FakeClient()
-    client_mod = importlib.import_module("kmua.bot.client")
-    monkeypatch.setattr(client_mod, "client", fake)
-    return fake
+    return FakeClient()
 
 
 # ---- persist:// write / read / list / delete ----
@@ -85,7 +90,8 @@ def _sent_message(file_id="tg_fid", name="report.txt"):
 
 async def test_write_persist_sends_document_and_records(ctx, monkeypatch):
     sent = _sent_message()
-    fake = _fake_client(monkeypatch, sent=sent)
+    fake = _fake_client(sent=sent)
+    ctx.deps.client = fake
 
     result = await io.write(ctx, "persist://report.txt", "hello world")
     assert "Persisted report.txt" in result
@@ -101,7 +107,8 @@ async def test_write_persist_sends_document_and_records(ctx, monkeypatch):
 async def test_write_persist_reference_keeps_bytes(ctx, monkeypatch, sandbox_dir):
     """A sandbox:// reference payload is persisted as raw bytes, not text."""
     sent = _sent_message()
-    fake = _fake_client(monkeypatch, sent=sent)
+    fake = _fake_client(sent=sent)
+    ctx.deps.client = fake
     (sandbox_dir / "data.bin").write_bytes(b"\x00\x01binary")
 
     result = await io.write(ctx, "persist://data.bin", "sandbox://data.bin")
@@ -112,7 +119,8 @@ async def test_write_persist_reference_keeps_bytes(ctx, monkeypatch, sandbox_dir
 
 
 async def test_write_persist_overwrites_same_name(ctx, monkeypatch):
-    _fake_client(monkeypatch, sent=_sent_message(file_id="fid2"))
+    fake = _fake_client(sent=_sent_message(file_id="fid2"))
+    ctx.deps.client = fake
     await io.write(ctx, "persist://report.txt", "v1")
     await io.write(ctx, "persist://report.txt", "v2")
     record = await pf.get_persistent_file(-100123, "report.txt")
@@ -122,7 +130,8 @@ async def test_write_persist_overwrites_same_name(ctx, monkeypatch):
 
 
 async def test_read_persist_downloads_and_pages(ctx, monkeypatch):
-    _fake_client(monkeypatch, file_chunks=[b"line1\nline2\nline3"])
+    fake = _fake_client(file_chunks=[b"line1\nline2\nline3"])
+    ctx.deps.client = fake
     await pf.upsert_persistent_file(
         -100123, "notes", None, 1, "tg_fid", "tg_fuid", None, None, 17
     )
@@ -157,7 +166,8 @@ async def test_delete_persist_keeps_chat_message(ctx):
 
 
 async def test_persist_scope_isolated_between_chats(ctx, monkeypatch):
-    _fake_client(monkeypatch, sent=_sent_message())
+    fake = _fake_client(sent=_sent_message())
+    ctx.deps.client = fake
     await io.write(ctx, "persist://report.txt", "x")
     # Another chat cannot read or list this chat's files.
     other = RunContext(
@@ -385,3 +395,321 @@ async def test_delete_workspace_session_removes_wal_sidecars(tmp_path, monkeypat
     for suffix in ("", "-wal", "-shm"):
         assert not Path(f"{db_path}{suffix}").exists()
     workspace._workspace_agentfs.clear()
+
+
+# ---- chat://media protocol (download a chat message's media) ----
+
+
+def _tg_client(message=None, media_data=b"filedata"):
+
+    class FakeMessage:
+        media = True
+        document = SimpleNamespace(file_size=len(media_data))
+
+    if message is None:
+        message = FakeMessage()
+
+    class FakeClient:
+        def __init__(self):
+            self.downloaded = []
+            self.sent = None
+            self.sent_kwargs = None
+
+        async def get_messages(self, chat_id, msg_id):
+            assert chat_id == -100123, "must be scoped to the current chat"
+            return message
+
+        async def download_media(self, message, in_memory=True):
+            self.downloaded.append(message)
+            from io import BytesIO
+
+            return BytesIO(media_data)
+
+        async def send_document(self, chat_id, **kwargs):
+            self.sent = chat_id
+            self.sent_kwargs = kwargs
+            return _sent_message()
+
+    return FakeClient()
+
+
+async def test_write_tg_reference_downloads_into_workspace(ctx, monkeypatch):
+    fake = _tg_client(media_data=b"tg-content")
+    ctx.deps.client = fake
+    result = await io.write(ctx, "work://dl.txt", "chat://media/123")
+    assert "Wrote 10 bytes" in result
+    assert await workspace.read_file_bytes("-100123", "/dl.txt") == b"tg-content"
+
+
+async def test_write_tg_reference_into_sandbox(ctx, monkeypatch, sandbox_dir):
+    fake = _tg_client(media_data=b"sandbox-data")
+    ctx.deps.client = fake
+    result = await io.write(ctx, "sandbox://dl.bin", "chat://media/123")
+    assert "Wrote" in result
+    assert (sandbox_dir / "dl.bin").read_bytes() == b"sandbox-data"
+
+
+async def test_write_tg_reference_persists(ctx, monkeypatch):
+    fake = _tg_client(media_data=b"persist-me")
+    ctx.deps.client = fake
+    result = await io.write(ctx, "persist://dl.txt", "chat://media/123")
+    assert "Persisted dl.txt" in result
+    assert fake.sent_kwargs is not None
+    assert fake.sent_kwargs["document"].getvalue() == b"persist-me"
+
+
+async def test_tg_reference_rejects_non_numeric_id(ctx, monkeypatch):
+    result = await io.write(ctx, "work://x", "chat://media/abc")
+    assert "expected a message id" in result
+
+
+async def test_tg_reference_rejects_message_without_media(ctx, monkeypatch):
+    fake = _tg_client(message=SimpleNamespace(media=False))
+    ctx.deps.client = fake
+    result = await io.write(ctx, "work://x", "chat://media/123")
+    assert "no downloadable media" in result
+
+
+async def test_tg_reference_rejects_oversize_before_download(ctx, monkeypatch):
+    """The size cap is checked from the message metadata before downloading."""
+    from kmua.config import app_config
+
+    big = SimpleNamespace(media=True, document=SimpleNamespace(file_size=30_000_000))
+    fake = _tg_client(message=big)
+    ctx.deps.client = fake
+    monkeypatch.setattr(app_config, "agent_download_max_bytes", 20_000_000)
+    result = await io.write(ctx, "work://x", "chat://media/123")
+    assert "over the 20000000 byte download limit" in result
+    assert fake.downloaded == []
+
+
+async def test_read_tg_reference_returns_text_content(ctx, monkeypatch):
+    fake = _tg_client(media_data=b"line1\nline2\nline3")
+    ctx.deps.client = fake
+    result = await io.read(ctx, "chat://media/123", start_line=2, max_lines=5)
+    assert result == "line2\nline3"
+
+
+# ---- https://t.me links (public Telegram media) ----
+
+
+def _tg_public_client(media_data=b"public-data"):
+
+    class FakeChat:
+        id = -100123456789
+
+    class FakeMessage:
+        media = True
+        document = SimpleNamespace(file_size=len(media_data))
+
+    class FakeClient:
+        def __init__(self):
+            self.downloaded = []
+
+        async def get_chat(self, ref):
+            assert ref == "MoreACG"
+            return FakeChat()
+
+        async def get_messages(self, chat_id, msg_id):
+            self.last_chat = chat_id
+            assert msg_id == 27411
+            return FakeMessage()
+
+        async def download_media(self, message, in_memory=True):
+            self.downloaded.append(message)
+            from io import BytesIO
+
+            return BytesIO(media_data)
+
+    return FakeClient()
+
+
+async def test_write_tg_link_downloads_public_media(ctx, monkeypatch):
+    fake = _tg_public_client(media_data=b"public-data")
+    ctx.deps.client = fake
+    result = await io.write(ctx, "work://dl.txt", "https://t.me/MoreACG/27411")
+    assert "Wrote" in result
+    assert await workspace.read_file_bytes("-100123", "/dl.txt") == b"public-data"
+    assert fake.last_chat == -100123456789
+
+
+async def test_tme_link_telegram_me_host(ctx, monkeypatch):
+    fake = _tg_public_client()
+    ctx.deps.client = fake
+    result = await io.write(ctx, "sandbox://x", "https://telegram.me/MoreACG/27411")
+    assert "Wrote" in result
+
+
+async def test_tme_link_invalid_format(ctx, monkeypatch):
+    result = await io.write(ctx, "work://x", "https://t.me/MoreACG")
+    assert "Not a t.me message link" in result
+
+
+async def test_read_tg_link_returns_text(ctx, monkeypatch):
+    fake = _tg_public_client(media_data=b"a\nb\nc")
+    ctx.deps.client = fake
+    result = await io.read(ctx, "https://t.me/MoreACG/27411", start_line=2, max_lines=5)
+    assert result == "b\nc"
+
+
+# ---- https direct-file links (write references) ----
+
+
+async def test_http_reference_downloads_direct_link(ctx, monkeypatch):
+    """A plain https file link is downloaded through the SSRF-guarded
+    downloader with the configured size cap."""
+    from kmua.config import app_config
+    from kmua.plugins.agent.tools import io as io_mod
+
+    captured = {}
+
+    async def fake_download(url, max_bytes):
+        captured["url"] = url
+        captured["max_bytes"] = max_bytes
+        return b"direct-file-data"
+
+    monkeypatch.setattr(io_mod, "safe_download_bytes", fake_download)
+    monkeypatch.setattr(
+        io_mod,
+        "UnsafeUrlError",
+        __import__("kmua.common.safe_http", fromlist=["UnsafeUrlError"]).UnsafeUrlError,
+    )
+    monkeypatch.setattr(app_config, "agent_download_max_bytes", 5_000_000)
+
+    result = await io.write(ctx, "work://dl.bin", "https://example.com/file.zip")
+    assert "Wrote" in result
+    assert captured == {
+        "url": "https://example.com/file.zip",
+        "max_bytes": 5_000_000,
+    }
+    assert await workspace.read_file_bytes("-100123", "/dl.bin") == b"direct-file-data"
+
+
+async def test_http_reference_download_failure_is_clear(ctx, monkeypatch):
+    from kmua.common.safe_http import UnsafeUrlError
+    from kmua.plugins.agent.tools import io as io_mod
+
+    async def fake_download(url, max_bytes):
+        raise UnsafeUrlError("Unsafe URL: http://169.254.169.254/latest/meta-data")
+
+    monkeypatch.setattr(io_mod, "safe_download_bytes", fake_download)
+    monkeypatch.setattr(io_mod, "UnsafeUrlError", UnsafeUrlError)
+    result = await io.write(ctx, "work://x", "https://169.254.169.254/latest")
+    assert "Download failed" in result
+
+
+# ---- review regressions ----
+
+
+async def test_tme_link_rejects_private_channel_form(ctx, monkeypatch):
+    """t.me/c/<id>/<msg> (private-channel shares) must be refused: reading
+    media from private chats beyond the current conversation is out of
+    scope for the agent."""
+    result = await io.write(ctx, "work://x", "https://t.me/c/123456789/100")
+    assert "Not a t.me message link" in result
+
+
+async def test_read_tme_text_post_falls_back_to_web(ctx, monkeypatch):
+    """A plain-text t.me post has no media; read must fall back to the web
+    text extraction instead of failing."""
+    from kmua.plugins.agent.tools import io as io_mod
+
+    class FakeChat:
+        id = -100123456789
+
+    class FakeMessage:
+        media = False
+
+    class FakeClient:
+        async def get_chat(self, ref):
+            return FakeChat()
+
+        async def get_messages(self, chat_id, msg_id):
+            return FakeMessage()
+
+    ctx.deps.client = FakeClient()
+
+    captured = {}
+
+    async def fake_fetch(ctx_arg, url):
+        captured["url"] = url
+        return SimpleNamespace(success=True, content="帖子的文本内容")
+
+    monkeypatch.setattr(io_mod.web, "fetch_web_page", fake_fetch)
+    result = await io.read(ctx, "https://t.me/SomeChannel/123")
+    assert "帖子的文本内容" in result
+    assert captured["url"] == "https://t.me/SomeChannel/123"
+
+
+async def test_tg_download_rejects_paid_media(ctx, monkeypatch):
+    """Paid media is refused before any download: its total size cannot be
+    reliably known up front."""
+
+    class FakeClient:
+        async def get_messages(self, chat_id, msg_id):
+            return SimpleNamespace(
+                media=True, paid_media=SimpleNamespace(extended_media=[])
+            )
+
+        async def download_media(self, *args, **kwargs):
+            raise AssertionError("paid media must not be downloaded")
+
+    ctx.deps.client = FakeClient()
+    result = await io.write(ctx, "work://x", "chat://media/1")
+    assert "paid media is not supported" in result
+
+
+async def test_tg_download_applies_timeout(ctx, monkeypatch):
+    """The configured download timeout bounds the media fetch."""
+    from kmua.config import app_config
+
+    class FakeClient:
+        async def get_messages(self, chat_id, msg_id):
+            return SimpleNamespace(media=True, document=SimpleNamespace(file_size=5))
+
+        async def download_media(self, message, in_memory=True):
+            await asyncio.sleep(10)
+            from io import BytesIO
+
+            return BytesIO(b"x")
+
+    ctx.deps.client = FakeClient()
+    monkeypatch.setattr(app_config, "agent_download_timeout", 0.05)
+    result = await io.write(ctx, "work://x", "chat://media/1")
+    assert "Error" in result
+
+
+async def test_read_tme_webpage_preview_falls_back(ctx, monkeypatch):
+    """A plain-text post with a web-page preview (message.media is truthy
+    but nothing is downloadable) must fall back to web text extraction."""
+    from kmua.plugins.agent.tools import io as io_mod
+
+    class FakeChat:
+        id = -100123456789
+
+    class FakeMessage:
+        media = True
+        web_page = SimpleNamespace(url="https://example.com")
+        # no photo/document/video: nothing downloadable
+
+    class FakeClient:
+        async def get_chat(self, ref):
+            return FakeChat()
+
+        async def get_messages(self, chat_id, msg_id):
+            return FakeMessage()
+
+        async def download_media(self, *args, **kwargs):
+            raise AssertionError("must not attempt a download")
+
+    ctx.deps.client = FakeClient()
+    captured = {}
+
+    async def fake_fetch(ctx_arg, url):
+        captured["url"] = url
+        return SimpleNamespace(success=True, content="预览帖子的文本")
+
+    monkeypatch.setattr(io_mod.web, "fetch_web_page", fake_fetch)
+    result = await io.read(ctx, "https://t.me/SomeChannel/456")
+    assert "预览帖子的文本" in result
+    assert captured["url"] == "https://t.me/SomeChannel/456"
