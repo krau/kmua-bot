@@ -188,6 +188,49 @@ def get_agent_affection_prompt(rank: float) -> str | None:
     return None
 
 
+_MEDIA_TYPE_LABELS = {
+    pyrogram.enums.MessageMediaType.PHOTO: "图片",
+    pyrogram.enums.MessageMediaType.VIDEO: "视频",
+    pyrogram.enums.MessageMediaType.AUDIO: "音频",
+    pyrogram.enums.MessageMediaType.VOICE: "语音",
+    pyrogram.enums.MessageMediaType.DOCUMENT: "文档",
+    pyrogram.enums.MessageMediaType.STICKER: "贴纸",
+    pyrogram.enums.MessageMediaType.ANIMATION: "动画",
+    pyrogram.enums.MessageMediaType.VIDEO_NOTE: "视频消息",
+    pyrogram.enums.MessageMediaType.LIVE_PHOTO: "实况照片",
+    pyrogram.enums.MessageMediaType.LOCATION: "位置",
+    pyrogram.enums.MessageMediaType.VENUE: "地点",
+    pyrogram.enums.MessageMediaType.CONTACT: "联系人",
+    pyrogram.enums.MessageMediaType.DICE: "骰子",
+    pyrogram.enums.MessageMediaType.GAME: "游戏",
+    pyrogram.enums.MessageMediaType.GIVEAWAY: "抽奖",
+    pyrogram.enums.MessageMediaType.GIVEAWAY_WINNERS: "抽奖结果",
+    pyrogram.enums.MessageMediaType.STORY: "故事",
+    pyrogram.enums.MessageMediaType.INVOICE: "账单",
+    pyrogram.enums.MessageMediaType.PAID_MEDIA: "付费内容",
+    pyrogram.enums.MessageMediaType.CHECKLIST: "清单",
+    pyrogram.enums.MessageMediaType.UNSUPPORTED: "不支持的内容",
+}
+
+
+def _media_omitted_note(
+    media: pyrogram.enums.MessageMediaType,
+    media_message: pyrogram.types.Message | None,
+) -> str:
+    """Placeholder for media the model cannot receive, so it never answers
+    as if the message had no media at all."""
+    label = _MEDIA_TYPE_LABELS.get(media, "多媒体内容")
+    detail = ""
+    if (
+        media == pyrogram.enums.MessageMediaType.DOCUMENT
+        and media_message
+        and media_message.document
+        and media_message.document.file_name
+    ):
+        detail = f"《{media_message.document.file_name}》"
+    return f"[模型无法处理的内容: {label}{detail}]"
+
+
 async def get_input_prompt(
     client: PyrogramClient,
     message: pyrogram.types.Message,
@@ -233,6 +276,7 @@ async def get_input_prompt(
         include_media: bool = True,
     ) -> list[UserContent]:
         contents: list[UserContent] = []
+        media_included = False
         raw_text = msg.text or msg.caption or ""
         entities = msg.entities or msg.caption_entities
         formatted_text = entities_to_markdown(raw_text, entities)
@@ -286,6 +330,7 @@ async def get_input_prompt(
                                     media_type="image/jpeg",
                                 )
                             )
+                            media_included = True
                 case pyrogram.enums.MessageMediaType.VIDEO:
                     video = media_message.video
                     if (
@@ -306,6 +351,7 @@ async def get_input_prompt(
                                         media_type=video.mime_type,
                                     )
                                 )
+                                media_included = True
                 case pyrogram.enums.MessageMediaType.AUDIO:
                     audio = media_message.audio
                     if (
@@ -326,6 +372,7 @@ async def get_input_prompt(
                                         media_type=audio.mime_type,
                                     )
                                 )
+                                media_included = True
                 case pyrogram.enums.MessageMediaType.VOICE:
                     voice = media_message.voice
                     if (
@@ -346,6 +393,7 @@ async def get_input_prompt(
                                         media_type=voice.mime_type,
                                     )
                                 )
+                                media_included = True
                 case pyrogram.enums.MessageMediaType.DOCUMENT:
                     document = media_message.document
                     if (
@@ -367,6 +415,7 @@ async def get_input_prompt(
                                 try:
                                     text = doc_file.getvalue().decode("utf-8")
                                     contents.append(text)
+                                    media_included = True
                                 except UnicodeDecodeError:
                                     pass
                         elif mime_type in app_config.agent_multimodal_inputs:
@@ -380,6 +429,7 @@ async def get_input_prompt(
                                         media_type=mime_type,
                                     )
                                 )
+                                media_included = True
                         elif (
                             document.mime_type.startswith("image/")
                             and "photo" in app_config.agent_multimodal_inputs
@@ -394,6 +444,7 @@ async def get_input_prompt(
                                         media_type=document.mime_type,
                                     )
                                 )
+                                media_included = True
                 case pyrogram.enums.MessageMediaType.STICKER:
                     sticker = media_message.sticker
                     if (
@@ -418,6 +469,7 @@ async def get_input_prompt(
                                             media_type="image/webp",
                                         )
                                     )
+                                    media_included = True
                         else:
                             sticker_file = await _download_media_with_timeout(
                                 client, sticker.file_id
@@ -429,6 +481,22 @@ async def get_input_prompt(
                                         media_type="image/webp",
                                     )
                                 )
+                                media_included = True
+        # Unsupported or undeliverable media must not vanish silently: the
+        # model would answer as if the message had no media at all. POLL is
+        # text-represented above and WEB_PAGE links live in the text part;
+        # nearby context media is intentionally skipped (include_media=False).
+        if (
+            include_media
+            and media
+            and not media_included
+            and media
+            not in (
+                pyrogram.enums.MessageMediaType.POLL,
+                pyrogram.enums.MessageMediaType.WEB_PAGE,
+            )
+        ):
+            contents.append(_media_omitted_note(media, media_message))
         return contents
 
     user_prompt: list[UserContent] = []
