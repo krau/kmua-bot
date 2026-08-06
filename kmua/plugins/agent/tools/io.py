@@ -11,8 +11,11 @@ Protocols:
 
 from __future__ import annotations
 
+import builtins
 import json
+from io import BytesIO
 from pathlib import Path
+from typing import Any
 from urllib.parse import parse_qs, urlsplit
 
 from ddgs import DDGS
@@ -20,6 +23,7 @@ from pydantic_ai import ModelRetry, RunContext
 from pydantic_ai.common_tools.duckduckgo import DuckDuckGoSearchTool
 from pydantic_ai.tools import ToolDefinition
 
+from kmua.common.safe_http import UnsafeUrlError, safe_download_bytes
 from kmua.config import app_config
 from kmua.logger import logger
 
@@ -52,8 +56,9 @@ def _split_target(path: str) -> tuple[str, str]:
     raise ValueError(
         f"Unsupported target: {path}. Use kmua:// (codebase), work:// "
         f"(workspace), sandbox:// (shell sandbox), persist:// (persisted "
-        f"files), chat:// (group), memory:// (memory), web:// (web search) "
-        f"or http(s):// (web)."
+        f"files), chat:// (current chat: info, history, media), memory:// "
+        f"(memory), web:// (web search) or http(s):// (web; t.me message "
+        f"links download the media)."
     )
 
 
@@ -129,6 +134,19 @@ async def _read_bytes(path: str, ctx: RunContext[datatype.ContextDeps]) -> bytes
         return raw
     if protocol == "persist://":
         return await _download_persisted(ctx, rest)
+    if protocol == "chat://" and rest.startswith("/media/"):
+        return await _download_chat_media(ctx, rest)
+    if protocol == "http":
+        if urlsplit(rest).hostname in ("t.me", "telegram.me"):
+            # Telegram media is downloaded through the bot client, not the
+            # plain HTTP path (t.me pages are HTML, the files live in MTProto).
+            return await _download_tme_media(ctx, rest)
+        try:
+            return await safe_download_bytes(
+                rest, max_bytes=app_config.agent_download_max_bytes
+            )
+        except (UnsafeUrlError, Exception) as e:
+            raise ValueError(f"Download failed: {e}") from None
     raise ValueError(f"Target {path} is not readable.")
 
 
@@ -168,8 +186,6 @@ async def _write_persisted(
         return (
             f"Error: File exceeds the {workspace.MAX_WORKSPACE_FILE_SIZE} byte limit."
         )
-    from io import BytesIO
-
     from kmua.bot.client import client
 
     try:
@@ -233,6 +249,138 @@ async def _download_persisted(
         raise ValueError("The stored file id is invalid.")
     chunks = [chunk async for chunk in client.get_file(file_id)]
     return b"".join(chunks)
+
+
+def _tg_media_size(message: Any) -> int | None:
+    """The byte size of a message's media, whichever type it is."""
+    for attr in (
+        "photo",
+        "video",
+        "audio",
+        "voice",
+        "document",
+        "sticker",
+        "animation",
+        "video_note",
+    ):
+        media = getattr(message, attr, None)
+        if media is not None and getattr(media, "file_size", None):
+            return media.file_size
+    return None
+
+
+async def _download_chat_media(
+    ctx: RunContext[datatype.ContextDeps], rest: str
+) -> bytes:
+    """Download the media of a message in the current chat
+    (chat://media/<message_id>).
+
+    Scoped to ctx.deps.chat_id: the agent can only pull files from messages
+    it can see. Oversize media is refused before any download happens.
+    """
+    if not rest.startswith("/media/"):
+        raise ValueError(
+            f"Invalid chat:// media target {rest!r}; use chat://media/<message_id>"
+        )
+    msg_id_str = rest.removeprefix("/media/")
+    if not msg_id_str.isdigit():
+        raise ValueError(
+            f"Invalid chat:// media target {rest!r}; expected a message id."
+        )
+    from kmua.bot.client import client
+
+    message = await client.get_messages(ctx.deps.chat_id, int(msg_id_str))
+    if message is None or not message.media:
+        raise ValueError(f"Message {msg_id_str} has no downloadable media.")
+    size = _tg_media_size(message)
+    max_bytes = app_config.agent_download_max_bytes
+    if size is not None and size > max_bytes:
+        raise ValueError(
+            f"The file in message {msg_id_str} is {size} bytes, over the "
+            f"{max_bytes} byte download limit."
+        )
+    media = await client.download_media(message, in_memory=True)
+    if isinstance(media, builtins.list):
+        raise ValueError(
+            f"Message {msg_id_str} contains an album of several media "
+            f"files; albums are not supported."
+        )
+    if not isinstance(media, BytesIO):
+        raise ValueError(f"Failed to download message {msg_id_str} media.")
+    data = media.getvalue()
+    if len(data) > max_bytes:
+        raise ValueError(
+            f"The file in message {msg_id_str} is over the {max_bytes} "
+            f"byte download limit."
+        )
+    return data
+
+
+def _tme_message_parts(url: str) -> tuple[str, str] | None:
+    """(chat_ref, msg_id) for a t.me message link, else None.
+
+    Accepts https://t.me/<username>/<id> and https://t.me/c/<id>/<msg>
+    (private-channel shares show the id without the -100 prefix), on t.me or
+    telegram.me hosts.
+    """
+    parsed = urlsplit(url)
+    if parsed.hostname not in ("t.me", "telegram.me"):
+        return None
+    parts = parsed.path.strip("/").split("/")
+    if len(parts) == 2 and parts[1].isdigit():
+        return parts[0], parts[1]
+    if len(parts) == 3 and parts[0] == "c" and parts[2].isdigit():
+        return f"c/{parts[1]}", parts[2]
+    return None
+
+
+async def _download_tme_media(ctx: RunContext[datatype.ContextDeps], url: str) -> bytes:
+    """Download the media of a public t.me message link.
+
+    Public channels are readable by any bot; groups the bot is not a member
+    of, private channels and invite links fail with a clear error.
+    Size-limited like chat://media.
+    """
+    parts = _tme_message_parts(url)
+    if parts is None:
+        raise ValueError(f"Not a t.me message link: {url}")
+    chat_ref, msg_id_str = parts
+    from kmua.bot.client import client
+
+    if chat_ref.startswith("c/"):
+        chat_id = int(f"-100{chat_ref[2:]}")
+        message = await client.get_messages(chat_id, int(msg_id_str))
+    else:
+        try:
+            chat = await client.get_chat(chat_ref)
+        except Exception:
+            raise ValueError(
+                f"Cannot resolve {chat_ref!r} from {url}; the chat may be "
+                f"private or the bot may not be a member."
+            ) from None
+        message = await client.get_messages(chat.id, int(msg_id_str))
+    if message is None or not message.media:
+        raise ValueError(
+            f"Message {msg_id_str} in {chat_ref} has no downloadable media."
+        )
+    size = _tg_media_size(message)
+    max_bytes = app_config.agent_download_max_bytes
+    if size is not None and size > max_bytes:
+        raise ValueError(
+            f"The file is {size} bytes, over the {max_bytes} byte download limit."
+        )
+    media = await client.download_media(message, in_memory=True)
+    if isinstance(media, builtins.list):
+        raise ValueError(
+            "The message contains an album of several media files; albums "
+            "are not supported."
+        )
+    if not isinstance(media, BytesIO):
+        raise ValueError("Failed to download the media.")
+    data = media.getvalue()
+    if len(data) > max_bytes:
+        raise ValueError(f"The file is over the {max_bytes} byte download limit.")
+    return data
 
 
 def _session_key(ctx: RunContext[datatype.ContextDeps]) -> str:
@@ -331,8 +479,25 @@ async def _read_content(
         selected = lines[start_line - 1 : start_line - 1 + max_lines]
         return "\n".join(selected)
     if protocol == "chat://":
-        return await _read_chat(ctx, rest, max_lines)
+        if rest.startswith("/media/"):
+            data = await _download_chat_media(ctx, rest)
+        else:
+            return await _read_chat(ctx, rest, max_lines)
+        if raw:
+            return data.decode("utf-8", errors="replace")
+        text = data.decode("utf-8", errors="replace")
+        lines = text.splitlines()
+        selected = lines[start_line - 1 : start_line - 1 + max_lines]
+        return "\n".join(selected)
     if protocol == "http":
+        if _tme_message_parts(rest) is not None:
+            data = await _download_tme_media(ctx, rest)
+            if raw:
+                return data.decode("utf-8", errors="replace")
+            text = data.decode("utf-8", errors="replace")
+            lines = text.splitlines()
+            selected = lines[start_line - 1 : start_line - 1 + max_lines]
+            return "\n".join(selected)
         result = await web.fetch_web_page(ctx, rest)
         if not result.success:
             raise ValueError(result.error or "fetch failed")
@@ -353,6 +518,8 @@ async def read(
     - work://notes/hello.html — a file from this chat's workspace
     - sandbox://out/data.txt  — a file in this session's shell sandbox
     - persist://report.txt    — a file the agent persisted for this chat
+    - chat://media/123        — the media of message 123 in this chat
+    - https://t.me/MoreACG/27411 — the media of a public t.me message
     - chat://info             — information about the current group
     - chat://history?direction=latest|before|after|between&count=N&anchor_id=N&start_id=N&end_id=N
                               — messages from the current group
@@ -391,8 +558,11 @@ async def write(
     content can be plain text or a reference to another target whose content
     is used as the payload — e.g. work://notes/hello.html (workspace file) or
     kmua://kmua/services/wechat.py (codebase file, read-only), handy for
-    copying files between targets. Binary payloads must go through a
-    reference (work://, sandbox://, persist://).
+    copying files between targets. A chat://media/<message_id> reference
+    downloads a message's media from this chat, and an https://t.me/... link
+    from a public Telegram chat (both size-limited). Binary payloads must go
+    through a reference (work://, sandbox://, persist://, chat://media, a
+    t.me link).
 
     Files in the workspace are sandboxed. Large content (over 5 MB) is rejected.
     Prefer edit when modifying an existing workspace file.

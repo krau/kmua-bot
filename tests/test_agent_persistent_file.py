@@ -18,6 +18,14 @@ from kmua.services import sandbox
 pytestmark = pytest.mark.usefixtures("initialised_db")
 
 
+@pytest.fixture(autouse=True)
+async def _close_agentfs():
+    """agentfs keeps SQLite connections bound to the loop that opened them;
+    close per test so a later test's new loop never reuses them."""
+    yield
+    await workspace.close_workspace_agentfs()
+
+
 @pytest.fixture
 def ctx():
     return RunContext(
@@ -385,3 +393,233 @@ async def test_delete_workspace_session_removes_wal_sidecars(tmp_path, monkeypat
     for suffix in ("", "-wal", "-shm"):
         assert not Path(f"{db_path}{suffix}").exists()
     workspace._workspace_agentfs.clear()
+
+
+# ---- chat://media protocol (download a chat message's media) ----
+
+
+def _tg_client(monkeypatch, message=None, media_data=b"filedata"):
+    import importlib
+
+    class FakeMessage:
+        media = True
+        document = SimpleNamespace(file_size=len(media_data))
+
+    if message is None:
+        message = FakeMessage()
+
+    class FakeClient:
+        def __init__(self):
+            self.downloaded = []
+            self.sent = None
+            self.sent_kwargs = None
+
+        async def get_messages(self, chat_id, msg_id):
+            assert chat_id == -100123, "must be scoped to the current chat"
+            return message
+
+        async def download_media(self, message, in_memory=True):
+            self.downloaded.append(message)
+            from io import BytesIO
+
+            return BytesIO(media_data)
+
+        async def send_document(self, chat_id, **kwargs):
+            self.sent = chat_id
+            self.sent_kwargs = kwargs
+            return _sent_message()
+
+    fake = FakeClient()
+    client_mod = importlib.import_module("kmua.bot.client")
+    monkeypatch.setattr(client_mod, "client", fake)
+    return fake
+
+
+async def test_write_tg_reference_downloads_into_workspace(ctx, monkeypatch):
+    _tg_client(monkeypatch, media_data=b"tg-content")
+    result = await io.write(ctx, "work://dl.txt", "chat://media/123")
+    assert "Wrote 10 bytes" in result
+    assert await workspace.read_file_bytes("-100123", "/dl.txt") == b"tg-content"
+
+
+async def test_write_tg_reference_into_sandbox(ctx, monkeypatch, sandbox_dir):
+    _tg_client(monkeypatch, media_data=b"sandbox-data")
+    result = await io.write(ctx, "sandbox://dl.bin", "chat://media/123")
+    assert "Wrote" in result
+    assert (sandbox_dir / "dl.bin").read_bytes() == b"sandbox-data"
+
+
+async def test_write_tg_reference_persists(ctx, monkeypatch):
+    fake = _tg_client(monkeypatch, media_data=b"persist-me")
+    result = await io.write(ctx, "persist://dl.txt", "chat://media/123")
+    assert "Persisted dl.txt" in result
+    assert fake.sent_kwargs is not None
+    assert fake.sent_kwargs["document"].getvalue() == b"persist-me"
+
+
+async def test_tg_reference_rejects_non_numeric_id(ctx, monkeypatch):
+    result = await io.write(ctx, "work://x", "chat://media/abc")
+    assert "expected a message id" in result
+
+
+async def test_tg_reference_rejects_message_without_media(ctx, monkeypatch):
+    _tg_client(monkeypatch, message=SimpleNamespace(media=False))
+    result = await io.write(ctx, "work://x", "chat://media/123")
+    assert "no downloadable media" in result
+
+
+async def test_tg_reference_rejects_oversize_before_download(ctx, monkeypatch):
+    """The size cap is checked from the message metadata before downloading."""
+    from kmua.config import app_config
+
+    big = SimpleNamespace(media=True, document=SimpleNamespace(file_size=30_000_000))
+    fake = _tg_client(monkeypatch, message=big)
+    monkeypatch.setattr(app_config, "agent_download_max_bytes", 20_000_000)
+    result = await io.write(ctx, "work://x", "chat://media/123")
+    assert "over the 20000000 byte download limit" in result
+    assert fake.downloaded == []
+
+
+async def test_read_tg_reference_returns_text_content(ctx, monkeypatch):
+    _tg_client(monkeypatch, media_data=b"line1\nline2\nline3")
+    result = await io.read(ctx, "chat://media/123", start_line=2, max_lines=5)
+    assert result == "line2\nline3"
+
+
+# ---- https://t.me links (public Telegram media) ----
+
+
+def _tg_public_client(monkeypatch, media_data=b"public-data"):
+    import importlib
+
+    class FakeChat:
+        id = -100123456789
+
+    class FakeMessage:
+        media = True
+        document = SimpleNamespace(file_size=len(media_data))
+
+    class FakeClient:
+        def __init__(self):
+            self.downloaded = []
+
+        async def get_chat(self, ref):
+            assert ref == "MoreACG"
+            return FakeChat()
+
+        async def get_messages(self, chat_id, msg_id):
+            self.last_chat = chat_id
+            assert msg_id == 27411
+            return FakeMessage()
+
+        async def download_media(self, message, in_memory=True):
+            self.downloaded.append(message)
+            from io import BytesIO
+
+            return BytesIO(media_data)
+
+    fake = FakeClient()
+    client_mod = importlib.import_module("kmua.bot.client")
+    monkeypatch.setattr(client_mod, "client", fake)
+    return fake
+
+
+async def test_write_tg_link_downloads_public_media(ctx, monkeypatch):
+    fake = _tg_public_client(monkeypatch, media_data=b"public-data")
+    result = await io.write(ctx, "work://dl.txt", "https://t.me/MoreACG/27411")
+    assert "Wrote" in result
+    assert await workspace.read_file_bytes("-100123", "/dl.txt") == b"public-data"
+    assert fake.last_chat == -100123456789
+
+
+async def test_tme_link_telegram_me_host(ctx, monkeypatch):
+    _tg_public_client(monkeypatch)
+    result = await io.write(ctx, "sandbox://x", "https://telegram.me/MoreACG/27411")
+    assert "Wrote" in result
+
+
+async def test_tme_link_invalid_format(ctx, monkeypatch):
+    result = await io.write(ctx, "work://x", "https://t.me/MoreACG")
+    assert "Not a t.me message link" in result
+
+
+async def test_tg_link_private_channel_uses_c_form(ctx, monkeypatch):
+    """t.me/c/<id>/<msg> resolves to the -100-prefixed channel id."""
+    import importlib
+
+    class FakeMessage:
+        media = True
+        document = SimpleNamespace(file_size=5)
+
+    class FakeClient:
+        def __init__(self):
+            self.chat_id = None
+
+        async def get_messages(self, chat_id, msg_id):
+            self.chat_id = chat_id
+            assert msg_id == 100
+            return FakeMessage()
+
+        async def download_media(self, message, in_memory=True):
+            from io import BytesIO
+
+            return BytesIO(b"cdata")
+
+    fake = FakeClient()
+    client_mod = importlib.import_module("kmua.bot.client")
+    monkeypatch.setattr(client_mod, "client", fake)
+    result = await io.write(ctx, "work://x", "https://t.me/c/123456789/100")
+    assert "Wrote" in result
+    assert fake.chat_id == -100123456789
+
+
+async def test_read_tg_link_returns_text(ctx, monkeypatch):
+    _tg_public_client(monkeypatch, media_data=b"a\nb\nc")
+    result = await io.read(ctx, "https://t.me/MoreACG/27411", start_line=2, max_lines=5)
+    assert result == "b\nc"
+
+
+# ---- https direct-file links (write references) ----
+
+
+async def test_http_reference_downloads_direct_link(ctx, monkeypatch):
+    """A plain https file link is downloaded through the SSRF-guarded
+    downloader with the configured size cap."""
+    from kmua.config import app_config
+    from kmua.plugins.agent.tools import io as io_mod
+
+    captured = {}
+
+    async def fake_download(url, max_bytes):
+        captured["url"] = url
+        captured["max_bytes"] = max_bytes
+        return b"direct-file-data"
+
+    monkeypatch.setattr(io_mod, "safe_download_bytes", fake_download)
+    monkeypatch.setattr(
+        io_mod,
+        "UnsafeUrlError",
+        __import__("kmua.common.safe_http", fromlist=["UnsafeUrlError"]).UnsafeUrlError,
+    )
+    monkeypatch.setattr(app_config, "agent_download_max_bytes", 5_000_000)
+
+    result = await io.write(ctx, "work://dl.bin", "https://example.com/file.zip")
+    assert "Wrote" in result
+    assert captured == {
+        "url": "https://example.com/file.zip",
+        "max_bytes": 5_000_000,
+    }
+    assert await workspace.read_file_bytes("-100123", "/dl.bin") == b"direct-file-data"
+
+
+async def test_http_reference_download_failure_is_clear(ctx, monkeypatch):
+    from kmua.common.safe_http import UnsafeUrlError
+    from kmua.plugins.agent.tools import io as io_mod
+
+    async def fake_download(url, max_bytes):
+        raise UnsafeUrlError("Unsafe URL: http://169.254.169.254/latest/meta-data")
+
+    monkeypatch.setattr(io_mod, "safe_download_bytes", fake_download)
+    monkeypatch.setattr(io_mod, "UnsafeUrlError", UnsafeUrlError)
+    result = await io.write(ctx, "work://x", "https://169.254.169.254/latest")
+    assert "Download failed" in result

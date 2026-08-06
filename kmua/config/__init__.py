@@ -344,6 +344,10 @@ class _AppConfig(pydantic.BaseModel):
     # runs on. Always read-only; sensitive environment variables are stripped
     # from sandbox processes regardless of this switch.
     agent_shell_venv_access: bool = True
+    # Max bytes one download reference may fetch: Telegram media
+    # (chat://media, t.me links) and direct https file links alike.
+    # work:// targets are additionally capped by the 5 MB workspace limit.
+    agent_download_max_bytes: int = 20_000_000
     agent_landrun_path: str = "/usr/local/bin/landrun"
 
     # experimental, maybe removed in the future
