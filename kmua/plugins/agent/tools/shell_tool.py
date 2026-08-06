@@ -95,36 +95,25 @@ async def shell(
     timeout: int | None = None,
     clean: bool = False,
 ) -> str:
-    """Run a shell command to compute, process or automate things.
+    """Run a bash command in this chat's sandbox.
 
-    Use this when a task needs real execution: batch text processing,
-    running scripts (python3, node), downloading and transforming data,
-    checking outputs, or anything read/write/edit cannot do alone. For
-    plain file editing prefer edit/write — this tool is for running code
-    and shell pipelines.
+    Commands share the same sandbox directory across calls — files persist,
+    so later commands can build on earlier ones (`pwd` shows it). The
+    sandbox is also addressable as sandbox:// via the io tools, e.g.
+    `write work://out/result.json content="sandbox://result.json"` copies a
+    produced file out.
 
-    How it works:
-    - Every command runs in this chat's sandbox directory. Run `pwd` to see
-      it; files stay there between calls, so later commands can build on
-      earlier ones.
-    - The sandbox is addressable as sandbox:// (read/write/list/delete) —
-      e.g. `write work://out/result.json content="sandbox://result.json"`
-      copies a produced file out after running.
-    - Heavy or long commands are killed after a timeout; split big jobs
-      into steps if you hit it.
+    For Python packages: `python3 -m pip install --target="$PWD/pylibs" <pkg>`
+    then run with `PYTHONPATH="$PWD/pylibs"` (session-only).
 
     Args:
-        command: The shell command to run (bash syntax). Consecutive calls
-            share the same sandbox directory, so commands can build on each
-            other's files.
-        files: Copy workspace files into the sandbox before running — e.g.
-            work://scripts/run.py lands as ./run.py. Append ":newname" to
-            rename: work://scripts/run.py:myrun.py lands as ./myrun.py.
+        command: The bash command to run.
+        files: Copy workspace files into the sandbox first, e.g.
+            work://scripts/run.py lands as ./run.py; append ":newname" to
+            rename.
         timeout: Seconds to allow the command (default from config).
         clean: Start from an empty sandbox directory, removing leftovers
-            from earlier calls. Use it at the start of a new task so old
-            files do not confuse your commands; run `ls` if unsure what is
-            in the sandbox.
+            from earlier calls.
     """
     from . import io as io_tools
 
