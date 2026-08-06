@@ -11,6 +11,7 @@ Protocols:
 
 from __future__ import annotations
 
+import asyncio
 import builtins
 import json
 from io import BytesIO
@@ -186,7 +187,7 @@ async def _write_persisted(
         return (
             f"Error: File exceeds the {workspace.MAX_WORKSPACE_FILE_SIZE} byte limit."
         )
-    from kmua.bot.client import client
+    client = ctx.deps.client
 
     try:
         sent = await client.send_document(
@@ -242,13 +243,21 @@ async def _download_persisted(
         raise ValueError(f"No persisted file named {name!r} in this chat.")
     from pyrogram.file_id import FileId
 
-    from kmua.bot.client import client
-
     file_id = FileId.decode(record.file_id)
     if file_id is None:
         raise ValueError("The stored file id is invalid.")
-    chunks = [chunk async for chunk in client.get_file(file_id)]
-    return b"".join(chunks)
+    timeout = app_config.agent_download_timeout or None
+
+    async def _collect():
+        chunks = [chunk async for chunk in ctx.deps.client.get_file(file_id)]
+        return b"".join(chunks)
+
+    return await asyncio.wait_for(_collect(), timeout=timeout)
+
+
+class _NoMediaError(ValueError):
+    """The message has no downloadable media (lets read fall back to the
+    web text extraction for plain-text t.me posts)."""
 
 
 def _tg_media_size(message: Any) -> int | None:
@@ -269,6 +278,40 @@ def _tg_media_size(message: Any) -> int | None:
     return None
 
 
+async def _download_tg_bytes(client: Any, message: Any, what: str) -> bytes:
+    """Download one message's media with the configured timeout and cap.
+
+    Paid media and albums are refused before any download; the declared
+    size is pre-checked and the actual bytes are counted as a second layer.
+    """
+    if getattr(message, "paid_media", None):
+        raise ValueError(f"{what}: paid media is not supported.")
+    size = _tg_media_size(message)
+    max_bytes = app_config.agent_download_max_bytes
+    if size is not None and size > max_bytes:
+        raise ValueError(
+            f"{what}: the file is {size} bytes, over the {max_bytes} "
+            f"byte download limit."
+        )
+    timeout = app_config.agent_download_timeout or None
+    media = await asyncio.wait_for(
+        client.download_media(message, in_memory=True), timeout=timeout
+    )
+    if isinstance(media, builtins.list):
+        raise ValueError(
+            f"{what}: the message contains an album of several media files; "
+            f"albums are not supported."
+        )
+    if not isinstance(media, BytesIO):
+        raise ValueError(f"Failed to download {what}.")
+    data = media.getvalue()
+    if len(data) > max_bytes:
+        raise ValueError(
+            f"{what}: the file is over the {max_bytes} byte download limit."
+        )
+    return data
+
+
 async def _download_chat_media(
     ctx: RunContext[datatype.ContextDeps], rest: str
 ) -> bytes:
@@ -287,41 +330,20 @@ async def _download_chat_media(
         raise ValueError(
             f"Invalid chat:// media target {rest!r}; expected a message id."
         )
-    from kmua.bot.client import client
-
+    client = ctx.deps.client
     message = await client.get_messages(ctx.deps.chat_id, int(msg_id_str))
     if message is None or not message.media:
-        raise ValueError(f"Message {msg_id_str} has no downloadable media.")
-    size = _tg_media_size(message)
-    max_bytes = app_config.agent_download_max_bytes
-    if size is not None and size > max_bytes:
-        raise ValueError(
-            f"The file in message {msg_id_str} is {size} bytes, over the "
-            f"{max_bytes} byte download limit."
-        )
-    media = await client.download_media(message, in_memory=True)
-    if isinstance(media, builtins.list):
-        raise ValueError(
-            f"Message {msg_id_str} contains an album of several media "
-            f"files; albums are not supported."
-        )
-    if not isinstance(media, BytesIO):
-        raise ValueError(f"Failed to download message {msg_id_str} media.")
-    data = media.getvalue()
-    if len(data) > max_bytes:
-        raise ValueError(
-            f"The file in message {msg_id_str} is over the {max_bytes} "
-            f"byte download limit."
-        )
-    return data
+        raise _NoMediaError(f"Message {msg_id_str} has no downloadable media.")
+    return await _download_tg_bytes(client, message, f"message {msg_id_str}")
 
 
 def _tme_message_parts(url: str) -> tuple[str, str] | None:
-    """(chat_ref, msg_id) for a t.me message link, else None.
+    """(chat_ref, msg_id) for a public t.me message link, else None.
 
-    Accepts https://t.me/<username>/<id> and https://t.me/c/<id>/<msg>
-    (private-channel shares show the id without the -100 prefix), on t.me or
-    telegram.me hosts.
+    Accepts https://t.me/<username>/<id> on t.me or telegram.me hosts.
+    Private-channel share links (t.me/c/...) are deliberately not accepted:
+    they would let the agent read media from private chats beyond the
+    current conversation. Public channels are readable by anyone.
     """
     parsed = urlsplit(url)
     if parsed.hostname not in ("t.me", "telegram.me"):
@@ -329,8 +351,6 @@ def _tme_message_parts(url: str) -> tuple[str, str] | None:
     parts = parsed.path.strip("/").split("/")
     if len(parts) == 2 and parts[1].isdigit():
         return parts[0], parts[1]
-    if len(parts) == 3 and parts[0] == "c" and parts[2].isdigit():
-        return f"c/{parts[1]}", parts[2]
     return None
 
 
@@ -345,42 +365,22 @@ async def _download_tme_media(ctx: RunContext[datatype.ContextDeps], url: str) -
     if parts is None:
         raise ValueError(f"Not a t.me message link: {url}")
     chat_ref, msg_id_str = parts
-    from kmua.bot.client import client
-
-    if chat_ref.startswith("c/"):
-        chat_id = int(f"-100{chat_ref[2:]}")
-        message = await client.get_messages(chat_id, int(msg_id_str))
-    else:
-        try:
-            chat = await client.get_chat(chat_ref)
-        except Exception:
-            raise ValueError(
-                f"Cannot resolve {chat_ref!r} from {url}; the chat may be "
-                f"private or the bot may not be a member."
-            ) from None
-        message = await client.get_messages(chat.id, int(msg_id_str))
-    if message is None or not message.media:
+    client = ctx.deps.client
+    try:
+        chat = await client.get_chat(chat_ref)
+    except Exception:
         raise ValueError(
+            f"Cannot resolve {chat_ref!r} from {url}; the chat may be "
+            f"private or the bot may not be a member."
+        ) from None
+    message = await client.get_messages(chat.id, int(msg_id_str))
+    if message is None or not message.media:
+        raise _NoMediaError(
             f"Message {msg_id_str} in {chat_ref} has no downloadable media."
         )
-    size = _tg_media_size(message)
-    max_bytes = app_config.agent_download_max_bytes
-    if size is not None and size > max_bytes:
-        raise ValueError(
-            f"The file is {size} bytes, over the {max_bytes} byte download limit."
-        )
-    media = await client.download_media(message, in_memory=True)
-    if isinstance(media, builtins.list):
-        raise ValueError(
-            "The message contains an album of several media files; albums "
-            "are not supported."
-        )
-    if not isinstance(media, BytesIO):
-        raise ValueError("Failed to download the media.")
-    data = media.getvalue()
-    if len(data) > max_bytes:
-        raise ValueError(f"The file is over the {max_bytes} byte download limit.")
-    return data
+    return await _download_tg_bytes(
+        client, message, f"message {msg_id_str} in {chat_ref}"
+    )
 
 
 def _session_key(ctx: RunContext[datatype.ContextDeps]) -> str:
@@ -491,7 +491,15 @@ async def _read_content(
         return "\n".join(selected)
     if protocol == "http":
         if _tme_message_parts(rest) is not None:
-            data = await _download_tme_media(ctx, rest)
+            try:
+                data = await _download_tme_media(ctx, rest)
+            except _NoMediaError:
+                # A plain-text t.me post has no media to download; fall back
+                # to the web text extraction, which renders the post text.
+                result = await web.fetch_web_page(ctx, rest)
+                if not result.success:
+                    raise ValueError(result.error or "fetch failed")
+                return result.content or ""
             if raw:
                 return data.decode("utf-8", errors="replace")
             text = data.decode("utf-8", errors="replace")
