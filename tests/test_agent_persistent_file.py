@@ -677,3 +677,39 @@ async def test_tg_download_applies_timeout(ctx, monkeypatch):
     monkeypatch.setattr(app_config, "agent_download_timeout", 0.05)
     result = await io.write(ctx, "work://x", "chat://media/1")
     assert "Error" in result
+
+
+async def test_read_tme_webpage_preview_falls_back(ctx, monkeypatch):
+    """A plain-text post with a web-page preview (message.media is truthy
+    but nothing is downloadable) must fall back to web text extraction."""
+    from kmua.plugins.agent.tools import io as io_mod
+
+    class FakeChat:
+        id = -100123456789
+
+    class FakeMessage:
+        media = True
+        web_page = SimpleNamespace(url="https://example.com")
+        # no photo/document/video: nothing downloadable
+
+    class FakeClient:
+        async def get_chat(self, ref):
+            return FakeChat()
+
+        async def get_messages(self, chat_id, msg_id):
+            return FakeMessage()
+
+        async def download_media(self, *args, **kwargs):
+            raise AssertionError("must not attempt a download")
+
+    ctx.deps.client = FakeClient()
+    captured = {}
+
+    async def fake_fetch(ctx_arg, url):
+        captured["url"] = url
+        return SimpleNamespace(success=True, content="预览帖子的文本")
+
+    monkeypatch.setattr(io_mod.web, "fetch_web_page", fake_fetch)
+    result = await io.read(ctx, "https://t.me/SomeChannel/456")
+    assert "预览帖子的文本" in result
+    assert captured["url"] == "https://t.me/SomeChannel/456"

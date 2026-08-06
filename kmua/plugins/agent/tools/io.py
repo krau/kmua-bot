@@ -243,12 +243,12 @@ async def _download_persisted(
         raise ValueError(f"No persisted file named {name!r} in this chat.")
     from pyrogram.file_id import FileId
 
-    file_id = FileId.decode(record.file_id)
-    if file_id is None:
-        raise ValueError("The stored file id is invalid.")
     timeout = app_config.agent_download_timeout or None
 
     async def _collect():
+        file_id = FileId.decode(record.file_id)
+        if file_id is None:
+            raise ValueError("The stored file id is invalid.")
         chunks = [chunk async for chunk in ctx.deps.client.get_file(file_id)]
         return b"".join(chunks)
 
@@ -287,8 +287,13 @@ async def _download_tg_bytes(client: Any, message: Any, what: str) -> bytes:
     if getattr(message, "paid_media", None):
         raise ValueError(f"{what}: paid media is not supported.")
     size = _tg_media_size(message)
+    if size is None:
+        # A truthy message.media is not enough: web-page previews count as
+        # media but carry no downloadable file. read falls back to the web
+        # text extraction for these.
+        raise _NoMediaError(f"{what}: the message has no downloadable media.")
     max_bytes = app_config.agent_download_max_bytes
-    if size is not None and size > max_bytes:
+    if size > max_bytes:
         raise ValueError(
             f"{what}: the file is {size} bytes, over the {max_bytes} "
             f"byte download limit."
