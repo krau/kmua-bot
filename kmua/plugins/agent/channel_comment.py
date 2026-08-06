@@ -21,13 +21,25 @@ from .whitelist import is_chat_allowed
 class CommentResult(BaseModel):
     comment: str = Field(description="评论内容")
     poll_question: str | None = Field(default=None, description="投票问题")
-    poll_options: list[str] | None = Field(
-        default=None, description="投票选项", min_length=2, max_length=10
-    )
+    poll_options: list[str] | None = Field(default=None, description="投票选项")
     poll_is_anonymous: bool = Field(default=True, description="投票是否匿名")
 
 
 comment_agent = Agent(model=struct_model, output_type=CommentResult, retries=5)
+
+
+def _normalize_poll(
+    question: str | None, options: list[str] | None
+) -> tuple[str, list[str]] | None:
+    """Sanitize a poll against the Telegram API limits; None when the poll
+    is unusable (no question, fewer than two non-empty options)."""
+    question = (question or "").strip()[:255]
+    options = [option.strip()[:100] for option in (options or []) if option.strip()][
+        :10
+    ]
+    if not question or len(options) < 2:
+        return None
+    return question, options
 
 
 async def _is_first_media_in_group(message: pyrogram.types.Message) -> bool:
@@ -98,7 +110,9 @@ def _message_has_unsupported_media(message: pyrogram.types.Message) -> bool:
         case pyrogram.enums.MessageMediaType.PHOTO:
             photo = message.photo
             return not (
-                photo and photo.file_id and "photo" in app_config.agent_multimodal_inputs
+                photo
+                and photo.file_id
+                and "photo" in app_config.agent_multimodal_inputs
             )
 
         case pyrogram.enums.MessageMediaType.LIVE_PHOTO:
@@ -152,7 +166,10 @@ def _message_has_unsupported_media(message: pyrogram.types.Message) -> bool:
             # Plain text documents are readable as text.
             if mime_type.startswith("text/"):
                 return False
-            if mime_type.startswith("image/") and "photo" in app_config.agent_multimodal_inputs:
+            if (
+                mime_type.startswith("image/")
+                and "photo" in app_config.agent_multimodal_inputs
+            ):
                 return False
             if mime_type in app_config.agent_multimodal_inputs:
                 return False
@@ -248,20 +265,29 @@ async def comment_channel_message(client: Client, message: pyrogram.types.Messag
             )
             output = result.output
             if output.comment:
-                await reply_output(client, message, output.comment)
-            if (
-                output.poll_question
-                and output.poll_options
-                and len(output.poll_options) >= 2
-            ):
-                await client.send_poll(
-                    chat_id=chat.id,
-                    question=output.poll_question,
-                    options=output.poll_options,
-                    is_anonymous=output.poll_is_anonymous,
-                    reply_parameters=pyrogram.types.ReplyParameters(
-                        message_id=message.id
-                    ),
-                )
+                try:
+                    await reply_output(client, message, output.comment)
+                except Exception as e:
+                    logger.error(
+                        f"Channel comment reply failed: {e.__class__.__name__} - {e}"
+                    )
+            # An invalid poll is skipped, never fatal to the comment.
+            poll = _normalize_poll(output.poll_question, output.poll_options)
+            if poll is not None:
+                question, options = poll
+                try:
+                    await client.send_poll(
+                        chat_id=chat.id,
+                        question=question,
+                        options=list(options),  # type: ignore[arg-type]
+                        is_anonymous=output.poll_is_anonymous,
+                        reply_parameters=pyrogram.types.ReplyParameters(
+                            message_id=message.id
+                        ),
+                    )
+                except Exception as e:
+                    logger.error(
+                        f"Channel comment poll failed: {e.__class__.__name__} - {e}"
+                    )
     except Exception as e:
         logger.error(f"Channel comment error: {e.__class__.__name__} - {e}")
