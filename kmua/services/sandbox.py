@@ -153,6 +153,34 @@ def _codebase_path() -> Path | None:
     return codebase if codebase.exists() else None
 
 
+def _venv_path() -> Path | None:
+    """Absolute path of the bot's uv virtualenv, if present."""
+    venv = (Path(".venv")).resolve()
+    return venv if venv.exists() else None
+
+
+_SENSITIVE_ENV_MARKERS = ("KMUA_", "_TOKEN", "_KEY", "_SECRET", "_PASSWORD")
+
+
+def _env_sanitize_prefix() -> str:
+    """A bash prefix that unsets host-inherited sensitive variables.
+
+    landrun inherits the bot's environment (only PATH/HOME/TMPDIR are
+    overridden), so scripts inside the sandbox could otherwise read config
+    secrets straight out of os.environ. Static unset list built from the
+    current environment; markers match the bot's KMUA_ prefix and common
+    secret-name suffixes.
+    """
+    to_unset = [
+        var
+        for var in os.environ
+        if any(marker in var.upper() for marker in _SENSITIVE_ENV_MARKERS)
+    ]
+    if not to_unset:
+        return ""
+    return "; ".join(f"unset {var}" for var in to_unset) + "; "
+
+
 def _ensure_codebase_link(workdir: Path) -> None:
     """Expose the read-only codebase as ./kmua inside the session workdir.
 
@@ -169,6 +197,13 @@ def _ensure_codebase_link(workdir: Path) -> None:
 
 
 def _build_landrun_cmd(command: str, workdir: Path) -> list[str]:
+    path = "/usr/local/bin:/usr/bin:/bin"
+    venv = _venv_path()
+    if app_config.agent_shell_venv_access and venv is not None:
+        # The bot's own virtualenv: scripts can import the exact dependency
+        # set the bot runs on. Mounted read-only - a writable venv would
+        # let a sandbox process tamper with what the bot imports.
+        path = f"{venv}/bin:{path}"
     cmd = [
         app_config.agent_landrun_path,
         "--best-effort",
@@ -181,10 +216,8 @@ def _build_landrun_cmd(command: str, workdir: Path) -> list[str]:
         "/dev",
         "--rwx",
         str(workdir),
-        # Clean PATH: the bot's own PATH points at /kmua/.venv/bin which is
-        # outside the landlock whitelist and would make python3 etc. fail.
         "--env",
-        "PATH=/usr/local/bin:/usr/bin:/bin",
+        f"PATH={path}",
         "--env",
         f"HOME={workdir}",
         "--env",
@@ -195,6 +228,8 @@ def _build_landrun_cmd(command: str, workdir: Path) -> list[str]:
     codebase = _codebase_path()
     if codebase is not None:
         cmd += ["--ro", str(codebase)]
+    if app_config.agent_shell_venv_access and venv is not None:
+        cmd += ["--ro", str(venv)]
     ports = app_config.agent_shell_network_ports
     if ports:
         cmd += ["--connect-tcp", ",".join(str(p) for p in ports)]
@@ -202,13 +237,14 @@ def _build_landrun_cmd(command: str, workdir: Path) -> list[str]:
     # 256MB virtual memory, 16 processes, 10MB max file size. The process
     # cap is deliberately low: a fork bomb must stay far below what could
     # starve the shared container.
+    sanitize = _env_sanitize_prefix()
     cmd += [
         "--",
         "bash",
         "-c",
         (
             "ulimit -t 30 -v 262144 -u 16 -f 10240 2>/dev/null; "
-            "ulimit -n 256 2>/dev/null; " + command
+            "ulimit -n 256 2>/dev/null; " + sanitize + command
         ),
     ]
     return cmd

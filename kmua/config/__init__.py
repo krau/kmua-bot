@@ -339,6 +339,11 @@ class _AppConfig(pydantic.BaseModel):
     agent_shell_allowed_chats: list[int] = []
     # Outbound TCP ports allowed from the sandbox; empty = no network.
     agent_shell_network_ports: list[int] = [80, 443]
+    # Mount the bot's own virtualenv read-only into the sandbox and prepend
+    # its bin/ to PATH, so scripts can import the exact dependencies the bot
+    # runs on. Always read-only; sensitive environment variables are stripped
+    # from sandbox processes regardless of this switch.
+    agent_shell_venv_access: bool = True
     agent_landrun_path: str = "/usr/local/bin/landrun"
 
     # experimental, maybe removed in the future

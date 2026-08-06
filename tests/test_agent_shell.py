@@ -263,3 +263,62 @@ async def test_shell_concurrency_limits_parallel_runs(monkeypatch):
         shell_tool._shell_semaphore = None
         shell_tool._shell_semaphore_limit = 0
     assert peak == 1
+
+
+def test_landrun_cmd_mounts_venv_read_only(monkeypatch, tmp_path):
+    """The bot venv is mounted --ro and its bin/ prepended to PATH."""
+    from kmua.services import sandbox as sandbox_mod
+
+    fake_venv = tmp_path / "venv"
+    fake_venv.mkdir()
+    (fake_venv / "bin").mkdir()
+    monkeypatch.setattr(sandbox_mod, "_venv_path", lambda: fake_venv)
+    monkeypatch.setattr(app_config, "agent_shell_venv_access", True)
+
+    cmd = sandbox_mod._build_landrun_cmd("echo hi", tmp_path / "ws")
+    venv_idx = cmd.index(str(fake_venv))
+    assert cmd[venv_idx - 1] == "--ro"  # mounted read-only
+    path_env = next(part for part in cmd if part.startswith("PATH="))[len("PATH=") :]
+    assert str(fake_venv / "bin") in path_env.split(":")[0]
+
+
+def test_landrun_cmd_venv_switch_off(monkeypatch, tmp_path):
+    from kmua.services import sandbox as sandbox_mod
+
+    fake_venv = tmp_path / "venv"
+    fake_venv.mkdir()
+    monkeypatch.setattr(sandbox_mod, "_venv_path", lambda: fake_venv)
+    monkeypatch.setattr(app_config, "agent_shell_venv_access", False)
+
+    cmd = sandbox_mod._build_landrun_cmd("echo hi", tmp_path / "ws")
+    assert str(fake_venv) not in cmd
+    path_env = next(part for part in cmd if part.startswith("PATH="))[len("PATH=") :]
+    assert path_env.startswith("/usr/local/bin")
+
+
+def test_landrun_cmd_strips_sensitive_env(monkeypatch, tmp_path):
+    """Host-inherited secret variables are unset before the command runs."""
+    from kmua.services import sandbox as sandbox_mod
+
+    monkeypatch.setenv("KMUA_TOKEN", "sekret")
+    monkeypatch.setenv("AWS_SECRET_ACCESS_KEY", "sekret2")
+    monkeypatch.setenv("PATH", "/usr/bin")
+
+    cmd = sandbox_mod._build_landrun_cmd("echo hi", tmp_path / "ws")
+    bash_c = cmd[cmd.index("-c") + 1]
+    assert "unset KMUA_TOKEN" in bash_c
+    assert "unset AWS_SECRET_ACCESS_KEY" in bash_c
+    assert "unset PATH" not in bash_c  # PATH is overridden via landrun, not host
+
+
+def test_landrun_cmd_no_sensitive_env_no_prefix(monkeypatch, tmp_path):
+    from kmua.services import sandbox as sandbox_mod
+
+    monkeypatch.delenv("KMUA_TOKEN", raising=False)
+    monkeypatch.delenv("AWS_SECRET_ACCESS_KEY", raising=False)
+    cmd = sandbox_mod._build_landrun_cmd("echo hi", tmp_path / "ws")
+    bash_c = cmd[cmd.index("-c") + 1]
+    # Host KMUA_* config variables may legitimately be stripped; the point is
+    # that nothing we deliberately deleted is listed.
+    assert "unset KMUA_TOKEN" not in bash_c
+    assert "unset AWS_SECRET_ACCESS_KEY" not in bash_c
