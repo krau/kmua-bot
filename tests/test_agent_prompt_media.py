@@ -61,8 +61,7 @@ async def test_unsupported_photo_leaves_placeholder(monkeypatch):
         msg,  # type: ignore[arg-type]
     )
     joined = " ".join(str(p) for p in prompts)
-    assert "用户发送了图片" in joined
-    assert "已省略" in joined
+    assert "模型无法处理的内容: 图片" in joined
     assert needs_multimodal is False
 
 
@@ -75,7 +74,7 @@ async def test_unsupported_document_names_the_file(monkeypatch):
         msg,  # type: ignore[arg-type]
     )
     joined = " ".join(str(p) for p in prompts)
-    assert "用户发送了文档《report.pdf》" in joined
+    assert "模型无法处理的内容: 文档《report.pdf》" in joined
 
 
 async def test_plain_text_message_has_no_placeholder(monkeypatch):
@@ -86,7 +85,7 @@ async def test_plain_text_message_has_no_placeholder(monkeypatch):
         msg,  # type: ignore[arg-type]
     )
     joined = " ".join(str(p) for p in prompts)
-    assert "已省略" not in joined
+    assert "模型无法处理" not in joined
     assert "hello" in joined
 
 
@@ -109,7 +108,7 @@ async def test_poll_is_text_represented_without_placeholder(monkeypatch):
         msg,  # type: ignore[arg-type]
     )
     joined = " ".join(str(p) for p in prompts)
-    assert "已省略" not in joined
+    assert "模型无法处理" not in joined
     assert "q?" in joined
 
 
@@ -122,7 +121,7 @@ async def test_supported_photo_is_included_without_placeholder(monkeypatch):
         msg,  # type: ignore[arg-type]
     )
     joined = " ".join(str(p) for p in prompts)
-    assert "已省略" not in joined
+    assert "模型无法处理" not in joined
     assert needs_multimodal is True
 
 
@@ -140,4 +139,104 @@ async def test_oversize_video_leaves_placeholder(monkeypatch):
         msg,  # type: ignore[arg-type]
     )
     joined = " ".join(str(p) for p in prompts)
-    assert "用户发送了视频" in joined
+    assert "模型无法处理的内容: 视频" in joined
+
+
+async def test_transcribe_replaces_media_with_description(monkeypatch):
+    from pydantic_ai import BinaryContent
+    from pydantic_ai.models.test import TestModel
+
+    from kmua.plugins.agent import prompt as prompt_mod
+
+    class _TranscribeModel(TestModel):
+        def __init__(self):
+            super().__init__(custom_output_text="图里有一只猫")
+
+    prompt_mod.Agent = lambda **kw: __import__("pydantic_ai").Agent(
+        model=_TranscribeModel(), retries=2
+    )
+    try:
+        result = await prompt_mod.transcribe_multimodal_content(
+            object(),
+            ["看这张图", BinaryContent(data=b"img", media_type="image/jpeg")],
+        )
+    finally:
+        import pydantic_ai
+
+        prompt_mod.Agent = pydantic_ai.Agent
+    joined = " ".join(str(p) for p in result)
+    assert "看这张图" in joined
+    assert "图里有一只猫" in joined
+    assert "BinaryContent" not in joined
+    assert "转述" in joined
+
+
+async def test_transcribe_no_media_returns_unchanged():
+    from kmua.plugins.agent import prompt as prompt_mod
+
+    result = await prompt_mod.transcribe_multimodal_content(object(), ["plain"])
+    assert result == ["plain"]
+
+
+async def test_transcribe_failure_falls_back_to_placeholder(monkeypatch):
+    from pydantic_ai import BinaryContent
+    from pydantic_ai.models.test import TestModel
+
+    from kmua.plugins.agent import prompt as prompt_mod
+
+    class _BoomModel(TestModel):
+        async def request(self, *args, **kwargs):
+            raise RuntimeError("model down")
+
+    prompt_mod.Agent = lambda **kw: __import__("pydantic_ai").Agent(
+        model=_BoomModel(), retries=1
+    )
+    try:
+        result = await prompt_mod.transcribe_multimodal_content(
+            object(),
+            ["x", BinaryContent(data=b"i", media_type="image/jpeg")],
+        )
+    finally:
+        import pydantic_ai
+
+        prompt_mod.Agent = pydantic_ai.Agent
+    joined = " ".join(str(p) for p in result)
+    assert "转述失败" in joined
+    assert "BinaryContent" not in joined
+
+
+async def test_transcribe_uses_configured_instructions(monkeypatch):
+    """The transcription instructions must come from config so operators can
+    tune what the multimodal model reports."""
+    from pydantic_ai import BinaryContent
+    from pydantic_ai.models.test import TestModel
+
+    from kmua.config import app_config
+    from kmua.plugins.agent import prompt as prompt_mod
+
+    captured = {}
+
+    class _CaptureModel(TestModel):
+        def __init__(self):
+            super().__init__(custom_output_text="desc")
+
+    real_agent = __import__("pydantic_ai").Agent
+
+    def fake_agent(**kw):
+        captured["instructions"] = kw.get("instructions")
+        return real_agent(model=_CaptureModel(), retries=2)
+
+    monkeypatch.setattr(
+        app_config, "agent_multimodal_transcribe_prompt", "CUSTOM 转述要求"
+    )
+    prompt_mod.Agent = fake_agent
+    try:
+        await prompt_mod.transcribe_multimodal_content(
+            object(),
+            ["x", BinaryContent(data=b"i", media_type="image/jpeg")],
+        )
+    finally:
+        import pydantic_ai
+
+        prompt_mod.Agent = pydantic_ai.Agent
+    assert captured["instructions"] == "CUSTOM 转述要求"

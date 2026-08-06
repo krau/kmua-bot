@@ -210,6 +210,13 @@ async def _run_agent_impl(
         return
 
     needs_multimodal = check_needs_multimodal(user_prompt, history)
+    if app_config.agent_multimodal_mode == "transcribe":
+        # Only the current message's media matters: past media was already
+        # transcribed into text, so history never routes back to the
+        # multimodal model.
+        needs_multimodal = any(
+            isinstance(item, MULTI_MODAL_CONTENT_TYPES) for item in user_prompt
+        )
 
     override_name = await get_chat_model_override(chat_id, "main")
     multimodal_override = await get_chat_model_override(chat_id, "multimodal")
@@ -218,6 +225,20 @@ async def _run_agent_impl(
         if multimodal_override
         else multimodal_model
     )
+    if (
+        app_config.agent_multimodal_mode == "transcribe"
+        and needs_multimodal
+        and effective_multimodal
+    ):
+        # Transcribe mode: the multimodal model describes the media as text,
+        # the main model continues the run, and history keeps only the
+        # transcription so later requests stay on the main model.
+        from kmua.plugins.agent.prompt import transcribe_multimodal_content
+
+        user_prompt = await transcribe_multimodal_content(
+            effective_multimodal, user_prompt
+        )
+        needs_multimodal = False
     if override_name:
         if needs_multimodal and effective_multimodal:
             use_model = effective_multimodal

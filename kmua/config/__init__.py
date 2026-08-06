@@ -247,6 +247,18 @@ class _AppConfig(pydantic.BaseModel):
     )
     agent_multimodal: bool = True
     agent_streaming: bool = True
+    # Multimodal handling mode: "route" switches the run (and, once media is
+    # in history, every later run) to the multimodal model; "transcribe"
+    # has the multimodal model describe the current message's media as text
+    # and keeps the main model for the actual run - history stores only the
+    # transcription, so later requests stay on the main model.
+    agent_multimodal_mode: str = "route"
+    # Instructions for the transcription run in transcribe mode.
+    agent_multimodal_transcribe_prompt: str = (
+        "用户发送了多媒体内容(图片/音频/视频/文档)。请仔细查看并转述其中"
+        "包含的所有关键信息, 供另一个无法查看媒体的模型理解。只输出转述"
+        "内容本身, 不要额外寒暄或解释。"
+    )
     agent_multimodal_inputs: list[str] = [
         "photo",
         # "video",

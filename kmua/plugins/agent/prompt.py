@@ -6,6 +6,7 @@ from typing import Any
 
 import pyrogram
 from pydantic_ai import (
+    Agent,
     AudioUrl,
     BinaryContent,
     DocumentUrl,
@@ -27,7 +28,7 @@ from kmua.common.memory_store import memttlcache
 from kmua.common.utils import is_explicit_reply
 from kmua.config import app_config
 from kmua.logger import logger
-from kmua.plugins.agent import datatype, state
+from kmua.plugins.agent import datatype, provider, state
 
 
 def _utf16_len(s: str) -> int:
@@ -708,3 +709,44 @@ def check_needs_multimodal(
                 ):
                     return True
     return False
+
+
+async def transcribe_multimodal_content(
+    model: Any, user_prompt: list[UserContent]
+) -> list[UserContent]:
+    """Have the multimodal model describe the prompt's media as text.
+
+    The media items are replaced by the description so the main (text) model
+    sees what the user sent without receiving the binary itself. Returns the
+    prompt unchanged when there is no media, and falls back to a plain
+    placeholder when the transcription fails - the run never blocks on it.
+    """
+    media_items = [
+        item for item in user_prompt if isinstance(item, MULTI_MODAL_CONTENT_TYPES)
+    ]
+    if not media_items:
+        return user_prompt
+    text_items = [
+        item for item in user_prompt if not isinstance(item, MULTI_MODAL_CONTENT_TYPES)
+    ]
+    transcribe_agent = Agent(
+        model=model,
+        retries=2,
+        model_settings=provider.make_model_settings(
+            app_config.agent_model_multimodal_options
+        ),
+        instructions=app_config.agent_multimodal_transcribe_prompt,
+    )
+    try:
+        result = await transcribe_agent.run([*text_items, *media_items])
+    except Exception as e:
+        logger.error(f"multimodal transcription failed: {e.__class__.__name__} - {e}")
+        return [
+            *text_items,
+            "[用户发送了多媒体内容, 但转述失败, 已省略]",
+        ]
+    transcription = str(result.output).strip()
+    if not transcription:
+        return [*text_items, "[用户发送了多媒体内容, 转述为空, 已省略]"]
+    logger.debug(f"multimodal transcription: {transcription[:200]}")
+    return [*text_items, f"[用户发送了多媒体内容, 模型转述如下]:\n{transcription}"]
