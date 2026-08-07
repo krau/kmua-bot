@@ -354,6 +354,9 @@ class _AppConfig(pydantic.BaseModel):
     agent_download_max_bytes: int = 20_000_000
     agent_landrun_path: str = "/usr/local/bin/landrun"
 
+    # Master switch for channel comments (the per-chat ai_comment setting
+    # still applies on top).
+    agent_channel_comment_enabled: bool = True
     # experimental, maybe removed in the future
     agent_whitelist_mode: bool = False
     agent_whitelist: list[int] = []

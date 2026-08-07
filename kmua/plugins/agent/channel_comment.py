@@ -233,6 +233,8 @@ async def channel_comment_filter_func(_, __, message: pyrogram.types.Message):
         pyrogram.enums.ChatType.GROUP,
     ):
         return False
+    if not app_config.agent_channel_comment_enabled:
+        return False
     if not message.automatic_forward:
         return False
     if _message_has_unsupported_media(message):
