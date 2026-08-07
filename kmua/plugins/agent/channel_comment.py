@@ -3,7 +3,7 @@ import mimetypes
 
 import pyrogram
 from pydantic import BaseModel, Field
-from pydantic_ai import Agent
+from pydantic_ai import Agent, ModelSettings
 from pyrogram.client import Client
 
 from kmua import database
@@ -25,7 +25,15 @@ class CommentResult(BaseModel):
     poll_is_anonymous: bool = Field(default=True, description="投票是否匿名")
 
 
-comment_agent = Agent(model=struct_model, output_type=CommentResult, retries=5)
+# Structured output forces a tool_choice, which thinking-enabled models
+# reject; the comment task needs the schema, so thinking is disabled here
+# (silently ignored on models without thinking support).
+comment_agent = Agent(
+    model=struct_model,
+    output_type=CommentResult,
+    retries=5,
+    model_settings=ModelSettings(thinking=False),
+)
 
 
 def _normalize_poll(
