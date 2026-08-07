@@ -3,7 +3,7 @@ import mimetypes
 
 import pyrogram
 from pydantic import BaseModel, Field
-from pydantic_ai import Agent, ModelSettings
+from pydantic_ai import Agent
 from pyrogram.client import Client
 
 from kmua import database
@@ -14,6 +14,7 @@ from kmua.plugins.agent.output import TypingKeepAlive, reply_output
 from kmua.plugins.agent.prompt import get_input_prompt
 from kmua.plugins.agent.runner import get_chat_prompt_override
 
+from . import provider
 from .agent import struct_model
 from .whitelist import is_chat_allowed
 
@@ -26,13 +27,17 @@ class CommentResult(BaseModel):
 
 
 # Structured output forces a tool_choice, which thinking-enabled models
-# reject; the comment task needs the schema, so thinking is disabled here
-# (silently ignored on models without thinking support).
+# reject; the comment task needs the schema, so thinking defaults to off.
+# agent_struct_model_options applies on top - providers whose gateway
+# ignores reasoning_effort can disable thinking natively there, e.g.
+# extra_body={"thinking": {"type": "disabled"}} for DeepSeek-style gates.
+_comment_model_options = dict(app_config.agent_struct_model_options or {})
+_comment_model_options.setdefault("thinking", False)
 comment_agent = Agent(
     model=struct_model,
     output_type=CommentResult,
     retries=5,
-    model_settings=ModelSettings(thinking=False),
+    model_settings=provider.make_model_settings(_comment_model_options),
 )
 
 
@@ -290,7 +295,11 @@ async def comment_channel_message(client: Client, message: pyrogram.types.Messag
     prompts, _ = await get_input_prompt(client, message, ctx=None)
     if not prompts:
         return
-    logger.debug(f"Channel comment post: {message.caption or message.text}")
+    logger.debug(
+        f"Channel comment post in chat {chat.id} from channel "
+        f"{channel.id} ({channel.title or '?'}), msg {message.id}: "
+        f"{message.caption or message.text}"
+    )
     try:
         async with TypingKeepAlive(client, message):
             result = await comment_agent.run(
@@ -322,7 +331,17 @@ async def comment_channel_message(client: Client, message: pyrogram.types.Messag
                     )
                 except Exception as e:
                     logger.error(
-                        f"Channel comment poll failed: {e.__class__.__name__} - {e}"
+                        f"Channel comment poll failed in chat {chat.id}: "
+                        f"{e.__class__.__name__} - {e}"
                     )
+        logger.info(
+            f"Channel comment done in chat {chat.id} from channel "
+            f"{channel.id} ({channel.title or '?'}), msg {message.id}: "
+            f"comment={output.comment!r} "
+            f"poll={output.poll_question!r}"
+        )
     except Exception as e:
-        logger.error(f"Channel comment error: {e.__class__.__name__} - {e}")
+        logger.error(
+            f"Channel comment error in chat {chat.id} from channel "
+            f"{channel.id}: {e.__class__.__name__} - {e}"
+        )
