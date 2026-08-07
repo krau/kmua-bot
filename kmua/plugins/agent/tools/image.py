@@ -306,7 +306,7 @@ async def image_ops(
         prompt: Describe what to create or what changes to make — be specific
             about subject, style, colors, composition.
         size: Only used for "generate" — image dimensions: "1024x1024"
-            (default), "1792x1024" or "1024x1792" (model dependent).
+            (default), "1792x1024" or "1024x1792" (where supported).
     """
     if operation == "generate":
         return await _generate_image(ctx, prompt, size)

@@ -292,8 +292,7 @@ async def tg(
 ) -> str:
     """Call a Telegram method on the current chat, using Telegram Bot API naming.
 
-    chat_id is always the current chat — do not pass it. Unknown methods,
-    unknown fields and missing required fields are rejected with an error.
+    chat_id is always the current chat and is set for you.
 
     Standard methods (params follow Bot API field names):
     - sendMessage: text, parse_mode (HTML / MarkdownV2), disable_web_page_preview, reply_to_message_id

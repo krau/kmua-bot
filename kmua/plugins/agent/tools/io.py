@@ -573,8 +573,8 @@ async def write(
     from a public Telegram chat (both size-limited). Binary payloads must go
     through a reference (work://, persist://, chat://media, a t.me link).
 
-    Files in the workspace are sandboxed. Large content (over 5 MB) is rejected.
-    Prefer edit when modifying an existing workspace file.
+    Keep content under 5 MB. Prefer edit when modifying an existing
+    workspace file.
     """
     try:
         protocol, rest = _split_target(path)
@@ -636,10 +636,10 @@ async def edit(
     """Edit a file in the chat's workspace (work:// only).
 
     Replaces old_text with new_text in the file. Give enough surrounding text
-    to make old_text unique — the edit is refused when it matches nothing or
-    matches multiple places (pass replace_all=True only when you really want
-    every occurrence changed). Pass line (1-indexed) to restrict the edit to a
-    single line, which is handy for long files.
+    to make old_text unique; when it matches nothing or several places the
+    edit reports an error. Pass replace_all=True to change every occurrence.
+    Pass line (1-indexed) to restrict the edit to a single line, handy for
+    long files.
     """
     try:
         protocol, rest = _split_target(path)
@@ -666,7 +666,6 @@ async def list(ctx: RunContext[datatype.ContextDeps], path: str = "work://") -> 
     Protocols:
     - work://             — agent workspace (default)
     - work://subdir       — workspace subdirectory
-    - sandbox://          — this session's shell sandbox
     - persist://          — files persisted for this chat
     - kmua://kmua/plugins — a codebase directory (read-only)
     """
@@ -823,10 +822,10 @@ async def delete(
     ctx: RunContext[datatype.ContextDeps],
     path: str,
 ) -> str:
-    """Delete a file from the workspace, sandbox, or the persisted set.
+    """Delete a file from the workspace or the persisted set.
 
-    work:// and sandbox:// remove the local file. persist:// removes the
-    record only - the document message stays in chat history.
+    work:// removes the local file. persist:// removes the record only -
+    the document message stays in chat history.
     """
     try:
         protocol, rest = _split_target(path)
