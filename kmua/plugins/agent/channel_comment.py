@@ -190,6 +190,27 @@ def _message_has_unsupported_media(message: pyrogram.types.Message) -> bool:
             return True
 
 
+def _media_would_be_embedded(message: pyrogram.types.Message) -> bool:
+    """True when get_input_prompt would embed this message's media as
+    multimodal content (photos, videos, audio, binary documents) rather
+    than as text (polls, web pages, text documents)."""
+    if not message.media:
+        return False
+    if message.media in (
+        pyrogram.enums.MessageMediaType.POLL,
+        pyrogram.enums.MessageMediaType.WEB_PAGE,
+    ):
+        return False
+    if message.media == pyrogram.enums.MessageMediaType.DOCUMENT:
+        document = message.document
+        mime_type = document.mime_type if document else None
+        if not mime_type and document:
+            mime_type, _ = mimetypes.guess_type(document.file_name)
+        if mime_type and mime_type.split(";")[0].startswith("text/"):
+            return False
+    return True
+
+
 async def channel_comment_filter_func(_, __, message: pyrogram.types.Message):
     chat = message.chat
     if chat is None:
@@ -202,6 +223,12 @@ async def channel_comment_filter_func(_, __, message: pyrogram.types.Message):
     if not message.automatic_forward:
         return False
     if _message_has_unsupported_media(message):
+        return False
+    if not app_config.agent_struct_model_multimodal and _media_would_be_embedded(
+        message
+    ):
+        # The comment model cannot take media: silently skip the post
+        # instead of commenting without anything to look at.
         return False
     if comment_agent is None:
         return False

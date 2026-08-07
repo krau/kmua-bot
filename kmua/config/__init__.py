@@ -246,6 +246,10 @@ class _AppConfig(pydantic.BaseModel):
         "conversation."
     )
     agent_multimodal: bool = True
+    # Whether the struct model (channel comments, memory extraction) accepts
+    # multimodal input. Comment posts with media the model cannot take are
+    # silently skipped instead of being commented without the media.
+    agent_struct_model_multimodal: bool = False
     agent_streaming: bool = True
     # Multimodal handling mode: "route" switches the run (and, once media is
     # in history, every later run) to the multimodal model; "transcribe"

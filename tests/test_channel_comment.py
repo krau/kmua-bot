@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from types import SimpleNamespace
+
 import pytest
 
 
@@ -51,3 +53,43 @@ async def test_comment_result_accepts_single_option(cc):
     result = CommentResult(comment="c", poll_question="q", poll_options=["a"])
     assert result.poll_options == ["a"]
     assert normalize(result.poll_question, result.poll_options) is None
+
+
+async def test_comment_filter_media_follows_struct_model_capability(monkeypatch):
+    """Messages with media the comment model cannot take are silently
+    skipped; enabling the struct model's multimodal support admits them."""
+    from pyrogram.enums import MessageMediaType
+
+    from kmua.plugins.agent import channel_comment as cc
+
+    def embedded(msg):
+        return cc._media_would_be_embedded(msg)  # type: ignore[arg-type]
+
+    # Non-text media is embedded as multimodal content.
+    assert embedded(
+        SimpleNamespace(media=MessageMediaType.PHOTO, photo=SimpleNamespace())
+    )
+    # Polls, web pages and text documents stay textual.
+    assert not embedded(SimpleNamespace(media=MessageMediaType.POLL, poll=None))
+    assert not embedded(SimpleNamespace(media=MessageMediaType.WEB_PAGE, web_page=None))
+    assert not embedded(SimpleNamespace(media=None))
+    assert not embedded(
+        SimpleNamespace(
+            media=MessageMediaType.DOCUMENT,
+            document=SimpleNamespace(
+                file_size=100,
+                mime_type="text/plain",
+                file_name="notes.txt",
+            ),
+        )
+    )
+    assert embedded(
+        SimpleNamespace(
+            media=MessageMediaType.DOCUMENT,
+            document=SimpleNamespace(
+                file_size=100,
+                mime_type="application/pdf",
+                file_name="report.pdf",
+            ),
+        )
+    )
