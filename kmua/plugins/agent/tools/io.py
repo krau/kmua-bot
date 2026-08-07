@@ -56,10 +56,9 @@ def _split_target(path: str) -> tuple[str, str]:
         return "http", path
     raise ValueError(
         f"Unsupported target: {path}. Use kmua:// (codebase), work:// "
-        f"(workspace), sandbox:// (shell sandbox), persist:// (persisted "
-        f"files), chat:// (current chat: info, history, media), memory:// "
-        f"(memory), web:// (web search) or http(s):// (web; t.me message "
-        f"links download the media)."
+        f"(workspace), persist:// (persisted files), chat:// (current chat: "
+        f"info, history, media), memory:// (memory), web:// (web search) or "
+        f"http(s):// (web; t.me message links download the media)."
     )
 
 
@@ -114,7 +113,7 @@ def _sandbox_target(session_key: str, rel: str) -> Path:
     return root / rel_path
 
 
-async def _read_bytes(path: str, ctx: RunContext[datatype.ContextDeps]) -> bytes:
+async def read_bytes(path: str, ctx: RunContext[datatype.ContextDeps]) -> bytes:
     """Read a target as raw bytes (persist payloads and binary copies)."""
     protocol, rest = _split_target(path)
     denied = _require(protocol, ctx.deps)
@@ -173,9 +172,9 @@ async def _write_persisted(
 ) -> str:
     """Persist a file: send it to the chat as a document and record it.
 
-    content may be plain text or a protocol reference (work://, sandbox://,
-    kmua://, persist://) whose bytes are persisted; binary payloads go
-    through references so they are not round-tripped through text.
+    content may be plain text or a protocol reference (work://, kmua://,
+    persist://) whose bytes are persisted; binary payloads go through
+    references so they are not round-tripped through text.
     """
     name = name.lstrip("/")
     if not name or "/" in name or len(name) > 256:
@@ -464,7 +463,7 @@ async def _read_content(
         return content
     if protocol in ("work://", "sandbox://"):
         if raw:
-            raw_bytes = await _read_bytes(path, ctx)
+            raw_bytes = await read_bytes(path, ctx)
             return raw_bytes.decode("utf-8", errors="replace")
         if protocol == "work://":
             content = await workspace.read_file(
@@ -529,7 +528,6 @@ async def read(
     Protocols:
     - kmua://kmua/plugins/x.py — a file from the bot's own codebase (read-only)
     - work://notes/hello.html — a file from this chat's workspace
-    - sandbox://out/data.txt  — a file in this session's shell sandbox
     - persist://report.txt    — a file the agent persisted for this chat
     - chat://media/123        — the media of message 123 in this chat
     - https://t.me/MoreACG/27411 — the media of a public t.me message
@@ -538,7 +536,7 @@ async def read(
                               — messages from the current group
     - https://example.com     — a web page as markdown/text
 
-    Use start_line/max_lines to page through kmua://, work://, sandbox:// and
+    Use start_line/max_lines to page through kmua://, work:// and
     persist:// targets (1-indexed; max_lines up to 1500).
     """
     if max_lines < 1 or max_lines > 1500:
@@ -561,7 +559,6 @@ async def write(
 
     Protocols:
     - work://notes/hello.html — save content as a file in the chat's workspace
-    - sandbox://out/result.json — save content into the shell sandbox
     - persist://report.txt    — persist a file for this chat: it is sent as a
         document to the chat and recorded; later runs can read, list, delete
         and overwrite it by name. The chat message stays after delete.
@@ -574,8 +571,7 @@ async def write(
     copying files between targets. A chat://media/<message_id> reference
     downloads a message's media from this chat, and an https://t.me/... link
     from a public Telegram chat (both size-limited). Binary payloads must go
-    through a reference (work://, sandbox://, persist://, chat://media, a
-    t.me link).
+    through a reference (work://, persist://, chat://media, a t.me link).
 
     Files in the workspace are sandboxed. Large content (over 5 MB) is rejected.
     Prefer edit when modifying an existing workspace file.
@@ -597,7 +593,7 @@ async def write(
             # (lossless for binary payloads; text round-tripping would
             # corrupt non-UTF-8 bytes).
             try:
-                content = await _read_bytes(content, ctx)
+                content = await read_bytes(content, ctx)
             except Exception as e:
                 logger.error(f"write error for {path}: resolving {content}: {e}")
                 return f"Error: {e}"

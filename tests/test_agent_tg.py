@@ -298,6 +298,12 @@ async def test_send_document_content_and_document_conflict():
     assert "not both" in result
 
 
+async def test_tg_rejects_bare_media_value():
+    """A raw Telegram file_id cannot be known to the model; reject it."""
+    result = await tg_ops.tg(_ctx(), "sendPhoto", {"photo": "AgADfakefileid"})
+    assert "must be an http(s) URL" in result
+
+
 async def test_tg_media_keeps_source_extensions(monkeypatch):
     """.go (and any explicit extension) must survive — no .bin suffix."""
     calls = {}
@@ -347,6 +353,32 @@ async def test_tg_media_work_ref_keeps_go_extension(monkeypatch, tmp_path):
         assert calls["document"].name == "sandbox.go"
     finally:
         await agent.close()
+
+
+async def test_tg_media_sandbox_ref(monkeypatch, tmp_path):
+    """A sandbox:// reference is read through the symlink-guarded io path."""
+    from kmua.services import sandbox
+
+    sandbox_root = tmp_path / "sessions" / "-100123"
+    sandbox_root.mkdir(parents=True)
+    (sandbox_root / "poster.png").write_bytes(b"\x89PNG\r\n")
+    monkeypatch.setattr(
+        sandbox, "session_shell_dir", lambda key: tmp_path / "sessions" / key
+    )
+
+    calls = {}
+
+    async def fake_send_photo(chat_id, **kwargs):
+        calls["photo"] = kwargs["photo"]
+        return SimpleNamespace(message_id=1)
+
+    await tg_ops.tg(
+        _ctx(SimpleNamespace(send_photo=fake_send_photo)),
+        "sendPhoto",
+        {"photo": "sandbox://poster.png"},
+    )
+    assert calls["photo"].getvalue() == b"\x89PNG\r\n"
+    assert calls["photo"].name == "poster.png"
 
 
 async def test_tg_send_document_kmua_ref(monkeypatch, tmp_path):

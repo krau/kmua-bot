@@ -140,19 +140,18 @@ async def test_tg_media_unsafe_url_rejected(monkeypatch):
     assert "not a public internet address" in result or "Error" in result
 
 
-async def test_tg_media_file_id_passed_through(monkeypatch):
-    calls = {}
+async def test_tg_media_file_id_rejected(monkeypatch):
+    """A raw file_id is rejected: the model can never know one."""
 
     async def fake_send_document(chat_id, **kwargs):
-        calls["document"] = kwargs["document"]
-        return SimpleNamespace(message_id=1)
+        raise AssertionError("send_document must not be called")
 
-    await tg_ops.tg(
+    result = await tg_ops.tg(
         _ctx(SimpleNamespace(send_document=fake_send_document)),
         "sendDocument",
         {"document": "AgACAgUAAxUAAW3"},
     )
-    assert calls["document"] == "AgACAgUAAxUAAW3"
+    assert "must be an http(s) URL" in result
 
 
 async def test_send_contact_removed():
@@ -212,19 +211,18 @@ async def test_tg_media_name_default_ext_when_missing(monkeypatch):
     assert calls["audio"].name == "stream.mp3"
 
 
-async def test_tg_media_file_id_still_passthrough():
-    calls = {}
+async def test_tg_media_file_id_rejected_for_video():
+    """Video media refuses a raw file_id too."""
 
     async def fake_send_video(chat_id, **kwargs):
-        calls["video"] = kwargs["video"]
-        return SimpleNamespace(message_id=1)
+        raise AssertionError("send_video must not be called")
 
-    await tg_ops.tg(
+    result = await tg_ops.tg(
         _ctx(SimpleNamespace(send_video=fake_send_video)),
         "sendVideo",
         {"video": "BAACAgUAAxUAAW3"},
     )
-    assert calls["video"] == "BAACAgUAAxUAAW3"
+    assert "must be an http(s) URL" in result
 
 
 async def test_safe_download_content_length_precheck(monkeypatch):

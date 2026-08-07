@@ -98,8 +98,9 @@ async def shell(
     """Run a bash command in this chat's sandbox.
 
     Commands share the same sandbox directory across calls — files persist,
-    so later commands can build on earlier ones (`pwd` shows it). The
-    sandbox is also addressable as sandbox:// via the io tools, e.g.
+    so later commands can build on earlier ones (`pwd` shows it). Anywhere
+    that accepts a work:// reference (io tools, tg media fields) also
+    accepts sandbox:// for a file in this sandbox, e.g.
     `write work://out/result.json content="sandbox://result.json"` copies a
     produced file out.
 

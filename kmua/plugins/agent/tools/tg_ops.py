@@ -18,7 +18,7 @@ from kmua.common.safe_http import DEFAULT_MAX_BYTES, UnsafeUrlError, safe_downlo
 from kmua.logger import logger
 
 from .. import datatype
-from . import block, code_repo, send_ops, workspace
+from . import block, code_repo, io, send_ops, workspace
 
 # method -> (pyrogram client method, allowed params, required params)
 _METHODS: dict[str, tuple[str, set[str], set[str]]] = {
@@ -36,11 +36,6 @@ _METHODS: dict[str, tuple[str, set[str], set[str]]] = {
         "send_document",
         {"document", "content", "file_name", "caption", "reply_to_message_id"},
         set(),
-    ),
-    "sendSticker": (
-        "send_sticker",
-        {"sticker", "reply_to_message_id"},
-        {"sticker"},
     ),
     "sendReaction": (
         "send_reaction",
@@ -84,7 +79,6 @@ _METHODS: dict[str, tuple[str, set[str], set[str]]] = {
 _MEDIA_FIELDS = {
     "photo",
     "document",
-    "sticker",
     "audio",
     "video",
     "voice",
@@ -216,6 +210,18 @@ async def _convert_params(
         elif (
             key in _MEDIA_FIELDS
             and isinstance(value, str)
+            and value.startswith("sandbox://")
+        ):
+            # sandbox:// references read a file from this session's shell
+            # sandbox (same symlink-guarded access as the io tools).
+            try:
+                raw = await io.read_bytes(value, ctx)
+            except Exception as e:
+                return None, f"Error: {e}"
+            kwargs[key] = _named_media(method, value, raw)
+        elif (
+            key in _MEDIA_FIELDS
+            and isinstance(value, str)
             and value.startswith(("http://", "https://"))
         ):
             # Media URLs are downloaded through the SSRF-guarded client so
@@ -232,6 +238,11 @@ async def _convert_params(
                     f"Error: Failed to download {key}: {e.__class__.__name__}",
                 )
             kwargs[key] = _named_media(method, value, raw)
+        elif key in _MEDIA_FIELDS:
+            return None, (
+                f"Error: {key} must be an http(s) URL, a work:// file reference "
+                "or a kmua:// codebase file."
+            )
         else:
             kwargs[key] = value
     return kwargs, None
@@ -241,12 +252,12 @@ async def _convert_params(
 _DEFAULT_MEDIA_EXT: dict[str, str] = {
     "sendPhoto": ".jpg",
     "sendDocument": ".bin",
-    "sendSticker": ".webp",
     "sendAudio": ".mp3",
     "sendVideo": ".mp4",
     "sendVoice": ".ogg",
     "sendAnimation": ".gif",
 }
+
 
 def _named_media(method: str, url: str, raw: bytes) -> BytesIO:
     """Wrap bytes in a BytesIO carrying a filename for pyrogram.
@@ -286,19 +297,17 @@ async def tg(
 
     Standard methods (params follow Bot API field names):
     - sendMessage: text, parse_mode (HTML / MarkdownV2), disable_web_page_preview, reply_to_message_id
-    - sendPhoto: photo (file_id or http(s) URL), caption, has_spoiler, reply_to_message_id
-    - sendDocument: document (file_id, http(s) URL, or a work:// file reference)
+    - sendPhoto: photo (http(s) URL, work:// or kmua:// reference), caption, has_spoiler, reply_to_message_id
+    - sendDocument: document (http(s) URL or a work:// / kmua:// reference)
       OR content (plain text made into the document), plus file_name, caption,
       reply_to_message_id
-    - sendSticker: sticker (file_id), reply_to_message_id
     - sendReaction: message_id, emoji
     - sendPoll: question, options (2-8 strings), is_anonymous, allows_multiple_answers, reply_to_message_id
     - sendDice: emoji (🎲 🎯 🎳 🎰 🎲 variants)
     - sendAudio / sendVideo / sendVoice / sendAnimation: the media field, caption, reply_to_message_id
 
-    Media fields accept a Telegram file_id, a kmua:// codebase file (read-only),
-    a work:// file reference from this chat's workspace, or a public http(s)
-    URL (the bot downloads it itself; private/intranet addresses are rejected).
+    Media fields accept a public http(s) URL, a work:// file reference from
+    this chat's workspace, or a kmua:// codebase file.
 
     kmua extensions:
     - scheduleMessage: text, schedule_time (ISO 8601, must be in the future).
