@@ -713,3 +713,20 @@ async def test_read_tme_webpage_preview_falls_back(ctx, monkeypatch):
     result = await io.read(ctx, "https://t.me/SomeChannel/456")
     assert "预览帖子的文本" in result
     assert captured["url"] == "https://t.me/SomeChannel/456"
+
+
+def test_format_search_results_uses_dict_fields():
+    """Search results are dicts (title/href/body); attribute access would
+    render every entry empty."""
+    from kmua.plugins.agent.tools.io import _format_search_results
+
+    results = [
+        {"title": "白雪乃爱 - 维基", "href": "https://example.com/a", "body": "介绍"},
+        {"title": "角色主页", "href": "https://t.me/x/1", "body": "资料"},
+    ]
+    out = _format_search_results("白雪乃爱", results)
+    assert "白雪乃爱 - 维基" in out
+    assert "https://example.com/a" in out
+    assert "介绍" in out
+    assert "2. 角色主页" in out
+    assert _format_search_results("x", []) == "No results found for 'x'"

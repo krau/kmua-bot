@@ -725,19 +725,24 @@ async def list(ctx: RunContext[datatype.ContextDeps], path: str = "work://") -> 
         return f"Error: {e}"
 
 
-async def _search_web(query: str, max_results: int) -> str:
-    results = await DuckDuckGoSearchTool(
-        DDGS(), max_results=min(max_results, 10)
-    ).__call__(query)
+def _format_search_results(query: str, results: builtins.list[Any]) -> str:
+    """Render search results; results are dicts with title/href/body keys."""
     if not results:
         return f"No results found for '{query}'"
     lines = [f"Search results for '{query}' ({len(results)}):"]
     for i, r in enumerate(results, 1):
-        title = getattr(r, "title", None) or ""
-        url = getattr(r, "url", None) or ""
-        snippet = getattr(r, "snippet", None) or ""
+        title = r.get("title") or ""
+        url = r.get("href") or ""
+        snippet = r.get("body") or ""
         lines.append(f"\n{i}. {title}\n   {url}\n   {snippet}")
     return "\n".join(lines)
+
+
+async def _search_web(query: str, max_results: int) -> str:
+    results = await DuckDuckGoSearchTool(
+        DDGS(), max_results=min(max_results, 10)
+    ).__call__(query)
+    return _format_search_results(query, results)
 
 
 async def search(
