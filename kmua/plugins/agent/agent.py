@@ -1,5 +1,6 @@
 import asyncio
 import random
+from typing import Any
 
 import pyrogram
 from aiocache import SimpleMemoryCache
@@ -65,6 +66,50 @@ if app_config.agent_powermem_config is not None:
 
 
 _bot_user_wake_locks: dict[int, asyncio.Lock] = {}
+# Runs currently executing, keyed by conversation. /clear_sessions cancels
+# them so a wiped conversation is not written back to afterwards.
+_active_run_tasks: dict[tuple[int, int], asyncio.Task] = {}
+
+
+async def _queue_interjection(
+    message: pyrogram.types.Message, chat_id: int, user_id: int
+) -> None:
+    """Queue a mid-turn message for the running conversation.
+
+    Delivers straight into the live AgentRun's pending-message queue (same
+    event loop), so the very next model request - or the end-of-run redirect
+    - carries it. Falls back to the steering queue while a run is starting
+    or winding down.
+    """
+    text = (message.text or message.caption or "").strip()
+    if not text:
+        return
+    if state.enqueue_interjection(chat_id, user_id, text):
+        logger.info(
+            f"User {user_id} interjected in chat {chat_id}; delivered "
+            f"into the running turn"
+        )
+        return
+    await message.reply_text("「回复不过来啦, 请稍等一会吧...」")
+
+
+async def _run_registered(chat_id: int, user_id: int, coro) -> Any:
+    """Run a turn under the task registry; cancellable by session cleanup."""
+    key = (chat_id, user_id)
+    task = asyncio.create_task(coro)
+    _active_run_tasks[key] = task
+    try:
+        return await task
+    except asyncio.CancelledError:
+        logger.info(
+            f"Agent run cancelled for user {user_id} in chat {chat_id} "
+            f"by session cleanup"
+        )
+        return None
+    finally:
+        if _active_run_tasks.get(key) is task:
+            del _active_run_tasks[key]
+
 
 _BOT_WAKE_DELAY_MIN_SECONDS = 0.721
 _BOT_WAKE_DELAY_MAX_SECONDS = 12.7
@@ -106,6 +151,7 @@ async def _clear_conversation_session(chat_id: int, user_id: int) -> None:
     await common.memttlcache.delete(state.history_key(chat_id, user_id))
     await tools.clear_ask_state(chat_id, user_id)
     safety.delete_spill_session(f"{chat_id}_{user_id}")
+    state.clear_steering(chat_id, user_id)
     if chat_id == user_id:
         from kmua.plugins.agent.tools import workspace as workspace_tools
         from kmua.services import sandbox
@@ -293,31 +339,42 @@ if app_config.agent and app_config.agent_model:
         if prompt_override:
             instructions = prompt_override
 
-        await common.memstore.set(state.waiting_key(user_id), True)
+        ask_lock = state.get_conversation_lock(chat_id, user_id)
+        if ask_lock.locked():
+            logger.info(
+                f"Ask run skipped for user {user_id} in chat {chat_id}: "
+                f"turn already in flight"
+            )
+            return
+        await ask_lock.acquire()
         try:
-            await runner.run_agent(
-                agi=agent,  # type: ignore
-                client=client,
-                message=message,
-                user_id=user_id,
-                chat_id=chat_id,
-                user_prompt=[user_prompt],
-                history=history,
-                deps=datatype.ContextDeps(
+            await _run_registered(
+                chat_id,
+                user_id,
+                runner.run_agent(
+                    agi=agent,  # type: ignore
+                    client=client,
+                    message=message,
                     user_id=user_id,
                     chat_id=chat_id,
-                    message=message,
-                    client=client,
-                    instructions=instructions,
-                    powermemory=powermemory,
+                    user_prompt=[user_prompt],
                     history=history,
+                    deps=datatype.ContextDeps(
+                        user_id=user_id,
+                        chat_id=chat_id,
+                        message=message,
+                        client=client,
+                        instructions=instructions,
+                        powermemory=powermemory,
+                        history=history,
+                    ),
+                    multimodal_model=multimodal_model,
+                    model=model,
+                    lang=lang,
                 ),
-                multimodal_model=multimodal_model,
-                model=model,
-                lang=lang,
             )
         finally:
-            await common.memstore.delete(state.waiting_key(user_id))
+            ask_lock.release()
 
     tools.set_run_callback(_run_agent_for_ask)
 
@@ -329,13 +386,13 @@ if app_config.agent and app_config.agent_model:
         if not user or user.id is None:
             return
         user_config = await database.get_user_config(user.id)
-        if await common.memstore.get(state.waiting_key(user.id)):
+        chat_id = message.chat.id if message.chat else user.id
+        if not chat_id:
+            return
+        if state.is_running(chat_id, user.id):
             await message.reply_text(
                 i18n.t("bot.msg.agent.waiting", locale=user_config.lang)
             )
-            return
-        chat_id = message.chat.id if message.chat else user.id
-        if not chat_id:
             return
         if not is_chat_allowed(chat_id):
             return
@@ -369,9 +426,15 @@ if app_config.agent and app_config.agent_model:
                 "cannot be undone. Run /clear_sessions confirm to proceed."
             )
             return
+        active_runs = [t for t in _active_run_tasks.values() if not t.done()]
+        for task in active_runs:
+            task.cancel()
+        if active_runs:
+            await asyncio.gather(*active_runs, return_exceptions=True)
         histories = await _clear_memttlcache_prefix("message_history_with_agent:")
-        waits = _clear_memstore_prefix("agent_waiting:")
         asks = _clear_memstore_prefix("agent_ask_state:")
+        steered = state.clear_all_steering()
+        state.clear_all_locks()
         spills = safety.clear_all_spills()
         from kmua.plugins.agent.tools import workspace as workspace_tools
         from kmua.services import sandbox
@@ -383,14 +446,15 @@ if app_config.agent and app_config.agent_model:
         persisted = await persistent_file_db.delete_all_persistent_files()
         logger.info(
             f"All agent sessions cleared by {user.id}: "
-            f"histories={histories} waits={waits} asks={asks} spills={spills} "
-            f"shells={shells} workspaces={workspaces} persisted={persisted}"
+            f"histories={histories} asks={asks} spills={spills} "
+            f"steered={steered} shells={shells} workspaces={workspaces} "
+            f"persisted={persisted}"
         )
         await message.reply_text(
             f"Cleared {histories} conversation histories, {asks} pending "
-            f"questions, {spills} stored overflow entries, {shells} shell "
-            f"workspaces, {workspaces} workspace databases, {persisted} "
-            f"persisted files (chat messages stay)."
+            f"questions, {spills} stored overflow entries, {steered} queued "
+            f"messages, {shells} shell workspaces, {workspaces} workspace "
+            f"databases, {persisted} persisted files (chat messages stay)."
         )
 
     @PyrogramClient.on_callback_query(
@@ -769,13 +833,14 @@ async def wake_agent(client: PyrogramClient, message: pyrogram.types.Message):
         await bot_user_wake_lock.acquire()
         bot_user_wake_lock_acquired = True
 
-    waiting_marked = False
+    conv_lock = state.get_conversation_lock(chat.id, user.id)
+    if conv_lock.locked():
+        if is_bot_user:
+            return
+        await _queue_interjection(message, chat.id, user.id)
+        return
+    await conv_lock.acquire()
     try:
-        if await common.memstore.get(state.waiting_key(user.id)):
-            if is_bot_user:
-                return
-            return await message.reply_text("Thinking...")
-
         # Check if there's a pending ask — clear it and let the normal flow handle
         # the new message (the ask context is already in history).
         ask_state = await tools.get_ask_state(chat.id, user.id)
@@ -785,8 +850,6 @@ async def wake_agent(client: PyrogramClient, message: pyrogram.types.Message):
                 f"Cleared pending ask for user {user.id}, proceeding with normal agent run"
             )
 
-        await common.memstore.set(state.waiting_key(user.id), True)
-        waiting_marked = True
         # set language
         if chat.type == pyrogram.enums.ChatType.PRIVATE:
             lang = (await database.get_user_config(user.id)).lang
@@ -826,6 +889,7 @@ async def wake_agent(client: PyrogramClient, message: pyrogram.types.Message):
             history=history,
             is_group_chat=is_group_chat,
         )
+        ctx_info_text = ctx_info.to_text() if ctx_info else None
         # 在群聊场景中获取附近消息作为上下文
         # [TODO] 好像自动添加附近消息反而效果不好了
         nearby_count = (
@@ -834,33 +898,47 @@ async def wake_agent(client: PyrogramClient, message: pyrogram.types.Message):
         user_prompt, _ = await get_input_prompt(
             client, message, include_nearby=nearby_count, ctx=None
         )
+        stale_steering = state.drain_steering(chat.id, user.id)
+        if stale_steering:
+            user_prompt = [*user_prompt, "\n".join(stale_steering)]
+            logger.info(
+                f"User {user.id} has {len(stale_steering)} queued message(s) "
+                f"from before, folded into this turn in chat {chat.id}"
+            )
         user_message_text = message.text or message.caption or ""
         if user_message_text:
             logger.debug(
                 f"User {user.id} wake agent in Chat {chat.id}: {user_message_text}"
             )
         await utils.cache_user_image(message, chat_id, user.id)
-        await run_agent(
-            agi=agent,
-            additional_instructions=ctx_info.to_text() if ctx_info else None,
-            client=client,
-            message=message,
-            user_id=user.id,
-            chat_id=chat_id,
-            user_prompt=user_prompt,
-            history=history,
-            deps=datatype.ContextDeps(
+        # Interjections arriving mid-run are delivered by the pending-message
+        # queue inside the same run (see SteeringInjection); no follow-up
+        # run is spawned, so run quotas and the timeout stay continuous.
+        await _run_registered(
+            chat_id,
+            user.id,
+            run_agent(
+                agi=agent,
+                additional_instructions=ctx_info_text,
+                client=client,
+                message=message,
                 user_id=user.id,
                 chat_id=chat_id,
-                message=message,
-                client=client,
-                instructions=instructions,
-                powermemory=powermemory,
+                user_prompt=user_prompt,
                 history=history,
-            ),  # type: ignore
-            multimodal_model=multimodal_model,
-            model=model,
-            lang=lang,
+                deps=datatype.ContextDeps(
+                    user_id=user.id,
+                    chat_id=chat_id,
+                    message=message,
+                    client=client,
+                    instructions=instructions,
+                    powermemory=powermemory,
+                    history=history,
+                ),  # type: ignore
+                multimodal_model=multimodal_model,
+                model=model,
+                lang=lang,
+            ),
         )
         # Increment periodic counters after each completed conversation turn.
         if app_config.agent_periodic_sticker_interval > 0:
@@ -879,8 +957,7 @@ async def wake_agent(client: PyrogramClient, message: pyrogram.types.Message):
                 reaction_ctr + 1,
             )
     finally:
-        if waiting_marked:
-            await common.memstore.delete(state.waiting_key(user.id))
+        conv_lock.release()
         if bot_user_wake_lock_acquired and bot_user_wake_lock is not None:
             bot_user_wake_lock.release()
 
@@ -904,7 +981,9 @@ async def on_guest_chat_query(
     if not is_chat_allowed(chat.id):
         return
 
-    if await common.memstore.get(state.waiting_key(user.id)):
+    guest_lock = state.get_conversation_lock(chat.id, user.id)
+    if guest_lock.locked():
+        await _queue_interjection(message, chat.id, user.id)
         return
 
     user_data = await database.get_user_by_id(user.id)
@@ -913,7 +992,7 @@ async def on_guest_chat_query(
     if await tools.is_user_blocked(user.id):
         return
 
-    await common.memstore.set(state.waiting_key(user.id), True)
+    await guest_lock.acquire()
     try:
         user_message_text = message.text or message.caption or ""
         if user_message_text:
@@ -951,29 +1030,33 @@ async def on_guest_chat_query(
             client, message, include_nearby=0, ctx=None
         )
 
-        await run_agent(
-            agi=agent,  # type: ignore[arg-type]
-            additional_instructions=ctx_info.to_text() if ctx_info else None,
-            client=client,
-            message=message,
-            user_id=user.id,
-            chat_id=chat.id,
-            user_prompt=user_prompt,
-            history=history,
-            deps=datatype.ContextDeps(
+        await _run_registered(
+            chat.id,
+            user.id,
+            run_agent(
+                agi=agent,  # type: ignore[arg-type]
+                additional_instructions=ctx_info.to_text() if ctx_info else None,
+                client=client,
+                message=message,
                 user_id=user.id,
                 chat_id=chat.id,
-                message=message,
-                client=client,
-                instructions=instructions,
-                powermemory=powermemory,
+                user_prompt=user_prompt,
                 history=history,
+                deps=datatype.ContextDeps(
+                    user_id=user.id,
+                    chat_id=chat.id,
+                    message=message,
+                    client=client,
+                    instructions=instructions,
+                    powermemory=powermemory,
+                    history=history,
+                ),
+                multimodal_model=multimodal_model,
+                model=model,
+                lang=user_data.user_config.lang
+                if user_data.user_config
+                else app_config.lang,
             ),
-            multimodal_model=multimodal_model,
-            model=model,
-            lang=user_data.user_config.lang
-            if user_data.user_config
-            else app_config.lang,
         )
     finally:
-        await common.memstore.delete(state.waiting_key(user.id))
+        guest_lock.release()

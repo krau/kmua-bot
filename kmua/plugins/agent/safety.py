@@ -19,7 +19,9 @@ from contextvars import ContextVar, Token
 from datetime import timedelta
 from typing import Any
 
-from pydantic_ai.capabilities import ProcessHistory
+from pydantic_ai import RunContext
+from pydantic_ai.capabilities import AbstractCapability, ProcessHistory
+from pydantic_ai.models import ModelRequestContext
 from pydantic_ai.usage import UsageLimits
 from pydantic_ai_harness.compaction import ClampOversizedMessages, WarnNearLimits
 from pydantic_ai_harness.guardrails import (
@@ -39,8 +41,10 @@ from pydantic_ai_harness.tool_output_limits import (
 )
 
 from kmua.config import app_config
+from kmua.logger import logger
 
 from .model_log import ModelActivityLog
+from .state import drain_steering
 
 _scrub_text_output = for_text(redact_secrets, on_other="allow")
 
@@ -191,6 +195,35 @@ def _clamp_max_part_tokens() -> int:
     return 50_000
 
 
+class SteeringInjection(AbstractCapability[Any]):
+    """Deliver queued user interjections through the official pending-message
+    queue.
+
+    ``RunContext.enqueue`` with the default ``asap`` priority is drained by
+    pydantic-ai's auto-injected PendingMessageDrainCapability: into the very
+    next model request, or - when the agent would otherwise end - through a
+    redirected request in the SAME run. Quotas, timeout and usage counters
+    therefore stay continuous across interjections; nothing is cancelled and
+    no follow-up run is spawned.
+    """
+
+    async def before_model_request(
+        self,
+        ctx: RunContext[Any],
+        request_context: ModelRequestContext,
+    ) -> ModelRequestContext:
+        pending = drain_steering(ctx.deps.chat_id, ctx.deps.user_id)
+        if not pending:
+            return request_context
+        for text in pending:
+            ctx.enqueue(text, priority="asap")
+        logger.info(
+            f"Queued {len(pending)} steering message(s) into the run for "
+            f"user {ctx.deps.user_id} in chat {ctx.deps.chat_id}"
+        )
+        return request_context
+
+
 def build_agent_capabilities(history_processor: Any) -> list[Any]:
     """Assemble the main agent's capabilities from config.
 
@@ -198,7 +231,11 @@ def build_agent_capabilities(history_processor: Any) -> list[Any]:
     ``agent_secret_masking`` / ``agent_tool_output_limit`` switches; spill
     mode registers the harness's read_tool_result tool.
     """
-    caps: list[Any] = [ProcessHistory(history_processor), ModelActivityLog()]
+    caps: list[Any] = [
+        ProcessHistory(history_processor),
+        ModelActivityLog(),
+        SteeringInjection(),
+    ]
     if app_config.agent_secret_masking:
         caps.append(ToolGuardrail(result_guard=scrub_tool_result))
         caps.append(OutputGuardrail(guard=scrub_output))
