@@ -27,11 +27,12 @@ if app_config.agent_sticker_memory:
     )
 
     _desc_spec = app_config.agent_sticker_description_model or app_config.agent_model
-    _description_agent = Agent(
-        model=provider.make_chat_model(_desc_spec),
-        output_type=str,
-        retries=2,
-    )
+    if _desc_spec:
+        _description_agent = Agent(
+            model=provider.make_chat_model(_desc_spec),
+            output_type=str,
+            retries=2,
+        )
 
 
 async def get_embedding(text: str) -> list[float] | None:
@@ -135,6 +136,67 @@ async def _process_sticker(
 _sticker_filter = filters.sticker & (filters.group) & ~filters.bot
 
 
+async def _is_admin_actor(
+    client: PyrogramClient, message: pyrogram.types.Message
+) -> bool:
+    """Whether the message author is an administrator of the chat.
+
+    Shared guard for the sticker admin commands.
+    """
+    user = message.from_user
+    if not user or not user.id:
+        return False
+    chat = message.chat
+    if not chat or not chat.id:
+        return False
+    if not is_chat_allowed(chat.id):
+        return False
+    try:
+        member = await common.get_chat_member(client, chat.id, user.id)
+    except Exception:
+        return False
+    return member.status in (
+        pyrogram.enums.ChatMemberStatus.ADMINISTRATOR,
+        pyrogram.enums.ChatMemberStatus.OWNER,
+    )
+
+
+@PyrogramClient.on_message(filters.command("addsticker") & filters.group, group=11)
+async def add_sticker_command(
+    client: PyrogramClient, message: pyrogram.types.Message
+) -> None:
+    """Let a group administrator add a sticker to this chat's memory.
+
+    Reply to a sticker message with /addsticker; the sticker goes through
+    the same pipeline as automatic sampling (download, description,
+    embedding, store).
+    """
+    if not app_config.agent_sticker_memory:
+        return
+    if not await _is_admin_actor(client, message):
+        return
+    user = message.from_user
+    if not user or not user.id:
+        return
+    chat = message.chat
+    if not chat or not chat.id:
+        return
+    reply = message.reply_to_message
+    if reply is None or reply.sticker is None:
+        await message.reply_text("请回复一条贴纸消息")
+        return
+    sticker = reply.sticker
+    chat_id = chat.id
+    common.spawn(
+        _process_sticker(client, sticker, chat_id),
+        name=f"sticker-memory-{chat_id}",
+    )
+    logger.info(
+        f"Sticker {sticker.file_unique_id} added to chat {chat_id} by {user.id}"
+    )
+    await message.reply_text("这个贴纸我记下啦, 之后可能会用它")
+
+
 @PyrogramClient.on_message(filters.command("delsticker") & filters.group, group=11)
 async def del_sticker_command(
     client: PyrogramClient, message: pyrogram.types.Message
@@ -146,22 +208,13 @@ async def del_sticker_command(
     """
     if not app_config.agent_sticker_memory:
         return
+    if not await _is_admin_actor(client, message):
+        return
     user = message.from_user
     if not user or not user.id:
         return
     chat = message.chat
     if not chat or not chat.id:
-        return
-    if not is_chat_allowed(chat.id):
-        return
-    try:
-        member = await common.get_chat_member(client, chat.id, user.id)
-    except Exception:
-        return
-    if member.status not in (
-        pyrogram.enums.ChatMemberStatus.ADMINISTRATOR,
-        pyrogram.enums.ChatMemberStatus.OWNER,
-    ):
         return
     reply = message.reply_to_message
     if reply is None or reply.sticker is None:
