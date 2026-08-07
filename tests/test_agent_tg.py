@@ -229,6 +229,7 @@ async def test_prepare_sticker_gates_private(monkeypatch):
     from kmua.plugins.agent import sticker_memory, sticker_vec
 
     monkeypatch.setattr(sticker_memory, "embedder", SimpleNamespace())
+
     async def count_zero(chat_id):
         return 0
 
@@ -378,3 +379,28 @@ async def test_tg_send_document_kmua_ref(monkeypatch, tmp_path):
         assert calls["document"].read() == b"# wechat code"
     finally:
         await code_agent.close()
+
+
+async def test_sticker_vec_delete_removes_sticker(monkeypatch, tmp_path):
+    """Manual eviction removes the sticker row and its embedding."""
+    from kmua.config import app_config as cfg
+    from kmua.plugins.agent import sticker_vec
+
+    db_path = tmp_path / "stickers.db"
+    monkeypatch.setattr(cfg, "agent_sticker_db_path", str(db_path))
+    monkeypatch.setattr(sticker_vec, "_DB_PATH", None)
+    dims = cfg.agent_sticker_embed_dimensions
+    embedding = [0.1] * dims
+    await sticker_vec.init()
+
+    await sticker_vec.upsert("uid1", "file1", -100123, "一个猫猫贴纸", embedding)
+    assert await sticker_vec.exists("uid1", -100123)
+
+    assert await sticker_vec.delete("uid1", -100123) is True
+    assert not await sticker_vec.exists("uid1", -100123)
+    # Absent sticker reports False instead of erroring.
+    assert await sticker_vec.delete("uid1", -100123) is False
+    # Other chats are untouched.
+    await sticker_vec.upsert("uid1", "file1", -100456, "同一个贴纸别的群", embedding)
+    assert await sticker_vec.delete("uid1", -100123) is False
+    assert await sticker_vec.exists("uid1", -100456)

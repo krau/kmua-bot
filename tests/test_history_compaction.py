@@ -436,7 +436,8 @@ async def test_interjection_enqueues_into_active_run():
         state._steering_messages.clear()
 
 
-async def test_interjection_media_message_gets_placeholder():
+async def test_interjection_media_message_is_not_queued():
+    """Media-only messages carry no steerable text; they are dropped."""
     from kmua.plugins.agent import agent as agent_mod
     from kmua.plugins.agent import state
 
@@ -445,8 +446,7 @@ async def test_interjection_media_message_gets_placeholder():
     try:
         msg = SimpleNamespace(text=None, caption=None)
         await agent_mod._queue_interjection(msg, -100, 1)  # type: ignore[arg-type]
-        queued = state.drain_steering(-100, 1)
-        assert queued == ["[用户发送了一条消息, 内容为媒体]"]
+        assert state.drain_steering(-100, 1) == []
     finally:
         state._active_runs.clear()
         state._steering_messages.clear()

@@ -135,6 +135,49 @@ async def _process_sticker(
 _sticker_filter = filters.sticker & (filters.group) & ~filters.bot
 
 
+@PyrogramClient.on_message(filters.command("delsticker") & filters.group, group=11)
+async def del_sticker_command(
+    client: PyrogramClient, message: pyrogram.types.Message
+) -> None:
+    """Let a group administrator remove a sticker from this chat's memory.
+
+    Reply to a sticker message with /delsticker; the sticker is dropped from
+    the chat's sticker store (automatic eviction still manages the rest).
+    """
+    if not app_config.agent_sticker_memory:
+        return
+    user = message.from_user
+    if not user or not user.id:
+        return
+    chat = message.chat
+    if not chat or not chat.id:
+        return
+    if not is_chat_allowed(chat.id):
+        return
+    try:
+        member = await common.get_chat_member(client, chat.id, user.id)
+    except Exception:
+        return
+    if member.status not in (
+        pyrogram.enums.ChatMemberStatus.ADMINISTRATOR,
+        pyrogram.enums.ChatMemberStatus.OWNER,
+    ):
+        return
+    reply = message.reply_to_message
+    if reply is None or reply.sticker is None:
+        await message.reply_text("请回复一条贴纸消息")
+        return
+    deleted = await sticker_vec.delete(reply.sticker.file_unique_id, chat.id)
+    if deleted:
+        logger.info(
+            f"Sticker {reply.sticker.file_unique_id} removed from "
+            f"chat {chat.id} by {user.id}"
+        )
+        await message.reply_text("以后不会发这个贴纸啦 (只要别人也不发...")
+    else:
+        await message.reply_text("这个贴纸本就不在库中呢")
+
+
 @PyrogramClient.on_message(_sticker_filter, group=11)
 async def on_sticker(client: PyrogramClient, message: pyrogram.types.Message) -> None:
     if not app_config.agent:

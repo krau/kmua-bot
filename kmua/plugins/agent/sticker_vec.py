@@ -179,6 +179,23 @@ async def upsert(
         await db.commit()
 
 
+async def delete(file_unique_id: str, chat_id: int) -> bool:
+    """Remove one sticker from a chat's memory store; False when absent."""
+    async with _connect() as db:
+        cursor = await db.execute(
+            "SELECT id FROM stickers WHERE file_unique_id = ? AND chat_id = ? LIMIT 1",
+            (file_unique_id, chat_id),
+        )
+        row = await cursor.fetchone()
+        if row is None:
+            return False
+        row_id = row[0]
+        await db.execute("DELETE FROM sticker_embeddings WHERE rowid = ?", (row_id,))
+        await db.execute("DELETE FROM stickers WHERE id = ?", (row_id,))
+        await db.commit()
+        return True
+
+
 async def touch(file_unique_id: str, chat_id: int) -> None:
     async with _connect() as db:
         await db.execute(
