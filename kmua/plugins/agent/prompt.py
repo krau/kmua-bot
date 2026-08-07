@@ -312,177 +312,192 @@ async def get_input_prompt(
                 lines.append(f"Explanation: {poll.explanation}")
             contents.append("\n".join(lines))
 
-        if media and media_message and app_config.agent_multimodal and include_media:
-            match media:
-                case pyrogram.enums.MessageMediaType.PHOTO:
-                    photo = media_message.photo
-                    if (
-                        "photo" in app_config.agent_multimodal_inputs
-                        and photo
-                        and photo.file_id
-                    ):
-                        photo_file = await _download_media_with_timeout(
-                            client, photo.file_id
+        if media and media_message and include_media:
+            # Text documents are plain text: readable without multimodal
+            # support (only binary media depends on it).
+            if media == pyrogram.enums.MessageMediaType.DOCUMENT:
+                document = media_message.document
+                if (
+                    document
+                    and document.file_id
+                    and document.file_size is not None
+                    and document.file_size <= 10 * 1024 * 1024
+                ):
+                    mime_type = document.mime_type
+                    if not mime_type:
+                        thetype, _ = mimetypes.guess_type(document.file_name)
+                        mime_type = thetype or "application/octet-stream"
+                    if mime_type.split(";")[0].startswith("text/"):
+                        doc_file = await _download_media_with_timeout(
+                            client, document.file_id
                         )
-                        if photo_file:
-                            contents.append(
-                                BinaryContent(
-                                    data=photo_file.getvalue(),
-                                    media_type="image/jpeg",
-                                )
-                            )
-                            media_included = True
-                case pyrogram.enums.MessageMediaType.VIDEO:
-                    video = media_message.video
-                    if (
-                        video
-                        and video.file_id
-                        and video.mime_type
-                        and video.file_size
-                        and video.file_size <= 20 * 1024 * 1024
-                    ):
-                        if "video" in app_config.agent_multimodal_inputs:
-                            video_file = await _download_media_with_timeout(
-                                client, video.file_id
-                            )
-                            if video_file:
-                                contents.append(
-                                    BinaryContent(
-                                        data=video_file.getvalue(),
-                                        media_type=video.mime_type,
-                                    )
-                                )
+                        if doc_file:
+                            try:
+                                text = doc_file.getvalue().decode("utf-8")
+                                contents.append(text)
                                 media_included = True
-                case pyrogram.enums.MessageMediaType.AUDIO:
-                    audio = media_message.audio
-                    if (
-                        audio
-                        and audio.file_id
-                        and audio.mime_type
-                        and audio.file_size
-                        and audio.file_size <= 10 * 1024 * 1024
-                    ):
-                        if "audio" in app_config.agent_multimodal_inputs:
-                            audio_file = await _download_media_with_timeout(
-                                client, audio.file_id
-                            )
-                            if audio_file:
-                                contents.append(
-                                    BinaryContent(
-                                        data=audio_file.getvalue(),
-                                        media_type=audio.mime_type,
-                                    )
-                                )
-                                media_included = True
-                case pyrogram.enums.MessageMediaType.VOICE:
-                    voice = media_message.voice
-                    if (
-                        voice
-                        and voice.file_id
-                        and voice.mime_type
-                        and voice.file_size
-                        and voice.file_size <= 10 * 1024 * 1024
-                    ):
-                        if "audio" in app_config.agent_multimodal_inputs:
-                            voice_file = await _download_media_with_timeout(
-                                client, voice.file_id
-                            )
-                            if voice_file:
-                                contents.append(
-                                    BinaryContent(
-                                        data=voice_file.getvalue(),
-                                        media_type=voice.mime_type,
-                                    )
-                                )
-                                media_included = True
-                case pyrogram.enums.MessageMediaType.DOCUMENT:
-                    document = media_message.document
-                    if (
-                        document
-                        and document.file_id
-                        and document.file_size <= 10 * 1024 * 1024
-                    ):
-                        mime_type = document.mime_type
-                        # .txt tg 返回的是 'text/plain; charset=utf-8'
-                        # markdown 返回的却是 'text/markdown'...
-                        if not mime_type:
-                            thetype, _ = mimetypes.guess_type(document.file_name)
-                            mime_type = thetype or "application/octet-stream"
-                        if mime_type.split(";")[0].startswith("text/"):
-                            doc_file = await _download_media_with_timeout(
-                                client, document.file_id
-                            )
-                            if doc_file:
-                                try:
-                                    text = doc_file.getvalue().decode("utf-8")
-                                    contents.append(text)
-                                    media_included = True
-                                except UnicodeDecodeError:
-                                    pass
-                        elif mime_type in app_config.agent_multimodal_inputs:
-                            doc_file = await _download_media_with_timeout(
-                                client, document.file_id
-                            )
-                            if doc_file:
-                                contents.append(
-                                    BinaryContent(
-                                        data=doc_file.getvalue(),
-                                        media_type=mime_type,
-                                    )
-                                )
-                                media_included = True
-                        elif (
-                            document.mime_type.startswith("image/")
-                            and "photo" in app_config.agent_multimodal_inputs
+                            except UnicodeDecodeError:
+                                pass
+            if app_config.agent_multimodal:
+                match media:
+                    case pyrogram.enums.MessageMediaType.PHOTO:
+                        photo = media_message.photo
+                        if (
+                            "photo" in app_config.agent_multimodal_inputs
+                            and photo
+                            and photo.file_id
                         ):
-                            doc_file = await _download_media_with_timeout(
-                                client, document.file_id
+                            photo_file = await _download_media_with_timeout(
+                                client, photo.file_id
                             )
-                            if doc_file:
+                            if photo_file:
                                 contents.append(
                                     BinaryContent(
-                                        data=doc_file.getvalue(),
-                                        media_type=document.mime_type,
+                                        data=photo_file.getvalue(),
+                                        media_type="image/jpeg",
                                     )
                                 )
                                 media_included = True
-                case pyrogram.enums.MessageMediaType.STICKER:
-                    sticker = media_message.sticker
-                    if (
-                        sticker
-                        and sticker.file_id
-                        and "photo" in app_config.agent_multimodal_inputs
-                    ):
-                        if sticker.is_animated:
-                            pass
-                        elif sticker.is_video:
-                            sticker_file = await _download_media_with_timeout(
-                                client, sticker.file_id
-                            )
-                            if sticker_file:
-                                frame = await common.webm_first_frame(
-                                    sticker_file.getvalue()
+                    case pyrogram.enums.MessageMediaType.VIDEO:
+                        video = media_message.video
+                        if (
+                            video
+                            and video.file_id
+                            and video.mime_type
+                            and video.file_size
+                            and video.file_size <= 20 * 1024 * 1024
+                        ):
+                            if "video" in app_config.agent_multimodal_inputs:
+                                video_file = await _download_media_with_timeout(
+                                    client, video.file_id
                                 )
-                                if frame:
+                                if video_file:
                                     contents.append(
                                         BinaryContent(
-                                            data=frame,
+                                            data=video_file.getvalue(),
+                                            media_type=video.mime_type,
+                                        )
+                                    )
+                                    media_included = True
+                    case pyrogram.enums.MessageMediaType.AUDIO:
+                        audio = media_message.audio
+                        if (
+                            audio
+                            and audio.file_id
+                            and audio.mime_type
+                            and audio.file_size
+                            and audio.file_size <= 10 * 1024 * 1024
+                        ):
+                            if "audio" in app_config.agent_multimodal_inputs:
+                                audio_file = await _download_media_with_timeout(
+                                    client, audio.file_id
+                                )
+                                if audio_file:
+                                    contents.append(
+                                        BinaryContent(
+                                            data=audio_file.getvalue(),
+                                            media_type=audio.mime_type,
+                                        )
+                                    )
+                                    media_included = True
+                    case pyrogram.enums.MessageMediaType.VOICE:
+                        voice = media_message.voice
+                        if (
+                            voice
+                            and voice.file_id
+                            and voice.mime_type
+                            and voice.file_size
+                            and voice.file_size <= 10 * 1024 * 1024
+                        ):
+                            if "audio" in app_config.agent_multimodal_inputs:
+                                voice_file = await _download_media_with_timeout(
+                                    client, voice.file_id
+                                )
+                                if voice_file:
+                                    contents.append(
+                                        BinaryContent(
+                                            data=voice_file.getvalue(),
+                                            media_type=voice.mime_type,
+                                        )
+                                    )
+                                    media_included = True
+                    case pyrogram.enums.MessageMediaType.DOCUMENT:
+                        document = media_message.document
+                        if (
+                            document
+                            and document.file_id
+                            and document.file_size <= 10 * 1024 * 1024
+                        ):
+                            mime_type = document.mime_type
+                            # .txt tg 返回的是 'text/plain; charset=utf-8'
+                            # markdown 返回的却是 'text/markdown'...
+                            if not mime_type:
+                                thetype, _ = mimetypes.guess_type(document.file_name)
+                                mime_type = thetype or "application/octet-stream"
+                            if mime_type in app_config.agent_multimodal_inputs:
+                                doc_file = await _download_media_with_timeout(
+                                    client, document.file_id
+                                )
+                                if doc_file:
+                                    contents.append(
+                                        BinaryContent(
+                                            data=doc_file.getvalue(),
+                                            media_type=mime_type,
+                                        )
+                                    )
+                                    media_included = True
+                            elif (
+                                document.mime_type.startswith("image/")
+                                and "photo" in app_config.agent_multimodal_inputs
+                            ):
+                                doc_file = await _download_media_with_timeout(
+                                    client, document.file_id
+                                )
+                                if doc_file:
+                                    contents.append(
+                                        BinaryContent(
+                                            data=doc_file.getvalue(),
+                                            media_type=document.mime_type,
+                                        )
+                                    )
+                                    media_included = True
+                    case pyrogram.enums.MessageMediaType.STICKER:
+                        sticker = media_message.sticker
+                        if (
+                            sticker
+                            and sticker.file_id
+                            and "photo" in app_config.agent_multimodal_inputs
+                        ):
+                            if sticker.is_animated:
+                                pass
+                            elif sticker.is_video:
+                                sticker_file = await _download_media_with_timeout(
+                                    client, sticker.file_id
+                                )
+                                if sticker_file:
+                                    frame = await common.webm_first_frame(
+                                        sticker_file.getvalue()
+                                    )
+                                    if frame:
+                                        contents.append(
+                                            BinaryContent(
+                                                data=frame,
+                                                media_type="image/webp",
+                                            )
+                                        )
+                                        media_included = True
+                            else:
+                                sticker_file = await _download_media_with_timeout(
+                                    client, sticker.file_id
+                                )
+                                if sticker_file:
+                                    contents.append(
+                                        BinaryContent(
+                                            data=sticker_file.getvalue(),
                                             media_type="image/webp",
                                         )
                                     )
                                     media_included = True
-                        else:
-                            sticker_file = await _download_media_with_timeout(
-                                client, sticker.file_id
-                            )
-                            if sticker_file:
-                                contents.append(
-                                    BinaryContent(
-                                        data=sticker_file.getvalue(),
-                                        media_type="image/webp",
-                                    )
-                                )
-                                media_included = True
         # Unsupported or undeliverable media must not vanish silently: the
         # model would answer as if the message had no media at all. POLL is
         # text-represented above and WEB_PAGE links live in the text part;

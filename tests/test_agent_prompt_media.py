@@ -45,7 +45,7 @@ class _Client:
 
     async def download_media(self, *args, **kwargs):
         if self._download is None:
-            raise AssertionError("download_media must not be called")
+            return BytesIO("这是文本文档内容".encode())
         return self._download
 
     @property
@@ -53,13 +53,15 @@ class _Client:
         return None
 
 
+async def _prompt(client, msg):
+    """get_input_prompt with mocked client/message types."""
+    return await prompt.get_input_prompt(client, msg)  # type: ignore[arg-type]
+
+
 async def test_unsupported_photo_leaves_placeholder(monkeypatch):
     monkeypatch.setattr(app_config, "agent_multimodal", False)
     msg = _media_msg(MessageMediaType.PHOTO, payload=SimpleNamespace(file_id="f"))
-    prompts, needs_multimodal = await prompt.get_input_prompt(
-        _Client(),
-        msg,  # type: ignore[arg-type]
-    )
+    prompts, needs_multimodal = await _prompt(_Client(), msg)
     joined = " ".join(str(p) for p in prompts)
     assert "模型无法处理的内容: 图片" in joined
     assert needs_multimodal is False
@@ -67,12 +69,11 @@ async def test_unsupported_photo_leaves_placeholder(monkeypatch):
 
 async def test_unsupported_document_names_the_file(monkeypatch):
     monkeypatch.setattr(app_config, "agent_multimodal", False)
-    doc = SimpleNamespace(file_id="f", file_name="report.pdf")
-    msg = _media_msg(MessageMediaType.DOCUMENT, payload=doc)
-    prompts, _ = await prompt.get_input_prompt(
-        _Client(),
-        msg,  # type: ignore[arg-type]
+    doc = SimpleNamespace(
+        file_id="f", file_name="report.pdf", file_size=1024, mime_type="application/pdf"
     )
+    msg = _media_msg(MessageMediaType.DOCUMENT, payload=doc)
+    prompts, _ = await _prompt(_Client(), msg)
     joined = " ".join(str(p) for p in prompts)
     assert "模型无法处理的内容: 文档《report.pdf》" in joined
 
@@ -80,10 +81,7 @@ async def test_unsupported_document_names_the_file(monkeypatch):
 async def test_plain_text_message_has_no_placeholder(monkeypatch):
     monkeypatch.setattr(app_config, "agent_multimodal", False)
     msg = _media_msg(None, text="hello")
-    prompts, _ = await prompt.get_input_prompt(
-        _Client(),
-        msg,  # type: ignore[arg-type]
-    )
+    prompts, _ = await _prompt(_Client(), msg)
     joined = " ".join(str(p) for p in prompts)
     assert "模型无法处理" not in joined
     assert "hello" in joined
@@ -103,10 +101,7 @@ async def test_poll_is_text_represented_without_placeholder(monkeypatch):
         explanation=None,
     )
     msg = _media_msg(MessageMediaType.POLL, payload=poll)
-    prompts, _ = await prompt.get_input_prompt(
-        _Client(),
-        msg,  # type: ignore[arg-type]
-    )
+    prompts, _ = await _prompt(_Client(), msg)
     joined = " ".join(str(p) for p in prompts)
     assert "模型无法处理" not in joined
     assert "q?" in joined
@@ -116,10 +111,7 @@ async def test_supported_photo_is_included_without_placeholder(monkeypatch):
     monkeypatch.setattr(app_config, "agent_multimodal", True)
     monkeypatch.setattr(app_config, "agent_multimodal_inputs", ["photo"])
     msg = _media_msg(MessageMediaType.PHOTO, payload=SimpleNamespace(file_id="f"))
-    prompts, needs_multimodal = await prompt.get_input_prompt(
-        _Client(download=BytesIO(b"image")),
-        msg,  # type: ignore[arg-type]
-    )
+    prompts, needs_multimodal = await _prompt(_Client(), msg)
     joined = " ".join(str(p) for p in prompts)
     assert "模型无法处理" not in joined
     assert needs_multimodal is True
@@ -134,10 +126,7 @@ async def test_oversize_video_leaves_placeholder(monkeypatch):
         file_size=30 * 1024 * 1024,  # over the 20 MiB cap
     )
     msg = _media_msg(MessageMediaType.VIDEO, payload=video)
-    prompts, _ = await prompt.get_input_prompt(
-        _Client(),
-        msg,  # type: ignore[arg-type]
-    )
+    prompts, _ = await _prompt(_Client(), msg)
     joined = " ".join(str(p) for p in prompts)
     assert "模型无法处理的内容: 视频" in joined
 
@@ -240,3 +229,33 @@ async def test_transcribe_uses_configured_instructions(monkeypatch):
 
         prompt_mod.Agent = pydantic_ai.Agent
     assert captured["instructions"] == "CUSTOM 转述要求"
+
+
+async def test_text_document_readable_without_multimodal(monkeypatch):
+    """A plain-text document is readable even when multimodal is off: its
+    content is text, not binary media."""
+    monkeypatch.setattr(app_config, "agent_multimodal", False)
+    doc = SimpleNamespace(
+        file_id="f",
+        file_name="notes.txt",
+        file_size=1024,
+        mime_type="text/plain; charset=utf-8",
+    )
+    msg = _media_msg(MessageMediaType.DOCUMENT, payload=doc)
+    prompts, _ = await _prompt(_Client(), msg)
+    joined = " ".join(str(p) for p in prompts)
+    assert "这是文本文档内容" in joined
+    assert "模型无法处理" not in joined
+
+
+async def test_text_document_readable_without_multimodal_no_mime(monkeypatch):
+    """mime_type is inferred from the file name when missing."""
+    monkeypatch.setattr(app_config, "agent_multimodal", False)
+    doc = SimpleNamespace(
+        file_id="f", file_name="notes.md", file_size=1024, mime_type=None
+    )
+    msg = _media_msg(MessageMediaType.DOCUMENT, payload=doc)
+    prompts, _ = await _prompt(_Client(), msg)
+    joined = " ".join(str(p) for p in prompts)
+    assert "这是文本文档内容" in joined
+    assert "模型无法处理" not in joined
