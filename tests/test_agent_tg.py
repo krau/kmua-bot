@@ -404,3 +404,22 @@ async def test_sticker_vec_delete_removes_sticker(monkeypatch, tmp_path):
     await sticker_vec.upsert("uid1", "file1", -100456, "同一个贴纸别的群", embedding)
     assert await sticker_vec.delete("uid1", -100123) is False
     assert await sticker_vec.exists("uid1", -100456)
+
+
+def test_parse_schedule_time_naive_means_local():
+    """A timezone-less schedule_time gets the local zone attached, so the
+    aware-clock comparison never raises the naive/aware mismatch."""
+    import datetime as dt
+
+    from kmua.plugins.agent.tools.send_ops import _parse_schedule_time
+
+    future = dt.datetime.now() + dt.timedelta(hours=1)
+    parsed = _parse_schedule_time(future.strftime("%Y-%m-%dT%H:%M:%S"))
+    assert parsed.tzinfo is not None
+    assert parsed > dt.datetime.now(dt.UTC)
+
+    aware = _parse_schedule_time(
+        (future).astimezone(dt.timezone(dt.timedelta(hours=8))).isoformat()
+    )
+    assert aware.utcoffset() == dt.timedelta(hours=8)
+    assert aware > dt.datetime.now(dt.UTC)

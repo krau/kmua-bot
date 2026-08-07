@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import UTC, datetime
 
 import pyrogram
 from pyrogram.client import Client
@@ -154,7 +154,7 @@ async def record_memory(client: Client, message: pyrogram.types.Message):
                 text=text,
                 sender_name=user.full_name or f"{user.id}",
                 sender_id=user.id,
-                date=message.date or datetime.now(),
+                date=message.date or datetime.now(UTC),
             )
         )
         if len(group_messages) > 100:

@@ -141,6 +141,15 @@ async def _scheduled_poll_job(
         logger.error(f"Scheduled poll failed: {e.__class__.__name__}: {e}")
 
 
+def _parse_schedule_time(schedule_time: str) -> datetime.datetime:
+    """Parse an ISO 8601 schedule time; a timezone-less value means local
+    time, so the comparison with the aware clock never mismatches."""
+    parsed = datetime.datetime.fromisoformat(schedule_time)
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=datetime.datetime.now().astimezone().tzinfo)
+    return parsed
+
+
 async def schedule_message(
     ctx: RunContext[datatype.ContextDeps],
     schedule_time: str | None,
@@ -179,7 +188,7 @@ async def schedule_message(
     schedule_datetime: datetime.datetime | None = None
     if not send_immediately and schedule_time:
         try:
-            schedule_datetime = datetime.datetime.fromisoformat(schedule_time)
+            schedule_datetime = _parse_schedule_time(schedule_time)
         except ValueError as e:
             raise ModelRetry(
                 f"Invalid schedule_time format. Use ISO 8601, e.g. '2025-06-04T15:00:00+08:00'. Error: {e}"
@@ -320,7 +329,7 @@ async def send_poll(
     schedule_datetime: datetime.datetime | None = None
     if schedule_time is not None:
         try:
-            schedule_datetime = datetime.datetime.fromisoformat(schedule_time)
+            schedule_datetime = _parse_schedule_time(schedule_time)
         except ValueError as e:
             raise ModelRetry(
                 f"Invalid schedule_time format. Use ISO 8601, e.g. '2025-06-04T15:00:00+08:00'. Error: {e}"
