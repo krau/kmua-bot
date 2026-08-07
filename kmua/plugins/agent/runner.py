@@ -121,8 +121,13 @@ async def _iter_with_spill_session(
             deps=deps,
             usage_limits=usage_limits,
         ) as agent_run:
+            # Interjections enqueue straight into this run (see
+            # state.get_active_run), so the pending-message drain delivers
+            # them on the next model request without a hook round-trip.
+            state.register_active_run(chat_id, user_id, agent_run)
             yield agent_run
     finally:
+        state.unregister_active_run(chat_id, user_id)
         safety.reset_spill_session(token)
 
 
@@ -278,7 +283,8 @@ async def _run_agent_impl(
                         deps=deps,
                         usage_limits=safety.build_usage_limits(),
                     ) as agent_run:
-                        async for node in agent_run:
+                        node = agent_run.next_node
+                        while not Agent.is_end_node(node):
                             if Agent.is_model_request_node(node):
                                 # Tool returns are only visible as request parts —
                                 # they never appear in the response event stream.
@@ -321,34 +327,33 @@ async def _run_agent_impl(
                                 if has_tool_calls and streaming_output is not None:
                                     await streaming_output.finalize()
                                     streaming_output = None
-                            elif Agent.is_end_node(node):
-                                assert agent_run.result is not None, (
-                                    "Agent run ended without result"
+                            # next() runs the full capability lifecycle
+                            # (before/wrap/after_node_run), which drains
+                            # end-of-run pending messages into a redirect
+                            # instead of stranding them.
+                            node = await agent_run.next(node)
+                        assert agent_run.result is not None, (
+                            "Agent run ended without result"
+                        )
+                        logger.debug(
+                            f"Agent run end with result: {agent_run.result.output}"
+                        )
+                        output = agent_run.result.output
+                        if isinstance(output, (EndTurn, AskUserOutput)):
+                            if streaming_output is not None:
+                                await streaming_output.abort()
+                        else:
+                            # Check final_result first before sending anything
+                            if isinstance(output, str) and "final_result" in output:
+                                if streaming_output is not None:
+                                    await streaming_output.abort()
+                                logger.warning(
+                                    f"The stupid agent returned 'final_result' as text🤡 for user {user_id}"
                                 )
-                                logger.debug(
-                                    f"Agent run end with result: {agent_run.result.output}"
-                                )
-                                output = agent_run.result.output
-                                if isinstance(output, (EndTurn, AskUserOutput)):
-                                    if streaming_output is not None:
-                                        await streaming_output.abort()
-                                else:
-                                    # Check final_result first before sending anything
-                                    if (
-                                        isinstance(output, str)
-                                        and "final_result" in output
-                                    ):
-                                        if streaming_output is not None:
-                                            await streaming_output.abort()
-                                        logger.warning(
-                                            f"The stupid agent returned 'final_result' as text🤡 for user {user_id}"
-                                        )
-                                    elif streaming_output is not None:
-                                        await streaming_output.finalize()
-                                    elif output:
-                                        await reply_output(
-                                            client, message, output, deps=deps
-                                        )
+                            elif streaming_output is not None:
+                                await streaming_output.finalize()
+                            elif output:
+                                await reply_output(client, message, output, deps=deps)
                         # Save full output for follow-up detection
                         full_output = ""
                         if streaming_output is not None:
@@ -403,7 +408,8 @@ async def _run_agent_impl(
                     replied = False
                     full_output_parts: list[str] = []
                     output: Any = None
-                    async for node in agent_run:
+                    node = agent_run.next_node
+                    while not Agent.is_end_node(node):
                         if Agent.is_call_tools_node(node):
                             for part in node.model_response.parts:
                                 if part.part_kind == "tool-call":
@@ -429,36 +435,36 @@ async def _run_agent_impl(
                                     _log_tool_return(
                                         part.tool_name, part.content, user_id, chat_id
                                     )
-                        elif Agent.is_end_node(node):
-                            assert agent_run.result is not None, (
-                                "Agent run ended without result"
-                            )
-                            logger.info(
-                                f"Agent run end for user {user_id} in chat {chat_id} "
-                                f"({len(_tool_call_log)} tool call(s) pending in log)"
-                            )
-                            logger.debug(
-                                f"Agent run end with result: {agent_run.result.output}"
-                            )
-                            output = agent_run.result.output
-                            if isinstance(output, str) and "final_result" in output:
-                                logger.warning(
-                                    f"The stupid agent returned 'final_result' as text🤡 for user {user_id}"
-                                )
-                            elif isinstance(output, (EndTurn, AskUserOutput)):
-                                logger.debug(
-                                    f"Agent returned {type(output).__name__} for user {user_id}"
-                                )
-                            elif not replied and output:
-                                if not is_guest_mode:
-                                    await reply_output(client, message, output)
-                                full_output_parts.append(output)
-                            # In guest mode, send a single collected reply at the end
-                            if is_guest_mode and full_output_parts:
-                                full_text = "\n".join(full_output_parts)
-                                await reply_output(
-                                    client, message, full_text, deps=deps
-                                )
+                        # next() runs the full capability lifecycle, which
+                        # drains end-of-run pending messages into a redirect.
+                        node = await agent_run.next(node)
+                    assert agent_run.result is not None, (
+                        "Agent run ended without result"
+                    )
+                    logger.info(
+                        f"Agent run end for user {user_id} in chat {chat_id} "
+                        f"({len(_tool_call_log)} tool call(s) pending in log)"
+                    )
+                    logger.debug(
+                        f"Agent run end with result: {agent_run.result.output}"
+                    )
+                    output = agent_run.result.output
+                    if isinstance(output, str) and "final_result" in output:
+                        logger.warning(
+                            f"The stupid agent returned 'final_result' as text🤡 for user {user_id}"
+                        )
+                    elif isinstance(output, (EndTurn, AskUserOutput)):
+                        logger.debug(
+                            f"Agent returned {type(output).__name__} for user {user_id}"
+                        )
+                    elif not replied and output:
+                        if not is_guest_mode:
+                            await reply_output(client, message, output)
+                        full_output_parts.append(output)
+                    # In guest mode, send a single collected reply at the end
+                    if is_guest_mode and full_output_parts:
+                        full_text = "\n".join(full_output_parts)
+                        await reply_output(client, message, full_text, deps=deps)
                     # Save full output for follow-up detection
                     full_output = "\n".join(full_output_parts)
                     if (

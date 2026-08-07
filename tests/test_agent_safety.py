@@ -10,6 +10,7 @@ disable-able; capability assembly must follow the config switches.
 from __future__ import annotations
 
 from datetime import timedelta
+from types import SimpleNamespace
 
 import pytest
 from pydantic_ai_harness.guardrails import ToolResultInfo
@@ -153,6 +154,7 @@ def test_build_agent_capabilities_follows_switches(monkeypatch):
     assert kinds == {
         "ProcessHistory",
         "ModelActivityLog",
+        "SteeringInjection",
         "ClampOversizedMessages",
         "WarnNearLimits",
     }
@@ -305,3 +307,55 @@ async def test_clear_all_spills_removes_every_session(tmp_path, monkeypatch):
                 await store.read("k")
         finally:
             safety.reset_spill_session(token)
+
+
+async def test_steering_injection_folds_into_next_request():
+    """Queued interjections are appended to the very next model request -
+    the mid-turn injection point pydantic-ai re-reads before every call."""
+    from pydantic_ai import Agent
+    from pydantic_ai.models.test import TestModel
+
+    from kmua.plugins.agent import state
+    from kmua.plugins.agent.safety import SteeringInjection
+
+    state._steering_messages.clear()
+    try:
+        agent = Agent(
+            TestModel(),
+            capabilities=[SteeringInjection()],
+        )
+        state.queue_steering(-100, 1, "别下载了, 直接分析文本")
+        result = await agent.run(
+            "处理这个文件",
+            deps=SimpleNamespace(chat_id=-100, user_id=1),
+        )
+        joined = " ".join(
+            str(part.content)
+            for msg in result.all_messages()
+            for part in msg.parts
+            if part.part_kind == "user-prompt"
+        )
+        assert "别下载了, 直接分析文本" in joined
+        assert state.drain_steering(-100, 1) == []
+    finally:
+        state._steering_messages.clear()
+
+
+async def test_steering_injection_empty_queue_passthrough():
+    from pydantic_ai import Agent
+    from pydantic_ai.models.test import TestModel
+
+    from kmua.plugins.agent.safety import SteeringInjection
+
+    agent = Agent(
+        TestModel(custom_output_text="ok"),
+        capabilities=[SteeringInjection()],
+    )
+    result = await agent.run("hi", deps=SimpleNamespace(chat_id=-100, user_id=1))
+    texts = [
+        str(part.content)
+        for msg in result.all_messages()
+        for part in msg.parts
+        if part.part_kind == "user-prompt"
+    ]
+    assert texts == ["hi"]

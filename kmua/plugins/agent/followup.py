@@ -17,7 +17,15 @@ from kmua.plugins.agent.runner import (
     run_agent,
 )
 
-from .agent import agent, model, multimodal_model, powermemory, small_model
+from .agent import (
+    _queue_interjection,
+    _run_registered,
+    agent,
+    model,
+    multimodal_model,
+    powermemory,
+    small_model,
+)
 from .tools import block as tools
 from .whitelist import is_chat_allowed
 
@@ -115,7 +123,16 @@ async def _follow_up_filter_func(
         )
         if has_mention:
             return False
-    if await common.memstore.get(state.waiting_key(user.id)):
+    if chat is not None and chat.id is not None and state.is_running(chat.id, user.id):
+        # Mid-turn: the message is an interjection, not a follow-up trigger.
+        # Deliver it straight into the live run (budget-checked), so the
+        # running turn picks it up on its next model request.
+        text = (message.text or message.caption or "").strip()
+        if text and not state.enqueue_interjection(chat.id, user.id, text):
+            logger.warning(
+                f"Follow-up interjection dropped for user {user.id} in "
+                f"chat {chat.id}: interjection budget exhausted"
+            )
         return False
     return True
 
@@ -212,10 +229,12 @@ Bot回复: {bot_full_output}
     logger.info(
         f"Detected follow-up message {message.id} (reason: {relevance_result.output.reason})"  # type: ignore[union-attr]
     )
-    if await common.memstore.get(state.waiting_key(user.id)):
+    follow_lock = state.get_conversation_lock(chat.id, user.id)
+    if follow_lock.locked():
+        await _queue_interjection(message, chat.id, user.id)
         return
+    await follow_lock.acquire()
     try:
-        await common.memstore.set(state.waiting_key(user.id), True)
         await message.reply_chat_action(pyrogram.enums.ChatAction.TYPING)
         instructions = (
             app_config.agent_group_prompt
@@ -250,27 +269,31 @@ Bot回复: {bot_full_output}
 ---
 现在又有用户[{user_data.full_name}]对这个话题继续讨论，请自然地参与对话。
 """
-        await run_agent(
-            agi=agent,
-            additional_instructions=addtional_instructions,
-            client=client,
-            message=message,
-            user_id=user.id,
-            chat_id=chat.id,
-            user_prompt=follow_up_prompt,
-            history=history,
-            deps=datatype.ContextDeps(
+        await _run_registered(
+            chat.id,
+            user.id,
+            run_agent(
+                agi=agent,
+                additional_instructions=addtional_instructions,
+                client=client,
+                message=message,
                 user_id=user.id,
                 chat_id=chat.id,
-                message=message,
-                client=client,
-                instructions=instructions,
-                powermemory=powermemory,
+                user_prompt=follow_up_prompt,
                 history=history,
+                deps=datatype.ContextDeps(
+                    user_id=user.id,
+                    chat_id=chat.id,
+                    message=message,
+                    client=client,
+                    instructions=instructions,
+                    powermemory=powermemory,
+                    history=history,
+                ),
+                multimodal_model=multimodal_model,
+                model=model,
+                lang=chat_config.lang,
             ),
-            multimodal_model=multimodal_model,
-            model=model,
-            lang=chat_config.lang,
         )
 
     except Exception as e:
@@ -278,4 +301,4 @@ Bot回复: {bot_full_output}
             f"Error handling follow-up message: {e.__class__.__name__} - {e}"
         )
     finally:
-        await common.memstore.delete(state.waiting_key(user.id))
+        follow_lock.release()

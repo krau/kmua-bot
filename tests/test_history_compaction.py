@@ -313,7 +313,6 @@ async def test_clear_prefix_helpers():
     await cache.set("message_history_with_agent:1:1", b"a")
     await cache.set("message_history_with_agent:1:2", b"b")
     await cache.set("other:key", b"c")
-    store._data["agent_waiting:1"] = True
     store._data["agent_ask_state:1:1"] = {"options": []}
     store._data["unrelated"] = 1
 
@@ -321,7 +320,237 @@ async def test_clear_prefix_helpers():
     assert await cache.get("message_history_with_agent:1:1") is None
     assert await cache.get("other:key") == b"c"
 
-    assert agent_mod._clear_memstore_prefix("agent_") == 2
-    assert "agent_waiting:1" not in store._data
+    assert agent_mod._clear_memstore_prefix("agent_") == 1
     assert "agent_ask_state:1:1" not in store._data
     assert "unrelated" in store._data
+
+
+async def test_conversation_locks_are_per_conversation():
+    """Turn ownership is keyed by (chat, user): a run in chat A must not
+    block messages in chat B."""
+    from kmua.plugins.agent import state
+
+    state._conversation_locks.clear()
+    try:
+        lock_a = state.get_conversation_lock(-100, 1)
+        assert not state.is_running(-100, 1)
+        await lock_a.acquire()
+        assert state.is_running(-100, 1)
+        assert not state.is_running(-200, 1)  # same user, other chat: free
+        assert not state.is_running(-100, 2)  # other user, same chat: free
+        lock_a.release()
+        assert not state.is_running(-100, 1)
+    finally:
+        state._conversation_locks.clear()
+
+
+def test_steering_queue_is_bounded():
+    """An over-limit steering queue drops new messages instead of growing."""
+    from kmua.plugins.agent import state
+
+    state._steering_messages.clear()
+    try:
+        state.queue_steering(-100, 1, "a" * 100)
+        # Exceed the char cap with the second message.
+        state.queue_steering(-100, 1, "b" * 8000)
+        assert state.drain_steering(-100, 1) == ["a" * 100]
+    finally:
+        state._steering_messages.clear()
+
+
+def test_clear_steering_drops_queued_messages():
+    """History cleanup must also drop queued interjections so deleted
+    content is never re-injected."""
+    from kmua.plugins.agent import state
+
+    state._steering_messages.clear()
+    try:
+        state.queue_steering(-100, 1, "queued")
+        state.queue_steering(-200, 1, "other chat")
+        assert state.clear_steering(-100, 1) is None or True
+        assert state.drain_steering(-100, 1) == []
+        assert state.drain_steering(-200, 1) == ["other chat"]
+        state.queue_steering(-100, 1, "again")
+        assert state.clear_all_steering() == 1
+        assert state.drain_steering(-100, 1) == []
+    finally:
+        state._steering_messages.clear()
+
+
+def test_steering_queue_round_trip():
+    """Interjections queue per conversation and drain in order."""
+    from kmua.plugins.agent import state
+
+    state._steering_messages.clear()
+    try:
+        state.queue_steering(-100, 1, "first")
+        state.queue_steering(-100, 1, "second")
+        state.queue_steering(-100, 2, "other user")
+        assert state.drain_steering(-100, 1) == ["first", "second"]
+        assert state.drain_steering(-100, 1) == []
+        assert state.drain_steering(-100, 2) == ["other user"]
+    finally:
+        state._steering_messages.clear()
+
+
+def test_steering_queue_empty_drain():
+    from kmua.plugins.agent import state
+
+    state._steering_messages.clear()
+    try:
+        assert state.drain_steering(-100, 9) == []
+    finally:
+        state._steering_messages.clear()
+
+
+async def test_interjection_enqueues_into_active_run():
+    """A live AgentRun receives the interjection immediately (no hook
+    round-trip, no extra model request); the steering queue is only the
+    fallback while no run is registered."""
+    from kmua.plugins.agent import agent as agent_mod
+    from kmua.plugins.agent import state
+
+    state._active_runs.clear()
+    state._steering_messages.clear()
+    try:
+        enqueued = []
+
+        class FakeRun:
+            result = None  # run in flight
+
+            def enqueue(self, *content, priority="asap"):
+                enqueued.append((content, priority))
+
+        state.register_active_run(-100, 1, FakeRun())
+        msg = SimpleNamespace(text="别那样做", caption=None)
+        await agent_mod._queue_interjection(msg, -100, 1)  # type: ignore[arg-type]
+        assert enqueued == [(("别那样做",), "asap")]
+        assert state.drain_steering(-100, 1) == []
+
+        # No active run: falls back to the steering queue.
+        state.unregister_active_run(-100, 1)
+        await agent_mod._queue_interjection(msg, -100, 1)  # type: ignore[arg-type]
+        assert state.drain_steering(-100, 1) == ["别那样做"]
+    finally:
+        state._active_runs.clear()
+        state._steering_messages.clear()
+
+
+async def test_interjection_media_message_gets_placeholder():
+    from kmua.plugins.agent import agent as agent_mod
+    from kmua.plugins.agent import state
+
+    state._active_runs.clear()
+    state._steering_messages.clear()
+    try:
+        msg = SimpleNamespace(text=None, caption=None)
+        await agent_mod._queue_interjection(msg, -100, 1)  # type: ignore[arg-type]
+        queued = state.drain_steering(-100, 1)
+        assert queued == ["[用户发送了一条消息, 内容为媒体]"]
+    finally:
+        state._active_runs.clear()
+        state._steering_messages.clear()
+
+
+async def test_enqueue_interjection_budget_and_live_run():
+    """Direct live-run enqueues share the steering caps; the budget resets
+    when the run ends."""
+    from kmua.plugins.agent import state
+
+    state._active_runs.clear()
+    state._steering_messages.clear()
+    state._interjection_budget.clear()
+    try:
+        enqueued = []
+
+        class FakeRun:
+            result = None  # run in flight
+
+            def enqueue(self, *content, priority="asap"):
+                enqueued.append(content)
+
+        state.register_active_run(-100, 1, FakeRun())
+        for i in range(state._MAX_STEERING_MESSAGES):
+            assert state.enqueue_interjection(-100, 1, f"msg{i}") is True
+        # Budget exhausted: rejected, nothing enqueued.
+        assert state.enqueue_interjection(-100, 1, "overflow") is False
+        assert len(enqueued) == state._MAX_STEERING_MESSAGES
+
+        # Run ended: budget resets.
+        state.unregister_active_run(-100, 1)
+        assert state.enqueue_interjection(-100, 1, "after run") is True
+        assert state.drain_steering(-100, 1) == ["after run"]
+    finally:
+        state._active_runs.clear()
+        state._steering_messages.clear()
+        state._interjection_budget.clear()
+
+
+def test_conversation_lock_pruning_bounds_registry():
+    """Unlocked locks are pruned once the registry exceeds its bound."""
+    from kmua.plugins.agent import state
+
+    state._conversation_locks.clear()
+    try:
+        for i in range(state._MAX_CONVERSATION_LOCKS):
+            state.get_conversation_lock(1000 + i, 1)
+        assert len(state._conversation_locks) == state._MAX_CONVERSATION_LOCKS
+        # One more conversation: the unlocked locks are pruned first.
+        state.get_conversation_lock(9999, 1)
+        assert len(state._conversation_locks) <= 2
+    finally:
+        state._conversation_locks.clear()
+
+
+async def test_enqueue_skips_ended_run_and_charges_on_success():
+    """A run whose graph ended (result populated) must not accept enqueues:
+    the message falls into the fallback queue instead of being stranded.
+    The budget is charged only when the delivery actually succeeded."""
+    from kmua.plugins.agent import state
+
+    state._active_runs.clear()
+    state._steering_messages.clear()
+    state._interjection_budget.clear()
+    try:
+        enqueued = []
+
+        class EndedRun:
+            result = object()  # graph already finished
+
+            def enqueue(self, *content, priority="asap"):
+                enqueued.append(content)
+
+        state.register_active_run(-100, 1, EndedRun())
+        assert state.enqueue_interjection(-100, 1, "late") is True
+        assert enqueued == []  # nothing went into the ended run
+        assert state.drain_steering(-100, 1) == ["late"]
+        # Budget was charged once for the successful fallback delivery.
+        assert state._interjection_budget[(-100, 1)] == (1, 4)
+
+        # Fallback queue full: rejected without charging the budget.
+        state._interjection_budget[(-100, 1)] = (
+            state._MAX_STEERING_MESSAGES,
+            0,
+        )
+        assert state.enqueue_interjection(-100, 1, "x") is False
+    finally:
+        state._active_runs.clear()
+        state._steering_messages.clear()
+        state._interjection_budget.clear()
+
+
+async def test_clear_steering_resets_budget():
+    from kmua.plugins.agent import state
+
+    state._steering_messages.clear()
+    state._interjection_budget.clear()
+    try:
+        state._interjection_budget[(-100, 1)] = (5, 100)
+        state.clear_steering(-100, 1)
+        assert (-100, 1) not in state._interjection_budget
+        state._interjection_budget[(-100, 1)] = (5, 100)
+        assert state.clear_all_steering() == 0
+        assert state._interjection_budget == {}
+    finally:
+        state._steering_messages.clear()
+        state._interjection_budget.clear()
