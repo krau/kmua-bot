@@ -370,14 +370,13 @@ class _AppConfig(pydantic.BaseModel):
     # losslessly; truncation only kicks in if the store write fails. False =
     # pure truncation, no read-back.
     agent_tool_output_spill: bool = True
-    # Per-run usage ceilings for the main agent (pydantic-ai UsageLimits);
-    # 0 disables an individual limit. The ceilings are deliberately generous
-    # (5x the earlier values): long multi-step tasks routinely exceed a
-    # request count of 10, and the request limit binds before the tool-call
-    # budget does.
-    agent_usage_request_limit: int = 50
-    agent_usage_tool_calls_limit: int = 150
-    agent_usage_total_tokens_limit: int = 600_000
+    # Per-run usage ceilings for the main agent (pydantic-ai UsageLimits).
+    # 0 (the default) disables an individual limit; set a value only when a
+    # runaway task must be hard-cut. Note that the request limit binds before
+    # the tool-call budget does.
+    agent_usage_request_limit: int = 0
+    agent_usage_tool_calls_limit: int = 0
+    agent_usage_total_tokens_limit: int = 0
     ############################################################################
     agent_prompt: str = """"""
     agent_group_prompt: str = """"""

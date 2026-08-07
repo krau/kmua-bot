@@ -65,18 +65,23 @@ def test_scrub_output_redacts_text_and_skips_structured():
 # ---- usage ceilings ----
 
 
-def test_build_usage_limits_from_config():
+def test_build_usage_limits_defaults_to_none():
+    """Usage limits are unrestricted by default; only explicit config caps."""
+    assert safety.build_usage_limits() is None
+
+
+def test_build_usage_limits_from_config(monkeypatch):
+    monkeypatch.setattr(app_config, "agent_usage_request_limit", 50)
+    monkeypatch.setattr(app_config, "agent_usage_tool_calls_limit", 150)
+    monkeypatch.setattr(app_config, "agent_usage_total_tokens_limit", 600_000)
     limits = safety.build_usage_limits()
     assert limits is not None
-    assert limits.request_limit == app_config.agent_usage_request_limit
-    assert limits.tool_calls_limit == app_config.agent_usage_tool_calls_limit
-    assert limits.total_tokens_limit == app_config.agent_usage_total_tokens_limit
+    assert limits.request_limit == 50
+    assert limits.tool_calls_limit == 150
+    assert limits.total_tokens_limit == 600_000
 
 
 def test_build_usage_limits_none_when_all_disabled(monkeypatch):
-    monkeypatch.setattr(app_config, "agent_usage_request_limit", 0)
-    monkeypatch.setattr(app_config, "agent_usage_tool_calls_limit", 0)
-    monkeypatch.setattr(app_config, "agent_usage_total_tokens_limit", 0)
     assert safety.build_usage_limits() is None
 
 
@@ -130,8 +135,15 @@ def test_build_agent_capabilities_follows_switches(monkeypatch):
     assert "ToolGuardrail" in kinds
     assert "OutputGuardrail" in kinds
     assert "ToolOutputLimits" in kinds
-    # Always-on context guards (runaway generations, near-limit warnings).
+    # Always-on context guards (runaway generations). No usage ceilings are
+    # configured by default, so no near-limit warning capability is mounted.
     assert "ClampOversizedMessages" in kinds
+    assert "WarnNearLimits" not in kinds
+
+    monkeypatch.setattr(app_config, "agent_usage_request_limit", 50)
+    monkeypatch.setattr(app_config, "agent_usage_total_tokens_limit", 600_000)
+    caps = safety.build_agent_capabilities(_fake_history_processor)
+    kinds = {type(c).__name__ for c in caps}
     assert "WarnNearLimits" in kinds
 
     monkeypatch.setattr(app_config, "agent_secret_masking", False)

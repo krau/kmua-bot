@@ -208,14 +208,19 @@ def build_agent_capabilities(history_processor: Any) -> list[Any]:
     # Runaway-generation guard: clamp a single oversized response text or
     # tool-call args before the next request can exceed the context cap.
     caps.append(ClampOversizedMessages(max_part_tokens=_clamp_max_part_tokens()))
-    # Warn the model to wrap up as the per-run usage ceilings approach, so a
-    # long task concludes instead of being hard-cut by UsageLimits.
-    caps.append(
-        WarnNearLimits(
-            max_iterations=app_config.agent_usage_request_limit or None,
-            max_total_tokens=app_config.agent_usage_total_tokens_limit or None,
+    # Warn the model to wrap up as explicit usage ceilings approach, so a
+    # long task concludes instead of being hard-cut by UsageLimits. With no
+    # configured ceiling the capability is omitted entirely.
+    if (
+        app_config.agent_usage_request_limit
+        or app_config.agent_usage_total_tokens_limit
+    ):
+        caps.append(
+            WarnNearLimits(
+                max_iterations=app_config.agent_usage_request_limit or None,
+                max_total_tokens=app_config.agent_usage_total_tokens_limit or None,
+            )
         )
-    )
     return caps
 
 
