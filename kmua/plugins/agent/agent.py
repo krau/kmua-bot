@@ -901,7 +901,7 @@ async def wake_agent(client: PyrogramClient, message: pyrogram.types.Message):
         channel = app_config.agent_private_chat_required_channel
         await message.reply_text(
             i18n.t("bot.msg.agent.need_join_channel", locale=user_config.lang).format(
-                channel=channel.lstrip("@")
+                channel=channel
             )
         )
         return
