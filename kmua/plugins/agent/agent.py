@@ -804,8 +804,8 @@ _chat_command_filter = (
 )
 
 
-_CHANNEL_MEMBER_TTL = 3600
-_CHANNEL_NON_MEMBER_TTL = 300
+_CHANNEL_MEMBER_TTL = 600
+_CHANNEL_NON_MEMBER_TTL = 60
 
 
 def _channel_matches(chat: pyrogram.types.Chat, channel: str) -> bool:
@@ -823,7 +823,14 @@ def _channel_matches(chat: pyrogram.types.Chat, channel: str) -> bool:
 async def _sync_channel_membership(
     client: PyrogramClient, update: pyrogram.types.ChatMemberUpdated
 ) -> None:
-    """Keep the membership cache in sync with channel events."""
+    """Update the membership cache from channel member events.
+
+    Joins arrive in real time (the bot must be an administrator of the
+    required channel), so a fresh member is usable immediately with no
+    per-message API calls. Leaves produce no such event; they are caught
+    lazily by the cached state expiring and re-verifying on the user's next
+    message.
+    """
     channel = app_config.agent_private_chat_required_channel
     if not channel:
         return
