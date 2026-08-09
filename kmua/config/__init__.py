@@ -357,6 +357,10 @@ class _AppConfig(pydantic.BaseModel):
     # Master switch for channel comments (the per-chat ai_comment setting
     # still applies on top).
     agent_channel_comment_enabled: bool = True
+    # Private chats: the user must have joined this channel before the agent
+    # responds. Accepts "@username", a bare username or a numeric chat id;
+    # None disables the gate.
+    agent_private_chat_required_channel: str | None = None
     # experimental, maybe removed in the future
     agent_whitelist_mode: bool = False
     agent_whitelist: list[int] = []

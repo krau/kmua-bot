@@ -3,6 +3,7 @@ import random
 from typing import Any
 
 import pyrogram
+import pyrogram.errors
 from aiocache import SimpleMemoryCache
 from powermem import AsyncMemory
 from pydantic_ai import (
@@ -318,6 +319,17 @@ if app_config.agent and app_config.agent_model:
         if not app_config.agent or agent is None or not is_chat_allowed(chat_id):
             return
         if await tools.is_user_blocked(user_id):
+            return
+        is_private = (
+            message.chat and message.chat.type == pyrogram.enums.ChatType.PRIVATE
+        )
+        if (
+            is_private
+            and app_config.agent_private_chat_required_channel
+            and not await _is_channel_member(
+                client, user_id, app_config.agent_private_chat_required_channel
+            )
+        ):
             return
         user_config = await database.get_user_config(user_id)
         lang = user_config.lang
@@ -792,6 +804,78 @@ _chat_command_filter = (
 )
 
 
+_CHANNEL_MEMBER_TTL = 3600
+_CHANNEL_NON_MEMBER_TTL = 300
+
+
+def _channel_matches(chat: pyrogram.types.Chat, channel: str) -> bool:
+    """Whether the update's chat is the configured channel (id or username)."""
+    spec = channel.lstrip("@")
+    if spec.lstrip("-").isdigit():
+        try:
+            return str(chat.id) == spec or chat.id == int(spec)
+        except (TypeError, ValueError):
+            return False
+    return (chat.username or "").lower() == spec.lower()
+
+
+@PyrogramClient.on_chat_member_updated()
+async def _sync_channel_membership(
+    client: PyrogramClient, update: pyrogram.types.ChatMemberUpdated
+) -> None:
+    """Keep the membership cache in sync with channel events."""
+    channel = app_config.agent_private_chat_required_channel
+    if not channel:
+        return
+    if not _channel_matches(update.chat, channel):
+        return
+    member = update.new_chat_member
+    if member is None:
+        return
+    user = member.user
+    if not user or not user.id:
+        return
+    is_member = member.status in (
+        pyrogram.enums.ChatMemberStatus.MEMBER,
+        pyrogram.enums.ChatMemberStatus.ADMINISTRATOR,
+        pyrogram.enums.ChatMemberStatus.OWNER,
+    )
+    key = f"agent_channel_member:{user.id}:{channel}"
+    await common.memttlcache.set(
+        key,
+        is_member,
+        ttl=_CHANNEL_MEMBER_TTL if is_member else _CHANNEL_NON_MEMBER_TTL,
+    )
+
+
+async def _is_channel_member(
+    client: PyrogramClient, user_id: int, channel: str
+) -> bool:
+    cache_key = f"agent_channel_member:{user_id}:{channel}"
+    cached = await common.memttlcache.get(cache_key)
+    if cached is not None:
+        return bool(cached)
+    try:
+        member = await client.get_chat_member(channel.lstrip("@"), user_id)
+    except pyrogram.errors.UserNotParticipant:
+        await common.memttlcache.set(cache_key, False, ttl=_CHANNEL_NON_MEMBER_TTL)
+        return False
+    except Exception as e:
+        logger.warning(f"Channel membership check failed for {user_id}: {e}")
+        return True
+    is_member = member.status in (
+        pyrogram.enums.ChatMemberStatus.MEMBER,
+        pyrogram.enums.ChatMemberStatus.ADMINISTRATOR,
+        pyrogram.enums.ChatMemberStatus.OWNER,
+    )
+    await common.memttlcache.set(
+        cache_key,
+        is_member,
+        ttl=_CHANNEL_MEMBER_TTL if is_member else _CHANNEL_NON_MEMBER_TTL,
+    )
+    return is_member
+
+
 @PyrogramClient.on_message(_filter | _chat_command_filter, group=0)
 async def wake_agent(client: PyrogramClient, message: pyrogram.types.Message):
     # some check
@@ -806,6 +890,21 @@ async def wake_agent(client: PyrogramClient, message: pyrogram.types.Message):
     chat_config = None
     if not is_chat_allowed(chat.id):
         return await word_reply(client, message)
+    if (
+        chat.type == pyrogram.enums.ChatType.PRIVATE
+        and app_config.agent_private_chat_required_channel
+        and not await _is_channel_member(
+            client, user.id, app_config.agent_private_chat_required_channel
+        )
+    ):
+        user_config = await database.get_user_config(user.id)
+        channel = app_config.agent_private_chat_required_channel
+        await message.reply_text(
+            i18n.t("bot.msg.agent.need_join_channel", locale=user_config.lang).format(
+                channel=channel.lstrip("@")
+            )
+        )
+        return
     if chat.type == pyrogram.enums.ChatType.SUPERGROUP:
         chat_config = await database.get_chat_config(chat)
         if not chat_config.ai_reply:

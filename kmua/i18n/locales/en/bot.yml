@@ -162,6 +162,7 @@ bot:
       already_set: User status hasn't changed.
     agent:
       waiting: Waiting for a response, please wait a moment...
+      need_join_channel: Join {channel} first to chat with me.
       forgot: What just happened? I seem to have forgotten...
       summary_prompt: Summarize the conversation.
       errors:

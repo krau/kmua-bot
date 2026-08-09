@@ -138,6 +138,7 @@ bot:
       already_set: 用户状态未更改
     agent:
       waiting: 正在等待响应, 请稍等一会儿...
+      need_join_channel: 要先加入 {channel} 才能和我聊天哦~
       forgot: 刚刚发生了什么, 好像忘记了呢...
       summary_prompt: 总结对话内容
       errors:
