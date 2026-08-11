@@ -151,7 +151,7 @@
     "group_memory_enabled": "Group memory",
     "group_memory_enabledHint": "Let kmua remember this group's conversations",
     "parseSites": "Parse sites",
-    "parseSitesHint": "Requires the \u201cParse links\u201d master switch; unlisted sites default to on",
+    "parseSitesHint": "Requires the “Parse links” master switch; unlisted sites default to on",
     "rss_agent_summary": "AI summary on RSS pushes",
     "rss_agent_broadcast": "AI broadcast on new RSS entries"
   },
@@ -244,7 +244,20 @@
       "greeting_config": "Greeting configuration",
       "ai_chat": "AI chat",
       "callback": "Button interaction"
-    }
+    },
+    "blockChat": "Block chat",
+    "blockChatConfirm": "Block \"{title}\"?",
+    "blockChatDone": "Chat blocked",
+    "unblockChat": "Unblock chat",
+    "unblockChatConfirm": "Unblock \"{title}\"?",
+    "unblockChatDone": "Chat unblocked",
+    "blockUser": "Block user",
+    "blockUserConfirm": "Block this user?",
+    "blockUserDone": "User blocked",
+    "unblockUser": "Unblock user",
+    "unblockUserConfirm": "Unblock this user?",
+    "unblockUserDone": "User unblocked",
+    "blocked": "Blocked"
   },
   "errors": {
     "INIT_DATA_MISSING": "No Telegram launch parameters received",

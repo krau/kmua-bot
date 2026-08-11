@@ -145,6 +145,7 @@ async def read_chat(user: RequireAdmin, chat_id: int) -> ChatDetailOut:
         config=chat_config_out(chat.chat_config),
         created_at=timestamp(chat.created_at),
         can_manage=True,
+        is_blocked=chat.is_blocked,
     )
 
 

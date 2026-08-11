@@ -42,6 +42,22 @@ export function leaveChat(chatId: number) {
   return api.post<{ left: boolean; purged: boolean }>(`/api/admin/chats/${chatId}/leave`);
 }
 
+export function blockChat(chatId: number) {
+  return api.post<{ blocked: boolean; left: boolean }>(`/api/admin/chats/${chatId}/block`);
+}
+
+export function unblockChat(chatId: number) {
+  return api.post<{ blocked: boolean }>(`/api/admin/chats/${chatId}/unblock`);
+}
+
+export function blockUser(userId: number) {
+  return api.post<{ blocked: boolean }>(`/api/admin/users/${userId}/block`);
+}
+
+export function unblockUser(userId: number) {
+  return api.post<{ blocked: boolean }>(`/api/admin/users/${userId}/unblock`);
+}
+
 export function fetchUsers(
   page: number,
   size: number,

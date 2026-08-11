@@ -12,7 +12,7 @@
 import { computed, ref } from "vue";
 import { useRouter } from "vue-router";
 
-import { fetchChat, leaveChat } from "@/api/endpoints/admin";
+import { blockChat, fetchChat, leaveChat, unblockChat } from "@/api/endpoints/admin";
 import { isApiError } from "@/api/errors";
 import DefinitionList, { type DefinitionItem } from "@/components/DefinitionList.vue";
 import PageHeader from "@/components/PageHeader.vue";
@@ -32,7 +32,8 @@ const router = useRouter();
 const session = useSessionStore();
 
 const leaving = ref(false);
-const { notifyError } = useNotice();
+const blocking = ref(false);
+const { notify, notifyError } = useNotice();
 
 const chat = useAsyncData((signal) => fetchChat(props.chatId, signal));
 
@@ -66,6 +67,35 @@ const configItems = computed<DefinitionItem[]>(() => {
   items.push({ label: "lang", value: config.lang, mono: true });
   return items;
 });
+
+async function onToggleBlock(): Promise<void> {
+  const title = chat.data.value?.title ?? String(props.chatId);
+  const blocked = chat.data.value?.is_blocked ?? false;
+  const ok = await confirm({
+    title: t(blocked ? "admin.unblockChat" : "admin.blockChat"),
+    message: t(blocked ? "admin.unblockChatConfirm" : "admin.blockChatConfirm", { title }),
+    confirmText: t(blocked ? "admin.unblockChat" : "admin.blockChat"),
+    destructive: !blocked,
+  });
+  if (!ok) return;
+
+  blocking.value = true;
+  try {
+    if (blocked) {
+      await unblockChat(props.chatId);
+    } else {
+      await blockChat(props.chatId);
+    }
+    haptics.success();
+    notify(t(blocked ? "admin.unblockChatDone" : "admin.blockChatDone"));
+    chat.reload();
+  } catch (error) {
+    notifyError(isApiError(error) ? tError(error.code) : t("app.loadFailed"));
+    haptics.error();
+  } finally {
+    blocking.value = false;
+  }
+}
 
 async function onLeave(): Promise<void> {
   const title = chat.data.value?.title ?? String(props.chatId);
@@ -117,6 +147,14 @@ async function onLeave(): Promise<void> {
     </SettingsSection>
 
     <SettingsSection v-if="session.isOwner">
+      <SettingsRow
+        :label="t(chat.data.value?.is_blocked ? 'admin.unblockChat' : 'admin.blockChat')"
+        :hint="blocking ? t('app.working') : undefined"
+        navigable
+        :destructive="!chat.data.value?.is_blocked"
+        :busy="blocking"
+        @click="onToggleBlock"
+      />
       <SettingsRow
         :label="t('admin.leave')"
         :hint="leaving ? t('app.working') : undefined"

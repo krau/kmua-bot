@@ -107,6 +107,7 @@ def admin_chat_out(chat: ChatData, member_count: int) -> AdminChatOut:
         username=chat.username,
         member_count=member_count,
         created_at=timestamp(chat.created_at),
+        is_blocked=chat.is_blocked,
     )
 
 
@@ -123,6 +124,7 @@ def admin_user_out(user: UserData) -> AdminUserOut:
         is_bot=user.is_bot,
         is_real_user=user.is_real_user,
         is_bot_global_admin=user.is_bot_global_admin,
+        is_blocked=user.is_blocked,
         is_owner=user.id in app_config.owners,
         is_married=user.is_married,
         married_waifu_id=user.married_waifu_id,

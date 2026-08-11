@@ -261,6 +261,7 @@ class ChatDetailOut(ApiModel):
     config: ChatConfigOut
     created_at: str
     can_manage: bool
+    is_blocked: bool
 
 
 class ChatAdminOut(ApiModel):
@@ -339,6 +340,7 @@ class AdminChatOut(ApiModel):
     username: str | None
     member_count: int
     created_at: str
+    is_blocked: bool
 
 
 class AdminUserOut(ApiModel):
@@ -352,6 +354,7 @@ class AdminUserOut(ApiModel):
     is_bot: bool
     is_real_user: bool
     is_bot_global_admin: bool
+    is_blocked: bool
     is_owner: bool
     is_married: bool
     married_waifu_id: int | None

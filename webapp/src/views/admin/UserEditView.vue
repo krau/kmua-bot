@@ -17,7 +17,7 @@
 import { computed, ref } from "vue";
 
 import { systemInfo } from "@/api/endpoints/auth";
-import { fetchUser, updateUser } from "@/api/endpoints/admin";
+import { blockUser, fetchUser, unblockUser, updateUser } from "@/api/endpoints/admin";
 import { isApiError } from "@/api/errors";
 import type { AdminUserPatch } from "@/api/types";
 import DefinitionList, { type DefinitionItem } from "@/components/DefinitionList.vue";
@@ -43,6 +43,7 @@ const props = defineProps<{ userId: number }>();
 
 const session = useSessionStore();
 const saving = ref(false);
+const blocking = ref(false);
 const { notify, notifyError } = useNotice();
 
 interface EditableUser extends Record<string, unknown> {
@@ -180,6 +181,34 @@ async function save(): Promise<void> {
   }
 }
 
+async function onToggleBlock(): Promise<void> {
+  const blocked = user.data.value?.is_blocked ?? false;
+  const ok = await confirm({
+    title: t(blocked ? "admin.unblockUser" : "admin.blockUser"),
+    message: t(blocked ? "admin.unblockUserConfirm" : "admin.blockUserConfirm"),
+    confirmText: t(blocked ? "admin.unblockUser" : "admin.blockUser"),
+    destructive: !blocked,
+  });
+  if (!ok) return;
+
+  blocking.value = true;
+  try {
+    if (blocked) {
+      await unblockUser(props.userId);
+    } else {
+      await blockUser(props.userId);
+    }
+    haptics.success();
+    notify(t(blocked ? "admin.unblockUserDone" : "admin.blockUserDone"));
+    user.reload();
+  } catch (error) {
+    notifyError(isApiError(error) ? tError(error.code) : t("app.loadFailed"));
+    haptics.error();
+  } finally {
+    blocking.value = false;
+  }
+}
+
 useMainButton({
   text: () => t("app.saveCount", { count: form.changedFields.value.length }),
   visible: () => form.isDirty.value,
@@ -274,6 +303,17 @@ useMainButton({
 
     <SettingsSection>
       <DefinitionList :items="readonlyItems" />
+    </SettingsSection>
+
+    <SettingsSection v-if="session.isOwner">
+      <SettingsRow
+        :label="t(user.data.value?.is_blocked ? 'admin.unblockUser' : 'admin.blockUser')"
+        :hint="blocking ? t('app.working') : undefined"
+        navigable
+        :destructive="!user.data.value?.is_blocked"
+        :busy="blocking"
+        @click="onToggleBlock"
+      />
     </SettingsSection>
   </StateBlock>
 </template>

@@ -145,6 +145,7 @@ export interface ChatDetail {
   config: ChatConfig;
   created_at: string;
   can_manage: boolean;
+  is_blocked: boolean;
 }
 
 export interface ChatAdmin {
@@ -223,6 +224,7 @@ export interface AdminChat {
   username: string | null;
   member_count: number;
   created_at: string;
+  is_blocked: boolean;
 }
 
 export interface AdminUser {
@@ -236,6 +238,7 @@ export interface AdminUser {
   is_bot: boolean;
   is_real_user: boolean;
   is_bot_global_admin: boolean;
+  is_blocked: boolean;
   is_owner: boolean;
   is_married: boolean;
   married_waifu_id: number | null;

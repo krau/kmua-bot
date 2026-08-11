@@ -68,6 +68,7 @@ async def read_chat(ctx: ChatAdminCtx) -> ChatDetailOut:
         config=chat_config_out(chat.chat_config),
         created_at=chat.created_at.isoformat() if chat.created_at else "",
         can_manage=True,
+        is_blocked=chat.is_blocked,
     )
 
 

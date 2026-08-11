@@ -244,7 +244,20 @@
       "greeting_config": "欢迎语配置",
       "ai_chat": "AI 对话",
       "callback": "按钮交互"
-    }
+    },
+    "blockChat": "拉黑群组",
+    "blockChatConfirm": "确定拉黑「{title}」吗?",
+    "blockChatDone": "已拉黑该群组",
+    "unblockChat": "解除群组拉黑",
+    "unblockChatConfirm": "确定解除对「{title}」的拉黑吗?",
+    "unblockChatDone": "已解除拉黑",
+    "blockUser": "拉黑用户",
+    "blockUserConfirm": "确定拉黑该用户吗?",
+    "blockUserDone": "已拉黑该用户",
+    "unblockUser": "解除用户拉黑",
+    "unblockUserConfirm": "确定解除对该用户的拉黑吗?",
+    "unblockUserDone": "已解除拉黑",
+    "blocked": "已拉黑"
   },
   "errors": {
     "INIT_DATA_MISSING": "没有收到 Telegram 启动参数",
