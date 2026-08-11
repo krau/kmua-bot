@@ -205,9 +205,7 @@ async def test_an_explicit_null_is_skipped_not_written(cast, field):
     assert response.status_code == 200
     body = response.json()
     assert body["changed"] == []
-    assert body["skipped"] == [
-        {"field": field, "reason": "null is not a valid value"}
-    ]
+    assert body["skipped"] == [{"field": field, "reason": "null is not a valid value"}]
 
     after = await database.get_user_by_id(TARGET_ID)
     assert after is not None

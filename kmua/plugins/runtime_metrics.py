@@ -10,7 +10,11 @@ async def observe_telegram_update(client, update, users, chats) -> None:
     """Aggregate raw group events; no second parsed-handler dispatch is required."""
     runtime_metrics.observe_telegram_update(type(update).__name__)
     message = getattr(update, "message", None)
-    peer = getattr(message, "peer_id", None) if message is not None else getattr(update, "peer", None)
+    peer = (
+        getattr(message, "peer_id", None)
+        if message is not None
+        else getattr(update, "peer", None)
+    )
     chat_id = _chat_id(peer)
     if chat_id is None:
         return

@@ -128,9 +128,7 @@ def verify_init_data(
 
     token = bot_token if bot_token is not None else app_config.token
     if not token:
-        raise unauthorized(
-            ErrorCode.INIT_DATA_INVALID, "Bot token is not configured"
-        )
+        raise unauthorized(ErrorCode.INIT_DATA_INVALID, "Bot token is not configured")
 
     try:
         pairs = parse_qsl(init_data_raw, strict_parsing=True, keep_blank_values=True)
@@ -195,7 +193,9 @@ def _parse_user(raw_user: str | None) -> InitDataUser:
             ErrorCode.INIT_DATA_MALFORMED, "initData user is not valid JSON"
         ) from e
     if not isinstance(data, dict):
-        raise unauthorized(ErrorCode.INIT_DATA_MALFORMED, "initData user is not an object")
+        raise unauthorized(
+            ErrorCode.INIT_DATA_MALFORMED, "initData user is not an object"
+        )
 
     user_id = data.get("id")
     first_name = data.get("first_name")

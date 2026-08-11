@@ -84,9 +84,7 @@ async def make_chat(
     return refreshed
 
 
-async def join_chat(
-    user: UserData, chat: ChatData, *, bot_admin: bool = False
-) -> None:
+async def join_chat(user: UserData, chat: ChatData, *, bot_admin: bool = False) -> None:
     """Record membership, optionally flagged as a bot admin."""
     await database.add_association_in_chat(chat, user, None)
     if bot_admin:

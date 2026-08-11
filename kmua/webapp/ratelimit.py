@@ -47,7 +47,9 @@ class SlidingWindowLimiter:
 
     def _evict_stale(self, now: float) -> None:
         cutoff = now - self.window
-        stale = [key for key, hits in self._hits.items() if not hits or hits[-1] <= cutoff]
+        stale = [
+            key for key, hits in self._hits.items() if not hits or hits[-1] <= cutoff
+        ]
         for key in stale:
             del self._hits[key]
         if len(self._hits) >= self._max_keys:

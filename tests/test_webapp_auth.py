@@ -243,7 +243,9 @@ def test_rejects_a_token_missing_required_claims():
 
     from kmua.webapp.auth import _jwt_secret
 
-    incomplete = jwt.encode({"sub": "1", "iss": "kmua"}, _jwt_secret(), algorithm="HS256")
+    incomplete = jwt.encode(
+        {"sub": "1", "iss": "kmua"}, _jwt_secret(), algorithm="HS256"
+    )
 
     with pytest.raises(ApiError) as exc:
         auth.decode_token(incomplete)

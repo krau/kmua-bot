@@ -54,6 +54,7 @@ def create_app(*, panel_enabled: bool | None = None) -> FastAPI:
     )
 
     install_error_handlers(app)
+
     @app.middleware("http")
     async def collect_api_metrics(request, call_next):
         if request.url.path in {"/health", "/ready", "/api/admin/stats"}:
@@ -68,7 +69,9 @@ def create_app(*, panel_enabled: bool | None = None) -> FastAPI:
             if request.url.path.startswith("/api/"):
                 from kmua.webapp.metrics import runtime_metrics
 
-                runtime_metrics.observe_api_request(time.monotonic() - started_at, status_code)
+                runtime_metrics.observe_api_request(
+                    time.monotonic() - started_at, status_code
+                )
 
     app.add_middleware(BaseHTTPMiddleware, dispatch=add_api_security_headers)
 

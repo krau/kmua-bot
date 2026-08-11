@@ -60,9 +60,7 @@ class LoopLagMonitor:
         try:
             current = asyncio.current_task()
             tasks = [
-                t
-                for t in asyncio.all_tasks()
-                if t is not current and not t.done()
+                t for t in asyncio.all_tasks() if t is not current and not t.done()
             ]
         except Exception as e:
             logger.error(f"loop_monitor: failed to collect tasks: {e}")

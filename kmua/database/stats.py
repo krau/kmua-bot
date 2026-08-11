@@ -30,13 +30,17 @@ async def get_dashboard_stats(session: AsyncSession | None = None) -> dict[str, 
 
     async def count_since(model, column) -> int:
         result = await session.execute(
-            sqlalchemy.select(sqlalchemy.func.count()).select_from(model).where(column >= since)
+            sqlalchemy.select(sqlalchemy.func.count())
+            .select_from(model)
+            .where(column >= since)
         )
         return result.scalar_one()
 
     chats = await count_since(ChatData, ChatData.created_at)
     quotes = await count_since(Quote, Quote.created_at)
-    associations = await count_since(UserChatAssociation, UserChatAssociation.created_at)
+    associations = await count_since(
+        UserChatAssociation, UserChatAssociation.created_at
+    )
     bottles = await count_since(Bottle, Bottle.created_at)
     replies = await count_since(BottleReply, BottleReply.created_at)
     bottle_interactions = await session.execute(

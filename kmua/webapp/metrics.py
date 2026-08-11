@@ -13,14 +13,17 @@ from dataclasses import dataclass
 _WINDOW_SECONDS = 15 * 60
 
 
-_PROFILE_UPDATE_TYPES = frozenset({
-    "UpdateNewMessage",
-    "UpdateNewChannelMessage",
-    "UpdateEditMessage",
-    "UpdateEditChannelMessage",
-    "UpdateBotCallbackQuery",
-    "UpdateInlineBotCallbackQuery",
-})
+_PROFILE_UPDATE_TYPES = frozenset(
+    {
+        "UpdateNewMessage",
+        "UpdateNewChannelMessage",
+        "UpdateEditMessage",
+        "UpdateEditChannelMessage",
+        "UpdateBotCallbackQuery",
+        "UpdateInlineBotCallbackQuery",
+    }
+)
+
 
 @dataclass(frozen=True)
 class RuntimeSnapshot:
@@ -119,7 +122,9 @@ class RuntimeMetrics:
                 group_counts[chat_id] = group_counts.get(chat_id, 0) + 1
         group_activity = [
             {"chat_id": chat_id, "events": events}
-            for chat_id, events in sorted(group_counts.items(), key=lambda item: (-item[1], item[0]))[:5]
+            for chat_id, events in sorted(
+                group_counts.items(), key=lambda item: (-item[1], item[0])
+            )[:5]
         ]
         feature_calls: dict[str, int] = {}
         for timestamp, feature in self._features:
@@ -127,7 +132,11 @@ class RuntimeMetrics:
                 feature_calls[feature] = feature_calls.get(feature, 0) + 1
         requests = list(self._requests)
         durations_ms = sorted(duration * 1000 for _, duration, _ in requests)
-        latency_p95 = durations_ms[math.ceil(len(durations_ms) * 0.95) - 1] if durations_ms else None
+        latency_p95 = (
+            durations_ms[math.ceil(len(durations_ms) * 0.95) - 1]
+            if durations_ms
+            else None
+        )
         max_rss = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
         # Linux reports KiB; macOS reports bytes. kmua is deployed on Linux, keep a
         # conservative normalization for local development.
@@ -141,8 +150,16 @@ class RuntimeMetrics:
             loop_lag_p95_ms=p95,
             loop_lag_max_ms=lags_ms[-1] if lags_ms else None,
             loop_stalls=self._loop_stalls,
-            telegram_updates={str(seconds): self._rate(update_times, now, seconds) for seconds in (60, 300, 900)},
-            api_requests={str(seconds): sum(timestamp >= now - seconds for timestamp, _, _ in requests) for seconds in (60, 300, 900)},
+            telegram_updates={
+                str(seconds): self._rate(update_times, now, seconds)
+                for seconds in (60, 300, 900)
+            },
+            api_requests={
+                str(seconds): sum(
+                    timestamp >= now - seconds for timestamp, _, _ in requests
+                )
+                for seconds in (60, 300, 900)
+            },
             telegram_update_types=update_type_counts,
             api_latency_ms={"p95": latency_p95},
             group_activity=group_activity,

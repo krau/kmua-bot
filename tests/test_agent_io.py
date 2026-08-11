@@ -418,6 +418,3 @@ async def test_edit_line_out_of_range(ws):
 async def test_edit_line_missing_text(ws):
     result = await io.edit(_ctx(), "work://demo.py", "zzz", "y", line=1)
     assert "not found on line 1" in result
-
-
-

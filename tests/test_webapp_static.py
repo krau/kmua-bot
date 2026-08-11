@@ -84,7 +84,9 @@ async def test_hashed_assets_are_cached_immutably():
     from kmua.webapp.static import resolve_static_dir
 
     asset = next(
-        name for name in os.listdir(resolve_static_dir() / "assets") if name.endswith(".js")
+        name
+        for name in os.listdir(resolve_static_dir() / "assets")
+        if name.endswith(".js")
     )
 
     async with api_client() as client:
@@ -102,7 +104,9 @@ async def test_health_endpoints_work_with_the_panel_disabled():
 
     app = create_app(panel_enabled=False)
     transport = httpx.ASGITransport(app=app)
-    async with httpx.AsyncClient(transport=transport, base_url="http://panel.test") as client:
+    async with httpx.AsyncClient(
+        transport=transport, base_url="http://panel.test"
+    ) as client:
         health = await client.get("/health")
         ready = await client.get("/ready")
         panel = await client.get("/api/me")

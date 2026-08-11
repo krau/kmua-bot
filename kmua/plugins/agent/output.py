@@ -303,7 +303,9 @@ class StreamingOutput:
             if self.current_text:
                 from kmua.plugins.agent.guest_mode import answer_guest_query
 
-                await answer_guest_query(self.client, self.message, self.current_text, deps=self.deps)
+                await answer_guest_query(
+                    self.client, self.message, self.current_text, deps=self.deps
+                )
             return
         if self._start_task and not self._start_task.done():
             await self._start_task
