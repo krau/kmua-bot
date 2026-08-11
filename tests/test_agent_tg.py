@@ -242,6 +242,111 @@ async def test_prepare_sticker_gates_private(monkeypatch):
     assert await _prepare(tool, _run_ctx(-100123, 1001))
 
 
+async def test_send_anime_photo_media_group(monkeypatch):
+    """count > 1 sends a media group; only the first item carries a caption."""
+    from kmua.plugins.agent.tools import send_ops
+
+    def fake_artwork(n):
+        return (
+            {
+                "title": f"Title {n}",
+                "source_url": f"https://example.com/{n}",
+                "r18": False,
+                "description": "desc",
+                "artist": {"name": "A", "type": "artist", "username": "u", "uid": "1"},
+                "tags": ["t"],
+            },
+            {"regular": f"https://cdn.example.com/{n}.jpg", "id": str(n)},
+        )
+
+    async def fake_fetch(keyword=""):
+        return fake_artwork(len(send_ops._fetch_anime_artwork.calls)) if False else None
+
+    calls = {"n": 0}
+
+    async def fetch_one(keyword=""):
+        calls["n"] += 1
+        return fake_artwork(calls["n"])
+
+    monkeypatch.setattr(send_ops, "_fetch_anime_artwork", fetch_one)
+
+    groups = {}
+
+    async def fake_send_media_group(chat_id, media, reply_parameters=None):
+        groups["media"] = media
+        groups["reply"] = reply_parameters
+        return []
+
+    ctx = _ctx(SimpleNamespace(send_media_group=fake_send_media_group))
+    ctx.deps.user_id = 1001
+    ctx.deps.is_guest_mode = False
+
+    import kmua.database as database
+
+    async def fake_user_config(uid):
+        return SimpleNamespace(lang="zh-CN")
+
+    async def fake_chat_config(chat):
+        return SimpleNamespace(setu_enabled=True)
+
+    monkeypatch.setattr(database, "get_user_config", fake_user_config)
+    monkeypatch.setattr(database, "get_chat_config", fake_chat_config)
+
+    result = await send_ops.send_anime_photo(ctx, count=3)
+    assert result.success is True
+    assert len(groups["media"]) == 3
+    first = groups["media"][0]
+    assert "Title 1" in first.caption
+    assert groups["media"][1].caption == ""
+    assert groups["reply"].message_id == 7
+
+
+async def test_send_anime_photo_single_still_sends_photo(monkeypatch):
+    """count=1 keeps the plain send_photo path."""
+    from kmua.plugins.agent.tools import send_ops
+
+    sent = {}
+
+    async def fake_fetch(keyword=""):
+        return (
+            {
+                "title": "Single",
+                "source_url": "https://example.com/s",
+                "r18": False,
+                "description": "desc",
+                "artist": {"name": "A", "type": "artist", "username": "u", "uid": "1"},
+                "tags": ["t"],
+            },
+            {"regular": "https://cdn.example.com/s.jpg", "id": "9"},
+        )
+
+    async def fake_send_photo(chat_id, **kwargs):
+        sent.update(kwargs)
+        return SimpleNamespace()
+
+    monkeypatch.setattr(send_ops, "_fetch_anime_artwork", fake_fetch)
+
+    import kmua.database as database
+
+    async def fake_user_config(uid):
+        return SimpleNamespace(lang="zh-CN")
+
+    async def fake_chat_config(chat):
+        return SimpleNamespace(setu_enabled=True)
+
+    monkeypatch.setattr(database, "get_user_config", fake_user_config)
+    monkeypatch.setattr(database, "get_chat_config", fake_chat_config)
+
+    ctx = _ctx(SimpleNamespace(send_photo=fake_send_photo))
+    ctx.deps.user_id = 1001
+    ctx.deps.is_guest_mode = False
+
+    result = await send_ops.send_anime_photo(ctx, count=1)
+    assert result.success is True
+    assert "Single" in sent["caption"]
+    assert sent["photo"] == "https://cdn.example.com/s.jpg"
+
+
 async def test_send_document_work_reference(monkeypatch, tmp_path):
     """sendDocument accepts work:// references to this session's workspace."""
     from agentfs_sdk import AgentFS, AgentFSOptions

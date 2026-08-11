@@ -630,12 +630,13 @@ async def _send_anime_photo_guest(
 
 
 async def send_anime_photo(
-    ctx: RunContext[datatype.ContextDeps], keyword: str = ""
+    ctx: RunContext[datatype.ContextDeps], keyword: str = "", count: int = 1
 ) -> AnimePhotoResult:
     """Get and send anime photos (or called it setu/涩图).
 
     Args:
         keyword: Optional keyword to search for specific anime photos.
+        count: How many photos to send, 1-10.
 
     Returns:
         An AnimePhotoResult dataclass containing the result of the operation.
@@ -662,61 +663,64 @@ async def send_anime_photo(
         current_count = await common.memttlcache.get(ratekey, 0)
         await common.memttlcache.set(ratekey, current_count + 1, ttl=10)
 
-        fetched = await _fetch_anime_artwork(keyword)
-        if fetched is None:
+        count = max(1, min(10, count))
+        fetched = []
+        for _ in range(count):
+            item = await _fetch_anime_artwork(keyword)
+            if item is None:
+                break
+            fetched.append(item)
+        if not fetched:
             return AnimePhotoResult(
                 success=False, message="Failed to fetch anime artwork."
             )
-        artwork, picture = fetched
 
-        if ctx.deps.is_guest_mode:
-            return await _send_anime_photo_guest(ctx, artwork, picture)
+        if ctx.deps.is_guest_mode or len(fetched) == 1:
+            artwork, picture = fetched[0]
+            if ctx.deps.is_guest_mode:
+                return await _send_anime_photo_guest(ctx, artwork, picture)
+            return await _send_anime_photo_single(ctx, artwork, picture)
 
-        user_config = await database.get_user_config(ctx.deps.user_id)
-        lang = user_config.lang
-        detail_link = (
-            f"https://t.me/{app_config.manyacg_channel}/{picture['message_id']}"
-            if picture.get("message_id")
-            else artwork["source_url"]
-        )
-        await ctx.deps.client.send_photo(
+        media: list[
+            pyrogram.types.InputMediaPhoto
+            | pyrogram.types.InputMediaVideo
+            | pyrogram.types.InputMediaAudio
+            | pyrogram.types.InputMediaDocument
+        ] = [
+            pyrogram.types.InputMediaPhoto(
+                media=picture["regular"],
+                caption=(
+                    f"<a href='{artwork['source_url']}'>{artwork['title']}</a>"
+                    if i == 0
+                    else ""
+                ),
+                parse_mode=pyrogram.enums.ParseMode.HTML if i == 0 else None,
+                has_spoiler=artwork["r18"],
+            )
+            for i, (artwork, picture) in enumerate(fetched)
+        ]
+        await ctx.deps.client.send_media_group(
             chat_id=ctx.deps.chat_id,
-            photo=picture["regular"],
-            caption=f"<a href='{artwork['source_url']}'>{artwork['title']}</a>",
-            parse_mode=pyrogram.enums.ParseMode.HTML,
-            reply_markup=pyrogram.types.InlineKeyboardMarkup(
-                [
-                    [
-                        pyrogram.types.InlineKeyboardButton(
-                            text=i18n.t("bot.button.manyacg.detail", locale=lang),
-                            url=detail_link,
-                        ),
-                        pyrogram.types.InlineKeyboardButton(
-                            text=i18n.t("bot.button.manyacg.original", locale=lang),
-                            url=f"https://t.me/{app_config.manyacg_bot}/?start=file_{picture['id']}",
-                        ),
-                    ]
-                ]
-            ),
-            has_spoiler=artwork["r18"],
+            media=media,
             reply_parameters=pyrogram.types.ReplyParameters(
                 message_id=ctx.deps.message.id,
             ),
         )
+        first_artwork, _ = fetched[0]
         return AnimePhotoResult(
             success=True,
             data=AnimePhotoInfo(
-                title=artwork["title"],
-                source_url=artwork["source_url"],
-                r18=artwork["r18"],
-                description=artwork.get("description", "")[:512],
+                title=first_artwork["title"],
+                source_url=first_artwork["source_url"],
+                r18=first_artwork["r18"],
+                description=first_artwork.get("description", "")[:512],
                 artist=Artist(
-                    name=artwork.get("artist", {}).get("name", ""),
-                    type=artwork["artist"].get("type", ""),
-                    username=artwork["artist"].get("username", ""),
-                    uid=artwork["artist"].get("uid", ""),
+                    name=first_artwork.get("artist", {}).get("name", ""),
+                    type=first_artwork["artist"].get("type", ""),
+                    username=first_artwork["artist"].get("username", ""),
+                    uid=first_artwork["artist"].get("uid", ""),
                 ),
-                tags=artwork.get("tags", [])[:10],
+                tags=first_artwork.get("tags", [])[:10],
             ),
         )
     except Exception as e:
@@ -725,6 +729,61 @@ async def send_anime_photo(
             success=False,
             message=f"Error occurred: {e.__class__.__name__}",
         )
+
+
+async def _send_anime_photo_single(
+    ctx: RunContext[datatype.ContextDeps],
+    artwork: dict,
+    picture: dict,
+) -> AnimePhotoResult:
+    """Send one artwork photo with its caption and source buttons."""
+    user_config = await database.get_user_config(ctx.deps.user_id)
+    lang = user_config.lang
+    detail_link = (
+        f"https://t.me/{app_config.manyacg_channel}/{picture['message_id']}"
+        if picture.get("message_id")
+        else artwork["source_url"]
+    )
+    await ctx.deps.client.send_photo(
+        chat_id=ctx.deps.chat_id,
+        photo=picture["regular"],
+        caption=f"<a href='{artwork['source_url']}'>{artwork['title']}</a>",
+        parse_mode=pyrogram.enums.ParseMode.HTML,
+        reply_markup=pyrogram.types.InlineKeyboardMarkup(
+            [
+                [
+                    pyrogram.types.InlineKeyboardButton(
+                        text=i18n.t("bot.button.manyacg.detail", locale=lang),
+                        url=detail_link,
+                    ),
+                    pyrogram.types.InlineKeyboardButton(
+                        text=i18n.t("bot.button.manyacg.original", locale=lang),
+                        url=f"https://t.me/{app_config.manyacg_bot}/?start=file_{picture['id']}",
+                    ),
+                ]
+            ]
+        ),
+        has_spoiler=artwork["r18"],
+        reply_parameters=pyrogram.types.ReplyParameters(
+            message_id=ctx.deps.message.id,
+        ),
+    )
+    return AnimePhotoResult(
+        success=True,
+        data=AnimePhotoInfo(
+            title=artwork["title"],
+            source_url=artwork["source_url"],
+            r18=artwork["r18"],
+            description=artwork.get("description", "")[:512],
+            artist=Artist(
+                name=artwork.get("artist", {}).get("name", ""),
+                type=artwork["artist"].get("type", ""),
+                username=artwork["artist"].get("username", ""),
+                uid=artwork["artist"].get("uid", ""),
+            ),
+            tags=artwork.get("tags", [])[:10],
+        ),
+    )
 
 
 async def _send_sticker_checked(
