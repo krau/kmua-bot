@@ -170,6 +170,8 @@ class UserData(Base):
     is_bot: Mapped[bool] = mapped_column(Boolean, default=False)
     is_real_user: Mapped[bool] = mapped_column(Boolean, default=True)
     is_bot_global_admin: Mapped[bool] = mapped_column(Boolean, default=False)
+
+    is_blocked: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),
@@ -231,6 +233,8 @@ class ChatData(Base):
 
     title: Mapped[str] = mapped_column(String(256), nullable=False)
     username: Mapped[str | None] = mapped_column(String(64), nullable=True)
+
+    is_blocked: Mapped[bool] = mapped_column(Boolean, default=False)
 
     config: Mapped[dict] = mapped_column(
         JSON,

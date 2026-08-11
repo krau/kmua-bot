@@ -270,6 +270,19 @@ async def count_chat_members(chat_id: int, session: AsyncSession | None = None) 
 
 
 @with_tx
+async def set_chat_blocked(
+    chat_id: int, value: bool, session: AsyncSession | None = None
+) -> None:
+    assert session is not None
+
+    chat_data = await session.get(ChatData, chat_id)
+    if chat_data is None:
+        raise ValueError(f"Chat with id {chat_id} not found")
+    chat_data.is_blocked = value
+    _upsert_chat_cache.pop(chat_id, None)
+
+
+@with_tx
 async def delete_chat(chat_id: int, session: AsyncSession | None = None) -> bool:
     """Remove a group and its cascaded rows. Returns False when absent."""
     assert session is not None

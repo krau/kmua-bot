@@ -182,6 +182,94 @@ async def leave_chat(
     return {"left": left, "purged": deleted}
 
 
+@router.post("/users/{user_id}/block")
+async def block_user(
+    request: Request, user: RequireOwner, user_id: int
+) -> dict[str, bool]:
+    """Block a user: the bot ignores all their updates everywhere."""
+    write_limiter.check(client_key(request, user.id))
+    target = await database.get_user_by_id(user_id)
+    if target is None:
+        raise not_found(ErrorCode.USER_NOT_FOUND, "User not found")
+    await database.set_user_blocked(user_id, True)
+    audit.record(
+        action="user.block",
+        actor_id=user.id,
+        actor_roles=user.roles,
+        target=user_id,
+    )
+    return {"blocked": True}
+
+
+@router.post("/users/{user_id}/unblock")
+async def unblock_user(
+    request: Request, user: RequireOwner, user_id: int
+) -> dict[str, bool]:
+    """Unblock a user: their updates are answered again."""
+    write_limiter.check(client_key(request, user.id))
+    target = await database.get_user_by_id(user_id)
+    if target is None:
+        raise not_found(ErrorCode.USER_NOT_FOUND, "User not found")
+    await database.set_user_blocked(user_id, False)
+    audit.record(
+        action="user.unblock",
+        actor_id=user.id,
+        actor_roles=user.roles,
+        target=user_id,
+    )
+    return {"blocked": False}
+
+
+@router.post("/chats/{chat_id}/block")
+async def block_chat(
+    request: Request, user: RequireOwner, chat_id: int
+) -> dict[str, bool]:
+    """Block a chat: leave it now and re-leave whenever it is added again.
+
+    Owner only. No local data is purged (use leave for that).
+    """
+    write_limiter.check(client_key(request, user.id))
+    chat = await database.get_chat_by_id(chat_id)
+    if chat is None:
+        raise not_found(ErrorCode.CHAT_NOT_FOUND, "Chat not found")
+    await database.set_chat_blocked(chat_id, True)
+    left = True
+    try:
+        await client.leave_chat(chat_id)
+    except Exception as e:
+        # Already out on Telegram's side: the flag still stops re-adds.
+        left = False
+        logger.warning(f"webapp: block_chat({chat_id}) leave failed: {e}")
+    audit.record(
+        action="chat.block",
+        actor_id=user.id,
+        actor_roles=user.roles,
+        target=chat_id,
+        extra={"title": chat.title, "left": left},
+    )
+    return {"blocked": True, "left": left}
+
+
+@router.post("/chats/{chat_id}/unblock")
+async def unblock_chat(
+    request: Request, user: RequireOwner, chat_id: int
+) -> dict[str, bool]:
+    """Unblock a chat: the bot may be added to it again."""
+    write_limiter.check(client_key(request, user.id))
+    chat = await database.get_chat_by_id(chat_id)
+    if chat is None:
+        raise not_found(ErrorCode.CHAT_NOT_FOUND, "Chat not found")
+    await database.set_chat_blocked(chat_id, False)
+    audit.record(
+        action="chat.unblock",
+        actor_id=user.id,
+        actor_roles=user.roles,
+        target=chat_id,
+        extra={"title": chat.title},
+    )
+    return {"blocked": False}
+
+
 @router.get("/users", response_model=PageOut[AdminUserDetailOut])
 async def list_users(
     user: RequireAdmin,

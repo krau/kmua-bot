@@ -428,6 +428,19 @@ async def set_user_global_admin(
 
 
 @with_tx
+async def set_user_blocked(
+    user_id: int, value: bool, session: AsyncSession | None = None
+) -> None:
+    """Block or unblock a user: the bot ignores all their updates."""
+    assert session is not None
+
+    user_data = await session.get(UserData, user_id)
+    if user_data is None:
+        raise ValueError(f"User with id {user_id} not found")
+    user_data.is_blocked = value
+
+
+@with_tx
 async def set_user_waifu_mention(
     user_id: int, value: bool, session: AsyncSession | None = None
 ) -> bool:

@@ -1,5 +1,6 @@
 import random
 
+import pyrogram
 from pyrogram.client import Client
 from pyrogram.enums import ChatType
 from pyrogram.types import CallbackQuery, InlineQuery, Message
@@ -25,6 +26,10 @@ async def on_m(client: Client, message: Message):
     if chat.type == ChatType.CHANNEL:
         message.stop_propagation()
     user_db = await database.upsert_user(user)
+    if user_db.is_blocked:
+        logger.debug(f"Dropping update from blocked user {user.id}")
+        message.stop_propagation()
+        return
     if chat.type == ChatType.GROUP:
         message.stop_propagation()
     if chat.type in (ChatType.SUPERGROUP, ChatType.FORUM):
@@ -60,6 +65,37 @@ async def on_m(client: Client, message: Message):
             await common.tgmethod.cache_message_object(message)
 
 
+@Client.on_chat_member_updated()
+async def on_chat_member(client: Client, update: pyrogram.types.ChatMemberUpdated):
+    """Leave a blocked chat whenever the bot is added to it again.
+
+    Covers invites, join links and any other way of being added: the chat's
+    is_blocked flag is checked and the bot leaves right away.
+    """
+    member = update.new_chat_member
+    if member is None or not member.user or not member.user.is_self:
+        return
+    if member.status not in (
+        pyrogram.enums.ChatMemberStatus.MEMBER,
+        pyrogram.enums.ChatMemberStatus.ADMINISTRATOR,
+    ):
+        return
+    chat_id = update.chat.id
+    if chat_id is None:
+        return
+    chat_db = await database.get_chat_by_id(chat_id)
+    if chat_db is None or not chat_db.is_blocked:
+        return
+    logger.info(f"Leaving blocked chat {chat_id} after being re-added")
+    try:
+        await client.leave_chat(chat_id)
+    except Exception as e:
+        logger.warning(
+            f"Failed to leave blocked chat {update.chat.id}: "
+            f"{e.__class__.__name__}: {e}"
+        )
+
+
 @Client.on_callback_query(group=-100)
 async def on_cb(client: Client, callback_query: CallbackQuery):
     if app_config.debug:
@@ -74,6 +110,10 @@ async def on_cb(client: Client, callback_query: CallbackQuery):
     if chat.type in (ChatType.CHANNEL, ChatType.GROUP):
         callback_query.stop_propagation()
     user_db = await database.upsert_user(user)
+    if user_db.is_blocked:
+        logger.debug(f"Dropping callback from blocked user {user.id}")
+        callback_query.stop_propagation()
+        return
     if chat.type == ChatType.GROUP:
         callback_query.stop_propagation()
     if chat.type == ChatType.SUPERGROUP:
@@ -89,4 +129,7 @@ async def on_iq(client: Client, inline_query: InlineQuery):
     if user is None:
         return
     logger.trace(f"[InlineQuery]({user.id}): {inline_query.query}")
-    await database.upsert_user(user)
+    user_db = await database.upsert_user(user)
+    if user_db.is_blocked:
+        logger.debug(f"Dropping inline query from blocked user {user.id}")
+        inline_query.stop_propagation()
