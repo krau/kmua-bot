@@ -1,6 +1,4 @@
 import asyncio
-import time
-from collections import deque
 from contextlib import asynccontextmanager
 from typing import Any
 
@@ -25,37 +23,6 @@ from kmua.common.memory_store import memttlcache
 from kmua.config import app_config
 from kmua.i18n import i18n
 from kmua.logger import logger
-
-# Tool-call log: queue of (tool_name, start_time) so returns can report latency.
-_tool_call_log: deque[tuple[str, float]] = deque(maxlen=64)
-
-
-def _log_tool_call(name: str, args: Any, user_id: int, chat_id: int) -> None:
-    _tool_call_log.append((name, time.monotonic()))
-    args_str = str(args) if args else ""
-    logger.info(
-        f"Tool call {name}({args_str[:200]}) for user {user_id} in chat {chat_id}"
-    )
-
-
-def _log_tool_return(name: str, content: Any, user_id: int, chat_id: int) -> None:
-    elapsed: float | None = None
-    for i, (n, t0) in enumerate(_tool_call_log):
-        if n == name:
-            elapsed = time.monotonic() - t0
-            del _tool_call_log[i]
-            break
-    if isinstance(content, MULTI_MODAL_CONTENT_TYPES):
-        content = "[MULTI_MODAL]"
-    summary = str(content) if content is not None else ""
-    if len(summary) > 300:
-        summary = summary[:300] + "..."
-    latency = f" in {elapsed:.1f}s" if elapsed is not None else ""
-    logger.info(
-        f"Tool {name} returned{latency} for user {user_id} in chat {chat_id}: {summary}"
-    )
-
-
 from kmua.plugins.agent import datatype, provider, safety, state
 from kmua.plugins.agent.cache_stats import log_run_cache_stats
 from kmua.plugins.agent.datatype import AskUserOutput, EndTurn
@@ -286,16 +253,6 @@ async def _run_agent_impl(
                         node = agent_run.next_node
                         while not Agent.is_end_node(node):
                             if Agent.is_model_request_node(node):
-                                # Tool returns are only visible as request parts —
-                                # they never appear in the response event stream.
-                                for part in node.request.parts:
-                                    if part.part_kind == "tool-return":
-                                        _log_tool_return(
-                                            part.tool_name,
-                                            part.content,
-                                            user_id,
-                                            chat_id,
-                                        )
                                 async with node.stream(agent_run.ctx) as request_stream:
                                     async for event in request_stream:
                                         if isinstance(event, PartStartEvent):
@@ -317,13 +274,10 @@ async def _run_agent_impl(
                                                     event.delta.content_delta
                                                 )
                             elif Agent.is_call_tools_node(node):
-                                has_tool_calls = False
-                                for part in node.model_response.parts:
-                                    if part.part_kind == "tool-call":
-                                        has_tool_calls = True
-                                        _log_tool_call(
-                                            part.tool_name, part.args, user_id, chat_id
-                                        )
+                                has_tool_calls = any(
+                                    part.part_kind == "tool-call"
+                                    for part in node.model_response.parts
+                                )
                                 if has_tool_calls and streaming_output is not None:
                                     await streaming_output.finalize()
                                     streaming_output = None
@@ -412,11 +366,7 @@ async def _run_agent_impl(
                     while not Agent.is_end_node(node):
                         if Agent.is_call_tools_node(node):
                             for part in node.model_response.parts:
-                                if part.part_kind == "tool-call":
-                                    _log_tool_call(
-                                        part.tool_name, part.args, user_id, chat_id
-                                    )
-                                elif part.part_kind == "text" and part.content:
+                                if part.part_kind == "text" and part.content:
                                     # Check if content is final_result before sending
                                     if "final_result" in part.content:
                                         logger.warning(
@@ -429,22 +379,13 @@ async def _run_agent_impl(
                                             )
                                         full_output_parts.append(part.content)
                                         replied = True
-                        elif Agent.is_model_request_node(node):
-                            for part in node.request.parts:
-                                if part.part_kind == "tool-return":
-                                    _log_tool_return(
-                                        part.tool_name, part.content, user_id, chat_id
-                                    )
                         # next() runs the full capability lifecycle, which
                         # drains end-of-run pending messages into a redirect.
                         node = await agent_run.next(node)
                     assert agent_run.result is not None, (
                         "Agent run ended without result"
                     )
-                    logger.info(
-                        f"Agent run end for user {user_id} in chat {chat_id} "
-                        f"({len(_tool_call_log)} tool call(s) pending in log)"
-                    )
+                    logger.info(f"Agent run end for user {user_id} in chat {chat_id}")
                     logger.debug(
                         f"Agent run end with result: {agent_run.result.output}"
                     )
