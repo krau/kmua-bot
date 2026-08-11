@@ -277,6 +277,14 @@ async def delete_chat(chat_id: int, session: AsyncSession | None = None) -> bool
     chat_data = await session.get(ChatData, chat_id)
     if chat_data is None:
         return False
+    # The user_chat_association join rows reference chat_data with a RESTRICT
+    # constraint in the database, and the members relationship is noload, so
+    # clear them explicitly before deleting the chat row.
+    await session.execute(
+        sqlalchemy.delete(UserChatAssociation).where(
+            UserChatAssociation.chat_id == chat_id
+        )
+    )
     await session.delete(chat_data)
     _upsert_chat_cache.pop(chat_id, None)
     await memttlcache.delete(f"{_CHAT_CONFIG_CACHE_PREFIX}{chat_id}")
