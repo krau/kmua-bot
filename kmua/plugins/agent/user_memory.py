@@ -41,7 +41,7 @@ async def update_user_memory(
         await memttlcache.set(throttle_key, True, ttl=30)
 
         logger.debug(f"Updating memory for user {user_id}")
-        old_memory = await memttlcache.get(f"user_memory_{user_id}")
+        old_memory = await memttlcache.get(state.memory_key(user_id))
         if old_memory and isinstance(old_memory, datatype.ChatMemoryy):
             message_text = f"根据已有的记忆和新的聊天消息, 更新对用户的记忆, 并决定对用户的好感变化.\n旧的记忆: {old_memory}\n新的聊天消息: {message_text}"
 
