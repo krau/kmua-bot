@@ -62,6 +62,14 @@ def user_memory_update_key(user_id: int) -> str:
     return f"user_memory_last_update_from_cross_group:{user_id}"
 
 
+def agent_messages_key(user_id: int) -> str:
+    return f"agent_user_messages:{user_id}"
+
+
+def agent_memory_update_key(user_id: int) -> str:
+    return f"agent_memory_last_update:{user_id}"
+
+
 def memory_key(user_id: int) -> str:
     return f"agent_user_memory:{user_id}"
 

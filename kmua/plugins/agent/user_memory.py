@@ -49,7 +49,11 @@ async def update_user_memory(
         timeout = app_config.agent_model_timeout
         coro = agent.run(
             output_type=datatype.UserMemoryResult,
-            user_prompt=f"根据以下聊天消息, 总结出关于用户的重要信息, 并决定对用户的好感变化:\n {message_text}",
+            user_prompt=(
+                "根据以下聊天记录, 总结出关于用户的重要信息, 并决定对用户的好感变化. "
+                "记录已按聊天分组并标注时间, 注意区分用户在不同聊天中的表现:\n"
+                f" {message_text}"
+            ),
         )
 
         if timeout > 0:
