@@ -22,6 +22,7 @@ from kmua.webapp.schemas import (
     ChatConfigOut,
     QuoteOut,
     RssSubscriptionOut,
+    VerifyQuestionOut,
 )
 
 
@@ -77,6 +78,15 @@ def chat_config_out(config: ChatConfig) -> ChatConfigOut:
         parse_wechat_enabled=config.parse_wechat_enabled,
         rss_agent_summary=config.rss_agent_summary,
         rss_agent_broadcast=config.rss_agent_broadcast,
+        verify_enabled=config.verify_enabled,
+        verify_strategy=config.verify_strategy,
+        verify_method=config.verify_method,
+        verify_max_attempts=config.verify_max_attempts,
+        verify_timeout_seconds=config.verify_timeout_seconds,
+        verify_fail_action=config.verify_fail_action,
+        verify_questions=[
+            VerifyQuestionOut.model_validate(q) for q in config.verify_questions
+        ],
         lang=config.lang,
     )
 

@@ -16,6 +16,7 @@ import { systemInfo } from "@/api/endpoints/auth";
 import { fetchChat, saveChatConfig } from "@/api/endpoints/chats";
 import { isApiError } from "@/api/errors";
 import type { ChatConfigInput } from "@/api/types";
+import NumberField from "@/components/NumberField.vue";
 import NumberStepper from "@/components/NumberStepper.vue";
 import PageHeader from "@/components/PageHeader.vue";
 import SelectField from "@/components/SelectField.vue";
@@ -60,6 +61,12 @@ const EMPTY_CONFIG: ChatConfigInput = {
   parse_wechat_enabled: true,
   rss_agent_summary: false,
   rss_agent_broadcast: false,
+  verify_enabled: false,
+  verify_strategy: "all",
+  verify_method: "math",
+  verify_max_attempts: 3,
+  verify_timeout_seconds: 120,
+  verify_fail_action: "kick",
   lang: "zh-CN",
 };
 
@@ -67,7 +74,11 @@ const form = useDirtyState<ChatConfigInput & Record<string, unknown>>({ ...EMPTY
 
 const chat = useAsyncData(async (signal) => {
   const detail = await fetchChat(props.chatId, signal);
-  const { title_permissions: _ignored, ...config } = detail.config;
+  const {
+    title_permissions: _ignored,
+    verify_questions: _ignoredQuestions,
+    ...config
+  } = detail.config;
   form.commit({ ...config });
   return detail;
 });
@@ -80,6 +91,20 @@ const localeOptions = computed(() =>
     text: localeName(value),
   })),
 );
+
+/** 验证方式选项。策略(verify_strategy)后端现仅接受 "all", 暂不渲染选择器。 */
+const methodOptions = [
+  { value: "math", text: t("verify.method.math") },
+  { value: "emoji", text: t("verify.method.emoji") },
+  { value: "sticker", text: t("verify.method.sticker") },
+  { value: "custom_qa", text: t("verify.method.custom_qa") },
+];
+
+const failActionOptions = [
+  { value: "kick", text: t("verify.failAction.kick") },
+  { value: "ban", text: t("verify.failAction.ban") },
+  { value: "unrestrict", text: t("verify.failAction.unrestrict") },
+];
 
 /** The greeting is nullable in the API but a textarea needs a string. */
 const greeting = computed({
@@ -105,7 +130,7 @@ async function save(): Promise<void> {
   saving.value = true;
   try {
     const saved = await saveChatConfig(props.chatId, form.draft.value);
-    const { title_permissions: _ignored, ...config } = saved;
+    const { title_permissions: _ignored, verify_questions: _ignoredQuestions, ...config } = saved;
     form.commit({ ...config });
     if (chat.data.value) chat.data.value.config = saved;
     notify(t("app.saved"));
@@ -190,6 +215,49 @@ function go(name: string): void {
         :label="t('chats.lang')"
         :options="localeOptions"
         :changed="changed('lang')"
+      />
+    </SettingsSection>
+
+    <SettingsSection :label="t('chats.verify')">
+      <SettingsRow :label="t('chatConfig.verify_enabled')" :changed="changed('verify_enabled')">
+        <template #control>
+          <ToggleSwitch
+            v-model="form.draft.value.verify_enabled as boolean"
+            :aria-label="t('chatConfig.verify_enabled')"
+          />
+        </template>
+      </SettingsRow>
+      <SelectField
+        v-model="form.draft.value.verify_method"
+        :label="t('chatConfig.verify_method')"
+        :options="methodOptions"
+        :changed="changed('verify_method')"
+      />
+      <SelectField
+        v-model="form.draft.value.verify_fail_action"
+        :label="t('chatConfig.verify_fail_action')"
+        :options="failActionOptions"
+        :changed="changed('verify_fail_action')"
+      />
+      <NumberField
+        v-model="form.draft.value.verify_max_attempts"
+        :label="t('chatConfig.verify_max_attempts')"
+        :min="1"
+        :max="10"
+        :changed="changed('verify_max_attempts')"
+      />
+      <NumberField
+        v-model="form.draft.value.verify_timeout_seconds"
+        :label="t('chatConfig.verify_timeout_seconds')"
+        :min="30"
+        :max="600"
+        :changed="changed('verify_timeout_seconds')"
+      />
+      <SettingsRow
+        :label="t('chats.verifyQuestions')"
+        :hint="t('chats.verifyQuestionsHint')"
+        navigable
+        @click="go('chat-verify-questions')"
       />
     </SettingsSection>
 

@@ -1,0 +1,25 @@
+bot:
+  msg:
+    verify:
+      wrong_prefix: "回答错啦\n"
+      challenge_math: "验证: {a} + {b} = ?\n剩余次数: {attempts}/{max}"
+      challenge_emoji: "请点击这个表情: {emoji}\n剩余次数: {attempts}/{max}"
+      challenge_sticker: "回复本条消息发送任意贴纸, 就能通过验证啦"
+      challenge_qa: "请回答下面的问题:\n{question}\n剩余次数: {attempts}/{max}\n(点击下方按钮选择答案哦)"
+      challenge_qa_multi: "请选出所有正确答案:\n{question}\n剩余次数: {attempts}/{max}\n(可多选, 选好后点击确认哦)"
+      wrong_alert: "回答错啦, 还剩 {attempts}/{max} 次机会"
+      success: "{user} 验证通过啦, 欢迎加入!"
+      failed_prefix: "{user} 验证失败了"
+      timeout_prefix: "{user} 验证超时了"
+      action_kick: ", 已移出群聊"
+      action_ban: ", 已被封禁"
+      action_unrestrict: ", 已放行"
+      timeout_hint: "请在 {timeout} 秒内完成验证哦"
+      admin_banned: "{user} 已被管理员封禁"
+      expired: "这个验证已经失效啦"
+  button:
+    verify:
+      approve: "放行"
+      ban: "封禁"
+      submit: "确认"
+      selected: "(已选)"

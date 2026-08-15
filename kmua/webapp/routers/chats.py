@@ -34,6 +34,9 @@ from kmua.webapp.schemas import (
     RssSubscriptionPatch,
     SyncMembersOut,
     TitlePermissionsIn,
+    VerifyQuestionOut,
+    VerifyQuestionsIn,
+    VerifyQuestionsOut,
 )
 from kmua.webapp.serializers import chat_config_out, quote_out, rss_subscription_out
 
@@ -82,8 +85,9 @@ async def update_chat_config(
     the inline /config keyboard also writes, and full replacement makes the
     last writer's intent unambiguous instead of interleaving partial updates.
 
-    `title_permissions` is deliberately not part of this payload - it has its own
-    endpoint, so saving the toggles page cannot wipe the permissions page.
+    `title_permissions` and `verify_questions` are deliberately not part of this
+    payload - each has its own endpoint, so saving the toggles page cannot wipe
+    the permissions page or the question bank.
     """
     write_limiter.check(client_key(request, ctx.user.id))
 
@@ -108,6 +112,13 @@ async def update_chat_config(
         parse_wechat_enabled=payload.parse_wechat_enabled,
         rss_agent_summary=payload.rss_agent_summary,
         rss_agent_broadcast=payload.rss_agent_broadcast,
+        verify_enabled=payload.verify_enabled,
+        verify_strategy=payload.verify_strategy,
+        verify_method=payload.verify_method,
+        verify_max_attempts=payload.verify_max_attempts,
+        verify_timeout_seconds=payload.verify_timeout_seconds,
+        verify_fail_action=payload.verify_fail_action,
+        verify_questions=current.verify_questions,
         lang=payload.lang,
     )
 
@@ -178,6 +189,43 @@ async def update_title_permissions(
         ],
     )
     return chat_config_out(saved)
+
+
+@router.get("/{chat_id}/verify-questions", response_model=VerifyQuestionsOut)
+async def read_verify_questions(ctx: ChatAdminCtx) -> VerifyQuestionsOut:
+    questions = ctx.chat.chat_config.verify_questions
+    return VerifyQuestionsOut(
+        questions=[VerifyQuestionOut.model_validate(q) for q in questions]
+    )
+
+
+@router.put("/{chat_id}/verify-questions", response_model=VerifyQuestionsOut)
+async def update_verify_questions(
+    request: Request, ctx: ChatAdminCtx, payload: VerifyQuestionsIn
+) -> VerifyQuestionsOut:
+    """Replace the whole question bank.
+
+    The payload is the complete desired state - like title permissions, saving
+    the bank must not interleave with config writes.
+    """
+    write_limiter.check(client_key(request, ctx.user.id))
+
+    config = ctx.chat.chat_config
+    old = config.verify_questions
+    new = [q.model_dump() for q in payload.questions]
+    config.verify_questions = new
+    saved = await database.update_chat_config(ctx.chat.id, config)
+
+    audit.record(
+        action="chat.verify_questions.update",
+        actor_id=ctx.user.id,
+        actor_roles=ctx.user.roles,
+        target=ctx.chat.id,
+        changes=[audit.FieldChange(field="verify_questions", old=old, new=new)],
+    )
+    return VerifyQuestionsOut(
+        questions=[VerifyQuestionOut.model_validate(q) for q in saved.verify_questions]
+    )
 
 
 @router.get("/{chat_id}/admins", response_model=list[ChatAdminOut])

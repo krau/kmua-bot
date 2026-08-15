@@ -74,6 +74,23 @@ bot:
       /rss - Manage RSS subscriptions
       </blockquote>
       Use "/" or "\" on another user to cast a spell on them.
+    verify:
+      wrong_prefix: "Wrong answer\n"
+      challenge_math: "Verify: {a} + {b} = ?\nAttempts left: {attempts}/{max}"
+      challenge_emoji: "Tap this emoji: {emoji}\nAttempts left: {attempts}/{max}"
+      challenge_sticker: "Reply to this message with any sticker to pass verification"
+      challenge_qa: "Answer the question:\n{question}\nAttempts left: {attempts}/{max}\n(tap a button below to answer)"
+      challenge_qa_multi: "Select all correct answers:\n{question}\nAttempts left: {attempts}/{max}\n(multi-select, then tap confirm)"
+      wrong_alert: "Wrong answer, {attempts}/{max} attempts left"
+      success: "{user} verified, welcome!"
+      failed_prefix: "{user} failed verification"
+      timeout_prefix: "{user} verification timed out"
+      action_kick: ", was removed from the group"
+      action_ban: ", was banned"
+      action_unrestrict: ", approved"
+      timeout_hint: "Please complete within {timeout} seconds"
+      admin_banned: "{user} was banned by an admin"
+      expired: "This verification has expired"
     help_inline: |
       Type @{me_username} in any chat to enter Inline mode.
 
@@ -394,7 +411,13 @@ bot:
       parse_artwork_enabled: Parse Artwork Links
       pick_bottle_enabled: Pick Bottle
       group_memory_enabled: Group Memory
+      verify: Member Verification
       save: Save
+    verify:
+      approve: Approve
+      ban: Ban
+      submit: Confirm
+      selected: "(selected)"
     waifu:
       remove: Remove (Admin)
       marry: Marry her!

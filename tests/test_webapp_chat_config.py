@@ -48,6 +48,12 @@ def valid_config(**overrides) -> dict:
         "parse_wechat_enabled": True,
         "rss_agent_summary": False,
         "rss_agent_broadcast": False,
+        "verify_enabled": False,
+        "verify_strategy": "all",
+        "verify_method": "math",
+        "verify_max_attempts": 3,
+        "verify_timeout_seconds": 120,
+        "verify_fail_action": "kick",
         "lang": "zh-CN",
     }
     payload.update(overrides)
@@ -216,3 +222,226 @@ async def test_config_read_matches_what_the_bot_sees(chat_admin):
 
     assert from_api["ai_reply"] == from_bot.ai_reply is False
     assert from_api["lang"] == from_bot.lang == "en"
+
+
+# ---------------------------------------------------------------- verification
+
+
+async def test_saves_verify_settings(chat_admin):
+    """The config document round-trips verification settings."""
+    async with api_client() as client:
+        response = await client.put(
+            f"/api/chats/{CHAT_ID}/config",
+            headers=bearer(ADMIN_ID),
+            json=valid_config(
+                verify_enabled=True,
+                verify_method="sticker",
+                verify_fail_action="ban",
+                verify_max_attempts=5,
+                verify_timeout_seconds=300,
+            ),
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["verify_enabled"] is True
+    assert body["verify_method"] == "sticker"
+    assert body["verify_fail_action"] == "ban"
+    assert body["verify_max_attempts"] == 5
+    assert body["verify_timeout_seconds"] == 300
+
+    stored = await database.get_chat_config(CHAT_ID)
+    assert stored.verify_enabled is True
+    assert stored.verify_method == "sticker"
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("verify_strategy", "sometimes"),
+        ("verify_method", "captcha"),
+        ("verify_fail_action", "warn"),
+    ],
+)
+async def test_rejects_an_unknown_strategy_method_or_fail_action(
+    chat_admin, field, value
+):
+    async with api_client() as client:
+        response = await client.put(
+            f"/api/chats/{CHAT_ID}/config",
+            headers=bearer(ADMIN_ID),
+            json=valid_config(**{field: value}),
+        )
+
+    assert response.status_code == 422
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("verify_max_attempts", 0),
+        ("verify_max_attempts", 11),
+        ("verify_timeout_seconds", 29),
+        ("verify_timeout_seconds", 601),
+    ],
+)
+async def test_rejects_out_of_range_attempts_and_timeout(chat_admin, field, value):
+    async with api_client() as client:
+        response = await client.put(
+            f"/api/chats/{CHAT_ID}/config",
+            headers=bearer(ADMIN_ID),
+            json=valid_config(**{field: value}),
+        )
+
+    assert response.status_code == 422
+
+
+async def test_config_payload_rejects_verify_questions(chat_admin):
+    """The question bank has its own endpoint; the config document must not carry it."""
+    async with api_client() as client:
+        response = await client.put(
+            f"/api/chats/{CHAT_ID}/config",
+            headers=bearer(ADMIN_ID),
+            json=valid_config(verify_questions=[{"question": "?", "answers": ["a"]}]),
+        )
+
+    assert response.status_code == 422
+
+
+async def test_verify_questions_replace_the_whole_set(chat_admin):
+    async with api_client() as client:
+        response = await client.put(
+            f"/api/chats/{CHAT_ID}/verify-questions",
+            headers=bearer(ADMIN_ID),
+            json={
+                "questions": [
+                    {"question": "Q1?", "options": ["a", "b"], "answers": ["a"]},
+                    {
+                        "question": "Q2?",
+                        "options": [" b ", " c ", "b"],
+                        "answers": [" b ", "c"],
+                        "select": "any",
+                    },
+                    {"question": "  Q3?  ", "options": ["d", "e"], "answers": [" e "]},
+                ]
+            },
+        )
+        assert response.status_code == 200
+        body = response.json()
+        assert [q["question"] for q in body["questions"]] == ["Q1?", "Q2?", "Q3?"]
+        assert body["questions"][1]["options"] == ["b", "c"]  # 去重
+        assert body["questions"][1]["answers"] == ["b", "c"]  # 答案去重, 支持多选
+        assert body["questions"][1]["select"] == "any"  # 任选其一模式回读
+        assert body["questions"][0]["select"] == "all"  # 缺省全选
+        assert body["questions"][2]["options"] == ["d", "e"]
+        assert body["questions"][2]["answers"] == ["e"]  # 答案 trim 后仍在选项中
+
+        response = await client.put(
+            f"/api/chats/{CHAT_ID}/verify-questions",
+            headers=bearer(ADMIN_ID),
+            json={
+                "questions": [
+                    {"question": "Only?", "options": ["x", "y"], "answers": ["x"]}
+                ]
+            },
+        )
+        assert response.status_code == 200
+        assert len(response.json()["questions"]) == 1
+
+    stored = await database.get_chat_config(CHAT_ID)
+    assert len(stored.verify_questions) == 1
+    assert stored.verify_questions[0]["question"] == "Only?"
+
+
+async def test_saving_config_preserves_verify_questions(chat_admin):
+    """The two pages edit the same JSON column; neither may clobber the other."""
+    async with api_client() as client:
+        await client.put(
+            f"/api/chats/{CHAT_ID}/verify-questions",
+            headers=bearer(ADMIN_ID),
+            json={
+                "questions": [
+                    {
+                        "question": "Keep me?",
+                        "options": ["yes", "no"],
+                        "answers": ["yes"],
+                    }
+                ]
+            },
+        )
+        response = await client.put(
+            f"/api/chats/{CHAT_ID}/config",
+            headers=bearer(ADMIN_ID),
+            json=valid_config(),
+        )
+
+    assert response.status_code == 200
+    assert response.json()["verify_questions"] == [
+        {
+            "question": "Keep me?",
+            "options": ["yes", "no"],
+            "answers": ["yes"],
+            "select": "all",
+        }
+    ]
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        {"questions": [{"question": "   ", "options": ["a", "b"], "answers": ["a"]}]},
+        {"questions": [{"question": "Q?", "options": ["a"], "answers": ["a"]}]},
+        {"questions": [{"question": "Q?", "options": ["  ", " "], "answers": ["a"]}]},
+        {"questions": [{"question": "Q?", "options": ["a", "b"], "answers": ["c"]}]},
+        {"questions": [{"question": "Q?", "options": ["a", "b"], "answers": ["  "]}]},
+        {
+            "questions": [
+                {"question": "x" * 201, "options": ["a", "b"], "answers": ["a"]}
+            ]
+        },
+        {
+            "questions": [
+                {"question": "Q?", "options": ["ok" * 51, "b"], "answers": ["ok" * 51]}
+            ]
+        },
+        {
+            "questions": [{"question": "Q?", "options": ["a", "b"], "answers": ["a"]}]
+            * 201
+        },
+        {
+            "questions": [
+                {
+                    "question": "Q?",
+                    "options": ["a", "b"],
+                    "answers": ["a"],
+                    "select": "both",
+                }
+            ]
+        },
+    ],
+)
+async def test_rejects_invalid_verify_questions(chat_admin, payload):
+    async with api_client() as client:
+        response = await client.put(
+            f"/api/chats/{CHAT_ID}/verify-questions",
+            headers=bearer(ADMIN_ID),
+            json=payload,
+        )
+
+    assert response.status_code == 422
+
+
+async def test_accepts_limits_at_the_boundary(chat_admin):
+    """200 题、题目 200 字、选项 100 字是合法上限, 应被接受。"""
+    question = {"question": "x" * 200, "options": ["a", "y" * 100], "answers": ["a"]}
+    payload = {"questions": [question] * 200}
+    async with api_client() as client:
+        response = await client.put(
+            f"/api/chats/{CHAT_ID}/verify-questions",
+            headers=bearer(ADMIN_ID),
+            json=payload,
+        )
+
+    assert response.status_code == 200
+    assert len(response.json()["questions"]) == 200
+    assert response.json()["questions"][0]["question"] == "x" * 200

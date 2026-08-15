@@ -134,7 +134,28 @@
     "rssNeverFetched": "Never fetched",
     "rssError": "Fetch error",
     "rssEvery": "every {minutes} min",
-    "rssGlobalInterval": "global interval"
+    "rssGlobalInterval": "global interval",
+    "verify": "Member Verification",
+    "verifyQuestions": "Custom question bank",
+    "verifyQuestionsHint": "Questions used by the \"custom Q&A\" method",
+    "verifyQuestionNumber": "Question {number}",
+    "verifyQuestionPrompt": "Question",
+    "verifyAddQuestion": "Add question",
+    "verifyRemoveQuestion": "Remove this question",
+    "verifyOptions": "Options",
+    "verifyOptionsHint": "At least 2 options; empty rows are dropped; toggles mark correct answers (multi-select allowed)",
+    "verifyOptionPlaceholder": "Option {number}",
+    "verifyCorrectAnswer": "Mark as correct answer",
+    "verifyAddOption": "Add option",
+    "verifyEmpty": "No questions yet",
+    "verifyEmptyHint": "Add the first question below",
+    "verifyListLabel": "All questions",
+    "verifyUntitled": "Untitled question",
+    "verifyQuestionMeta": "{options} options · Correct answers: {correct}",
+    "verifyDelete": "Delete",
+    "verifyCorrectNone": "not set",
+    "verifyAnyOf": "Any one",
+    "verifyAnyOfHint": "With several correct answers, picking any one passes"
   },
   "chatConfig": {
     "waifu_enabled": "Daily waifu",
@@ -153,7 +174,12 @@
     "parseSites": "Parse sites",
     "parseSitesHint": "Requires the “Parse links” master switch; unlisted sites default to on",
     "rss_agent_summary": "AI summary on RSS pushes",
-    "rss_agent_broadcast": "AI broadcast on new RSS entries"
+    "rss_agent_broadcast": "AI broadcast on new RSS entries",
+    "verify_enabled": "Verify new members",
+    "verify_method": "Verification method",
+    "verify_fail_action": "On failure",
+    "verify_max_attempts": "Max attempts",
+    "verify_timeout_seconds": "Timeout (seconds)"
   },
   "titlePermissions": {
     "can_change_info": "Change group info",
@@ -319,5 +345,18 @@
     "removeHint": "Removing a chat returns all its policies to their defaults",
     "removeConfirm": "Remove the policy for \"{name}\"? All flags return to their defaults.",
     "removed": "Removed"
+  },
+  "verify": {
+    "method": {
+      "math": "Math quiz",
+      "emoji": "Emoji pick",
+      "sticker": "Send a sticker",
+      "custom_qa": "Custom Q&A"
+    },
+    "failAction": {
+      "kick": "Kick (can rejoin)",
+      "ban": "Ban",
+      "unrestrict": "Approve"
+    }
   }
 }

@@ -8,3 +8,4 @@ from .affection import *  # noqa
 from .gift import *  # noqa
 from .stats import *  # noqa
 from .rss import *  # noqa
+from .verify import *  # noqa
