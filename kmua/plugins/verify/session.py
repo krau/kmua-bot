@@ -375,6 +375,10 @@ async def _succeed_session(session_row: VerificationSession, lang: str) -> None:
             f"verify: failed to unrestrict {session_row.user_id} in "
             f"{session_row.chat_id}: {e} (admin may need to handle manually)"
         )
+    try:
+        await database.mark_user_verified(session_row.chat_id, session_row.user_id)
+    except Exception as e:
+        logger.error(f"verify: failed to mark verified {session_row.id}: {e}")
     await _cleanup_session(session_row)
 
 

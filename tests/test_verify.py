@@ -35,10 +35,47 @@ async def clean_verify():
 # ------------------------------------------------------------------ 纯函数
 
 
-def test_should_verify():
-    assert challenge.should_verify("all", False) is True
-    assert challenge.should_verify("all", True) is True
-    assert challenge.should_verify("unknown_future_strategy", False) is False
+def _verify_ctx(**overrides) -> challenge.VerifyContext:
+    from pyrogram.types import User
+
+    base = {
+        "chat_id": -100_910_001,
+        "user": User(id=1, first_name="T", is_bot=False),
+        "is_join": False,
+    }
+    base.update(overrides)
+    return challenge.VerifyContext(**base)
+
+
+def test_strategy_matches():
+    # all: 只在入群命中, 与验证状态无关
+    assert challenge.strategy_matches("all", _verify_ctx(is_join=True)) is True
+    assert challenge.strategy_matches("all", _verify_ctx(is_join=False)) is False
+    assert (
+        challenge.strategy_matches("all", _verify_ctx(is_join=False, is_verified=True))
+        is False
+    )
+    # first_message: 首次发言命中; 已验证/验证中跳过; 入群不触发
+    assert (
+        challenge.strategy_matches("first_message", _verify_ctx(is_join=False)) is True
+    )
+    assert (
+        challenge.strategy_matches(
+            "first_message", _verify_ctx(is_join=False, is_verified=True)
+        )
+        is False
+    )
+    assert (
+        challenge.strategy_matches(
+            "first_message", _verify_ctx(is_join=False, has_active_session=True)
+        )
+        is False
+    )
+    assert (
+        challenge.strategy_matches("first_message", _verify_ctx(is_join=True)) is False
+    )
+    # 未知策略不验证
+    assert challenge.strategy_matches("unknown", _verify_ctx(is_join=True)) is False
 
 
 def test_make_challenge_payload_dispatch():
@@ -427,6 +464,14 @@ async def test_delete_verification_sessions_for_user():
     assert await database.get_verification_session(first.id) is None
     assert await database.get_verification_session(second.id) is None
     assert await database.get_verification_session(other.id) is not None
+
+
+async def test_verified_member_dao_roundtrip():
+    assert await database.is_user_verified(-100_910_001, 123_456) is False
+    await database.mark_user_verified(-100_910_001, 123_456)
+    await database.mark_user_verified(-100_910_001, 123_456)  # 重复记录不炸
+    assert await database.is_user_verified(-100_910_001, 123_456) is True
+    assert await database.is_user_verified(-100_910_001, 654_321) is False
 
 
 async def test_load_active_sessions_populates_registry():

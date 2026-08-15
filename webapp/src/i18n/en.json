@@ -179,7 +179,8 @@
     "verify_method": "Verification method",
     "verify_fail_action": "On failure",
     "verify_max_attempts": "Max attempts",
-    "verify_timeout_seconds": "Timeout (seconds)"
+    "verify_timeout_seconds": "Timeout (seconds)",
+    "verify_strategy": "Trigger"
   },
   "titlePermissions": {
     "can_change_info": "Change group info",
@@ -358,6 +359,10 @@
       "kick": "Kick (can rejoin)",
       "ban": "Ban",
       "unrestrict": "Approve"
+    },
+    "strategy": {
+      "all": "On join",
+      "first_message": "On first message"
     }
   }
 }

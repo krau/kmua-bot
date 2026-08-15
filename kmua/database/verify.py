@@ -10,7 +10,7 @@ from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from kmua.database.db import with_session, with_tx
-from kmua.database.models import VerificationSession
+from kmua.database.models import VerificationMember, VerificationSession
 
 
 @with_tx
@@ -70,6 +70,24 @@ async def delete_verification_sessions_for_user(
     await session.flush()
 
 
+@with_tx
+async def mark_user_verified(
+    chat_id: int, user_id: int, session: AsyncSession | None = None
+) -> None:
+    """记录用户在该群已通过验证(first_message 策略用); 重复记录静默合并。"""
+    assert session is not None
+    await session.merge(VerificationMember(chat_id=chat_id, user_id=user_id))
+    await session.flush()
+
+
+@with_session
+async def is_user_verified(
+    chat_id: int, user_id: int, session: AsyncSession | None = None
+) -> bool:
+    assert session is not None
+    return (await session.get(VerificationMember, (chat_id, user_id))) is not None
+
+
 @with_session
 async def get_all_verification_sessions(
     session: AsyncSession | None = None,
@@ -82,6 +100,8 @@ async def get_all_verification_sessions(
 
 __all__ = [
     "create_verification_session",
+    "is_user_verified",
+    "mark_user_verified",
     "delete_verification_session",
     "delete_verification_sessions_for_user",
     "get_all_verification_sessions",

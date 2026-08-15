@@ -1,4 +1,4 @@
-"""add_verification_sessions
+"""add verification tables
 
 Revision ID: f3a4b5c6d7e8
 Revises: e1f2a3b4c5d6
@@ -61,6 +61,20 @@ def upgrade() -> None:
             unique=False,
         )
 
+    if not insp.has_table("verification_members"):
+        op.create_table(
+            "verification_members",
+            sa.Column("chat_id", sa.BigInteger(), nullable=False),
+            sa.Column("user_id", sa.BigInteger(), nullable=False),
+            sa.Column(
+                "verified_at",
+                sa.DateTime(timezone=True),
+                server_default=sa.text("(CURRENT_TIMESTAMP)"),
+                nullable=False,
+            ),
+            sa.PrimaryKeyConstraint("chat_id", "user_id"),
+        )
+
 
 def downgrade() -> None:
     """Downgrade schema."""
@@ -74,3 +88,4 @@ def downgrade() -> None:
         op.f("ix_verification_sessions_id"), table_name="verification_sessions"
     )
     op.drop_table("verification_sessions")
+    op.drop_table("verification_members")

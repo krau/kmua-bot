@@ -41,11 +41,12 @@ class GLockKey(StrEnum):
 
 
 class VerifyTrigger(StrEnum):
-    """新成员验证触发策略(何时验证), 与验证方式解耦。现仅实现 all, 枚举保留扩展位。"""
+    """新成员验证触发策略(何时验证), 与验证方式解耦。"""
 
     __slots__ = ()
 
     ALL = "all"
+    FIRST_MESSAGE = "first_message"
 
 
 class VerifyMethod(StrEnum):

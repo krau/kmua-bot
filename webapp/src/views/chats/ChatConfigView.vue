@@ -92,7 +92,11 @@ const localeOptions = computed(() =>
   })),
 );
 
-/** 验证方式选项。策略(verify_strategy)后端现仅接受 "all", 暂不渲染选择器。 */
+const strategyOptions = [
+  { value: "all", text: t("verify.strategy.all") },
+  { value: "first_message", text: t("verify.strategy.first_message") },
+];
+
 const methodOptions = [
   { value: "math_easy", text: t("verify.method.math_easy") },
   { value: "math_hard", text: t("verify.method.math_hard") },
@@ -228,6 +232,12 @@ function go(name: string): void {
           />
         </template>
       </SettingsRow>
+      <SelectField
+        v-model="form.draft.value.verify_strategy"
+        :label="t('chatConfig.verify_strategy')"
+        :options="strategyOptions"
+        :changed="changed('verify_strategy')"
+      />
       <SelectField
         v-model="form.draft.value.verify_method"
         :label="t('chatConfig.verify_method')"

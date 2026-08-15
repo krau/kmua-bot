@@ -537,6 +537,25 @@ class VerificationSession(Base):
         return f"<VerificationSession(id={self.id}, chat_id={self.chat_id}, user_id={self.user_id})>"
 
 
+class VerificationMember(Base):
+    """在该群已通过验证的用户(first_message 策略跳过重复验证)。"""
+
+    __tablename__ = "verification_members"
+
+    chat_id: Mapped[int] = mapped_column(
+        BigInteger, primary_key=True, autoincrement=False
+    )
+    user_id: Mapped[int] = mapped_column(
+        BigInteger, primary_key=True, autoincrement=False
+    )
+    verified_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+    def __repr__(self) -> str:
+        return f"<VerificationMember(chat_id={self.chat_id}, user_id={self.user_id})>"
+
+
 class Gift(Base):
     __tablename__ = "gifts"
 

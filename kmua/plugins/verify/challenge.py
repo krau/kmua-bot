@@ -6,6 +6,7 @@ import math
 import random
 import re
 from collections.abc import Iterable
+from dataclasses import dataclass
 
 from pyrogram.enums import ButtonStyle
 from pyrogram.types import (
@@ -13,6 +14,7 @@ from pyrogram.types import (
     ChatPermissions,
     InlineKeyboardButton,
     InlineKeyboardMarkup,
+    User,
 )
 
 from kmua.database.models import ChatConfig, VerificationSession
@@ -66,11 +68,38 @@ def restrict_permissions(method: str) -> ChatPermissions | None:
 # --------------------------------------------------------------------------- 纯函数
 
 
-def should_verify(strategy: str, is_bot: bool) -> bool:
-    """按触发策略决定是否验证; 未知策略不验证, 防误伤。"""
+@dataclass
+class VerifyContext:
+    """一次验证候选事件的全量上下文, 供触发策略判定。
+
+    事件 handler 构造后交给 `maybe_verify`; 策略只消费本上下文,
+    不感知具体事件类型。
+    """
+
+    chat_id: int
+    user: User
+    is_join: bool
+    text: str = ""
+    is_verified: bool = False
+    has_active_session: bool = False
+
+    @property
+    def is_bot(self) -> bool:
+        return bool(self.user.is_bot)
+
+
+def strategy_matches(strategy: str, ctx: VerifyContext) -> bool:
+    """触发策略是否命中当前事件上下文; 未知策略不验证, 防误伤。
+
+    新策略(用户名特征/关键词等)只需在此加分支, 消费 ctx 的对应字段。
+    """
     match strategy:
         case "all":
-            return True
+            return ctx.is_join
+        case "first_message":
+            return (
+                not ctx.is_join and not ctx.is_verified and not ctx.has_active_session
+            )
         case _:
             return False
 

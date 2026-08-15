@@ -15,13 +15,14 @@ from kmua.i18n import i18n
 from kmua.logger import logger
 from kmua.plugins.verify.challenge import (
     UNRESTRICT_PERMISSIONS,
+    VerifyContext,
     _callback_data,
     _challenge_markup,
     _is_correct_option,
     _is_multi_answer,
     make_challenge_payload,
     restrict_permissions,
-    should_verify,
+    strategy_matches,
 )
 from kmua.plugins.verify.session import (
     _admin_ban_session,
@@ -84,9 +85,9 @@ async def on_new_members(client: Client, message: pyrogram.types.Message) -> Non
             continue
         if client.me is not None and user.id == client.me.id:
             continue  # bot 自己被拉入群
-        if not should_verify(config.verify_strategy, bool(user.is_bot)):
-            continue
-        await _start_verification(client, chat_id, user, config)
+        await maybe_verify(
+            client, VerifyContext(chat_id=chat_id, user=user, is_join=True)
+        )
 
 
 @Client.on_callback_query(pyrogram.filters.regex(r"^verify:"), group=0)
@@ -278,6 +279,18 @@ async def on_verify_sticker_answer(
     message.stop_propagation()
 
 
+async def maybe_verify(client: Client, ctx: VerifyContext) -> None:
+    """统一验证入口: 事件 handler 构造上下文后调用, 策略命中才触发验证。"""
+    config = await _chat_config(ctx.chat_id)
+    if config is None or not config.verify_enabled:
+        return
+    ctx.is_verified = await database.is_user_verified(ctx.chat_id, ctx.user.id)
+    ctx.has_active_session = _get_for(ctx.chat_id, ctx.user.id) is not None
+    if not strategy_matches(config.verify_strategy, ctx):
+        return
+    await _start_verification(client, ctx.chat_id, ctx.user, config)
+
+
 async def _start_verification(
     client: Client,
     chat_id: int,
@@ -389,3 +402,27 @@ async def test_verify_command(client: Client, message: pyrogram.types.Message) -
     if existing is not None:
         await _cleanup_session(existing)
     await _start_verification(client, chat_id, target, config)
+
+
+@Client.on_message(pyrogram.filters.group & pyrogram.filters.text, group=-50)
+async def on_first_message_verify(
+    client: Client, message: pyrogram.types.Message
+) -> None:
+    """首次发言触发验证: 已通过验证或验证中的用户跳过; 入群不触发。"""
+    chat = message.chat
+    user = message.from_user
+    if chat is None or user is None:
+        return
+    chat_id = chat.id
+    if chat_id is None:
+        return
+    if client.me is not None and user.id == client.me.id:
+        return
+    if (message.text or "").startswith(("/", "\\")):
+        return  # 指令不触发验证
+    await maybe_verify(
+        client,
+        VerifyContext(
+            chat_id=chat_id, user=user, is_join=False, text=message.text or ""
+        ),
+    )

@@ -227,6 +227,18 @@ async def test_config_read_matches_what_the_bot_sees(chat_admin):
 # ---------------------------------------------------------------- verification
 
 
+async def test_accepts_first_message_strategy(chat_admin):
+    async with api_client() as client:
+        response = await client.put(
+            f"/api/chats/{CHAT_ID}/config",
+            headers=bearer(ADMIN_ID),
+            json=valid_config(verify_strategy="first_message"),
+        )
+
+    assert response.status_code == 200
+    assert response.json()["verify_strategy"] == "first_message"
+
+
 async def test_accepts_math_hard_method(chat_admin):
     async with api_client() as client:
         response = await client.put(

@@ -179,7 +179,8 @@
     "verify_method": "验证方式",
     "verify_fail_action": "验证失败处理",
     "verify_max_attempts": "最大尝试次数",
-    "verify_timeout_seconds": "超时时间(秒)"
+    "verify_timeout_seconds": "超时时间(秒)",
+    "verify_strategy": "触发时机"
   },
   "titlePermissions": {
     "can_change_info": "修改群信息",
@@ -358,6 +359,10 @@
       "kick": "移出群聊(可重新加入)",
       "ban": "拉黑",
       "unrestrict": "放行"
+    },
+    "strategy": {
+      "all": "入群时验证",
+      "first_message": "首次发言时验证"
     }
   }
 }
