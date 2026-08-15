@@ -10,7 +10,7 @@ from pyrogram.errors import RPCError
 from pyrogram.types import CallbackQuery
 
 from kmua import common, database
-from kmua.database.models import VerificationSession
+from kmua.database.models import ChatConfig, VerificationSession
 from kmua.i18n import i18n
 from kmua.logger import logger
 from kmua.plugins.verify.challenge import (
@@ -19,10 +19,7 @@ from kmua.plugins.verify.challenge import (
     _challenge_markup,
     _is_correct_option,
     _is_multi_answer,
-    make_emoji_challenge,
-    make_math_challenge,
-    make_qa_challenge,
-    make_sticker_challenge,
+    make_challenge_payload,
     restrict_permissions,
     should_verify,
 )
@@ -89,59 +86,7 @@ async def on_new_members(client: Client, message: pyrogram.types.Message) -> Non
             continue  # bot 自己被拉入群
         if not should_verify(config.verify_strategy, bool(user.is_bot)):
             continue
-        permissions = restrict_permissions(config.verify_method)
-        if permissions is not None:
-            try:
-                await client.restrict_chat_member(chat_id, user.id, permissions)
-            except RPCError as e:
-                # 无权限/用户是管理员等, fail-open
-                logger.warning(
-                    f"verify: failed to restrict {user.id} in {chat_id}: {e}"
-                )
-                continue
-        lang = config.lang
-        method = config.verify_method
-        if method == "math":
-            payload = make_math_challenge()
-        elif method == "emoji":
-            payload = make_emoji_challenge()
-        elif method == "sticker":
-            payload = make_sticker_challenge()
-        else:
-            payload = make_qa_challenge(config.verify_questions)
-        session_row = VerificationSession(
-            chat_id=chat_id,
-            user_id=user.id,
-            method=config.verify_method,
-            payload=payload,
-            challenge_message_id=None,
-            attempts_left=config.verify_max_attempts,
-            expires_at=datetime.now(UTC)
-            + timedelta(seconds=config.verify_timeout_seconds),
-        )
-        session_row = await database.create_verification_session(session_row)
-        _register(session_row)
-        try:
-            challenge = await _send_challenge(
-                client,
-                chat_id,
-                session_row,
-                config,
-                lang,
-                user_mention=await _user_mention(user),
-            )
-        except RPCError:
-            # 挑战发送失败(用户瞬移/无法发送): 解除限制 + 删会话, 不留受限孤儿
-            try:
-                await client.restrict_chat_member(
-                    chat_id, user.id, UNRESTRICT_PERMISSIONS
-                )
-            except RPCError:
-                pass
-            await _cleanup_session(session_row)
-            continue
-        session_row.challenge_message_id = challenge.id
-        await database.update_verification_session(session_row)
+        await _start_verification(client, chat_id, user, config)
 
 
 @Client.on_callback_query(pyrogram.filters.regex(r"^verify:"), group=0)
@@ -331,3 +276,116 @@ async def on_verify_sticker_answer(
         return
     await _succeed_session(session_row, lang)
     message.stop_propagation()
+
+
+async def _start_verification(
+    client: Client,
+    chat_id: int,
+    user: pyrogram.types.User,
+    config: ChatConfig,
+) -> None:
+    """对单个用户触发完整验证流程: 限制发言 -> 建会话 -> 发 challenge。
+
+    限制失败(管理员等)与发送失败都 fail-open, 不留受限孤儿。
+    """
+    permissions = restrict_permissions(config.verify_method)
+    if permissions is not None:
+        try:
+            await client.restrict_chat_member(chat_id, user.id, permissions)
+        except RPCError as e:
+            logger.warning(f"verify: failed to restrict {user.id} in {chat_id}: {e}")
+            return
+    session_row = VerificationSession(
+        chat_id=chat_id,
+        user_id=user.id,
+        method=config.verify_method,
+        payload=make_challenge_payload(config.verify_method, config.verify_questions),
+        challenge_message_id=None,
+        attempts_left=config.verify_max_attempts,
+        expires_at=datetime.now(UTC) + timedelta(seconds=config.verify_timeout_seconds),
+    )
+    session_row = await database.create_verification_session(session_row)
+    _register(session_row)
+    try:
+        challenge = await _send_challenge(
+            client,
+            chat_id,
+            session_row,
+            config,
+            config.lang,
+            user_mention=await _user_mention(user),
+        )
+    except RPCError:
+        # 发送失败: 解除限制 + 删会话
+        try:
+            await client.restrict_chat_member(chat_id, user.id, UNRESTRICT_PERMISSIONS)
+        except RPCError:
+            pass
+        await _cleanup_session(session_row)
+        return
+    session_row.challenge_message_id = challenge.id
+    await database.update_verification_session(session_row)
+
+
+async def _test_verify_target(
+    client: Client, message: pyrogram.types.Message
+) -> pyrogram.types.User | None:
+    """测试命令的目标: 回复对象 > 参数(id/用户名) > 命令发送者。"""
+    reply = message.reply_to_message
+    if reply is not None and reply.from_user is not None:
+        return reply.from_user
+    command = message.command or []
+    if len(command) > 1:
+        raw = command[1].lstrip("@")
+        try:
+            user_id: int | str = int(raw)
+        except ValueError:
+            user_id = raw
+        try:
+            fetched = await client.get_users(user_id)
+        except RPCError as e:
+            logger.warning(f"verify: test target not found: {e}")
+            return None
+        if fetched is None:
+            return None
+        return fetched[0] if isinstance(fetched, list) else fetched
+    return message.from_user
+
+
+@Client.on_message(
+    pyrogram.filters.command("testverify") & pyrogram.filters.group, group=0
+)
+async def test_verify_command(client: Client, message: pyrogram.types.Message) -> None:
+    """模拟新成员验证: 对目标成员立即触发一次完整验证, 免去真实进出群。"""
+    chat = message.chat
+    if chat is None:
+        return
+    chat_id = chat.id
+    if chat_id is None:
+        return
+    config = await _chat_config(chat_id)
+    if config is None:
+        return
+    actor = message.sender_chat or message.from_user
+    if actor is None:
+        return
+    if not await common.can_user_manage_bot_in_chat(actor, chat):
+        await message.reply_text(
+            i18n.t("bot.msg.no_permission_group", locale=config.lang)
+        )
+        return
+    if not config.verify_enabled:
+        await message.reply_text(
+            i18n.t("bot.msg.verify.test_not_enabled", locale=config.lang)
+        )
+        return
+    target = await _test_verify_target(client, message)
+    if target is None:
+        await message.reply_text(
+            i18n.t("bot.msg.verify.test_user_not_found", locale=config.lang)
+        )
+        return
+    existing = _get_for(chat_id, target.id)
+    if existing is not None:
+        await _cleanup_session(existing)
+    await _start_verification(client, chat_id, target, config)

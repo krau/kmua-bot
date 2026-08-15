@@ -4,10 +4,12 @@ from __future__ import annotations
 
 import asyncio
 from datetime import UTC, datetime
+from typing import Any
 
 from pyrogram.client import Client
 from pyrogram.errors import RPCError
-from pyrogram.types import Message, User
+from pyrogram.raw.functions.messages.edit_message import EditMessage
+from pyrogram.types import InlineKeyboardMarkup, InputRichMessage, Message, User
 
 from kmua import common, database
 from kmua.bot.client import client
@@ -20,6 +22,7 @@ from kmua.plugins.verify.challenge import (
     build_challenge_text,
     make_emoji_challenge,
     make_math_challenge,
+    make_math_hard_challenge,
     make_qa_challenge,
 )
 
@@ -199,6 +202,11 @@ async def handle_user_left(chat_id: int, user_id: int) -> None:
         _unregister(session_id)
 
 
+def _to_rich_html(text: str) -> str:
+    """rich 消息的 html 模式不保留换行, 显式转为 <br>。"""
+    return text.replace("\n", "<br>")
+
+
 async def _send_challenge(
     bot: Client,
     chat_id: int,
@@ -208,19 +216,64 @@ async def _send_challenge(
     user_mention: str = "",
 ) -> Message:
     """发送 challenge 消息; 失败向上抛由调用方处理。"""
-    return await bot.send_message(
-        chat_id,
-        build_challenge_text(
-            config,
-            session_row.method,
-            session_row.payload or {},
-            session_row.attempts_left,
-            wrong_prefix=False,
-            lang=lang,
-            user_mention=user_mention,
-        ),
-        reply_markup=_challenge_markup(session_row, lang),
+    text = build_challenge_text(
+        config,
+        session_row.method,
+        session_row.payload or {},
+        session_row.attempts_left,
+        wrong_prefix=False,
+        lang=lang,
+        user_mention=user_mention,
     )
+    if session_row.method == "math_hard":
+        # rich 消息: <tg-math> 公式走 html 模式, 换行显式转 <br>
+        return await bot.send_rich_message(
+            chat_id,
+            InputRichMessage(html=_to_rich_html(text)),
+            reply_markup=_challenge_markup(session_row, lang),
+        )
+    return await bot.send_message(
+        chat_id, text, reply_markup=_challenge_markup(session_row, lang)
+    )
+
+
+async def _edit_challenge_message(
+    bot: Client,
+    session_row: VerificationSession,
+    text: str,
+    markup: InlineKeyboardMarkup | None,
+) -> None:
+    """编辑 challenge 消息; math_hard 是 rich 消息, 用 EditMessage.rich_message。"""
+    if session_row.challenge_message_id is None:
+        return
+    if session_row.method == "math_hard":
+        peer = await bot.resolve_peer(session_row.chat_id)
+        if peer is None:
+            return
+        extra: dict[str, Any] = {}
+        if markup is not None:
+            written = await markup.write(bot)
+            if written is not None:
+                extra["reply_markup"] = written
+        await bot.invoke(
+            EditMessage(
+                peer=peer,
+                id=session_row.challenge_message_id,
+                rich_message=InputRichMessage(html=_to_rich_html(text)).write(),
+                **extra,
+            )
+        )
+    elif markup is None:
+        await bot.edit_message_text(
+            session_row.chat_id, session_row.challenge_message_id, text
+        )
+    else:
+        await bot.edit_message_text(
+            session_row.chat_id,
+            session_row.challenge_message_id,
+            text,
+            reply_markup=markup,
+        )
 
 
 async def _fail_session(session_row: VerificationSession, reason: str) -> None:
@@ -302,12 +355,13 @@ async def _succeed_session(session_row: VerificationSession, lang: str) -> None:
     """验证通过(或管理员放行): 改成功文案, 解除限制, 清会话。"""
     if session_row.challenge_message_id is not None:
         try:
-            await client.edit_message_text(
-                session_row.chat_id,
-                session_row.challenge_message_id,
+            await _edit_challenge_message(
+                client,
+                session_row,
                 i18n.t("bot.msg.verify.success", locale=lang).format(
                     user=await _user_mention(session_row.user_id)
                 ),
+                None,
             )
         except RPCError as e:
             logger.debug(f"verify: failed to edit challenge {session_row.id}: {e}")
@@ -328,12 +382,13 @@ async def _admin_ban_session(session_row: VerificationSession, lang: str) -> Non
     """管理员手动封禁(恒为永久拉黑)。"""
     if session_row.challenge_message_id is not None:
         try:
-            await client.edit_message_text(
-                session_row.chat_id,
-                session_row.challenge_message_id,
+            await _edit_challenge_message(
+                client,
+                session_row,
                 i18n.t("bot.msg.verify.admin_banned", locale=lang).format(
                     user=await _user_mention(session_row.user_id)
                 ),
+                None,
             )
         except RPCError as e:
             logger.debug(f"verify: failed to edit challenge {session_row.id}: {e}")
@@ -360,8 +415,10 @@ async def _wrong_answer(
     if session_row.attempts_left <= 0:
         await _fail_session(session_row, "failed")
         return
-    if session_row.method == "math":
+    if session_row.method == "math_easy":
         session_row.payload = make_math_challenge()
+    elif session_row.method == "math_hard":
+        session_row.payload = make_math_hard_challenge()
     elif session_row.method == "emoji":
         session_row.payload = make_emoji_challenge()
     elif session_row.method == "custom_qa":
@@ -369,9 +426,9 @@ async def _wrong_answer(
     await database.update_verification_session(session_row)
     if edit_message is not None:
         try:
-            await client.edit_message_text(
-                session_row.chat_id,
-                edit_message.id,
+            await _edit_challenge_message(
+                client,
+                session_row,
                 build_challenge_text(
                     config,
                     session_row.method,
@@ -381,7 +438,7 @@ async def _wrong_answer(
                     lang=lang,
                     user_mention=await _user_mention(session_row.user_id),
                 ),
-                reply_markup=_challenge_markup(session_row, lang),
+                _challenge_markup(session_row, lang),
             )
         except RPCError as e:
             logger.debug(f"verify: failed to refresh challenge {session_row.id}: {e}")

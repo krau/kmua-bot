@@ -41,6 +41,59 @@ def test_should_verify():
     assert challenge.should_verify("unknown_future_strategy", False) is False
 
 
+def test_make_challenge_payload_dispatch():
+    assert "answer" in challenge.make_challenge_payload("math_easy", [])
+    assert "question" in challenge.make_challenge_payload("math_hard", [])
+    assert "target" in challenge.make_challenge_payload("emoji", [])
+    assert challenge.make_challenge_payload("sticker", []) == {}
+    qa = challenge.make_challenge_payload("custom_qa", [])
+    assert "question" in qa and "answers" in qa
+    fallback = challenge.make_challenge_payload("unknown_method", [])
+    assert "question" in fallback and "answers" in fallback
+
+
+def test_math_hard_challenge_shape():
+    """高等数学随机题: 4 个互异选项、答案在选项中、题目非空且含公式/记号。"""
+    markers = (
+        "$",
+        "det",
+        "特征值",
+        "可逆",
+        "对角化",
+        "tr(",
+        "零空间",
+        "列空间",
+        "rank",
+        "E[",
+        "Var",
+        "蒙提霍尔",
+        "切比雪夫",
+        "∫",
+        "lim",
+    )
+    for _ in range(200):
+        payload = challenge.make_math_hard_challenge()
+        assert len(payload["options"]) == 4
+        assert len(set(payload["options"])) == 4
+        assert payload["answer"] in payload["options"]
+        assert payload["question"]
+        assert any(m in payload["question"] for m in markers)
+
+
+def test_math_hard_is_correct_option():
+    session = _session_with(
+        "math_hard",
+        {
+            "question": "$\\binom{5}{2}$",
+            "answer": "10",
+            "options": ["10", "7", "20", "25"],
+        },
+    )
+    assert challenge._is_correct_option(session, 0) is True
+    assert challenge._is_correct_option(session, 1) is False
+    assert challenge._is_multi_answer(session) is False
+
+
 def test_math_challenge_shape():
     for _ in range(200):
         payload = challenge.make_math_challenge()
@@ -61,6 +114,11 @@ def test_emoji_challenge_shape():
 
 def test_sticker_challenge():
     assert challenge.make_sticker_challenge() == {}
+
+
+def test_to_rich_html_converts_newlines():
+    assert session._to_rich_html("a\nb\n\nc") == "a<br>b<br><br>c"
+    assert session._to_rich_html("no newline") == "no newline"
 
 
 def test_qa_challenge_custom_and_default():
@@ -134,7 +192,7 @@ def test_multi_answer_detection():
     single = _session_with(
         "custom_qa", {"question": "Q", "options": ["a", "b"], "answers": ["a"]}
     )
-    math_session = _session_with("math", {"answer": 5, "options": [1, 5, 3, 4]})
+    math_session = _session_with("math_easy", {"answer": 5, "options": [1, 5, 3, 4]})
     assert challenge._is_multi_answer(multi) is True
     assert challenge._is_multi_answer(legacy_multi) is True  # 缺省 select 按全选
     assert challenge._is_multi_answer(any_of) is False  # 任选其一不走勾选流程
@@ -151,7 +209,7 @@ def test_is_correct_option():
     single = _session_with(
         "custom_qa", {"question": "Q", "options": ["a", "b"], "answers": ["a"]}
     )
-    math_session = _session_with("math", {"answer": 5, "options": [1, 5, 3, 4]})
+    math_session = _session_with("math_easy", {"answer": 5, "options": [1, 5, 3, 4]})
     emoji_session = _session_with("emoji", {"target": "🍎", "options": ["🍎", "🍌"]})
     assert challenge._is_correct_option(multi, 0) is True
     assert challenge._is_correct_option(multi, 1) is False
@@ -229,7 +287,7 @@ def test_challenge_text_includes_timeout_hint():
     config = ChatConfig(verify_timeout_seconds=120, verify_max_attempts=3)
     text = challenge.build_challenge_text(
         config,
-        "math",
+        "math_easy",
         {"a": 1, "b": 2, "answer": 3, "options": [1, 2, 3, 4]},
         3,
         wrong_prefix=False,
@@ -275,7 +333,7 @@ def test_challenge_text_mentions_the_target_user():
     mention = "<a href='tg://user?id=123'>User</a>"
     text = challenge.build_challenge_text(
         config,
-        "math",
+        "math_easy",
         {"a": 1, "b": 2, "answer": 3, "options": [1, 2, 3, 4]},
         3,
         wrong_prefix=False,
@@ -286,7 +344,7 @@ def test_challenge_text_mentions_the_target_user():
     # 不传 mention 时无首行
     plain = challenge.build_challenge_text(
         config,
-        "math",
+        "math_easy",
         {"a": 1, "b": 2, "answer": 3, "options": [1, 2, 3, 4]},
         3,
         wrong_prefix=False,
@@ -299,7 +357,7 @@ def test_restrict_permissions_skips_sticker_method():
     """贴纸验证不限制发言: 客户端把 send_messages 当总开关, 部分放行无效,
     只能靠超时兜底。其余方式仍是全静音。"""
     assert challenge.restrict_permissions("sticker") is None
-    for method in ("math", "emoji", "custom_qa"):
+    for method in ("math_easy", "emoji", "custom_qa"):
         permissions = challenge.restrict_permissions(method)
         assert permissions is not None
         rights = permissions.write()
@@ -318,7 +376,7 @@ async def _make_session(
     session_row = VerificationSession(
         chat_id=chat_id,
         user_id=user_id,
-        method=overrides.get("method", "math"),
+        method=overrides.get("method", "math_easy"),
         payload=overrides.get("payload", challenge.make_math_challenge()),
         challenge_message_id=overrides.get("challenge_message_id"),
         attempts_left=overrides.get("attempts_left", 3),
@@ -423,7 +481,9 @@ class _FakeClient:
     async def delete_messages(self, chat_id: int, message_ids) -> None:
         self.calls.append(("delete", chat_id, message_ids))
 
-    async def edit_message_text(self, chat_id: int, message_id: int, text: str) -> None:
+    async def edit_message_text(
+        self, chat_id: int, message_id: int, text: str, reply_markup=None
+    ) -> None:
         self.calls.append(("edit", chat_id, message_id, text))
 
     async def get_users(self, user_id: int):

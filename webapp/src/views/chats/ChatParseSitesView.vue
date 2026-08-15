@@ -51,7 +51,7 @@ const EMPTY_CONFIG: ChatConfigInput = {
   rss_agent_broadcast: false,
   verify_enabled: false,
   verify_strategy: "all",
-  verify_method: "math",
+  verify_method: "math_easy",
   verify_max_attempts: 3,
   verify_timeout_seconds: 120,
   verify_fail_action: "kick",

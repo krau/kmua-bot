@@ -348,10 +348,11 @@
   },
   "verify": {
     "method": {
-      "math": "算术题",
       "emoji": "点选表情",
       "sticker": "发送贴纸",
-      "custom_qa": "自定义答题"
+      "custom_qa": "自定义答题",
+      "math_easy": "小学算术",
+      "math_hard": "大学算术"
     },
     "failAction": {
       "kick": "移出群聊(可重新加入)",

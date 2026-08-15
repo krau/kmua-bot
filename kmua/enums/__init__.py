@@ -53,7 +53,8 @@ class VerifyMethod(StrEnum):
 
     __slots__ = ()
 
-    MATH = "math"
+    MATH_EASY = "math_easy"
+    MATH_HARD = "math_hard"
     EMOJI = "emoji"
     STICKER = "sticker"
     CUSTOM_QA = "custom_qa"

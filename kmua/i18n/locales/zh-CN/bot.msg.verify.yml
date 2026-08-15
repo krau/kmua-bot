@@ -2,7 +2,8 @@ bot:
   msg:
     verify:
       wrong_prefix: "回答错啦\n"
-      challenge_math: "验证: {a} + {b} = ?\n剩余次数: {attempts}/{max}"
+      challenge_math_easy: "验证: {a} + {b} = ?\n剩余次数: {attempts}/{max}"
+      challenge_math_hard: "请回答:\n{question}\n剩余次数: {attempts}/{max}"
       challenge_emoji: "请点击这个表情: {emoji}\n剩余次数: {attempts}/{max}"
       challenge_sticker: "回复本条消息发送任意贴纸, 就能通过验证啦"
       challenge_qa: "请回答下面的问题:\n{question}\n剩余次数: {attempts}/{max}\n(点击下方按钮选择答案哦)"
@@ -16,6 +17,8 @@ bot:
       action_unrestrict: ", 已放行"
       timeout_hint: "请在 {timeout} 秒内完成验证哦"
       admin_banned: "{user} 已被管理员封禁"
+      test_not_enabled: "该群尚未开启新人验证哦"
+      test_user_not_found: "找不到该用户哦"
       expired: "这个验证已经失效啦"
   button:
     verify:

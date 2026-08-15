@@ -63,7 +63,7 @@ const EMPTY_CONFIG: ChatConfigInput = {
   rss_agent_broadcast: false,
   verify_enabled: false,
   verify_strategy: "all",
-  verify_method: "math",
+  verify_method: "math_easy",
   verify_max_attempts: 3,
   verify_timeout_seconds: 120,
   verify_fail_action: "kick",
@@ -94,7 +94,8 @@ const localeOptions = computed(() =>
 
 /** 验证方式选项。策略(verify_strategy)后端现仅接受 "all", 暂不渲染选择器。 */
 const methodOptions = [
-  { value: "math", text: t("verify.method.math") },
+  { value: "math_easy", text: t("verify.method.math_easy") },
+  { value: "math_hard", text: t("verify.method.math_hard") },
   { value: "emoji", text: t("verify.method.emoji") },
   { value: "sticker", text: t("verify.method.sticker") },
   { value: "custom_qa", text: t("verify.method.custom_qa") },

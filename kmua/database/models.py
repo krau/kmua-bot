@@ -68,7 +68,7 @@ class ChatConfig:
     rss_agent_broadcast: bool = False
     verify_enabled: bool = False
     verify_strategy: str = "all"
-    verify_method: str = "math"
+    verify_method: str = "math_easy"
     verify_max_attempts: int = 3
     verify_timeout_seconds: int = 120
     verify_fail_action: str = "kick"
@@ -104,7 +104,7 @@ class ChatConfig:
             rss_agent_broadcast=data.get("rss_agent_broadcast", False),
             verify_enabled=data.get("verify_enabled", False),
             verify_strategy=data.get("verify_strategy", "all"),
-            verify_method=data.get("verify_method", "math"),
+            verify_method=data.get("verify_method", "math_easy"),
             verify_max_attempts=data.get("verify_max_attempts", 3),
             verify_timeout_seconds=data.get("verify_timeout_seconds", 120),
             verify_fail_action=data.get("verify_fail_action", "kick"),

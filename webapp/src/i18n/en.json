@@ -348,10 +348,11 @@
   },
   "verify": {
     "method": {
-      "math": "Math quiz",
       "emoji": "Emoji pick",
       "sticker": "Send a sticker",
-      "custom_qa": "Custom Q&A"
+      "custom_qa": "Custom Q&A",
+      "math_easy": "Math quiz",
+      "math_hard": "Advanced math"
     },
     "failAction": {
       "kick": "Kick (can rejoin)",

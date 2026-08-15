@@ -50,7 +50,7 @@ def valid_config(**overrides) -> dict:
         "rss_agent_broadcast": False,
         "verify_enabled": False,
         "verify_strategy": "all",
-        "verify_method": "math",
+        "verify_method": "math_easy",
         "verify_max_attempts": 3,
         "verify_timeout_seconds": 120,
         "verify_fail_action": "kick",
@@ -225,6 +225,18 @@ async def test_config_read_matches_what_the_bot_sees(chat_admin):
 
 
 # ---------------------------------------------------------------- verification
+
+
+async def test_accepts_math_hard_method(chat_admin):
+    async with api_client() as client:
+        response = await client.put(
+            f"/api/chats/{CHAT_ID}/config",
+            headers=bearer(ADMIN_ID),
+            json=valid_config(verify_method="math_hard"),
+        )
+
+    assert response.status_code == 200
+    assert response.json()["verify_method"] == "math_hard"
 
 
 async def test_saves_verify_settings(chat_admin):
