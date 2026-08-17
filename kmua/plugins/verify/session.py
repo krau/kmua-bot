@@ -3,13 +3,21 @@
 from __future__ import annotations
 
 import asyncio
+from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 from typing import Any
 
 from pyrogram.client import Client
 from pyrogram.errors import RPCError
 from pyrogram.raw.functions.messages.edit_message import EditMessage
-from pyrogram.types import InlineKeyboardMarkup, InputRichMessage, Message, User
+from pyrogram.types import (
+    Chat,
+    ChatPermissions,
+    InlineKeyboardMarkup,
+    InputRichMessage,
+    Message,
+    User,
+)
 
 from kmua import common, database
 from kmua.bot.client import client
@@ -17,13 +25,15 @@ from kmua.database.models import ChatConfig, VerificationSession
 from kmua.i18n import i18n
 from kmua.logger import logger
 from kmua.plugins.verify.challenge import (
-    UNRESTRICT_PERMISSIONS,
+    RESTORE_PERMISSIONS_KEY,
     _challenge_markup,
     build_challenge_text,
+    deserialize_permissions,
     make_emoji_challenge,
     make_math_challenge,
     make_math_hard_challenge,
     make_qa_challenge,
+    restore_permissions_for_session,
 )
 
 RESULT_MESSAGE_TTL = 30
@@ -36,6 +46,27 @@ MAX_WINDOW_MESSAGE_DELETE = 300
 
 _sessions: dict[int, VerificationSession] = {}
 _by_user: dict[tuple[int, int], int] = {}
+_user_locks: dict[tuple[int, int], asyncio.Lock] = {}
+_user_lock_refs: dict[tuple[int, int], int] = {}
+
+
+@asynccontextmanager
+async def verification_lock(chat_id: int, user_id: int):
+    """Serialize session creation and completion for one chat member."""
+    key = (chat_id, user_id)
+    lock = _user_locks.setdefault(key, asyncio.Lock())
+    _user_lock_refs[key] = _user_lock_refs.get(key, 0) + 1
+    try:
+        async with lock:
+            yield
+    finally:
+        refs = _user_lock_refs[key] - 1
+        if refs == 0:
+            _user_lock_refs.pop(key, None)
+            if _user_locks.get(key) is lock:
+                _user_locks.pop(key, None)
+        else:
+            _user_lock_refs[key] = refs
 
 
 def _register(session_row: VerificationSession) -> None:
@@ -56,6 +87,36 @@ def _get_for(chat_id: int, user_id: int) -> VerificationSession | None:
     if session_id is None:
         return None
     return _sessions.get(session_id)
+
+
+async def capture_restore_permissions(
+    bot: Client,
+    chat_id: int,
+    user_id: int,
+    chat: Chat | None = None,
+) -> ChatPermissions:
+    """Capture member-specific permissions, then chat defaults, safely."""
+    try:
+        member = await bot.get_chat_member(chat_id, user_id)
+    except Exception as e:
+        logger.warning(
+            f"verify: failed to read permissions for {user_id} in {chat_id}: {e}"
+        )
+    else:
+        permissions = getattr(member, "permissions", None)
+        if permissions is not None:
+            return permissions
+
+    if chat is None:
+        try:
+            chat = await bot.get_chat(chat_id)
+        except Exception as e:
+            logger.warning(
+                f"verify: failed to read default permissions for {chat_id}: {e}"
+            )
+    if chat is not None and chat.permissions is not None:
+        return chat.permissions
+    return deserialize_permissions(None)
 
 
 async def _cleanup_session(session_row: VerificationSession) -> None:
@@ -150,6 +211,24 @@ def _is_expired(session_row: VerificationSession) -> bool:
     return expires_at <= datetime.now(UTC)
 
 
+async def restore_member_permissions(
+    bot: Client, session_row: VerificationSession
+) -> None:
+    """Restore the pre-verification permissions without granting new rights."""
+    permissions = restore_permissions_for_session(session_row)
+    if permissions is None:
+        return
+    try:
+        await bot.restrict_chat_member(
+            session_row.chat_id, session_row.user_id, permissions
+        )
+    except Exception as e:
+        logger.error(
+            f"verify: failed to restore permissions for {session_row.user_id} "
+            f"in {session_row.chat_id}: {e}"
+        )
+
+
 # --------------------------------------------------------------------------- 生命周期
 
 
@@ -175,9 +254,6 @@ async def verify_sweep() -> None:
         return
     for session_row in sessions:
         try:
-            if _is_expired(session_row):
-                await _fail_session(session_row, "timeout")
-                continue
             config = await _chat_config(session_row.chat_id)
             if config is None:
                 # 聊天已删, 静默清理
@@ -185,6 +261,9 @@ async def verify_sweep() -> None:
                 continue
             if not config.verify_enabled:
                 await _cancel_session(session_row)
+                continue
+            if _is_expired(session_row):
+                await _fail_session(session_row, "timeout")
         except Exception:
             logger.exception(f"verify: sweep error on session {session_row.id}")
 
@@ -313,12 +392,7 @@ async def _fail_session(session_row: VerificationSession, reason: str) -> None:
         except RPCError as e:
             logger.error(f"verify: ban failed for {session_row.user_id}: {e}")
     else:  # unrestrict
-        try:
-            await client.restrict_chat_member(
-                session_row.chat_id, session_row.user_id, UNRESTRICT_PERMISSIONS
-            )
-        except RPCError as e:
-            logger.error(f"verify: unrestrict failed for {session_row.user_id}: {e}")
+        await restore_member_permissions(client, session_row)
 
     try:
         prefix = i18n.t(f"bot.msg.verify.{reason}_prefix", locale=lang).format(
@@ -334,13 +408,8 @@ async def _fail_session(session_row: VerificationSession, reason: str) -> None:
 
 
 async def _cancel_session(session_row: VerificationSession) -> None:
-    """群停用验证: 解除限制, 删 challenge, 清会话。"""
-    try:
-        await client.restrict_chat_member(
-            session_row.chat_id, session_row.user_id, UNRESTRICT_PERMISSIONS
-        )
-    except RPCError as e:
-        logger.error(f"verify: cancel unrestrict failed for {session_row.user_id}: {e}")
+    """群停用验证: 解除验证施加的限制, 删 challenge, 清会话。"""
+    await restore_member_permissions(client, session_row)
     if session_row.challenge_message_id is not None:
         try:
             await client.delete_messages(
@@ -366,15 +435,7 @@ async def _succeed_session(session_row: VerificationSession, lang: str) -> None:
         except RPCError as e:
             logger.debug(f"verify: failed to edit challenge {session_row.id}: {e}")
     _schedule_result_delete(session_row.chat_id, session_row.challenge_message_id)
-    try:
-        await client.restrict_chat_member(
-            session_row.chat_id, session_row.user_id, UNRESTRICT_PERMISSIONS
-        )
-    except RPCError as e:
-        logger.error(
-            f"verify: failed to unrestrict {session_row.user_id} in "
-            f"{session_row.chat_id}: {e} (admin may need to handle manually)"
-        )
+    await restore_member_permissions(client, session_row)
     try:
         await database.mark_user_verified(session_row.chat_id, session_row.user_id)
     except Exception as e:
@@ -419,14 +480,19 @@ async def _wrong_answer(
     if session_row.attempts_left <= 0:
         await _fail_session(session_row, "failed")
         return
+    new_payload: dict = {}
     if session_row.method == "math_easy":
-        session_row.payload = make_math_challenge()
+        new_payload = make_math_challenge()
     elif session_row.method == "math_hard":
-        session_row.payload = make_math_hard_challenge(lang)
+        new_payload = make_math_hard_challenge(lang)
     elif session_row.method == "emoji":
-        session_row.payload = make_emoji_challenge()
+        new_payload = make_emoji_challenge()
     elif session_row.method == "custom_qa":
-        session_row.payload = make_qa_challenge(config.verify_questions, lang)
+        new_payload = make_qa_challenge(config.verify_questions, lang)
+    restore_permissions = (session_row.payload or {}).get(RESTORE_PERMISSIONS_KEY)
+    if restore_permissions is not None:
+        new_payload[RESTORE_PERMISSIONS_KEY] = restore_permissions
+    session_row.payload = new_payload
     await database.update_verification_session(session_row)
     if edit_message is not None:
         try:

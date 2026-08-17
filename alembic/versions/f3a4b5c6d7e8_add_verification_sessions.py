@@ -22,6 +22,17 @@ def upgrade() -> None:
     """Upgrade schema."""
     bind = op.get_bind()
     insp = sa.inspect(bind)
+    if insp.has_table("verification_sessions"):
+        index_names = {
+            index["name"] for index in insp.get_indexes("verification_sessions")
+        }
+        if "uq_verification_sessions_chat_user" not in index_names:
+            op.create_index(
+                "uq_verification_sessions_chat_user",
+                "verification_sessions",
+                ["chat_id", "user_id"],
+                unique=True,
+            )
 
     if not insp.has_table("verification_sessions"):
         op.create_table(
@@ -60,6 +71,12 @@ def upgrade() -> None:
             ["user_id"],
             unique=False,
         )
+        op.create_index(
+            "uq_verification_sessions_chat_user",
+            "verification_sessions",
+            ["chat_id", "user_id"],
+            unique=True,
+        )
 
     if not insp.has_table("verification_members"):
         op.create_table(
@@ -78,6 +95,9 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     """Downgrade schema."""
+    op.drop_index(
+        "uq_verification_sessions_chat_user", table_name="verification_sessions"
+    )
     op.drop_index(
         op.f("ix_verification_sessions_user_id"), table_name="verification_sessions"
     )

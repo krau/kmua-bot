@@ -17,6 +17,8 @@ bot:
       action_unrestrict: ", 已放行"
       timeout_hint: "请在 {timeout} 秒内完成验证哦"
       admin_banned: "{user} 已被管理员封禁"
+      test_not_enabled: "该群尚未开启新人验证哦"
+      test_user_not_found: "找不到该用户哦"
       expired: "这个验证已经失效啦"
       default_questions:
         - question: "初音未来的头发是什么颜色?"

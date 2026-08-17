@@ -126,7 +126,14 @@ async def update_chat_config(
         audit.FieldChange(field=name, old=old, new=new)
         for name, old, new in _diff_config(current, new_config)
     ]
-    saved = await database.update_chat_config(ctx.chat.id, new_config)
+    saved = await database.update_chat_config_fields(
+        ctx.chat.id,
+        {
+            name: getattr(new_config, name)
+            for name in new_config.to_dict()
+            if name not in {"title_permissions", "verify_questions"}
+        },
+    )
 
     if changes:
         audit.record(
@@ -165,13 +172,14 @@ async def update_title_permissions(
     write_limiter.check(client_key(request, ctx.user.id))
 
     config = ctx.chat.chat_config
+    old_permissions = config.title_permissions or {}
     permissions = {
         key: bool(payload.permissions.get(key, False))
         for key in sorted(TITLE_PERMISSION_KEYS)
     }
-    old_permissions = config.title_permissions or {}
-    config.title_permissions = permissions
-    saved = await database.update_chat_config(ctx.chat.id, config)
+    saved = await database.update_chat_config_fields(
+        ctx.chat.id, {"title_permissions": permissions}
+    )
 
     audit.record(
         action="chat.title_permissions.update",
@@ -213,8 +221,9 @@ async def update_verify_questions(
     config = ctx.chat.chat_config
     old = config.verify_questions
     new = [q.model_dump() for q in payload.questions]
-    config.verify_questions = new
-    saved = await database.update_chat_config(ctx.chat.id, config)
+    saved = await database.update_chat_config_fields(
+        ctx.chat.id, {"verify_questions": new}
+    )
 
     audit.record(
         action="chat.verify_questions.update",

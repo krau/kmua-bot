@@ -12,6 +12,7 @@ from typing import Any
 from pyrogram.enums import ButtonStyle
 from pyrogram.types import (
     CallbackQuery,
+    Chat,
     ChatPermissions,
     InlineKeyboardButton,
     InlineKeyboardMarkup,
@@ -23,28 +24,78 @@ from kmua.i18n import i18n
 
 EMOJI_POOL = ["🍎", "🍌", "🍇", "🍓", "🍒", "🍑", "🥝", "🍍", "🥥", "🍉", "🍊", "🥭"]
 
-# 解除限制必须全 True: 空 ChatPermissions() 会把用户完全静音。
-UNRESTRICT_PERMISSIONS = ChatPermissions(
-    can_send_messages=True,
-    can_send_audios=True,
-    can_send_documents=True,
-    can_send_photos=True,
-    can_send_videos=True,
-    can_send_video_notes=True,
-    can_send_voice_notes=True,
-    can_send_polls=True,
-    can_send_other_messages=True,
-    can_add_web_page_previews=True,
-    can_react_to_messages=True,
-    can_edit_tag=True,
-    can_change_info=True,
-    can_invite_users=True,
-    can_pin_messages=True,
-    can_manage_topics=True,
+RESTORE_PERMISSIONS_KEY = "_restore_permissions"
+PERMISSION_FIELDS = (
+    "can_send_messages",
+    "can_send_audios",
+    "can_send_documents",
+    "can_send_photos",
+    "can_send_videos",
+    "can_send_video_notes",
+    "can_send_voice_notes",
+    "can_send_polls",
+    "can_send_other_messages",
+    "can_add_web_page_previews",
+    "can_react_to_messages",
+    "can_edit_tag",
+    "can_change_info",
+    "can_invite_users",
+    "can_pin_messages",
+    "can_manage_topics",
 )
 
 
-# 贴纸验证不限制发言: 客户端把 send_messages 当总开关, 部分放行无效。
+def _fallback_restore_permissions() -> ChatPermissions:
+    """Safe fallback that never grants group-management permissions."""
+    return ChatPermissions(
+        can_send_messages=True,
+        can_send_audios=True,
+        can_send_documents=True,
+        can_send_photos=True,
+        can_send_videos=True,
+        can_send_video_notes=True,
+        can_send_voice_notes=True,
+        can_send_polls=True,
+        can_send_other_messages=True,
+        can_add_web_page_previews=True,
+        can_react_to_messages=True,
+        can_edit_tag=False,
+        can_change_info=False,
+        can_invite_users=False,
+        can_pin_messages=False,
+        can_manage_topics=False,
+    )
+
+
+def serialize_permissions(permissions: ChatPermissions) -> dict[str, bool]:
+    """Store permissions in the JSON session payload."""
+    return {name: bool(getattr(permissions, name)) for name in PERMISSION_FIELDS}
+
+
+def deserialize_permissions(raw: Any) -> ChatPermissions:
+    """Restore permissions, falling back to ordinary member rights."""
+    fallback = _fallback_restore_permissions()
+    values = {
+        name: (
+            raw[name]
+            if isinstance(raw, dict) and isinstance(raw.get(name), bool)
+            else bool(getattr(fallback, name))
+        )
+        for name in PERMISSION_FIELDS
+    }
+    return ChatPermissions(**values)
+
+
+def restore_permissions_for_session(
+    session_row: VerificationSession,
+) -> ChatPermissions | None:
+    """Return the permissions to restore; sticker verification changes none."""
+    if session_row.method == "sticker":
+        return None
+    payload = session_row.payload or {}
+    return deserialize_permissions(payload.get(RESTORE_PERMISSIONS_KEY))
+
+
 def restrict_permissions(method: str) -> ChatPermissions | None:
     """新成员入群施加的限制权限; 贴纸验证返回 None(不限制)。"""
     if method == "sticker":
@@ -62,6 +113,7 @@ class VerifyContext:
     chat_id: int
     user: User
     is_join: bool
+    chat: Chat | None = None
     text: str = ""
     is_verified: bool = False
     has_active_session: bool = False
@@ -516,10 +568,10 @@ def _challenge_markup(
             )
             for index, option in enumerate(options)
         ]
-        rows.append(buttons[0:2])
-        rows.append(buttons[2:4])
-        if len(buttons) > 4:
-            rows.append(buttons[4:6])
+        for start in range(0, len(buttons), 2):
+            row = buttons[start : start + 2]
+            if row:
+                rows.append(row)
         if _is_multi_answer(session_row):
             rows.append(
                 [

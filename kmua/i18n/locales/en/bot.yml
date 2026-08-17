@@ -91,6 +91,8 @@ bot:
       action_unrestrict: ", approved"
       timeout_hint: "Please complete within {timeout} seconds"
       admin_banned: "{user} was banned by an admin"
+      test_not_enabled: "Member verification is not enabled in this group"
+      test_user_not_found: "User not found"
       expired: "This verification has expired"
       default_questions:
         - question: "What color is Hatsune Miku's hair?"

@@ -10,6 +10,7 @@ from sqlalchemy import (
     ForeignKey,
     Integer,
     String,
+    UniqueConstraint,
     func,
 )
 from sqlalchemy.orm import (
@@ -518,6 +519,11 @@ class VerificationSession(Base):
     """一条进行中的新成员验证会话。"""
 
     __tablename__ = "verification_sessions"
+    __table_args__ = (
+        UniqueConstraint(
+            "chat_id", "user_id", name="uq_verification_sessions_chat_user"
+        ),
+    )
 
     id: Mapped[int] = mapped_column(
         Integer, primary_key=True, autoincrement=True, index=True

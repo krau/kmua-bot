@@ -210,6 +210,47 @@ async def update_chat_config(
     return chat_data.chat_config
 
 
+@with_tx
+async def update_chat_config_fields(
+    chat: int | ChatData | Chat,
+    fields: dict[str, object],
+    session: AsyncSession | None = None,
+) -> ChatConfig:
+    """Atomically update selected config fields from the latest database row."""
+    assert session is not None
+
+    if isinstance(chat, ChatData):
+        chat_id = chat.id
+    elif isinstance(chat, Chat):
+        if chat.id is None:
+            raise ValueError("chat.id must not be None")
+        chat_id = chat.id
+    elif isinstance(chat, int):
+        chat_id = chat
+    else:
+        raise TypeError("chat must be int, ChatData or Chat")
+
+    chat_data = await session.get(ChatData, chat_id)
+    if chat_data is None:
+        if isinstance(chat, Chat):
+            chat_data = ChatData(id=chat_id, title=chat.title, username=chat.username)
+            session.add(chat_data)
+            await session.flush()
+        else:
+            raise ValueError(f"Chat with id {chat_id} not found")
+
+    config = chat_data.chat_config
+    for name, value in fields.items():
+        if not hasattr(config, name):
+            raise ValueError(f"Unknown chat config field: {name}")
+        setattr(config, name, value)
+    chat_data.chat_config = config
+    await memttlcache.set(
+        f"{_CHAT_CONFIG_CACHE_PREFIX}{chat_id}", config, _CHAT_CONFIG_CACHE_TTL
+    )
+    return config
+
+
 @with_session
 async def get_chats_page(
     page: int = 1,

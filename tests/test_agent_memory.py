@@ -16,9 +16,7 @@ async def memory_format():
     return AgentMessage, format_user_messages
 
 
-def _msg(
-    AgentMessage, chat_id: int, chat_name: str, is_group: bool, text: str
-):
+def _msg(AgentMessage, chat_id: int, chat_name: str, is_group: bool, text: str):
     return AgentMessage(
         chat_id=chat_id,
         chat_name=chat_name,

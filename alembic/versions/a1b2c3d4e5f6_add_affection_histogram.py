@@ -63,7 +63,9 @@ def upgrade() -> None:
 
     # 由于使用非线性分桶函数，需要在应用层逐行处理
     # 所有数据库使用相同的 Python 逻辑
-    if dialect == "postgresql":
+    if not insp.has_table("user_data"):
+        result = []  # 全新库无存量数据可统计
+    elif dialect == "postgresql":
         result = bind.execute(
             text(
                 "SELECT config->>'affection' as affection FROM user_data WHERE config->>'affection' IS NOT NULL"

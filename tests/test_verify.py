@@ -6,6 +6,7 @@ sweep 用例通过替换 `verify.client` 为记录调用的假对象, 覆盖三�
 
 from __future__ import annotations
 
+import asyncio
 from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 
@@ -456,13 +457,13 @@ async def test_session_dao_roundtrip():
 
 async def test_delete_verification_sessions_for_user():
     first = await _make_session(user_id=123_456)
-    second = await _make_session(user_id=123_456)
+    second = await _make_session(user_id=123_457)
     other = await _make_session(user_id=654_321)
 
     await database.delete_verification_sessions_for_user(-100_910_001, 123_456)
 
     assert await database.get_verification_session(first.id) is None
-    assert await database.get_verification_session(second.id) is None
+    assert await database.get_verification_session(second.id) is not None
     assert await database.get_verification_session(other.id) is not None
 
 
@@ -587,7 +588,11 @@ async def test_sweep_fail_honors_fail_action(
     assert ("restrict" in actions) is expect_restrict
     if expect_restrict:
         restrict_call = next(call for call in fake.calls if call[0] == "restrict")
-        assert restrict_call[3] is challenge.UNRESTRICT_PERMISSIONS
+        # 恢复的权限不授予任何群管理权限
+        assert restrict_call[3].can_send_messages is True
+        assert restrict_call[3].can_change_info is False
+        assert restrict_call[3].can_invite_users is False
+        assert restrict_call[3].can_pin_messages is False
     assert await database.get_verification_session(session_row.id) is None
     assert session._sessions == {}
 
@@ -678,3 +683,133 @@ async def test_sweep_fail_deletes_sticker_window_messages(monkeypatch, no_result
     assert ("ban", -100_910_006, 123_456) in fake.calls  # kick 兜底照常
     assert ("unban", -100_910_006, 123_456) in fake.calls
     assert await database.get_verification_session(session_row.id) is None
+
+
+# ------------------------------------------------------------------ 审查回归
+
+
+def test_restore_permissions_roundtrip_and_fallback():
+    """权限捕获 -> 序列化 -> 恢复往返; 缺失/脏数据回退到无管理权限的普通成员权限。"""
+    original = challenge._fallback_restore_permissions()
+    original.can_change_info = True
+    original.can_pin_messages = True
+    restored = challenge.deserialize_permissions(
+        challenge.serialize_permissions(original)
+    )
+    for name in challenge.PERMISSION_FIELDS:
+        assert bool(getattr(restored, name)) is bool(getattr(original, name))
+
+    fallback = challenge.deserialize_permissions(None)
+    assert fallback.can_send_messages is True
+    assert fallback.can_change_info is False
+    assert fallback.can_invite_users is False
+    assert fallback.can_pin_messages is False
+    assert fallback.can_manage_topics is False
+
+    dirty = challenge.deserialize_permissions({"can_send_messages": True})
+    assert dirty.can_send_messages is True
+    assert dirty.can_change_info is False  # 缺失字段回退
+
+
+def test_restore_permissions_for_session():
+    """贴纸会话不改权限; 其他会话按 payload 存储的权限恢复。"""
+    sticker = VerificationSession(chat_id=1, user_id=2, method="sticker", payload={})
+    assert challenge.restore_permissions_for_session(sticker) is None
+
+    perms = challenge._fallback_restore_permissions()
+    payload = {
+        challenge.RESTORE_PERMISSIONS_KEY: challenge.serialize_permissions(perms)
+    }
+    row = VerificationSession(chat_id=1, user_id=2, method="math_easy", payload=payload)
+    assert challenge.restore_permissions_for_session(row).can_send_messages is True
+
+
+def test_challenge_markup_two_options_no_empty_rows():
+    """两选项题目不生成空键盘行。"""
+    payload = {
+        "question": "Q?",
+        "options": ["a", "b"],
+        "answers": ["a"],
+        "select": "all",
+    }
+    row = VerificationSession(chat_id=1, user_id=2, method="custom_qa", payload=payload)
+    markup = challenge._challenge_markup(row, "zh-CN")
+    assert all(len(r) > 0 for r in markup.inline_keyboard)
+    assert len(markup.inline_keyboard) == 2  # 作答行 + 管理员行
+
+
+async def test_sweep_disabled_chat_wins_over_expired(monkeypatch):
+    """停用群优先于过期: 只恢复权限取消, 不执行失败动作。"""
+    await make_chat(-100_910_004, title="Disabled Expired")
+    session_row = await _make_session(
+        chat_id=-100_910_004,
+        expires_at=datetime.now(UTC) - timedelta(seconds=10),
+    )
+    fake = _FakeClient()
+    monkeypatch.setattr(session, "client", fake)
+
+    await session.verify_sweep()
+
+    actions = [call[0] for call in fake.calls]
+    assert "restrict" in actions
+    assert "ban" not in actions and "unban" not in actions
+    assert await database.get_verification_session(session_row.id) is None
+    assert session._sessions == {}
+
+
+async def _verify_module_harness(monkeypatch, *, enabled: bool = True):
+    """maybe_verify 测试脚手架: 可控配置 + 记录启动的 stub。"""
+    from kmua.plugins.verify import verify as verify_mod
+
+    started: list[int] = []
+
+    async def fake_start(client, chat_id, user, config, chat=None):
+        started.append(chat_id)
+        await asyncio.sleep(0.05)  # 放大并发竞争窗口
+        session._sessions[999] = SimpleNamespace(id=999)
+        session._by_user[(chat_id, user.id)] = 999
+        return True
+
+    async def fake_config(chat_id):
+        cfg = ChatConfig()
+        cfg.verify_enabled = enabled
+        cfg.verify_strategy = "first_message"
+        return cfg
+
+    monkeypatch.setattr(verify_mod, "_chat_config", fake_config)
+    monkeypatch.setattr(verify_mod, "_start_verification", fake_start)
+
+    async def fake_verified(*args, **kwargs):
+        return False
+
+    monkeypatch.setattr(verify_mod.database, "is_user_verified", fake_verified)
+    return verify_mod, started
+
+
+async def test_maybe_verify_returns_intercept_and_serializes(monkeypatch):
+    """未验证且无会话 -> 创建并拦截; 已有会话 -> 拦截但不重复创建; 未启用 -> 放行。"""
+    verify_mod, started = await _verify_module_harness(monkeypatch)
+    ctx = _verify_ctx(is_join=False)
+
+    assert await verify_mod.maybe_verify(SimpleNamespace(), ctx) is True
+    assert started == [ctx.chat_id]
+
+    assert await verify_mod.maybe_verify(SimpleNamespace(), ctx) is True
+    assert started == [ctx.chat_id]  # 不重复创建
+
+    disabled_mod, _ = await _verify_module_harness(monkeypatch, enabled=False)
+    assert await disabled_mod.maybe_verify(SimpleNamespace(), ctx) is False
+
+
+async def test_maybe_verify_concurrent_messages_create_one_session(monkeypatch):
+    """并发首条消息只创建一个验证会话(每用户锁串行化)。"""
+    verify_mod, started = await _verify_module_harness(monkeypatch)
+    ctx = _verify_ctx(is_join=False)
+
+    results = await asyncio.gather(
+        verify_mod.maybe_verify(SimpleNamespace(), ctx),
+        verify_mod.maybe_verify(SimpleNamespace(), ctx),
+    )
+
+    assert started == [ctx.chat_id]  # 只创建一次
+    assert results == [True, True]
