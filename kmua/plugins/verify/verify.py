@@ -283,10 +283,10 @@ async def on_verify_sticker_answer(
 
 async def maybe_verify(client: Client, ctx: VerifyContext) -> bool:
     """检查验证状态; 返回是否应拦截当前消息。"""
+    config = await _chat_config(ctx.chat_id)
+    if config is None or not config.verify_enabled:
+        return False
     async with verification_lock(ctx.chat_id, ctx.user.id):
-        config = await _chat_config(ctx.chat_id)
-        if config is None or not config.verify_enabled:
-            return False
         ctx.has_active_session = _get_for(ctx.chat_id, ctx.user.id) is not None
         if ctx.has_active_session:
             return True

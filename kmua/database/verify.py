@@ -6,6 +6,8 @@
 
 from __future__ import annotations
 
+import time
+
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -80,12 +82,46 @@ async def mark_user_verified(
     await session.flush()
 
 
+_VERIFIED_CACHE_TTL = 300.0  # 已验证标记只增不删, 缓存安全
+_VERIFIED_CACHE_MAX = 100_000
+_verified_cache: dict[str, tuple[float, bool]] = {}
+
+
+def _verified_cache_get(key: str) -> bool | None:
+    """读缓存; 返回 None 表示未命中或已过期"""
+    entry = _verified_cache.get(key)
+    if entry is None:
+        return None
+    stamp, value = entry
+    if time.monotonic() - stamp >= _VERIFIED_CACHE_TTL:
+        return None
+    return value
+
+
+def _verified_cache_set(key: str, value: bool) -> None:
+    if len(_verified_cache) >= _VERIFIED_CACHE_MAX:
+        now = time.monotonic()
+        for k, (stamp, _) in list(_verified_cache.items()):
+            if now - stamp >= _VERIFIED_CACHE_TTL:
+                del _verified_cache[k]
+    _verified_cache[key] = (time.monotonic(), value)
+
+
 @with_session
 async def is_user_verified(
     chat_id: int, user_id: int, session: AsyncSession | None = None
 ) -> bool:
+    """已验证标记(进程内 TTL 缓存); 未验证不缓存, 保证新用户立刻触发验证。"""
     assert session is not None
-    return (await session.get(VerificationMember, (chat_id, user_id))) is not None
+    cache_key = f"verified:{chat_id}:{user_id}"
+    cached = _verified_cache_get(cache_key)
+    if cached is not None:
+        return cached
+    row = await session.get(VerificationMember, (chat_id, user_id))
+    if row is None:
+        return False
+    _verified_cache_set(cache_key, True)
+    return True
 
 
 @with_session
