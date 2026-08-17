@@ -248,10 +248,7 @@ async def on_verify_admin_callback(
 async def on_verify_sticker_answer(
     client: Client, message: pyrogram.types.Message
 ) -> None:
-    """贴纸作答: 任意贴纸即通过, 仅超时可能失败。
-
-    group=-50 先于 agent 处理, 命中即 stop_propagation。
-    """
+    """贴纸作答: 任意贴纸即通过, 仅超时可能失败; group=-50 抢在 agent 前。"""
     chat = message.chat
     user = message.from_user
     if chat is None or user is None:
@@ -297,10 +294,7 @@ async def _start_verification(
     user: pyrogram.types.User,
     config: ChatConfig,
 ) -> None:
-    """对单个用户触发完整验证流程: 限制发言 -> 建会话 -> 发 challenge。
-
-    限制失败(管理员等)与发送失败都 fail-open, 不留受限孤儿。
-    """
+    """限制发言 -> 建会话 -> 发 challenge; 失败均 fail-open 不留受限孤儿。"""
     permissions = restrict_permissions(config.verify_method)
     if permissions is not None:
         try:
@@ -312,7 +306,9 @@ async def _start_verification(
         chat_id=chat_id,
         user_id=user.id,
         method=config.verify_method,
-        payload=make_challenge_payload(config.verify_method, config.verify_questions),
+        payload=make_challenge_payload(
+            config.verify_method, config.verify_questions, lang=config.lang
+        ),
         challenge_message_id=None,
         attempts_left=config.verify_max_attempts,
         expires_at=datetime.now(UTC) + timedelta(seconds=config.verify_timeout_seconds),
@@ -338,70 +334,6 @@ async def _start_verification(
         return
     session_row.challenge_message_id = challenge.id
     await database.update_verification_session(session_row)
-
-
-async def _test_verify_target(
-    client: Client, message: pyrogram.types.Message
-) -> pyrogram.types.User | None:
-    """测试命令的目标: 回复对象 > 参数(id/用户名) > 命令发送者。"""
-    reply = message.reply_to_message
-    if reply is not None and reply.from_user is not None:
-        return reply.from_user
-    command = message.command or []
-    if len(command) > 1:
-        raw = command[1].lstrip("@")
-        try:
-            user_id: int | str = int(raw)
-        except ValueError:
-            user_id = raw
-        try:
-            fetched = await client.get_users(user_id)
-        except RPCError as e:
-            logger.warning(f"verify: test target not found: {e}")
-            return None
-        if fetched is None:
-            return None
-        return fetched[0] if isinstance(fetched, list) else fetched
-    return message.from_user
-
-
-@Client.on_message(
-    pyrogram.filters.command("testverify") & pyrogram.filters.group, group=0
-)
-async def test_verify_command(client: Client, message: pyrogram.types.Message) -> None:
-    """模拟新成员验证: 对目标成员立即触发一次完整验证, 免去真实进出群。"""
-    chat = message.chat
-    if chat is None:
-        return
-    chat_id = chat.id
-    if chat_id is None:
-        return
-    config = await _chat_config(chat_id)
-    if config is None:
-        return
-    actor = message.sender_chat or message.from_user
-    if actor is None:
-        return
-    if not await common.can_user_manage_bot_in_chat(actor, chat):
-        await message.reply_text(
-            i18n.t("bot.msg.no_permission_group", locale=config.lang)
-        )
-        return
-    if not config.verify_enabled:
-        await message.reply_text(
-            i18n.t("bot.msg.verify.test_not_enabled", locale=config.lang)
-        )
-        return
-    target = await _test_verify_target(client, message)
-    if target is None:
-        await message.reply_text(
-            i18n.t("bot.msg.verify.test_user_not_found", locale=config.lang)
-        )
-        return
-    existing = _get_for(chat_id, target.id)
-    if existing is not None:
-        await _cleanup_session(existing)
-    await _start_verification(client, chat_id, target, config)
 
 
 @Client.on_message(pyrogram.filters.group & pyrogram.filters.text, group=-50)

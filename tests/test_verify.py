@@ -178,7 +178,7 @@ def test_qa_challenge_custom_and_default():
     for _ in range(50):
         payload = challenge.make_qa_challenge([])
         assert {"question", "options", "answers", "select"} <= set(payload)
-        assert payload["select"] == "all"  # 默认题库与旧数据无 select, 恒为 all
+        assert payload["select"] in ("any", "all")
         assert len(payload["answers"]) >= 1
         assert all(answer in payload["options"] for answer in payload["answers"])
         assert len(payload["options"]) >= 2

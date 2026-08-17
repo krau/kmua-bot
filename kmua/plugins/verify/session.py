@@ -422,11 +422,11 @@ async def _wrong_answer(
     if session_row.method == "math_easy":
         session_row.payload = make_math_challenge()
     elif session_row.method == "math_hard":
-        session_row.payload = make_math_hard_challenge()
+        session_row.payload = make_math_hard_challenge(lang)
     elif session_row.method == "emoji":
         session_row.payload = make_emoji_challenge()
     elif session_row.method == "custom_qa":
-        session_row.payload = make_qa_challenge(config.verify_questions)
+        session_row.payload = make_qa_challenge(config.verify_questions, lang)
     await database.update_verification_session(session_row)
     if edit_message is not None:
         try:

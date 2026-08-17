@@ -17,9 +17,88 @@ bot:
       action_unrestrict: ", 已放行"
       timeout_hint: "请在 {timeout} 秒内完成验证哦"
       admin_banned: "{user} 已被管理员封禁"
-      test_not_enabled: "该群尚未开启新人验证哦"
-      test_user_not_found: "找不到该用户哦"
       expired: "这个验证已经失效啦"
+      default_questions:
+        - question: "初音未来的头发是什么颜色?"
+          options: ["绿色", "蓝色", "粉色", "葱色"]
+          answers: ["绿色", "葱色"]
+          select: "any"
+        - question: "《原神》中旅行者的旅伴是什么?"
+          options: ["派蒙", "嘟嘟可", "摩诃善法大吉祥智慧主", "若娜瓦"]
+          answers: ["派蒙"]
+        - question: "以下哪一月是漫无止境的?"
+          options: ["八月", "四月", "冰月", "霜月"]
+          answers: ["八月"]
+      math_hard:
+        calculus:
+          derivative: '设 $f(x) = {a}x^{n}$, 求 $f''({x})$'
+          integral: '$\int_0^1 {coef}x^{n}\,dx$'
+          limit: '$\lim_{{x\to 0}}\frac{{\sin({k}x)}}{{x}}$'
+        linear_algebra:
+          invertible_criterion:
+            question: '设 A 是 {n}×{n} 实矩阵, 则 "A 可逆" 的等价条件是'
+            answers:
+              - "det(A) ≠ 0"
+              - "存在方阵 B 使 AB = BA = I"
+              - "A 的列向量线性无关"
+              - "0 不是 A 的特征值"
+            wrong: ["det(A) = 0", "A 的元素均非零", "A 是对称矩阵", "A 的秩为 1"]
+          rank_nullity: '设 A 是 {n}×{n} 矩阵, rank(A) = {rank}, 求 dim null(A)'
+          det_scale: '设 A 是 {n}×{n} 矩阵, 求 $\det({c}A)$'
+          symmetric_eigen:
+            - question: "实对称矩阵 A 的特征值一定都是什么数?"
+              answer: "实数"
+              wrong: ["纯虚数", "非负数", "互不相同"]
+            - question: "实对称矩阵 A 一定可以正交对角化, 即存在正交矩阵 Q 使 $Q^T A Q$ 为"
+              answer: "对角矩阵"
+              wrong: ["三角矩阵", "单位矩阵", "零矩阵"]
+          diagonalizable:
+            question: '设 A 是 {n}×{n} 矩阵, A 可对角化的充要条件是'
+            answers:
+              - "有 n 个线性无关的特征向量"
+              - "每个特征值的几何重数等于代数重数"
+            wrong: ["有 n 个特征值(含重数)", "A 可逆", "rank(A) = n", "A 的特征多项式无重根"]
+          trace_eigen:
+            question: "方阵 A 的迹 tr(A) 等于"
+            answers: ["特征值之和", "主对角线元素之和"]
+            wrong: ["特征值之积", "所有元素之和", "行列式", "特征值之差"]
+          transpose_inverse:
+            - question: '设 A 可逆, 则 $(A^T)^{-1}$ 等于'
+              answer: "(A⁻¹)ᵀ"
+              wrong: ["A⁻¹", "Aᵀ", "A"]
+            - question: '设 A, B 可逆, 则 $(AB)^{-1}$ 等于'
+              answer: "B⁻¹A⁻¹"
+              wrong: ["A⁻¹B⁻¹", "A⁻¹", "AB"]
+          null_space_domain:
+            - question: "设 A 是 m×n 实矩阵, 则 A 的零空间是哪个空间的子空间?"
+              answer: "Rⁿ 的子空间"
+              wrong: ["Rᵐ 的子空间", "R 的子空间", "不是任何空间的子空间"]
+            - question: "设 A 是 m×n 实矩阵, 则 A 的列空间是哪个空间的子空间?"
+              answer: "Rᵐ 的子空间"
+              wrong: ["Rⁿ 的子空间", "R 的子空间", "不是任何空间的子空间"]
+          positive_definite:
+            - question: "实对称矩阵 A 正定的充要条件是其特征值"
+              answer: "全部大于 0"
+              wrong: ["全部非负", "全部小于 0", "互不相同"]
+            - question: "实对称矩阵 A 半正定的充要条件是其特征值"
+              answer: "全部非负"
+              wrong: ["全部大于 0", "全部小于 0", "互不相同"]
+            - question: "实对称矩阵 A 负定的充要条件是其特征值"
+              answer: "全部小于 0"
+              wrong: ["全部非负", "全部大于 0", "互不相同"]
+        probability:
+          uniform_e: '设 $X \sim U({a}, {b})$, 求 $E[X]$'
+          uniform_var: '设 $X \sim U(0, {b})$, 求 $Var(X)$'
+          exp_e: '设 $X \sim Exp({lam})$, 求 $E[X]$'
+          normal_prob: '设 $X \sim N({mu}, {sigma2})$, 求 $P(X \le {mu})$'
+          binomial_e: '设 $X \sim B({n}, {p})$, 求 $E[X]$'
+          poisson_var: '设 $X \sim Poisson({lam})$, 求 $Var(X)$'
+          var_scale: '设 $X \sim U(0, 6)$, 求 $Var({c}X)$'
+          monty_hall: '蒙提霍尔问题: 共 {n} 扇门, 主持人打开一扇空门后, 换门中奖的概率'
+          max_two_uniform: '设 $X_1, \ldots, X_{k} \sim U(0,1)$ 独立, 求 $E[\max(X_1, \ldots, X_{k})]$'
+          chebyshev: '设 $E[X]={mu}$, $Var(X)={var}$, 用切比雪夫不等式估计 $P(|X-{mu}| \ge {bound})$ 的上界'
+          sum_expectation: '设 $X \sim U({a},{b})$, $Y \sim Exp({lam})$ 独立, 求 $E[X+Y]$'
+          second_moment: '设 $X \sim U(0, {b})$, 求 $E[X^2]$'
   button:
     verify:
       approve: "放行"
