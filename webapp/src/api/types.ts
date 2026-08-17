@@ -108,6 +108,18 @@ export interface GiftUseResult {
   detail: string | null;
 }
 
+export interface VerifyQuestion {
+  question: string;
+  options: string[];
+  answers: string[];
+  /** 多正确答案的判定模式: all = 全选, any = 任选其一即可。 */
+  select: string;
+}
+
+export interface VerifyQuestions {
+  questions: VerifyQuestion[];
+}
+
 export interface ChatConfig {
   waifu_enabled: boolean;
   delete_events_enabled: boolean;
@@ -130,11 +142,21 @@ export interface ChatConfig {
   parse_wechat_enabled: boolean;
   rss_agent_summary: boolean;
   rss_agent_broadcast: boolean;
+  verify_enabled: boolean;
+  verify_strategy: string;
+  verify_method: string;
+  verify_max_attempts: number;
+  verify_timeout_seconds: number;
+  verify_fail_action: string;
+  verify_questions: VerifyQuestion[];
   lang: string;
 }
 
-/** The config payload the API accepts: everything except title_permissions. */
-export type ChatConfigInput = Omit<ChatConfig, "title_permissions">;
+/**
+ * The config payload the API accepts: everything except title_permissions and
+ * verify_questions, which have their own whole-set endpoints.
+ */
+export type ChatConfigInput = Omit<ChatConfig, "title_permissions" | "verify_questions">;
 
 export interface ChatDetail {
   id: number;

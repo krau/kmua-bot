@@ -74,6 +74,107 @@ bot:
       /rss - Manage RSS subscriptions
       </blockquote>
       Use "/" or "\" on another user to cast a spell on them.
+    verify:
+      wrong_prefix: "Wrong answer\n"
+      challenge_math_easy: "Verify: {a} + {b} = ?\nAttempts left: {attempts}/{max}"
+      challenge_math_hard: "Answer:\n{question}\nAttempts left: {attempts}/{max}"
+      challenge_emoji: "Tap this emoji: {emoji}\nAttempts left: {attempts}/{max}"
+      challenge_sticker: "Reply to this message with any sticker to pass verification"
+      challenge_qa: "Answer the question:\n{question}\nAttempts left: {attempts}/{max}\n(tap a button below to answer)"
+      challenge_qa_multi: "Select all correct answers:\n{question}\nAttempts left: {attempts}/{max}\n(multi-select, then tap confirm)"
+      wrong_alert: "Wrong answer, {attempts}/{max} attempts left"
+      success: "{user} verified, welcome!"
+      failed_prefix: "{user} failed verification"
+      timeout_prefix: "{user} verification timed out"
+      action_kick: ", was removed from the group"
+      action_ban: ", was banned"
+      action_unrestrict: ", approved"
+      timeout_hint: "Please complete within {timeout} seconds"
+      admin_banned: "{user} was banned by an admin"
+      test_not_enabled: "Member verification is not enabled in this group"
+      test_user_not_found: "User not found"
+      expired: "This verification has expired"
+      default_questions:
+        - question: "What color is Hatsune Miku's hair?"
+          options: ["Green", "Blue", "Pink", "Leek green"]
+          answers: ["Green", "Leek green"]
+          select: "any"
+        - question: "Who is the Traveler's companion in Genshin Impact?"
+          options: ["Paimon", "Monpai", "Nahida", "Ronova"]
+          answers: ["Paimon"]
+        - question: "Which month is endless?"
+          options: ["August", "April", "Ice Luna", "Frimaire"]
+          answers: ["August"]
+      math_hard:
+        calculus:
+          derivative: "Let $f(x) = {a}x^{n}$, find $f'({x})$"
+          integral: "$\\int_0^1 {coef}x^{n}\\,dx$"
+          limit: "$\\lim_{{x\\to 0}}\\frac{{\\sin({k}x)}}{{x}}$"
+        linear_algebra:
+          invertible_criterion:
+            question: "Let A be an {n}×{n} real matrix. \"A is invertible\" is equivalent to"
+            answers:
+              - "det(A) ≠ 0"
+              - "there exists a matrix B with AB = BA = I"
+              - "the columns of A are linearly independent"
+              - "0 is not an eigenvalue of A"
+            wrong: ["det(A) = 0", "all entries of A are nonzero", "A is symmetric", "rank(A) = 1"]
+          rank_nullity: "Let A be an {n}×{n} matrix with rank(A) = {rank}. Find dim null(A)"
+          det_scale: "Let A be an {n}×{n} matrix. Find $\\det({c}A)$"
+          symmetric_eigen:
+            - question: "All eigenvalues of a real symmetric matrix A are"
+              answer: "real numbers"
+              wrong: ["purely imaginary numbers", "nonnegative", "distinct"]
+            - question: "A real symmetric matrix A can be orthogonally diagonalized, i.e. there exists an orthogonal matrix Q such that $Q^T A Q$ is"
+              answer: "a diagonal matrix"
+              wrong: ["a triangular matrix", "the identity matrix", "the zero matrix"]
+          diagonalizable:
+            question: "Let A be an {n}×{n} matrix. A is diagonalizable if and only if"
+            answers:
+              - "A has n linearly independent eigenvectors"
+              - "the geometric multiplicity of each eigenvalue equals its algebraic multiplicity"
+            wrong: ["A has n eigenvalues counted with multiplicity", "A is invertible", "rank(A) = n", "the characteristic polynomial of A has no repeated roots"]
+          trace_eigen:
+            question: "The trace tr(A) of a square matrix A equals"
+            answers: ["the sum of its eigenvalues", "the sum of its diagonal entries"]
+            wrong: ["the product of its eigenvalues", "the sum of all entries", "its determinant", "the difference of its eigenvalues"]
+          transpose_inverse:
+            - question: "If A is invertible, then $(A^T)^{-1}$ equals"
+              answer: "(A⁻¹)ᵀ"
+              wrong: ["A⁻¹", "Aᵀ", "A"]
+            - question: "If A and B are invertible, then $(AB)^{-1}$ equals"
+              answer: "B⁻¹A⁻¹"
+              wrong: ["A⁻¹B⁻¹", "A⁻¹", "AB"]
+          null_space_domain:
+            - question: "Let A be an m×n real matrix. The null space of A is a subspace of"
+              answer: "Rⁿ"
+              wrong: ["Rᵐ", "R", "no space"]
+            - question: "Let A be an m×n real matrix. The column space of A is a subspace of"
+              answer: "Rᵐ"
+              wrong: ["Rⁿ", "R", "no space"]
+          positive_definite:
+            - question: "A real symmetric matrix A is positive definite if and only if its eigenvalues are"
+              answer: "all greater than 0"
+              wrong: ["all nonnegative", "all less than 0", "distinct"]
+            - question: "A real symmetric matrix A is positive semidefinite if and only if its eigenvalues are"
+              answer: "all nonnegative"
+              wrong: ["all greater than 0", "all less than 0", "distinct"]
+            - question: "A real symmetric matrix A is negative definite if and only if its eigenvalues are"
+              answer: "all less than 0"
+              wrong: ["all nonnegative", "all greater than 0", "distinct"]
+        probability:
+          uniform_e: "Let $X \\sim U({a}, {b})$. Find $E[X]$"
+          uniform_var: "Let $X \\sim U(0, {b})$. Find $Var(X)$"
+          exp_e: "Let $X \\sim Exp({lam})$. Find $E[X]$"
+          normal_prob: "Let $X \\sim N({mu}, {sigma2})$. Find $P(X \\le {mu})$"
+          binomial_e: "Let $X \\sim B({n}, {p})$. Find $E[X]$"
+          poisson_var: "Let $X \\sim Poisson({lam})$. Find $Var(X)$"
+          var_scale: "Let $X \\sim U(0, 6)$. Find $Var({c}X)$"
+          monty_hall: "Monty Hall problem: with {n} doors, after the host opens an empty door, the probability of winning by switching is"
+          max_two_uniform: "Let $X_1, \\ldots, X_{k} \\sim U(0,1)$ be independent. Find $E[\\max(X_1, \\ldots, X_{k})]$"
+          chebyshev: "Let $E[X]={mu}$, $Var(X)={var}$. Use Chebyshev's inequality to bound $P(|X-{mu}| \\ge {bound})$"
+          sum_expectation: "Let $X \\sim U({a},{b})$, $Y \\sim Exp({lam})$ be independent. Find $E[X+Y]$"
+          second_moment: "Let $X \\sim U(0, {b})$. Find $E[X^2]$"
     help_inline: |
       Type @{me_username} in any chat to enter Inline mode.
 
@@ -394,7 +495,13 @@ bot:
       parse_artwork_enabled: Parse Artwork Links
       pick_bottle_enabled: Pick Bottle
       group_memory_enabled: Group Memory
+      verify: Member Verification
       save: Save
+    verify:
+      approve: Approve
+      ban: Ban
+      submit: Confirm
+      selected: "(selected)"
     waifu:
       remove: Remove (Admin)
       marry: Marry her!

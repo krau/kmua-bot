@@ -10,6 +10,7 @@ from sqlalchemy import (
     ForeignKey,
     Integer,
     String,
+    UniqueConstraint,
     func,
 )
 from sqlalchemy.orm import (
@@ -66,6 +67,15 @@ class ChatConfig:
     parse_wechat_enabled: bool = True
     rss_agent_summary: bool = False
     rss_agent_broadcast: bool = False
+    verify_enabled: bool = False
+    verify_strategy: str = "all"
+    verify_method: str = "math_easy"
+    verify_max_attempts: int = 3
+    verify_timeout_seconds: int = 120
+    verify_fail_action: str = "kick"
+    verify_questions: list[dict] = field(
+        default_factory=list
+    )  # [{"question": str, "options": [str], "answers": [str]}]
     lang: str = "zh-CN"
 
     @classmethod
@@ -93,6 +103,13 @@ class ChatConfig:
             parse_wechat_enabled=data.get("parse_wechat_enabled", True),
             rss_agent_summary=data.get("rss_agent_summary", False),
             rss_agent_broadcast=data.get("rss_agent_broadcast", False),
+            verify_enabled=data.get("verify_enabled", False),
+            verify_strategy=data.get("verify_strategy", "all"),
+            verify_method=data.get("verify_method", "math_easy"),
+            verify_max_attempts=data.get("verify_max_attempts", 3),
+            verify_timeout_seconds=data.get("verify_timeout_seconds", 120),
+            verify_fail_action=data.get("verify_fail_action", "kick"),
+            verify_questions=data.get("verify_questions") or [],
             lang=data.get("lang", "zh-CN"),
         )
 
@@ -496,6 +513,53 @@ class ChatPolicyData(Base):
 
     def __repr__(self) -> str:
         return f"<ChatPolicyData(chat_id={self.chat_id}, policy={self.policy})>"
+
+
+class VerificationSession(Base):
+    """一条进行中的新成员验证会话。"""
+
+    __tablename__ = "verification_sessions"
+    __table_args__ = (
+        UniqueConstraint(
+            "chat_id", "user_id", name="uq_verification_sessions_chat_user"
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(
+        Integer, primary_key=True, autoincrement=True, index=True
+    )
+    chat_id: Mapped[int] = mapped_column(BigInteger, index=True)
+    user_id: Mapped[int] = mapped_column(BigInteger, index=True)
+    method: Mapped[str] = mapped_column(String(32))
+    payload: Mapped[dict] = mapped_column(JSON)
+    challenge_message_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    attempts_left: Mapped[int] = mapped_column(Integer, default=3)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+    def __repr__(self) -> str:
+        return f"<VerificationSession(id={self.id}, chat_id={self.chat_id}, user_id={self.user_id})>"
+
+
+class VerificationMember(Base):
+    """在该群已通过验证的用户(first_message 策略跳过重复验证)。"""
+
+    __tablename__ = "verification_members"
+
+    chat_id: Mapped[int] = mapped_column(
+        BigInteger, primary_key=True, autoincrement=False
+    )
+    user_id: Mapped[int] = mapped_column(
+        BigInteger, primary_key=True, autoincrement=False
+    )
+    verified_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+    def __repr__(self) -> str:
+        return f"<VerificationMember(chat_id={self.chat_id}, user_id={self.user_id})>"
 
 
 class Gift(Base):

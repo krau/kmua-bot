@@ -38,3 +38,34 @@ class GLockKey(StrEnum):
     __slots__ = ()
 
     CLEANING = "cleaning"
+
+
+class VerifyTrigger(StrEnum):
+    """新成员验证触发策略(何时验证), 与验证方式解耦。"""
+
+    __slots__ = ()
+
+    ALL = "all"
+    FIRST_MESSAGE = "first_message"
+
+
+class VerifyMethod(StrEnum):
+    """新成员验证方式(如何验证), 与触发策略解耦。"""
+
+    __slots__ = ()
+
+    MATH_EASY = "math_easy"
+    MATH_HARD = "math_hard"
+    EMOJI = "emoji"
+    STICKER = "sticker"
+    CUSTOM_QA = "custom_qa"
+
+
+class VerifyFailAction(StrEnum):
+    """验证失败(超时/次数耗尽)后对用户采取的动作。"""
+
+    __slots__ = ()
+
+    KICK = "kick"  # ban+unban, 移出但不拉黑, 可重新加群再验证
+    BAN = "ban"  # 永久拉黑
+    UNRESTRICT = "unrestrict"  # 仅解除限制, 留在群里

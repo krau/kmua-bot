@@ -49,6 +49,12 @@ const EMPTY_CONFIG: ChatConfigInput = {
   parse_wechat_enabled: true,
   rss_agent_summary: false,
   rss_agent_broadcast: false,
+  verify_enabled: false,
+  verify_strategy: "all",
+  verify_method: "math_easy",
+  verify_max_attempts: 3,
+  verify_timeout_seconds: 120,
+  verify_fail_action: "kick",
   lang: "zh-CN",
 };
 
@@ -56,7 +62,11 @@ const form = useDirtyState<ChatConfigInput & Record<string, unknown>>({ ...EMPTY
 
 const chat = useAsyncData(async (signal) => {
   const detail = await fetchChat(props.chatId, signal);
-  const { title_permissions: _ignored, ...config } = detail.config;
+  const {
+    title_permissions: _ignored,
+    verify_questions: _ignoredQuestions,
+    ...config
+  } = detail.config;
   form.commit({ ...config });
   return detail;
 });
@@ -87,7 +97,7 @@ async function save(): Promise<void> {
   saving.value = true;
   try {
     const saved = await saveChatConfig(props.chatId, form.draft.value);
-    const { title_permissions: _ignored, ...config } = saved;
+    const { title_permissions: _ignored, verify_questions: _ignoredQuestions, ...config } = saved;
     form.commit({ ...config });
     if (chat.data.value) chat.data.value.config = saved;
     notify(t("app.saved"));

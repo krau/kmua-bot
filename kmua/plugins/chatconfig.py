@@ -93,6 +93,12 @@ class ChatConfigMarkup:
                 ],
                 [
                     InlineKeyboardButton(
+                        f"{i18n.t('bot.button.chat_config.verify', locale=self.lang)} {self.get_status_emoji(self.chat_config.verify_enabled)}",
+                        callback_data=self.get_callback_data("verify_enabled"),
+                    ),
+                ],
+                [
+                    InlineKeyboardButton(
                         i18n.t("bot.button.chat_config.save", locale=self.lang),
                         callback_data="config_chat save",
                     ),
@@ -185,6 +191,8 @@ async def config_chat(
                 chat_config.ai_reply_other_bots_enabled = (
                     not chat_config.ai_reply_other_bots_enabled
                 )
+            case "verify_enabled":
+                chat_config.verify_enabled = not chat_config.verify_enabled
             case _:
                 await callback_query.answer(
                     text=i18n.t("bot.msg.unknown_operation", locale=lang),

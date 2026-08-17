@@ -126,6 +126,23 @@ class I18n:
 
         return translation if translation is not None else key
 
+    def get_raw(self, key: str, locale: str = "") -> Any:
+        """获取任意类型的翻译值(dict/list), 解析规则同 t()。"""
+        if locale is None or not locale:
+            locale = self.default_locale
+        if locale not in self.translations:
+            if self.default_locale in self.translations:
+                locale = self.default_locale
+            else:
+                return None
+        value = self._get_nested_value(self.translations[locale], key)
+        if value is None and locale != self.default_locale:
+            if self.default_locale in self.translations:
+                value = self._get_nested_value(
+                    self.translations[self.default_locale], key
+                )
+        return value
+
     def get_available_locales(self) -> list[str]:
         return list(self.available_locales)
 

@@ -9,8 +9,9 @@ from __future__ import annotations
 
 from typing import Annotated, Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
+from kmua.enums import VerifyFailAction, VerifyMethod, VerifyTrigger
 from kmua.i18n import i18n
 
 # Keys accepted by /t, matching plugins/title/utils.py exactly. A stricter set
@@ -174,6 +175,83 @@ class GiftUseOut(ApiModel):
 # -------------------------------------------------------------------------- chats
 
 
+class VerifyQuestionIn(ApiModel):
+    question: str = Field(min_length=1, max_length=200)
+    options: list[str] = Field(min_length=2, max_length=6)
+    answers: list[str] = Field(min_length=1, max_length=6)
+    # 多正确答案的判定模式: all = 全选, any = 任选其一即可
+    select: str = "all"
+
+    @field_validator("select")
+    @classmethod
+    def _check_select(cls, value: str) -> str:
+        if value not in {"all", "any"}:
+            raise ValueError("select must be 'all' or 'any'")
+        return value
+
+    @field_validator("question")
+    @classmethod
+    def _strip_question(cls, value: str) -> str:
+        stripped = value.strip()
+        if not stripped:
+            raise ValueError("question must not be blank")
+        return stripped
+
+    @field_validator("options")
+    @classmethod
+    def _normalize_options(cls, value: list[str]) -> list[str]:
+        cleaned: list[str] = []
+        for option in value:
+            stripped = option.strip()
+            if not stripped:
+                continue
+            if stripped in cleaned:
+                continue
+            cleaned.append(stripped)
+        if len(cleaned) < 2:
+            raise ValueError("options must have at least 2 non-blank entries")
+        if any(len(option) > 100 for option in cleaned):
+            raise ValueError("option too long")
+        return cleaned
+
+    @field_validator("answers")
+    @classmethod
+    def _normalize_answers(cls, value: list[str]) -> list[str]:
+        cleaned: list[str] = []
+        for answer in value:
+            stripped = answer.strip()
+            if not stripped:
+                continue
+            if stripped in cleaned:
+                continue
+            cleaned.append(stripped)
+        if not cleaned:
+            raise ValueError("answers must have at least 1 non-blank entry")
+        return cleaned
+
+    @model_validator(mode="after")
+    def _check_answers_in_options(self) -> VerifyQuestionIn:
+        unknown = [a for a in self.answers if a not in self.options]
+        if unknown:
+            raise ValueError(f"answers must be options, got: {unknown}")
+        return self
+
+
+class VerifyQuestionsIn(ApiModel):
+    questions: list[VerifyQuestionIn] = Field(max_length=200)
+
+
+class VerifyQuestionOut(ApiModel):
+    question: str
+    options: list[str]
+    answers: list[str]
+    select: str = "all"  # 旧数据无此字段, 默认全选
+
+
+class VerifyQuestionsOut(ApiModel):
+    questions: list[VerifyQuestionOut]
+
+
 class ChatConfigOut(ApiModel):
     """The full ChatConfig, sent and received as one document.
 
@@ -201,6 +279,13 @@ class ChatConfigOut(ApiModel):
     parse_wechat_enabled: bool
     rss_agent_summary: bool
     rss_agent_broadcast: bool
+    verify_enabled: bool
+    verify_strategy: str
+    verify_method: str
+    verify_max_attempts: int
+    verify_timeout_seconds: int
+    verify_fail_action: str
+    verify_questions: list[VerifyQuestionOut] = []
     lang: str
 
 
@@ -224,12 +309,45 @@ class ChatConfigIn(ApiModel):
     parse_wechat_enabled: bool
     rss_agent_summary: bool
     rss_agent_broadcast: bool
+    verify_enabled: bool
+    verify_strategy: str
+    verify_method: str
+    verify_max_attempts: int = Field(ge=1, le=10)
+    verify_timeout_seconds: int = Field(ge=30, le=600)
+    verify_fail_action: str
     lang: LocaleStr
 
     @field_validator("lang")
     @classmethod
     def _check_lang(cls, value: str) -> str:
         return _valid_locale(value)
+
+    @field_validator("verify_strategy")
+    @classmethod
+    def _check_verify_strategy(cls, value: str) -> str:
+        if value not in {m.value for m in VerifyTrigger}:
+            raise ValueError(
+                f"unsupported verify strategy, expected one of {[m.value for m in VerifyTrigger]}"
+            )
+        return value
+
+    @field_validator("verify_method")
+    @classmethod
+    def _check_verify_method(cls, value: str) -> str:
+        if value not in {m.value for m in VerifyMethod}:
+            raise ValueError(
+                f"unsupported verify method, expected one of {[m.value for m in VerifyMethod]}"
+            )
+        return value
+
+    @field_validator("verify_fail_action")
+    @classmethod
+    def _check_verify_fail_action(cls, value: str) -> str:
+        if value not in {m.value for m in VerifyFailAction}:
+            raise ValueError(
+                f"unsupported verify fail action, expected one of {[m.value for m in VerifyFailAction]}"
+            )
+        return value
 
     @field_validator("greeting")
     @classmethod

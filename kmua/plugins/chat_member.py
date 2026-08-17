@@ -8,6 +8,7 @@ from kmua.common import ops
 from kmua.config import app_config
 from kmua.i18n import i18n
 from kmua.logger import logger
+from kmua.plugins.verify import verify as verify_plugin
 
 
 @Client.on_chat_member_updated(filters.group, group=0)
@@ -58,6 +59,8 @@ async def chat_member_updated(client: Client, chat_member_updated: ChatMemberUpd
     ):
         logger.info(f"[{chat.id}]({user.id}): {user.full_name} left the chat")
         await database.remove_association(db_user.id, db_chat.id)
+        if chat.id is not None:
+            await verify_plugin.handle_user_left(chat.id, user.id)
 
 
 @Client.on_message(filters.group & filters.left_chat_member, group=0)
@@ -76,6 +79,8 @@ async def on_left_chat_member(client: Client, message: Message):
         return
     logger.info(f"[{chat.id}]({user.id}): {user.full_name} left the chat")
     await database.remove_association(db_user.id, db_chat.id)
+    if chat.id is not None:
+        await verify_plugin.handle_user_left(chat.id, user.id)
 
 
 @Client.on_message(filters.group & filters.command("syncmembers"), group=0)

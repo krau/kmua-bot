@@ -17,6 +17,7 @@ from kmua.config import app_config
 from kmua.database import db
 from kmua.logger import logger
 from kmua.loop_monitor import LoopLagMonitor
+from kmua.plugins.verify import verify as verify_plugin
 from kmua.session_health import SessionHealthMonitor
 from kmua.webapp.server import server as webapp_server
 
@@ -266,6 +267,12 @@ async def init_bot(client: Client = client):
             jobs.rss_push,
             minutes=1,
         )
+
+    # 新成员验证: 重启后恢复进行中的会话; 周期 sweep 处理超时/停用/聊天删除
+    await verify_plugin.load_active_sessions()
+    common.jobqueue.add_interval_job(
+        "verify_sweep", verify_plugin.verify_sweep, seconds=30
+    )
 
     await _setup_menu_button(client)
 

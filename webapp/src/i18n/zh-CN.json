@@ -134,7 +134,28 @@
     "rssNeverFetched": "尚未抓取",
     "rssError": "抓取出错",
     "rssEvery": "每 {minutes} 分钟",
-    "rssGlobalInterval": "全局间隔"
+    "rssGlobalInterval": "全局间隔",
+    "verify": "新人验证",
+    "verifyQuestions": "自定义题库",
+    "verifyQuestionsHint": "为\"答题\"验证方式准备题目, 群内生效",
+    "verifyQuestionNumber": "题目 {number}",
+    "verifyQuestionPrompt": "问题",
+    "verifyAddQuestion": "添加题目",
+    "verifyRemoveQuestion": "移除该题",
+    "verifyOptions": "选项",
+    "verifyOptionsHint": "至少 2 个选项; 留空整行会删除; 开关标记正确答案(可多选)",
+    "verifyOptionPlaceholder": "选项 {number}",
+    "verifyCorrectAnswer": "标记为正确答案",
+    "verifyAddOption": "添加选项",
+    "verifyEmpty": "还没有题目",
+    "verifyEmptyHint": "点击下方按钮添加第一道题",
+    "verifyListLabel": "全部题目",
+    "verifyUntitled": "未命名题目",
+    "verifyQuestionMeta": "选项 {options} · 正确答案: {correct}",
+    "verifyDelete": "删除",
+    "verifyCorrectNone": "未设置",
+    "verifyAnyOf": "任选其一",
+    "verifyAnyOfHint": "多个正确答案时, 答中任意一个即可通过"
   },
   "chatConfig": {
     "waifu_enabled": "抽老婆",
@@ -153,7 +174,13 @@
     "parseSites": "解析站点",
     "parseSitesHint": "需开启“解析链接”总开关；未配置的站点默认解析",
     "rss_agent_summary": "RSS 推送 AI 摘要",
-    "rss_agent_broadcast": "RSS AI 播报"
+    "rss_agent_broadcast": "RSS AI 播报",
+    "verify_enabled": "新人验证",
+    "verify_method": "验证方式",
+    "verify_fail_action": "验证失败处理",
+    "verify_max_attempts": "最大尝试次数",
+    "verify_timeout_seconds": "超时时间(秒)",
+    "verify_strategy": "触发时机"
   },
   "titlePermissions": {
     "can_change_info": "修改群信息",
@@ -319,5 +346,23 @@
     "removeHint": "移除后该群的所有策略恢复默认值",
     "removeConfirm": "确定移除「{name}」的策略配置? 所有开关将恢复默认值。",
     "removed": "已移除"
+  },
+  "verify": {
+    "method": {
+      "emoji": "点选表情",
+      "sticker": "发送贴纸",
+      "custom_qa": "自定义答题",
+      "math_easy": "小学算术",
+      "math_hard": "大学算术"
+    },
+    "failAction": {
+      "kick": "移出群聊(可重新加入)",
+      "ban": "拉黑",
+      "unrestrict": "放行"
+    },
+    "strategy": {
+      "all": "入群时验证",
+      "first_message": "首次发言时验证"
+    }
   }
 }

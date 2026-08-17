@@ -8,6 +8,8 @@ import type {
   Quote,
   RssSubscription,
   SyncMembersResult,
+  VerifyQuestion,
+  VerifyQuestions,
 } from "../types";
 
 export function fetchChat(chatId: number, signal?: AbortSignal) {
@@ -20,6 +22,17 @@ export function saveChatConfig(chatId: number, config: ChatConfigInput) {
 
 export function saveTitlePermissions(chatId: number, permissions: Record<string, boolean>) {
   return api.put<ChatConfig>(`/api/chats/${chatId}/title-permissions`, { permissions });
+}
+
+export function fetchVerifyQuestions(chatId: number, signal?: AbortSignal) {
+  return api.get<VerifyQuestions>(
+    `/api/chats/${chatId}/verify-questions`,
+    signal ? { signal } : {},
+  );
+}
+
+export function saveVerifyQuestions(chatId: number, questions: VerifyQuestion[]) {
+  return api.put<VerifyQuestions>(`/api/chats/${chatId}/verify-questions`, { questions });
 }
 
 export function fetchChatAdmins(chatId: number, signal?: AbortSignal) {
