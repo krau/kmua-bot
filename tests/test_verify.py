@@ -748,6 +748,120 @@ def test_restore_permissions_for_session_preserves_custom_restrictions():
     assert restored.can_change_info is True
 
 
+async def test_verify_target_resolves_channel_senders():
+    """回复频道消息时目标取频道实体, 不落到命令发送者。"""
+    from pyrogram.enums import ChatType
+    from pyrogram.types import User
+
+    from kmua import enums
+    from kmua.plugins.verify import verify as verify_mod
+
+    sender = User(id=123, first_name="Admin", is_bot=False)
+    plain_reply = SimpleNamespace(
+        from_user=User(id=456, first_name="U", is_bot=False), sender_chat=None
+    )
+    msg = SimpleNamespace(
+        reply_to_message=plain_reply, command=None, from_user=sender, sender_chat=None
+    )
+    target = await verify_mod._test_verify_target(SimpleNamespace(), msg)
+    assert target is not None and target.id == 456
+
+    channel = SimpleNamespace(id=-100_123, type=ChatType.CHANNEL)
+    channel_reply = SimpleNamespace(from_user=None, sender_chat=channel)
+    msg = SimpleNamespace(
+        reply_to_message=channel_reply, command=None, from_user=sender, sender_chat=None
+    )
+    target = await verify_mod._test_verify_target(SimpleNamespace(), msg)
+    assert target is channel
+
+    # 匿名管理员发言(sender_chat 是群自身)不算频道, 落到命令发送者
+    group_as_chat = SimpleNamespace(id=-100_999, type=ChatType.SUPERGROUP)
+    anon_reply = SimpleNamespace(from_user=None, sender_chat=group_as_chat)
+    msg = SimpleNamespace(
+        reply_to_message=anon_reply, command=None, from_user=sender, sender_chat=None
+    )
+    target = await verify_mod._test_verify_target(SimpleNamespace(), msg)
+    assert target is sender
+
+    # from_user 是匿名管理员 id 时同样跳过, 频道仍可作目标
+    anon_user = SimpleNamespace(id=enums.ChatID.ANONYMOUS_ADMIN)
+    msg = SimpleNamespace(
+        reply_to_message=SimpleNamespace(from_user=anon_user, sender_chat=channel),
+        command=None,
+        from_user=sender,
+        sender_chat=None,
+    )
+    target = await verify_mod._test_verify_target(SimpleNamespace(), msg)
+    assert target is channel
+
+    # 无回复无参数: 命令发送者
+    msg = SimpleNamespace(
+        reply_to_message=None, command=None, from_user=sender, sender_chat=None
+    )
+    target = await verify_mod._test_verify_target(SimpleNamespace(), msg)
+    assert target is sender
+
+
+async def test_verify_command_replies_when_start_fails(monkeypatch):
+    """/testverify 启动失败(如无法限制目标)时回复提示, 不再静默。"""
+    from kmua.plugins.verify import verify as verify_mod
+
+    replies: list[str] = []
+
+    class _Msg:
+        chat = SimpleNamespace(id=-100_910_001)
+        from_user = SimpleNamespace(id=777)
+        sender_chat = None
+        reply_to_message = None
+        command = ["testverify"]
+
+        async def reply_text(self, text, **kwargs):
+            replies.append(text)
+
+    async def fake_config(chat_id):
+        cfg = ChatConfig()
+        cfg.verify_enabled = True
+        return cfg
+
+    async def fake_start(client, chat_id, user, config):
+        return False
+
+    async def fake_admin(user_id):
+        return SimpleNamespace(is_bot_global_admin=True)
+
+    monkeypatch.setattr(verify_mod, "_chat_config", fake_config)
+    monkeypatch.setattr(verify_mod, "_start_verification", fake_start)
+    monkeypatch.setattr(verify_mod.database, "get_user_by_id", fake_admin)
+    monkeypatch.setattr(verify_mod, "_get_for", lambda chat_id, user_id: None)
+
+    await verify_mod.test_verify_command(SimpleNamespace(), _Msg())
+
+    assert replies == [i18n.t("bot.msg.verify.test_verify_failed", locale="zh-CN")]
+
+
+def test_verify_context_is_bot_handles_chat_targets():
+    """频道(无 is_bot 属性)目标不触发 AttributeError。"""
+    from pyrogram.types import User
+
+    user_ctx = challenge.VerifyContext(
+        chat_id=1, user=User(id=1, first_name="T", is_bot=True), is_join=True
+    )
+    assert user_ctx.is_bot is True
+    chat_ctx = challenge.VerifyContext(
+        chat_id=1, user=SimpleNamespace(id=-100), is_join=True
+    )
+    assert chat_ctx.is_bot is False
+
+
+async def test_user_mention_channel_fallback():
+    """频道目标(不在用户库)退化为 id 链接, 不抛异常。"""
+    from pyrogram.enums import ChatType
+
+    channel = SimpleNamespace(id=-100_123, type=ChatType.CHANNEL)
+    mention = await session._user_mention(channel)
+    assert mention == "<a href='tg://user?id=-100123'>User</a>"
+
+
 async def test_capture_restore_permissions_member_specific_only():
     """只捕获成员已有自定义限制; 普通成员返回 None, 读取失败也返回 None。"""
 

@@ -11,6 +11,7 @@ from pyrogram.client import Client
 from pyrogram.errors import RPCError
 from pyrogram.raw.functions.messages.edit_message import EditMessage
 from pyrogram.types import (
+    Chat,
     ChatPermissions,
     InlineKeyboardMarkup,
     InputRichMessage,
@@ -127,17 +128,17 @@ def _schedule_result_delete(chat_id: int, message_id: int | None) -> None:
         common.spawn(_delete_message_later(chat_id, message_id))
 
 
-async def _user_mention(user: User | int) -> str:
-    """目标用户的 HTML mention; 获取失败时退化为 id 链接。"""
+async def _user_mention(user: User | Chat | int) -> str:
+    """目标用户/频道的 HTML mention; 获取失败时退化为 id 链接。"""
     try:
         if isinstance(user, int):
             fetched = await client.get_users(user)
-            target: User = fetched[0] if isinstance(fetched, list) else fetched
+            target: User | Chat = fetched[0] if isinstance(fetched, list) else fetched
         else:
             target = user
         return await common.mention_html(target)
     except (RPCError, ValueError):
-        user_id = user.id if isinstance(user, User) else user
+        user_id = getattr(user, "id", None) or user
         return f"<a href='tg://user?id={user_id}'>User</a>"
 
 

@@ -93,6 +93,7 @@ bot:
       admin_banned: "{user} was banned by an admin"
       test_not_enabled: "Member verification is not enabled in this group"
       test_user_not_found: "User not found"
+      test_verify_failed: "Failed to start verification: cannot restrict this member"
       expired: "This verification has expired"
       default_questions:
         - question: "What color is Hatsune Miku's hair?"

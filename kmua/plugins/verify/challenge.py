@@ -12,6 +12,7 @@ from typing import Any
 from pyrogram.enums import ButtonStyle
 from pyrogram.types import (
     CallbackQuery,
+    Chat,
     ChatPermissions,
     InlineKeyboardButton,
     InlineKeyboardMarkup,
@@ -92,7 +93,7 @@ class VerifyContext:
     """验证候选事件的全量上下文, 供策略判定; 事件 handler 构造后交 maybe_verify。"""
 
     chat_id: int
-    user: User
+    user: User | Chat
     is_join: bool
     text: str = ""
     is_verified: bool = False
@@ -100,7 +101,14 @@ class VerifyContext:
 
     @property
     def is_bot(self) -> bool:
-        return bool(self.user.is_bot)
+        return bool(getattr(self.user, "is_bot", False))
+
+    @property
+    def user_id(self) -> int:
+        user_id = self.user.id
+        if user_id is None:
+            raise ValueError("user must have an ID")
+        return user_id
 
 
 def strategy_matches(strategy: str, ctx: VerifyContext) -> bool:

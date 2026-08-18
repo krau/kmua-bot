@@ -9,7 +9,7 @@ from pyrogram.client import Client
 from pyrogram.errors import RPCError
 from pyrogram.types import CallbackQuery
 
-from kmua import common, database
+from kmua import common, database, enums
 from kmua.database.models import ChatConfig, VerificationSession
 from kmua.i18n import i18n
 from kmua.logger import logger
@@ -286,11 +286,11 @@ async def maybe_verify(client: Client, ctx: VerifyContext) -> bool:
     config = await _chat_config(ctx.chat_id)
     if config is None or not config.verify_enabled:
         return False
-    async with verification_lock(ctx.chat_id, ctx.user.id):
-        ctx.has_active_session = _get_for(ctx.chat_id, ctx.user.id) is not None
+    async with verification_lock(ctx.chat_id, ctx.user_id):
+        ctx.has_active_session = _get_for(ctx.chat_id, ctx.user_id) is not None
         if ctx.has_active_session:
             return True
-        ctx.is_verified = await database.is_user_verified(ctx.chat_id, ctx.user.id)
+        ctx.is_verified = await database.is_user_verified(ctx.chat_id, ctx.user_id)
         if not strategy_matches(config.verify_strategy, ctx):
             return False
         return await _start_verification(client, ctx.chat_id, ctx.user, config)
@@ -299,15 +299,18 @@ async def maybe_verify(client: Client, ctx: VerifyContext) -> bool:
 async def _start_verification(
     client: Client,
     chat_id: int,
-    user: pyrogram.types.User,
+    user: pyrogram.types.User | pyrogram.types.Chat,
     config: ChatConfig,
 ) -> bool:
     """建会话并限制成员; 每个失败分支都尽量恢复外部状态。"""
+    user_id = user.id
+    if user_id is None:
+        return False
     permissions = restrict_permissions(config.verify_method)
     restore_permissions = None
     if permissions is not None:
         restore_permissions = await capture_restore_permissions(
-            client, chat_id, user.id
+            client, chat_id, user_id
         )
     payload = make_challenge_payload(
         config.verify_method, config.verify_questions, lang=config.lang
@@ -316,7 +319,7 @@ async def _start_verification(
         payload[RESTORE_PERMISSIONS_KEY] = serialize_permissions(restore_permissions)
     session_row = VerificationSession(
         chat_id=chat_id,
-        user_id=user.id,
+        user_id=user_id,
         method=config.verify_method,
         payload=payload,
         challenge_message_id=None,
@@ -327,15 +330,15 @@ async def _start_verification(
         session_row = await database.create_verification_session(session_row)
     except Exception as e:
         logger.error(
-            f"verify: failed to create session for {user.id} in {chat_id}: {e}"
+            f"verify: failed to create session for {user_id} in {chat_id}: {e}"
         )
         return False
 
     if permissions is not None:
         try:
-            await client.restrict_chat_member(chat_id, user.id, permissions)
+            await client.restrict_chat_member(chat_id, user_id, permissions)
         except Exception as e:
-            logger.warning(f"verify: failed to restrict {user.id} in {chat_id}: {e}")
+            logger.warning(f"verify: failed to restrict {user_id} in {chat_id}: {e}")
             await _cleanup_session(session_row)
             return False
     _register(session_row)
@@ -370,11 +373,21 @@ async def _start_verification(
 
 async def _test_verify_target(
     client: Client, message: pyrogram.types.Message
-) -> pyrogram.types.User | None:
-    """测试命令的目标: 回复对象 > 参数(id/用户名) > 命令发送者。"""
+) -> pyrogram.types.User | pyrogram.types.Chat | None:
+    """测试命令的目标: 回复对象(用户/频道) > 参数(id/用户名) > 命令发送者。"""
     reply = message.reply_to_message
-    if reply is not None and reply.from_user is not None:
-        return reply.from_user
+    if reply is not None:
+        if (
+            reply.from_user is not None
+            and reply.from_user.id != enums.ChatID.ANONYMOUS_ADMIN
+        ):
+            return reply.from_user
+        if (
+            reply.sender_chat is not None
+            and reply.sender_chat.type == pyrogram.enums.ChatType.CHANNEL
+        ):
+            # 频道身份发言: 目标是该频道
+            return reply.sender_chat
     command = message.command or []
     if len(command) > 1:
         raw = command[1].lstrip("@")
@@ -390,7 +403,7 @@ async def _test_verify_target(
         if fetched is None:
             return None
         return fetched[0] if isinstance(fetched, list) else fetched
-    return message.from_user
+    return message.sender_chat or message.from_user
 
 
 @Client.on_message(
@@ -427,10 +440,16 @@ async def test_verify_command(client: Client, message: pyrogram.types.Message) -
             i18n.t("bot.msg.verify.test_user_not_found", locale=config.lang)
         )
         return
-    existing = _get_for(chat_id, target.id)
+    target_id = target.id
+    if target_id is None:
+        return
+    existing = _get_for(chat_id, target_id)
     if existing is not None:
         await _cleanup_session(existing)
-    await _start_verification(client, chat_id, target, config)
+    if not await _start_verification(client, chat_id, target, config):
+        await message.reply_text(
+            i18n.t("bot.msg.verify.test_verify_failed", locale=config.lang)
+        )
 
 
 @Client.on_message(pyrogram.filters.group, group=-50)

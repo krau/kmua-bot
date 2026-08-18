@@ -19,6 +19,7 @@ bot:
       admin_banned: "{user} 已被管理员封禁"
       test_not_enabled: "该群尚未开启新人验证哦"
       test_user_not_found: "找不到该用户哦"
+      test_verify_failed: "验证启动失败, 无法限制该成员"
       expired: "这个验证已经失效啦"
       default_questions:
         - question: "初音未来的头发是什么颜色?"
