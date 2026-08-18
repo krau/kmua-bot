@@ -12,7 +12,6 @@ from typing import Any
 from pyrogram.enums import ButtonStyle
 from pyrogram.types import (
     CallbackQuery,
-    Chat,
     ChatPermissions,
     InlineKeyboardButton,
     InlineKeyboardMarkup,
@@ -45,26 +44,8 @@ PERMISSION_FIELDS = (
 )
 
 
-def _fallback_restore_permissions() -> ChatPermissions:
-    """Safe fallback that never grants group-management permissions."""
-    return ChatPermissions(
-        can_send_messages=True,
-        can_send_audios=True,
-        can_send_documents=True,
-        can_send_photos=True,
-        can_send_videos=True,
-        can_send_video_notes=True,
-        can_send_voice_notes=True,
-        can_send_polls=True,
-        can_send_other_messages=True,
-        can_add_web_page_previews=True,
-        can_react_to_messages=True,
-        can_edit_tag=False,
-        can_change_info=False,
-        can_invite_users=False,
-        can_pin_messages=False,
-        can_manage_topics=False,
-    )
+def _unrestricted_permissions() -> ChatPermissions:
+    return ChatPermissions(**{name: True for name in PERMISSION_FIELDS})
 
 
 def serialize_permissions(permissions: ChatPermissions) -> dict[str, bool]:
@@ -73,8 +54,8 @@ def serialize_permissions(permissions: ChatPermissions) -> dict[str, bool]:
 
 
 def deserialize_permissions(raw: Any) -> ChatPermissions:
-    """Restore permissions, falling back to ordinary member rights."""
-    fallback = _fallback_restore_permissions()
+    """Restore permissions; missing/invalid fields fall back to full unrestriction."""
+    fallback = _unrestricted_permissions()
     values = {
         name: (
             raw[name]
@@ -89,7 +70,7 @@ def deserialize_permissions(raw: Any) -> ChatPermissions:
 def restore_permissions_for_session(
     session_row: VerificationSession,
 ) -> ChatPermissions | None:
-    """Return the permissions to restore; sticker verification changes none."""
+    """返回待恢复权限; 贴纸验证不改权限, 无自定义限制时全放开。"""
     if session_row.method == "sticker":
         return None
     payload = session_row.payload or {}
@@ -113,7 +94,6 @@ class VerifyContext:
     chat_id: int
     user: User
     is_join: bool
-    chat: Chat | None = None
     text: str = ""
     is_verified: bool = False
     has_active_session: bool = False

@@ -588,11 +588,9 @@ async def test_sweep_fail_honors_fail_action(
     assert ("restrict" in actions) is expect_restrict
     if expect_restrict:
         restrict_call = next(call for call in fake.calls if call[0] == "restrict")
-        # 恢复的权限不授予任何群管理权限
-        assert restrict_call[3].can_send_messages is True
-        assert restrict_call[3].can_change_info is False
-        assert restrict_call[3].can_invite_users is False
-        assert restrict_call[3].can_pin_messages is False
+        # 全放开: 无任何限制标记, 用户恢复为群默认权限
+        for name in challenge.PERMISSION_FIELDS:
+            assert bool(getattr(restrict_call[3], name)) is True
     assert await database.get_verification_session(session_row.id) is None
     assert session._sessions == {}
 
@@ -689,10 +687,10 @@ async def test_sweep_fail_deletes_sticker_window_messages(monkeypatch, no_result
 
 
 def test_restore_permissions_roundtrip_and_fallback():
-    """权限捕获 -> 序列化 -> 恢复往返; 缺失/脏数据回退到无管理权限的普通成员权限。"""
-    original = challenge._fallback_restore_permissions()
-    original.can_change_info = True
-    original.can_pin_messages = True
+    """权限捕获 -> 序列化 -> 恢复往返; 缺失/脏数据回退到全放开。"""
+    original = challenge._unrestricted_permissions()
+    original.can_send_messages = False
+    original.can_invite_users = False
     restored = challenge.deserialize_permissions(
         challenge.serialize_permissions(original)
     )
@@ -700,15 +698,12 @@ def test_restore_permissions_roundtrip_and_fallback():
         assert bool(getattr(restored, name)) is bool(getattr(original, name))
 
     fallback = challenge.deserialize_permissions(None)
-    assert fallback.can_send_messages is True
-    assert fallback.can_change_info is False
-    assert fallback.can_invite_users is False
-    assert fallback.can_pin_messages is False
-    assert fallback.can_manage_topics is False
+    for name in challenge.PERMISSION_FIELDS:
+        assert bool(getattr(fallback, name)) is True  # 全放开, 无任何限制标记
 
     dirty = challenge.deserialize_permissions({"can_send_messages": True})
     assert dirty.can_send_messages is True
-    assert dirty.can_change_info is False  # 缺失字段回退
+    assert dirty.can_change_info is True  # 缺失字段回退到全放开
 
 
 def test_restore_permissions_for_session():
@@ -716,12 +711,71 @@ def test_restore_permissions_for_session():
     sticker = VerificationSession(chat_id=1, user_id=2, method="sticker", payload={})
     assert challenge.restore_permissions_for_session(sticker) is None
 
-    perms = challenge._fallback_restore_permissions()
+    perms = challenge._unrestricted_permissions()
     payload = {
         challenge.RESTORE_PERMISSIONS_KEY: challenge.serialize_permissions(perms)
     }
     row = VerificationSession(chat_id=1, user_id=2, method="math_easy", payload=payload)
     assert challenge.restore_permissions_for_session(row).can_send_messages is True
+
+
+def test_restore_permissions_for_session_lifts_when_nothing_captured():
+    """普通成员入群验证(payload 无权限记录): 恢复为全放开, 不留限制记录。"""
+    row = VerificationSession(
+        chat_id=1, user_id=2, method="math_easy", payload={"a": 1}
+    )
+    restored = challenge.restore_permissions_for_session(row)
+    assert restored is not None
+    for name in challenge.PERMISSION_FIELDS:
+        assert bool(getattr(restored, name)) is True
+    rights = restored.write()
+    assert rights.send_messages is False
+    assert rights.change_info is False
+    assert rights.invite_users is False
+    assert rights.pin_messages is False
+    assert rights.manage_topics is False
+    assert rights.edit_rank is False
+
+
+def test_restore_permissions_for_session_preserves_custom_restrictions():
+    """管理员禁言等自定义限制原样恢复, 不被全放开覆盖。"""
+    muted = {name: True for name in challenge.PERMISSION_FIELDS}
+    muted["can_send_messages"] = False
+    payload = {challenge.RESTORE_PERMISSIONS_KEY: muted}
+    row = VerificationSession(chat_id=1, user_id=2, method="math_easy", payload=payload)
+    restored = challenge.restore_permissions_for_session(row)
+    assert restored.can_send_messages is False
+    assert restored.can_change_info is True
+
+
+async def test_capture_restore_permissions_member_specific_only():
+    """只捕获成员已有自定义限制; 普通成员返回 None, 读取失败也返回 None。"""
+
+    class _FakeClient:
+        def __init__(self, member):
+            self.member = member
+
+        async def get_chat_member(self, chat_id, user_id):
+            return self.member
+
+    plain = SimpleNamespace(permissions=None)
+    assert (
+        await session.capture_restore_permissions(_FakeClient(plain), -100, 1) is None
+    )
+
+    restricted = SimpleNamespace(permissions=challenge._unrestricted_permissions())
+    captured = await session.capture_restore_permissions(
+        _FakeClient(restricted), -100, 1
+    )
+    assert captured is restricted.permissions
+
+    class _RaisingClient:
+        async def get_chat_member(self, chat_id, user_id):
+            raise ValueError("boom")
+
+    assert (
+        await session.capture_restore_permissions(_RaisingClient(), -100, 1) is None
+    )
 
 
 def test_challenge_markup_two_options_no_empty_rows():

@@ -11,7 +11,6 @@ from pyrogram.client import Client
 from pyrogram.errors import RPCError
 from pyrogram.raw.functions.messages.edit_message import EditMessage
 from pyrogram.types import (
-    Chat,
     ChatPermissions,
     InlineKeyboardMarkup,
     InputRichMessage,
@@ -28,7 +27,6 @@ from kmua.plugins.verify.challenge import (
     RESTORE_PERMISSIONS_KEY,
     _challenge_markup,
     build_challenge_text,
-    deserialize_permissions,
     make_emoji_challenge,
     make_math_challenge,
     make_math_hard_challenge,
@@ -93,30 +91,16 @@ async def capture_restore_permissions(
     bot: Client,
     chat_id: int,
     user_id: int,
-    chat: Chat | None = None,
-) -> ChatPermissions:
-    """Capture member-specific permissions, then chat defaults, safely."""
+) -> ChatPermissions | None:
+    """捕获成员已有的自定义限制; 普通成员返回 None, 验证后全放开。"""
     try:
         member = await bot.get_chat_member(chat_id, user_id)
     except Exception as e:
         logger.warning(
             f"verify: failed to read permissions for {user_id} in {chat_id}: {e}"
         )
-    else:
-        permissions = getattr(member, "permissions", None)
-        if permissions is not None:
-            return permissions
-
-    if chat is None:
-        try:
-            chat = await bot.get_chat(chat_id)
-        except Exception as e:
-            logger.warning(
-                f"verify: failed to read default permissions for {chat_id}: {e}"
-            )
-    if chat is not None and chat.permissions is not None:
-        return chat.permissions
-    return deserialize_permissions(None)
+        return None
+    return getattr(member, "permissions", None)
 
 
 async def _cleanup_session(session_row: VerificationSession) -> None:

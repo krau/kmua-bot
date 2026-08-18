@@ -91,7 +91,7 @@ async def on_new_members(client: Client, message: pyrogram.types.Message) -> Non
             continue  # bot 自己被拉入群
         await maybe_verify(
             client,
-            VerifyContext(chat_id=chat_id, user=user, is_join=True, chat=chat),
+            VerifyContext(chat_id=chat_id, user=user, is_join=True),
         )
 
 
@@ -293,9 +293,7 @@ async def maybe_verify(client: Client, ctx: VerifyContext) -> bool:
         ctx.is_verified = await database.is_user_verified(ctx.chat_id, ctx.user.id)
         if not strategy_matches(config.verify_strategy, ctx):
             return False
-        return await _start_verification(
-            client, ctx.chat_id, ctx.user, config, chat=ctx.chat
-        )
+        return await _start_verification(client, ctx.chat_id, ctx.user, config)
 
 
 async def _start_verification(
@@ -303,14 +301,13 @@ async def _start_verification(
     chat_id: int,
     user: pyrogram.types.User,
     config: ChatConfig,
-    chat: pyrogram.types.Chat | None = None,
 ) -> bool:
     """建会话并限制成员; 每个失败分支都尽量恢复外部状态。"""
     permissions = restrict_permissions(config.verify_method)
     restore_permissions = None
     if permissions is not None:
         restore_permissions = await capture_restore_permissions(
-            client, chat_id, user.id, chat
+            client, chat_id, user.id
         )
     payload = make_challenge_payload(
         config.verify_method, config.verify_questions, lang=config.lang
@@ -433,7 +430,7 @@ async def test_verify_command(client: Client, message: pyrogram.types.Message) -
     existing = _get_for(chat_id, target.id)
     if existing is not None:
         await _cleanup_session(existing)
-    await _start_verification(client, chat_id, target, config, chat=chat)
+    await _start_verification(client, chat_id, target, config)
 
 
 @Client.on_message(pyrogram.filters.group, group=-50)
@@ -459,7 +456,6 @@ async def on_first_message_verify(
             chat_id=chat_id,
             user=user,
             is_join=False,
-            chat=chat,
             text=text,
         ),
     )
