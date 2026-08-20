@@ -161,6 +161,36 @@ async def _convert_params(
         )
     kwargs: dict[str, Any] = {}
     for key, value in params.items():
+        if key == "parse_mode":
+            if value is None:
+                kwargs[key] = None
+            elif isinstance(value, str):
+                normalized = value.strip().lower()
+                mapping = {
+                    "html": pyrogram.enums.ParseMode.HTML,
+                    "markdown": pyrogram.enums.ParseMode.MARKDOWN,
+                    "markdownv2": pyrogram.enums.ParseMode.MARKDOWN,
+                    "markdown2": pyrogram.enums.ParseMode.MARKDOWN,
+                    "md": pyrogram.enums.ParseMode.MARKDOWN,
+                    "default": pyrogram.enums.ParseMode.DEFAULT,
+                    "disabled": pyrogram.enums.ParseMode.DISABLED,
+                    "none": None,
+                }
+                if normalized in mapping:
+                    kwargs[key] = mapping[normalized]
+                else:
+                    return None, (
+                        f"Error: Invalid parse_mode '{value}'. "
+                        "Allowed: HTML, Markdown, MarkdownV2, disabled, default."
+                    )
+            elif isinstance(value, pyrogram.enums.ParseMode):
+                kwargs[key] = value
+            else:
+                return None, (
+                    f"Error: Invalid parse_mode '{value}'. "
+                    "Allowed: HTML, Markdown, MarkdownV2, disabled, default."
+                )
+            continue
         if key == "reply_to_message_id":
             kwargs["reply_parameters"] = pyrogram.types.ReplyParameters(
                 message_id=int(value)
@@ -312,6 +342,11 @@ async def tg(
     - scheduleMessage: text, schedule_time (ISO 8601, must be in the future).
     - blockUser: duration_minutes (1-10080), user_id (optional, defaults to the
       person who asked), reason (optional).
+
+    Note: your text output is automatically sent as a reply to the current
+        user — you do not need `sendMessage` for normal replies. Use this tool
+        only when you need an extra action beyond the default reply (e.g. media,
+        poll, second message).
 
     Example: tg("sendPoll", {"question": "Lunch?", "options": ["noodles", "rice"]})
     """

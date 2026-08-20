@@ -43,8 +43,7 @@ async def test_send_message_maps_params():
     assert result == "sendMessage sent (message_id=42)."
     assert calls["chat_id"] == -100_123
     assert calls["text"] == "hello"
-    assert calls["parse_mode"] == "HTML"
-
+    assert calls["parse_mode"] == pyrogram.enums.ParseMode.HTML
 
 async def test_send_message_reply_and_preview():
     calls = {}
