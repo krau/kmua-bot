@@ -16,6 +16,13 @@ class ProviderConfig(pydantic.BaseModel):
     - "chat_completions": OpenAI Chat Completions API (default, broadly compatible)
     - "responses": OpenAI Responses API (newer OpenAI-native API)
     """
+    proxy: str | None = None
+    """Optional HTTP proxy for requests to this provider.
+
+    Accepts any httpx proxy URL: ``http://``, ``https://`` or ``socks5://``.
+    Example: ``http://127.0.0.1:7890`` or ``socks5://user:pass@127.0.0.1:1080``.
+    When unset, :attr:`_AppConfig.agent_proxy` is used as a fallback.
+    """
 
 
 class _AppConfig(pydantic.BaseModel):
@@ -181,6 +188,10 @@ class _AppConfig(pydantic.BaseModel):
     #   url = "http://localhost:11434/v1"
     #   api_key = "ollama"
     agent_providers: dict[str, ProviderConfig] = {"default": ProviderConfig()}
+    # Global proxy for all agent model requests (fallback for providers without
+    # an explicit ``proxy``). Accepts the same URL forms as
+    # ``ProviderConfig.proxy``. Example: ``http://127.0.0.1:7890``.
+    agent_proxy: str | None = None
     # Model specs use the format "provider/model_name" or just "model_name"
     # (bare name uses the "default" provider).
     agent_model: str | None = "default/gpt-4.1"

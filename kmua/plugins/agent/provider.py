@@ -14,6 +14,14 @@ from kmua.config import ProviderConfig, app_config
 from .video_model import VideoCapableOpenAIChatModel
 
 
+def _get_http_client_for_provider(provider_name: str):  # type: ignore[no-untyped-def]
+    """Return a proxied httpx.AsyncClient for *provider_name* if configured."""
+    from kmua.common.http import get_agent_http_client
+
+    cfg = _get_provider(provider_name)
+    return get_agent_http_client(cfg.proxy)
+
+
 def make_model_settings(
     options: dict[str, Any] | None,
 ) -> ModelSettings | None:
@@ -50,6 +58,11 @@ def _get_provider(name: str) -> ProviderConfig:
 
 def _make_openai_provider(provider_name: str) -> OpenAIProvider:
     cfg = _get_provider(provider_name)
+    http_client = _get_http_client_for_provider(provider_name)
+    if http_client is not None:
+        return OpenAIProvider(
+            base_url=cfg.url, api_key=cfg.key, http_client=http_client
+        )
     return OpenAIProvider(base_url=cfg.url, api_key=cfg.key)
 
 

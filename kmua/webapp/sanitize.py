@@ -136,6 +136,7 @@ _SECRET_FIELDS: tuple[str, ...] = (
     "aniobjcut_api_key",
     "infographic_api_key",
     "agent_crawl_api_token",
+    "agent_proxy",
 )
 
 
@@ -158,7 +159,6 @@ def _secret_state(value: Any) -> str | None:
         return _NOT_SET
     return _REDACTED
 
-
 def config_snapshot() -> dict[str, Any]:
     """Build the redacted runtime configuration view."""
     groups: dict[str, dict[str, Any]] = {}
@@ -180,6 +180,7 @@ def config_snapshot() -> dict[str, Any]:
             "url": provider.url,
             "type": provider.type,
             "key": _secret_state(provider.key),
+            "proxy": _secret_state(getattr(provider, "proxy", None)),
         }
         for name, provider in app_config.agent_providers.items()
     }

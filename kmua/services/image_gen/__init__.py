@@ -25,20 +25,65 @@ class ImageEditResult:
     error: str | None = None
 
 
-async def _url_to_bytes(url: str) -> bytes:
+async def _url_to_bytes(url: str, proxy: str | None = None) -> bytes:
+    # Image result URLs (when b64_json is absent) are fetched via httpx.
+    # Reuse the agent proxy when the URL belongs to the provider's domain;
+    # otherwise direct fetch is fine. Minimal closed loop: honour explicit
+    # image-model provider proxy, fallback to global agent_proxy.
+    http_client: httpx.AsyncClient | None = None
+    if proxy is None:
+        try:
+            from kmua.common.http import get_agent_http_client
+
+            http_client = get_agent_http_client(None)
+        except Exception:
+            http_client = None
+    else:
+        try:
+            from kmua.common.http import get_agent_http_client
+
+            http_client = get_agent_http_client(proxy)
+        except Exception:
+            http_client = None
+    if http_client is not None:
+        resp = await http_client.get(url)
+        resp.raise_for_status()
+        return resp.content
     async with httpx.AsyncClient(timeout=60.0) as client:
         resp = await client.get(url)
         resp.raise_for_status()
         return resp.content
 
 
+def _proxy_for_spec(spec: str) -> str | None:
+    """Resolve proxy for an image model spec (provider proxy > global)."""
+    provider_name, _ = _parse_model_spec(spec)
+    providers = app_config.agent_providers
+    cfg = providers.get(provider_name)
+    if cfg is not None and cfg.proxy:
+        return cfg.proxy
+    return app_config.agent_proxy
+
+
 class _ImageGenerationClient:
-    def __init__(self, api_key: str, base_url: str, model: str):
+    def __init__(
+        self, api_key: str, base_url: str, model: str, proxy: str | None = None
+    ):
         self.model = model
+        http_client: httpx.AsyncClient | None = None
+        if proxy is not None:
+            try:
+                from kmua.common.http import get_agent_http_client
+
+                http_client = get_agent_http_client(proxy)
+            except Exception:
+                http_client = None
         self._client = AsyncOpenAI(
             api_key=api_key,
             base_url=base_url,
+            http_client=http_client,
         )
+        self._proxy = proxy
 
     async def generate(
         self,
@@ -60,7 +105,7 @@ class _ImageGenerationClient:
             if item.b64_json:
                 image_bytes = base64.b64decode(item.b64_json)
             elif item.url:
-                image_bytes = await _url_to_bytes(item.url)
+                image_bytes = await _url_to_bytes(item.url, self._proxy)
             else:
                 return ImageGenResult(
                     success=False, error="No image data returned by the model."
@@ -76,12 +121,24 @@ class _ImageGenerationClient:
 
 
 class _ImageEditClient:
-    def __init__(self, api_key: str, base_url: str, model: str):
+    def __init__(
+        self, api_key: str, base_url: str, model: str, proxy: str | None = None
+    ):
         self.model = model
+        http_client: httpx.AsyncClient | None = None
+        if proxy is not None:
+            try:
+                from kmua.common.http import get_agent_http_client
+
+                http_client = get_agent_http_client(proxy)
+            except Exception:
+                http_client = None
         self._client = AsyncOpenAI(
             api_key=api_key,
             base_url=base_url,
+            http_client=http_client,
         )
+        self._proxy = proxy
 
     async def edit(
         self,
@@ -110,7 +167,7 @@ class _ImageEditClient:
             if item.b64_json:
                 result_bytes = base64.b64decode(item.b64_json)
             elif item.url:
-                result_bytes = await _url_to_bytes(item.url)
+                result_bytes = await _url_to_bytes(item.url, self._proxy)
             else:
                 return ImageEditResult(
                     success=False, error="No image data returned by the model."
@@ -157,6 +214,7 @@ if app_config.agent and app_config.agent_image_gen_model:
         api_key=_gen_args["api_key"],
         base_url=_gen_args["base_url"],
         model=_gen_args["model"],
+        proxy=_proxy_for_spec(app_config.agent_image_gen_model),
     )
 
     # Edit client: use agent_image_edit_model if set, else fall back to gen model
@@ -166,8 +224,8 @@ if app_config.agent and app_config.agent_image_gen_model:
         api_key=_edit_args["api_key"],
         base_url=_edit_args["base_url"],
         model=_edit_args["model"],
+        proxy=_proxy_for_spec(_edit_spec),
     )
-
 __all__ = [
     "image_gen_client",
     "image_edit_client",

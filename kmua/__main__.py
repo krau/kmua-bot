@@ -327,10 +327,18 @@ async def stop_bot(client: Client = client):
         except Exception as e:
             logger.warning(f"Error closing workspace sessions: {e}")
 
+    # Close proxied HTTP clients (agent model requests)
+    try:
+        from kmua.common.http import close_agent_http_clients
+
+        await close_agent_http_clients()
+        logger.debug("Agent proxy HTTP clients closed")
+    except Exception as e:
+        logger.warning(f"Error closing agent HTTP clients: {e}")
+
     common.jobqueue.shutdown()
     await db.close_db()
     logger.success(i18n.t("log.exit", locale=app_config.lang))
-
 
 async def main():
     await db.init_db()
