@@ -11,9 +11,15 @@ bot hangs, the logs will show which coroutine was on the stack.
 """
 
 import asyncio
+import sys
+import threading
 
 from kmua.logger import logger
 from kmua.webapp.metrics import runtime_metrics
+
+# Frame names that mean "this task is parked waiting for work/events", not
+# stuck mid-work. They sort last so real suspects surface within the cap.
+_PARKED_FRAMES = frozenset({"get", "wait", "sleep", "recv", "acquire"})
 
 
 class LoopLagMonitor:
@@ -21,7 +27,7 @@ class LoopLagMonitor:
         self,
         interval: float = 1.0,
         warn_threshold: float = 1.0,
-        max_stacks: int = 10,
+        max_stacks: int = 24,
     ) -> None:
         """
         Args:
@@ -55,6 +61,7 @@ class LoopLagMonitor:
                     f"Dumping running task stacks:"
                 )
                 self._dump_task_stacks()
+                self._dump_thread_stacks()
 
     def _dump_task_stacks(self) -> None:
         try:
@@ -65,6 +72,17 @@ class LoopLagMonitor:
         except Exception as e:
             logger.error(f"loop_monitor: failed to collect tasks: {e}")
             return
+
+        def parked_rank(task: asyncio.Task) -> int:
+            try:
+                stack = task.get_stack(limit=1)
+                if stack and stack[-1].f_code.co_name in _PARKED_FRAMES:
+                    return 1
+            except Exception:
+                pass
+            return 0
+
+        tasks.sort(key=parked_rank)
 
         dumped = 0
         for task in tasks:
@@ -83,6 +101,11 @@ class LoopLagMonitor:
                     frames.append(
                         f"{code.co_filename}:{frame.f_lineno} in {code.co_name}"
                     )
+                top = stack[-1]
+                if len(stack) == 1 and top.f_lineno == top.f_code.co_firstlineno:
+                    # Coroutine created via create_task but never given CPU:
+                    # proof the loop had a ready-callback backlog / hard block.
+                    frames.append("(scheduled but never ran)")
                 stack_text = "\n    ".join(frames)
                 logger.warning(
                     f"loop_monitor: task {task.get_name()!r} stack:\n    {stack_text}"
@@ -90,6 +113,49 @@ class LoopLagMonitor:
                 dumped += 1
             except Exception as e:
                 logger.error(f"loop_monitor: failed to dump task stack: {e}")
+
+    def _dump_thread_stacks(self, max_threads: int = 12, limit: int = 6) -> None:
+        """Dump non-loop thread stacks.
+
+        Task stacks cannot show a freeze caused outside the loop thread: a
+        GIL-hogging C call or an I/O-blocked worker (crypto executor,
+        feedparser, log sink) is invisible above. Thread stacks make it
+        visible.
+        """
+        try:
+            frames_by_ident = sys._current_frames()
+            current_ident = threading.get_ident()
+            entries = []
+            for th in threading.enumerate():
+                ident = th.ident
+                if ident is None or ident == current_ident:
+                    continue
+                frame = frames_by_ident.get(ident)
+                if frame is None:
+                    continue
+                entries.append((th.name, bool(th.daemon), frame))
+        except Exception as e:
+            logger.error(f"loop_monitor: failed to collect thread stacks: {e}")
+            return
+
+        for name, daemon, frame in entries[:max_threads]:
+            lines = []
+            depth = 0
+            while frame is not None and depth < limit:
+                lines.append(
+                    f"{frame.f_code.co_filename}:{frame.f_lineno}"
+                    f" in {frame.f_code.co_name}"
+                )
+                frame = frame.f_back
+                depth += 1
+            kind = "daemon" if daemon else "thread"
+            logger.warning(
+                f"loop_monitor: {kind} {name!r} stack:\n    " + "\n    ".join(lines)
+            )
+        if len(entries) > max_threads:
+            logger.warning(
+                f"loop_monitor: ... and {len(entries) - max_threads} more threads"
+            )
 
     def start(self) -> None:
         if self._task is not None and not self._task.done():
