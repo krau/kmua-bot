@@ -151,7 +151,7 @@ async def _clear_conversation_session(chat_id: int, user_id: int) -> None:
     are shared by the whole chat and stay untouched."""
     await common.memttlcache.delete(state.history_key(chat_id, user_id))
     await tools.clear_ask_state(chat_id, user_id)
-    safety.delete_spill_session(f"{chat_id}_{user_id}")
+    await safety.delete_spill_session(f"{chat_id}_{user_id}")
     state.clear_steering(chat_id, user_id)
     if chat_id == user_id:
         from kmua.plugins.agent.tools import workspace as workspace_tools
@@ -447,7 +447,7 @@ if app_config.agent and app_config.agent_model:
         asks = _clear_memstore_prefix("agent_ask_state:")
         steered = state.clear_all_steering()
         state.clear_all_locks()
-        spills = safety.clear_all_spills()
+        spills = await safety.clear_all_spills()
         from kmua.plugins.agent.tools import workspace as workspace_tools
         from kmua.services import sandbox
 

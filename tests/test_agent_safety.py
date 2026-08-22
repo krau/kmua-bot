@@ -200,7 +200,7 @@ async def test_spill_delete_session_removes_payloads(tmp_path, monkeypatch):
     handle = await store.write("k", b"forget me")
     safety.reset_spill_session(token)
 
-    safety.delete_spill_session("c_9")
+    await safety.delete_spill_session("c_9")
     token2 = safety.set_spill_session("c_9")
     try:
         with pytest.raises(OSError):
@@ -298,7 +298,7 @@ async def test_clear_all_spills_removes_every_session(tmp_path, monkeypatch):
     await store.write("k", b"two")
     safety.reset_spill_session(token_b)
 
-    assert safety.clear_all_spills() == 2
+    assert await safety.clear_all_spills() == 2
 
     for session in ("c_1", "c_2"):
         token = safety.set_spill_session(session)

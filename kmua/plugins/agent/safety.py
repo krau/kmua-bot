@@ -14,9 +14,11 @@ burning tokens.
 
 from __future__ import annotations
 
+import asyncio
 import shutil
 from contextvars import ContextVar, Token
 from datetime import timedelta
+from pathlib import Path
 from typing import Any
 
 from pydantic_ai import RunContext
@@ -155,20 +157,16 @@ class _SessionScopedOverflowStore:
         return await self._inner.read(handle)
 
 
-def delete_spill_session(session: str) -> None:
+async def delete_spill_session(session: str) -> None:
     """Delete every spilled payload bound to a session (/forget clears the
     conversation, so its spills must go with it)."""
-    store = build_tool_output_limits()
-    if store is None or not isinstance(store.store, _SessionScopedOverflowStore):
+    target = _session_spill_dir(session)
+    if target is None:
         return
-    base_dir = store.store._inner.base_dir
-    if base_dir is None:
-        return
-    target = base_dir / session
-    shutil.rmtree(target, ignore_errors=True)
+    await asyncio.to_thread(shutil.rmtree, target, True)
 
 
-def clear_all_spills() -> int:
+async def clear_all_spills() -> int:
     """Delete every spilled payload directory (all sessions); returns the
     number of sessions cleared. For post-upgrade resets."""
     store = build_tool_output_limits()
@@ -177,12 +175,26 @@ def clear_all_spills() -> int:
     base_dir = store.store._inner.base_dir
     if base_dir is None or not base_dir.exists():
         return 0
-    count = 0
-    for child in base_dir.iterdir():
-        if child.is_dir():
-            shutil.rmtree(child, ignore_errors=True)
-            count += 1
-    return count
+
+    def _clear_sync() -> int:
+        count = 0
+        for child in base_dir.iterdir():
+            if child.is_dir():
+                shutil.rmtree(child, ignore_errors=True)
+                count += 1
+        return count
+
+    return await asyncio.to_thread(_clear_sync)
+
+
+def _session_spill_dir(session: str) -> Path | None:
+    store = build_tool_output_limits()
+    if store is None or not isinstance(store.store, _SessionScopedOverflowStore):
+        return None
+    base_dir = store.store._inner.base_dir
+    if base_dir is None:
+        return None
+    return base_dir / session
 
 
 def _clamp_max_part_tokens() -> int:
