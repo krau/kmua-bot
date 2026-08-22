@@ -8,6 +8,8 @@ a coin balance gets the name change applied and the coins reported as skipped.
 
 from __future__ import annotations
 
+import asyncio
+
 from fastapi import APIRouter, Path, Query, Request
 
 from kmua import database
@@ -166,7 +168,7 @@ async def leave_chat(
 
     left = True
     try:
-        await client.leave_chat(chat_id)
+        await asyncio.wait_for(client.leave_chat(chat_id), timeout=15)
     except Exception as e:
         # Already removed on Telegram's side: still worth clearing local rows.
         left = False
@@ -236,9 +238,8 @@ async def block_chat(
     await database.set_chat_blocked(chat_id, True)
     left = True
     try:
-        await client.leave_chat(chat_id)
+        await asyncio.wait_for(client.leave_chat(chat_id), timeout=15)
     except Exception as e:
-        # Already out on Telegram's side: the flag still stops re-adds.
         left = False
         logger.warning(f"webapp: block_chat({chat_id}) leave failed: {e}")
     audit.record(

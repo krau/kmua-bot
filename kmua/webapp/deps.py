@@ -7,6 +7,7 @@ admin loses access immediately rather than when their token expires.
 
 from __future__ import annotations
 
+import asyncio
 from dataclasses import dataclass, field
 from typing import Annotated
 
@@ -140,7 +141,11 @@ async def require_chat_admin(
         return ChatContext(chat=chat, user=user)
 
     try:
-        allowed = await common.can_user_manage_bot_in_chat(user.id, chat_id)
+        # A wedged bot session must not hang this dependency (and with it the
+        # whole panel route) past a bounded window.
+        allowed = await asyncio.wait_for(
+            common.can_user_manage_bot_in_chat(user.id, chat_id), timeout=10
+        )
     except Exception as e:
         # A Telegram lookup failure must not read as "authorized".
         logger.warning(f"webapp: chat admin check failed for {user.id}@{chat_id}: {e}")

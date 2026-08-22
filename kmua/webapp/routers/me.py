@@ -7,6 +7,7 @@ forget.
 
 from __future__ import annotations
 
+import asyncio
 import html
 import random
 
@@ -373,12 +374,15 @@ async def divorce(request: Request, user: CurrentUser) -> WaifuOut:
 async def _notify_divorce(result: ops.DivorceResult, actor_name: str) -> None:
     """Tell the former partner. A blocked bot must not fail the request."""
     try:
-        await client.send_message(
-            chat_id=result.partner_id,
-            text=i18n.t(
-                "bot.msg.waifu.divorce_notify", locale=result.partner_lang
-            ).format(user=html.escape(actor_name)),
-            parse_mode=ParseMode.HTML,
+        await asyncio.wait_for(
+            client.send_message(
+                chat_id=result.partner_id,
+                text=i18n.t(
+                    "bot.msg.waifu.divorce_notify", locale=result.partner_lang
+                ).format(user=html.escape(actor_name)),
+                parse_mode=ParseMode.HTML,
+            ),
+            timeout=15,
         )
     except Exception as e:
         logger.info(f"webapp: divorce notify to {result.partner_id} failed: {e}")
