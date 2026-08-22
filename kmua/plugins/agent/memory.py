@@ -1,3 +1,4 @@
+import asyncio
 from dataclasses import dataclass
 from datetime import UTC, datetime
 
@@ -283,10 +284,21 @@ async def record_group_memory(client: Client, message: pyrogram.types.Message):
                     for gm in group_messages
                 ]
             )
-            result = await powermemory.add(text, infer=True, user_id=f"group_{chat.id}")
-            logger.debug(
-                f"Updated group memory for chat {chat.id}, powermem result: {result}"
-            )
+            coro = powermemory.add(text, infer=True, user_id=f"group_{chat.id}")
+            try:
+                if app_config.agent_model_timeout > 0:
+                    result = await asyncio.wait_for(
+                        coro, timeout=app_config.agent_model_timeout
+                    )
+                else:
+                    result = await coro
+            except TimeoutError:
+                logger.warning(f"group memory update timed out for chat {chat.id}")
+                result = None
+            else:
+                logger.debug(
+                    f"Updated group memory for chat {chat.id}, powermem result: {result}"
+                )
         group_messages = []
     await memttlcache.set(
         state.group_messages_key(chat.id), group_messages, ttl=86400 * 7
