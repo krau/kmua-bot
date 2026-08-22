@@ -27,7 +27,7 @@ logger.add(
     retention=timedelta(days=app_config.log_retention_days),
 )
 
-logger.add(sys.stdout, level=app_config.log_level)
+logger.add(sys.stdout, level=app_config.log_level, enqueue=True)
 
 logging.basicConfig(
     handlers=[InterceptHandler()],
