@@ -8,7 +8,7 @@ from typing import ParamSpec, TypeVar
 import alembic.command
 import alembic.config
 import sqlalchemy
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, event
 from sqlalchemy.ext.asyncio import (
     AsyncSession,
     async_sessionmaker,
@@ -22,6 +22,18 @@ from kmua.logger import logger
 from .models import Base
 
 engine = create_async_engine(app_config.db_url, echo=app_config.debug, future=True)
+
+
+def _tune_sqlite_pragmas(dbapi_connection, _record) -> None:
+    cursor = dbapi_connection.cursor()
+    cursor.execute("PRAGMA journal_mode=WAL")
+    cursor.execute("PRAGMA synchronous=NORMAL")
+    cursor.execute("PRAGMA busy_timeout=5000")
+    cursor.close()
+
+
+if app_config.db_url.startswith("sqlite"):
+    event.listen(engine.sync_engine, "connect", _tune_sqlite_pragmas)
 
 
 def _get_jobstore_db_url() -> str:
@@ -52,6 +64,10 @@ if app_config.jobstore_db_url:
 else:
     logger.debug("Using derived sync URL for job store")
 sync_engine = create_engine(jobstore_url, echo=app_config.debug, future=True)
+
+
+if jobstore_url.startswith("sqlite"):
+    event.listen(sync_engine, "connect", _tune_sqlite_pragmas)
 
 AsyncSessionFactory = async_sessionmaker(
     bind=engine, autoflush=True, expire_on_commit=False
