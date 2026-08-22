@@ -296,7 +296,18 @@ async def run_shell(
         # killpg alone can miss them. Sweep /proc for any process whose cwd is
         # this session's sandbox directory and kill it too.
         _kill_workdir_processes(workdir)
-        stdout, _ = await proc.communicate()
+        try:
+            stdout, _ = await asyncio.wait_for(proc.communicate(), timeout=10)
+        except TimeoutError:
+            # An escaped descendant (disowned child inheriting the pipe) can
+            # keep stdout open long after every kill; force EOF so this tool
+            # call cannot wedge its dispatcher worker indefinitely.
+            logger.warning(
+                f"shell sandbox {session_key}: stdout still held after kill, forcing EOF"
+            )
+            if proc.stdout is not None:
+                proc.stdout.feed_eof()
+            stdout, _ = await proc.communicate()
     output = (stdout or b"").decode("utf-8", errors="replace")
     if len(output) > MAX_SHELL_OUTPUT:
         output = output[:MAX_SHELL_OUTPUT] + "\n...[output truncated]"
