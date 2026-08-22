@@ -1,3 +1,4 @@
+import asyncio
 import base64
 from dataclasses import dataclass
 from io import BytesIO
@@ -103,7 +104,7 @@ class _ImageGenerationClient:
             )
             item = response.data[0]  # type: ignore[index]
             if item.b64_json:
-                image_bytes = base64.b64decode(item.b64_json)
+                image_bytes = await asyncio.to_thread(base64.b64decode, item.b64_json)
             elif item.url:
                 image_bytes = await _url_to_bytes(item.url, self._proxy)
             else:
@@ -165,7 +166,7 @@ class _ImageEditClient:
             response = await self._client.images.edit(**kwargs)
             item = response.data[0]
             if item.b64_json:
-                result_bytes = base64.b64decode(item.b64_json)
+                result_bytes = await asyncio.to_thread(base64.b64decode, item.b64_json)
             elif item.url:
                 result_bytes = await _url_to_bytes(item.url, self._proxy)
             else:

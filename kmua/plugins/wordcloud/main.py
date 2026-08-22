@@ -9,6 +9,13 @@ from kmua import common, consts, database, i18n
 from kmua.common.utils import is_explicit_reply
 
 
+def _encode_png(image) -> bytes:
+    """Encode a PIL image to PNG bytes (runs in a worker thread)."""
+    buf = BytesIO()
+    image.save(buf, format="PNG")
+    return buf.getvalue()
+
+
 @pyrogram.Client.on_message(
     pyrogram.filters.command("wordcloud") & pyrogram.filters.group, group=0
 )
@@ -52,8 +59,11 @@ async def wordcloud_command(client: pyrogram.Client, message: pyrogram.types.Mes
             text,
         )  # type: ignore
 
-        img_bytes = BytesIO()
-        result.to_image().save(img_bytes, format="PNG")
+        # PNG encode of a 1920x1080 frame holds the GIL for hundreds of ms;
+        # keep it off the shared event loop like the generation itself.
+        img_bytes = BytesIO(
+            await asyncio.to_thread(lambda: _encode_png(result.to_image()))
+        )
         img_bytes.seek(0)
         await message.reply_photo(
             photo=img_bytes,
