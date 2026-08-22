@@ -70,6 +70,23 @@ def test_match_artwork_site():
     assert len(manyacg_service.ARTWORK_SITES) == len(manyacg_service.ARTWORK_ALL_REGEX)
 
 
+def test_pixiv_regex_bounded_on_pathological_input():
+    """A long member_illust query tail with no illust_id must scan fast.
+
+    The pre-illust_id parameter skip is bounded; unbounded it backtracked
+    quadratically over the whole message text on every incoming message.
+    """
+    import time
+
+    from kmua.services.manyacg import PIXIV_REGEX
+
+    assert PIXIV_REGEX.search("pixiv.net/member_illust.php?mode=medium&illust_id=42")
+    evil = "pixiv.net/member_illust.php?" + "a=" * 3000
+    start = time.perf_counter()
+    assert PIXIV_REGEX.search(evil) is None
+    assert time.perf_counter() - start < 0.05
+
+
 @pytest.fixture
 def chat_config_factory(monkeypatch):
     from kmua.database.models import ChatConfig

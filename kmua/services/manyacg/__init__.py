@@ -163,7 +163,11 @@ if app_config.manyacg_api_url:
 # Locale prefix (e.g. /en/, /zh-cn/) is optional: pixiv serves
 # https://www.pixiv.net/en/artworks/<id> as well as the bare path.
 PIXIV_REGEX = re.compile(
-    r"pixiv\.net/(?:[a-z]{2}(?:-[a-z]{2})?/)?(?:artworks/|i/|member_illust\.php\?(?:[\w=&]*\&|)illust_id=)(\d+)"
+    # The pre-illust_id query-parameter skip is hard-bounded: unbounded
+    # [\w=&]*& re-scans every split point from every start offset on a long
+    # "?a=a&a=..." tail with no match (quadratic over the message text).
+    # Real member_illust.php links carry one short mode parameter.
+    r"pixiv\.net/(?:[a-z]{2}(?:-[a-z]{2})?/)?(?:artworks/|i/|member_illust\.php\?(?:[\w=&]{0,64}&)?illust_id=)(\d+)"
 )
 # Twitter/X is handled natively by kmua.plugins.twitter (FxEmbed API); keep
 # manyacg out of it so pure-text tweets no longer fail here.
