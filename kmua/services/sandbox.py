@@ -71,6 +71,10 @@ async def clean_session(session_key: str) -> None:
     the next command starts from a clean slate without breaking the sandbox
     wiring.
     """
+    await asyncio.to_thread(_clean_session_sync, session_key)
+
+
+def _clean_session_sync(session_key: str) -> None:
     workdir = session_shell_dir(session_key)
     if not workdir.exists():
         return
@@ -106,6 +110,11 @@ async def cleanup_stale_sessions(max_age_days: int) -> int:
     number of directories removed. max_age_days <= 0 sweeps everything."""
     if max_age_days < 0:
         return 0
+    return await asyncio.to_thread(_cleanup_stale_sessions_sync, max_age_days)
+
+
+def _cleanup_stale_sessions_sync(max_age_days: int) -> int:
+    """Recursive mtime scan + bulk deletes; must stay off the event loop."""
     root = shell_root_dir()
     if not root.exists():
         return 0
