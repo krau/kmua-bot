@@ -1,6 +1,6 @@
-import uvloop
+import faulthandler
 
-uvloop.install()
+faulthandler.enable()
 
 import hashlib
 import json
@@ -339,6 +339,7 @@ async def stop_bot(client: Client = client):
     common.jobqueue.shutdown()
     await db.close_db()
     logger.success(i18n.t("log.exit", locale=app_config.lang))
+
 
 async def main():
     await db.init_db()
