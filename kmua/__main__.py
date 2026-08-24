@@ -351,6 +351,7 @@ async def main():
         loop_monitor = LoopLagMonitor(
             interval=app_config.loop_monitor_interval,
             warn_threshold=app_config.loop_monitor_threshold,
+            native_dump_timeout=app_config.loop_monitor_native_dump_timeout,
         )
         loop_monitor.start()
 

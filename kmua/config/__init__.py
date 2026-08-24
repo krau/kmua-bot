@@ -96,6 +96,9 @@ class _AppConfig(pydantic.BaseModel):
     loop_monitor_enabled: bool = True
     loop_monitor_interval: float = 1.0  # how often to sample lag (seconds)
     loop_monitor_threshold: float = 1.0  # warn when lag exceeds this (seconds)
+    # While the loop stays frozen longer than this, faulthandler writes native
+    # all-thread stacks to stderr every N seconds. 0 disables.
+    loop_monitor_native_dump_timeout: float = 10.0
 
     # Telegram session health monitor: periodically probes the main session
     # with a lightweight API call; if it fails repeatedly (zombie session),

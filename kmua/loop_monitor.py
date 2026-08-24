@@ -2,15 +2,24 @@
 
 A small background watchdog that measures asyncio scheduling latency. When the
 event loop is blocked (by a synchronous/CPU-bound call, a stuck ``await``, or a
-handler that never yields), this monitor will — once the loop runs again — see
-that far more time elapsed than expected and emit a warning together with a dump
-of the stacks of all currently-running tasks.
+handler that never yields), this monitor will - once the loop runs again - see
+that far more time elapsed than expected and emit a warning together with a
+dump of the stacks of all currently-running tasks.
 
-This is the fastest way to pinpoint *where* a freeze happens: the next time the
-bot hangs, the logs will show which coroutine was on the stack.
+Two layers of diagnosis:
+
+1. **Native freeze dump** (``faulthandler``): while the loop stays frozen past
+   ``native_dump_timeout``, all-thread native stack traces are written to
+   stderr every timeout interval. This fires DURING the freeze and names the
+   blocking thread even when the GIL is held inside a C call - situations the
+   task dumps below cannot observe because they only run after resuming.
+2. **Task/thread dump on resume**: when a stall is detected, the stacks of all
+   pending asyncio tasks (working tasks first, parked waiters last) plus the
+   Python-level stacks of every non-loop thread are logged.
 """
 
 import asyncio
+import faulthandler
 import sys
 import threading
 
@@ -28,6 +37,7 @@ class LoopLagMonitor:
         interval: float = 1.0,
         warn_threshold: float = 1.0,
         max_stacks: int = 24,
+        native_dump_timeout: float = 10.0,
     ) -> None:
         """
         Args:
@@ -35,16 +45,27 @@ class LoopLagMonitor:
             warn_threshold: Extra delay (seconds) beyond ``interval`` that counts
                 as a stall worth reporting.
             max_stacks: Maximum number of task stacks to dump per stall.
+            native_dump_timeout: While the loop stays frozen longer than this,
+                faulthandler writes native all-thread stacks to stderr every
+                ``native_dump_timeout`` seconds. 0 disables.
         """
         self.interval = interval
         self.warn_threshold = warn_threshold
         self.max_stacks = max_stacks
+        self.native_dump_timeout = native_dump_timeout
         self._task: asyncio.Task | None = None
         self._stop = False
 
     async def _loop(self) -> None:
         loop = asyncio.get_running_loop()
         while not self._stop:
+            if self.native_dump_timeout > 0:
+                # Re-arm every tick: the timer only fires when this loop stops
+                # ticking, i.e. while the process is actually frozen.
+                faulthandler.cancel_dump_traceback_later()
+                faulthandler.dump_traceback_later(
+                    self.native_dump_timeout, repeat=True, file=sys.stderr
+                )
             start = loop.time()
             try:
                 await asyncio.sleep(self.interval)
@@ -75,7 +96,7 @@ class LoopLagMonitor:
 
         def parked_rank(task: asyncio.Task) -> int:
             try:
-                stack = task.get_stack(limit=1)
+                stack = task.get_stack()  # full chain; [-1] is innermost frame
                 if stack and stack[-1].f_code.co_name in _PARKED_FRAMES:
                     return 1
             except Exception:
@@ -160,15 +181,13 @@ class LoopLagMonitor:
     def start(self) -> None:
         if self._task is not None and not self._task.done():
             return
-        self._stop = False
-        self._task = asyncio.create_task(self._loop(), name="loop-lag-monitor")
-        logger.info(
-            f"Event-loop lag monitor started "
-            f"(interval={self.interval}s, warn_threshold={self.warn_threshold}s)"
+        self._task = asyncio.get_running_loop().create_task(
+            self._loop(), name="loop-lag-monitor"
         )
 
     async def stop(self) -> None:
         self._stop = True
+        faulthandler.cancel_dump_traceback_later()
         if self._task and not self._task.done():
             self._task.cancel()
             try:
