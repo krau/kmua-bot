@@ -1,6 +1,7 @@
 import io
 
 import pyrogram
+from pyrogram.client import Client
 
 from kmua import common, database, i18n
 
@@ -9,9 +10,11 @@ def _lock_key(user_id: int) -> str:
     return f"user_refresh_avatar:{user_id}"
 
 
-@pyrogram.Client.on_message(pyrogram.filters.command("f5avatar"), group=0)
-async def refresh_user_avatar(client: pyrogram.Client, message: pyrogram.types.Message):
+@Client.on_message(pyrogram.filters.command("f5avatar"), group=0)
+async def refresh_user_avatar(client: Client, message: pyrogram.types.Message):
     user = message.sender_chat or message.from_user
+    if not user or user.id is None:
+        return
     if await common.memttlcache.get(_lock_key(user.id)):
         return
     db_user = await database.get_user_by_id(user.id)

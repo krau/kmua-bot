@@ -6,8 +6,11 @@ from __future__ import annotations
 
 import asyncio
 from types import SimpleNamespace
+from typing import Any, cast
 
+import httpx
 import pytest
+from pyrogram.client import Client
 
 from kmua.plugins import link_parse as link_parse_plugin
 from kmua.services import wechat as wechat_service
@@ -157,7 +160,9 @@ def test_download_image_rejects_extreme_aspect_ratio():
 
     async def run():
         try:
-            await wechat_service.download_image(fake_client, "https://mmbiz.qpic.cn/1")
+            await wechat_service.download_image(
+                cast(httpx.AsyncClient, fake_client), "https://mmbiz.qpic.cn/1"
+            )
             return None
         except ValueError as e:
             return str(e)
@@ -176,7 +181,9 @@ async def test_download_image_converts_to_jpeg():
     Image.new("RGBA", (100, 50), color="blue").save(buf, format="PNG")
 
     fake_client = _FakeDownloadClient(buf.getvalue())
-    data = await wechat_service.download_image(fake_client, "https://mmbiz.qpic.cn/1")
+    data = await wechat_service.download_image(
+        cast(httpx.AsyncClient, fake_client), "https://mmbiz.qpic.cn/1"
+    )
     with Image.open(io.BytesIO(data)) as im:
         assert im.format == "JPEG"
 
@@ -240,7 +247,7 @@ def test_build_rich_blocks_interleaves_images_and_quotes():
     blocks3 = wechat_service.build_rich_blocks(article3, lang="zh-CN")
     quotes = [b for b in blocks3 if isinstance(b, PageBlockBlockquote)]
     assert len(quotes) == 1
-    assert quotes[0].text.text == "第一段\n\n第二段\n\n第三段"
+    assert cast(Any, quotes[0].text).text == "第一段\n\n第二段\n\n第三段"
 
 
 def test_build_media_caption_truncates_to_1024():
@@ -292,10 +299,10 @@ def _make_message(fake_message, url):
         chat=chat,
         from_user=user,
         text=url,
-        service=False,
+        service=None,
         outgoing=False,
     )
-    message.matches = [type("M", (), {"group": lambda self: url})()]
+    setattr(message, "matches", [type("M", (), {"group": lambda self: url})()])
     message.reply_text = reply.reply_text
     message.reply_media_group = reply.reply_media_group
     message.reply_chat_action = reply.reply_chat_action
@@ -319,7 +326,7 @@ async def test_plugin_ignores_non_wechat_text(fake_message, monkeypatch):
     monkeypatch.setattr(wechat_service, "fetch_article", fake_fetch)
     chat, user, reply = fake_message
     message = _make_message(fake_message, "https://example.com/not-wechat")
-    await link_parse_plugin.parse_social_link(None, message)
+    await link_parse_plugin.parse_social_link(None, message)  # type: ignore
     assert called == []
 
 
@@ -338,7 +345,7 @@ async def test_plugin_disabled_by_chat_config(fake_message, monkeypatch):
 
     monkeypatch.setattr(wechat_service, "fetch_article", fake_fetch)
     message = _make_message(fake_message, "https://mp.weixin.qq.com/s/abc123")
-    await link_parse_plugin.parse_social_link(None, message)
+    await link_parse_plugin.parse_social_link(None, message)  # type: ignore
     assert called == []
 
 
@@ -375,7 +382,7 @@ async def test_plugin_text_send_for_image_free_article(fake_message, monkeypatch
     )
     monkeypatch.setattr(wechat_service, "fetch_article", fake_fetch)
     message = _make_message(fake_message, "https://mp.weixin.qq.com/s/abc123")
-    await link_parse_plugin.parse_social_link(fake_client, message)
+    await link_parse_plugin.parse_social_link(cast(Client, fake_client), message)
 
     assert len(rich_calls) == 1
     from pyrogram.raw.types.page_block_heading1 import PageBlockHeading1
@@ -443,7 +450,7 @@ async def test_plugin_media_group_send(fake_message, monkeypatch):
     monkeypatch.setattr(wechat_service, "fetch_article", fake_fetch)
     monkeypatch.setattr(wechat_service, "download_image", fake_download)
     message = _make_message(fake_message, "https://mp.weixin.qq.com/s/abc123")
-    await link_parse_plugin.parse_social_link(fake_client, message)
+    await link_parse_plugin.parse_social_link(cast(Client, fake_client), message)
 
     # both images uploaded, then one rich message carrying them inline
     assert len(upload_calls) == 2
@@ -505,7 +512,7 @@ async def test_plugin_falls_back_to_text_when_images_fail(fake_message, monkeypa
     monkeypatch.setattr(wechat_service, "fetch_article", fake_fetch)
     monkeypatch.setattr(wechat_service, "download_image", fake_download)
     message = _make_message(fake_message, "https://mp.weixin.qq.com/s/abc123")
-    await link_parse_plugin.parse_social_link(fake_client, message)
+    await link_parse_plugin.parse_social_link(cast(Client, fake_client), message)
 
     # rich upload/send failed: fell back to the media group
     assert len(media_calls) == 1

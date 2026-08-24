@@ -11,6 +11,7 @@ permissions server-side before reading or writing anything.
 """
 
 import pyrogram
+from pyrogram.client import Client
 from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
 from kmua import common, database
@@ -59,10 +60,8 @@ def chat_panel_button(chat_id: int, lang: str) -> InlineKeyboardButton | None:
     )
 
 
-@pyrogram.Client.on_message(
-    pyrogram.filters.command("panel") & pyrogram.filters.group, group=0
-)
-async def panel_group_cmd(client: pyrogram.Client, message: pyrogram.types.Message):
+@Client.on_message(pyrogram.filters.command("panel") & pyrogram.filters.group, group=0)
+async def panel_group_cmd(client: Client, message: pyrogram.types.Message):
     """Open this group's page in the panel.
 
     Same permission check as /config, since it leads to the same settings. The reply
@@ -71,6 +70,8 @@ async def panel_group_cmd(client: pyrogram.Client, message: pyrogram.types.Messa
     """
     user = message.sender_chat or message.from_user
     chat = message.chat
+    if not chat or chat.id is None or not user:
+        return
     chat_config = await database.get_chat_config(chat)
     lang = chat_config.lang
 

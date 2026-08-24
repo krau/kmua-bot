@@ -4,12 +4,15 @@ from __future__ import annotations
 
 from io import BytesIO
 from types import SimpleNamespace
+from typing import cast
 
 import httpx
 import pytest
+from pydantic_ai import RunContext
 
 from kmua.common import safe_http
 from kmua.common.safe_http import UnsafeUrlError, is_safe_web_url, safe_download_bytes
+from kmua.plugins.agent import datatype
 from kmua.plugins.agent.tools import tg_ops
 
 
@@ -92,15 +95,18 @@ async def test_safe_download_size_limit(monkeypatch):
         await safe_download_bytes("https://example.com/big", max_bytes=50)
 
 
-def _ctx(client=None):
-    return SimpleNamespace(
-        deps=SimpleNamespace(
-            client=client or SimpleNamespace(),
-            chat_id=-100_123,
-            user_id=1001,
-            message=SimpleNamespace(id=7, guest_query_id=None),
-            is_guest_mode=False,
-        )
+def _ctx(client=None) -> RunContext[datatype.ContextDeps]:
+    return cast(
+        RunContext[datatype.ContextDeps],
+        SimpleNamespace(
+            deps=SimpleNamespace(
+                client=client or SimpleNamespace(),
+                chat_id=-100_123,
+                user_id=1001,
+                message=SimpleNamespace(id=7, guest_query_id=None),
+                is_guest_mode=False,
+            )
+        ),
     )
 
 

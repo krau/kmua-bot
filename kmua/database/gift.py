@@ -43,7 +43,7 @@ async def get_user_gifts(
         .order_by(Gift.created_at.desc())
     )
     gifts = result.scalars().all()
-    return gifts
+    return list(gifts)
 
 
 @with_tx

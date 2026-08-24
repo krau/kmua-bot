@@ -17,7 +17,9 @@ from __future__ import annotations
 
 import asyncio
 import io
+from collections.abc import Generator
 from datetime import datetime, timedelta
+from typing import Any
 
 import pytest
 
@@ -56,11 +58,11 @@ class _User:
     def __init__(self, user_id: int) -> None:
         self.id = user_id
         self.update_avatar_at = datetime.now() - timedelta(days=2)
-        self.avatar_big_id = None
+        self.avatar_big_id: str | None = None
 
 
 @pytest.fixture
-def fake_client(monkeypatch) -> _FakeClient:
+def fake_client(monkeypatch) -> Generator[_FakeClient, Any, Any]:
     client = _FakeClient()
     monkeypatch.setattr(avatar_mod, "client", client)
     yield client

@@ -17,7 +17,8 @@ from typing import Any
 
 import httpx
 import pyrogram
-from pyrogram import Client, filters
+from pyrogram import filters
+from pyrogram.client import Client
 from pyrogram.client import Client as PyrogramClient
 from pyrogram.enums import ChatType, ParseMode
 from pyrogram.raw.functions.messages.send_message import (
@@ -77,6 +78,8 @@ async def parse_social_link(client: Client, message: Message):
         url = "https://" + url
 
     is_wechat = wechat_service.is_wechat_url(url)
+    source = ""
+    clean_url = ""
     if chat.type in (ChatType.SUPERGROUP, ChatType.GROUP):
         chat_config = await database.get_chat_config(chat.id)
         lang = chat_config.lang
@@ -140,8 +143,9 @@ async def _send_wechat_article(
         return
     if not article.title and not article.paragraphs:
         return
-    chat_id = message.chat.id
-    assert chat_id is not None
+    chat = message.chat
+    assert chat is not None and chat.id is not None
+    chat_id = chat.id
     try:
         photo_ids = await _upload_rich_photos(client, chat_id, article)
         await _send_rich_reply(
@@ -175,6 +179,8 @@ async def _send_social_post(
     lang: str,
 ) -> None:
     """Fetch a Coolapk/Tieba post and re-send it as a media group or text."""
+    chat = message.chat
+    assert chat is not None and chat.id is not None
     post = await link_parse.fetch_social_post(url)
     if post is None:
         return
@@ -187,7 +193,7 @@ async def _send_social_post(
         if images:
             await asyncio.wait_for(
                 client.send_media_group(
-                    message.chat.id,
+                    chat.id,
                     [
                         pyrogram.types.InputMediaPhoto(
                             media=io.BytesIO(data),

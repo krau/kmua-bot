@@ -9,10 +9,13 @@ from __future__ import annotations
 import asyncio
 from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
+from typing import cast
 
 import pytest
+from pyrogram.client import Client
 from pyrogram.enums import ButtonStyle
 from pyrogram.errors import RPCError
+from pyrogram.types import Chat, Message
 
 from kmua import database
 from kmua.database.models import ChatConfig, VerificationSession
@@ -716,7 +719,9 @@ def test_restore_permissions_for_session():
         challenge.RESTORE_PERMISSIONS_KEY: challenge.serialize_permissions(perms)
     }
     row = VerificationSession(chat_id=1, user_id=2, method="math_easy", payload=payload)
-    assert challenge.restore_permissions_for_session(row).can_send_messages is True
+    restored = challenge.restore_permissions_for_session(row)
+    assert restored is not None
+    assert restored.can_send_messages is True
 
 
 def test_restore_permissions_for_session_lifts_when_nothing_captured():
@@ -744,6 +749,7 @@ def test_restore_permissions_for_session_preserves_custom_restrictions():
     payload = {challenge.RESTORE_PERMISSIONS_KEY: muted}
     row = VerificationSession(chat_id=1, user_id=2, method="math_easy", payload=payload)
     restored = challenge.restore_permissions_for_session(row)
+    assert restored is not None
     assert restored.can_send_messages is False
     assert restored.can_change_info is True
 
@@ -763,7 +769,9 @@ async def test_verify_target_resolves_channel_senders():
     msg = SimpleNamespace(
         reply_to_message=plain_reply, command=None, from_user=sender, sender_chat=None
     )
-    target = await verify_mod._test_verify_target(SimpleNamespace(), msg)
+    target = await verify_mod._test_verify_target(
+        cast(Client, SimpleNamespace()), cast(Message, msg)
+    )
     assert target is not None and target.id == 456
 
     channel = SimpleNamespace(id=-100_123, type=ChatType.CHANNEL)
@@ -771,7 +779,9 @@ async def test_verify_target_resolves_channel_senders():
     msg = SimpleNamespace(
         reply_to_message=channel_reply, command=None, from_user=sender, sender_chat=None
     )
-    target = await verify_mod._test_verify_target(SimpleNamespace(), msg)
+    target = await verify_mod._test_verify_target(
+        cast(Client, SimpleNamespace()), cast(Message, msg)
+    )
     assert target is channel
 
     # 匿名管理员发言(sender_chat 是群自身)不算频道, 落到命令发送者
@@ -780,7 +790,9 @@ async def test_verify_target_resolves_channel_senders():
     msg = SimpleNamespace(
         reply_to_message=anon_reply, command=None, from_user=sender, sender_chat=None
     )
-    target = await verify_mod._test_verify_target(SimpleNamespace(), msg)
+    target = await verify_mod._test_verify_target(
+        cast(Client, SimpleNamespace()), cast(Message, msg)
+    )
     assert target is sender
 
     # from_user 是匿名管理员 id 时同样跳过, 频道仍可作目标
@@ -791,14 +803,18 @@ async def test_verify_target_resolves_channel_senders():
         from_user=sender,
         sender_chat=None,
     )
-    target = await verify_mod._test_verify_target(SimpleNamespace(), msg)
+    target = await verify_mod._test_verify_target(
+        cast(Client, SimpleNamespace()), cast(Message, msg)
+    )
     assert target is channel
 
     # 无回复无参数: 命令发送者
     msg = SimpleNamespace(
         reply_to_message=None, command=None, from_user=sender, sender_chat=None
     )
-    target = await verify_mod._test_verify_target(SimpleNamespace(), msg)
+    target = await verify_mod._test_verify_target(
+        cast(Client, SimpleNamespace()), cast(Message, msg)
+    )
     assert target is sender
 
 
@@ -834,7 +850,9 @@ async def test_verify_command_replies_when_start_fails(monkeypatch):
     monkeypatch.setattr(verify_mod.database, "get_user_by_id", fake_admin)
     monkeypatch.setattr(verify_mod, "_get_for", lambda chat_id, user_id: None)
 
-    await verify_mod.test_verify_command(SimpleNamespace(), _Msg())
+    await verify_mod.test_verify_command(
+        cast(Client, SimpleNamespace()), cast(Message, _Msg())
+    )
 
     assert replies == [i18n.t("bot.msg.verify.test_verify_failed", locale="zh-CN")]
 
@@ -848,7 +866,7 @@ def test_verify_context_is_bot_handles_chat_targets():
     )
     assert user_ctx.is_bot is True
     chat_ctx = challenge.VerifyContext(
-        chat_id=1, user=SimpleNamespace(id=-100), is_join=True
+        chat_id=1, user=cast(User, SimpleNamespace(id=-100)), is_join=True
     )
     assert chat_ctx.is_bot is False
 
@@ -858,7 +876,7 @@ async def test_user_mention_channel_fallback():
     from pyrogram.enums import ChatType
 
     channel = SimpleNamespace(id=-100_123, type=ChatType.CHANNEL)
-    mention = await session._user_mention(channel)
+    mention = await session._user_mention(cast(Chat, channel))
     assert mention == "<a href='tg://user?id=-100123'>User</a>"
 
 
@@ -874,12 +892,15 @@ async def test_capture_restore_permissions_member_specific_only():
 
     plain = SimpleNamespace(permissions=None)
     assert (
-        await session.capture_restore_permissions(_FakeClient(plain), -100, 1) is None
+        await session.capture_restore_permissions(
+            cast(Client, _FakeClient(plain)), -100, 1
+        )
+        is None
     )
 
     restricted = SimpleNamespace(permissions=challenge._unrestricted_permissions())
     captured = await session.capture_restore_permissions(
-        _FakeClient(restricted), -100, 1
+        cast(Client, _FakeClient(restricted)), -100, 1
     )
     assert captured is restricted.permissions
 
@@ -888,7 +909,10 @@ async def test_capture_restore_permissions_member_specific_only():
             raise ValueError("boom")
 
     assert (
-        await session.capture_restore_permissions(_RaisingClient(), -100, 1) is None
+        await session.capture_restore_permissions(
+            cast(Client, _RaisingClient()), -100, 1
+        )
+        is None
     )
 
 
@@ -934,7 +958,7 @@ async def _verify_module_harness(monkeypatch, *, enabled: bool = True):
     async def fake_start(client, chat_id, user, config, chat=None):
         started.append(chat_id)
         await asyncio.sleep(0.05)  # 放大并发竞争窗口
-        session._sessions[999] = SimpleNamespace(id=999)
+        session._sessions[999] = cast(VerificationSession, SimpleNamespace(id=999))
         session._by_user[(chat_id, user.id)] = 999
         return True
 
@@ -959,14 +983,16 @@ async def test_maybe_verify_returns_intercept_and_serializes(monkeypatch):
     verify_mod, started = await _verify_module_harness(monkeypatch)
     ctx = _verify_ctx(is_join=False)
 
-    assert await verify_mod.maybe_verify(SimpleNamespace(), ctx) is True
+    assert await verify_mod.maybe_verify(cast(Client, SimpleNamespace()), ctx) is True
     assert started == [ctx.chat_id]
 
-    assert await verify_mod.maybe_verify(SimpleNamespace(), ctx) is True
+    assert await verify_mod.maybe_verify(cast(Client, SimpleNamespace()), ctx) is True
     assert started == [ctx.chat_id]  # 不重复创建
 
     disabled_mod, _ = await _verify_module_harness(monkeypatch, enabled=False)
-    assert await disabled_mod.maybe_verify(SimpleNamespace(), ctx) is False
+    assert (
+        await disabled_mod.maybe_verify(cast(Client, SimpleNamespace()), ctx) is False
+    )
 
 
 async def test_maybe_verify_concurrent_messages_create_one_session(monkeypatch):
@@ -975,8 +1001,8 @@ async def test_maybe_verify_concurrent_messages_create_one_session(monkeypatch):
     ctx = _verify_ctx(is_join=False)
 
     results = await asyncio.gather(
-        verify_mod.maybe_verify(SimpleNamespace(), ctx),
-        verify_mod.maybe_verify(SimpleNamespace(), ctx),
+        verify_mod.maybe_verify(cast(Client, SimpleNamespace()), ctx),
+        verify_mod.maybe_verify(cast(Client, SimpleNamespace()), ctx),
     )
 
     assert started == [ctx.chat_id]  # 只创建一次

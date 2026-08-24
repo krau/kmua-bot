@@ -2,7 +2,8 @@ import html
 import random
 import re
 
-from pyrogram import Client, filters
+from pyrogram import filters
+from pyrogram.client import Client
 from pyrogram.enums import MessageEntityType, ParseMode
 from pyrogram.types import LinkPreviewOptions, Message
 
@@ -45,6 +46,8 @@ async def slash(client: Client, message: Message):
     cmd2 = ""
     text = ""
     this_user = message.sender_chat or message.from_user
+    if not this_user or not this_user.id:
+        return
     this_mention = await common.mention_html(this_user)
     replied_user = None
     replied_mention = ""
@@ -105,7 +108,7 @@ async def slash(client: Client, message: Message):
     if random.uniform(0, 1) < app_config.coin_add_chance_on_slash:
         coins = 16 * random.randint(1, 4)
         await database.add_user_coins(this_user.id, coins)
-    if replied_user:
+    if replied_user and replied_user.id:
         if random.uniform(0, 1) < app_config.coin_add_chance_on_be_slash:
             coins = 16 * random.randint(1, 4)
             await database.add_user_coins(replied_user.id, coins)

@@ -19,7 +19,7 @@ from . import utils
 async def make_quote(client: PyrogramClient, message: pyrogram.types.Message):
     user = message.sender_chat or message.from_user
     chat = message.chat
-    if not chat or not user:
+    if not chat or not chat.id or not user:
         return
     db_user = await database.upsert_user(user)
     db_chat = await database.upsert_chat(chat)
@@ -28,12 +28,16 @@ async def make_quote(client: PyrogramClient, message: pyrogram.types.Message):
     chat_config = await database.get_chat_config(chat)
     lang = chat_config.lang
     cmd = message.command
+    if not cmd:
+        return
     if len(cmd) > 1 and cmd[1] != "nopin":
         return
     if not is_explicit_reply(message):
         await message.reply_text(i18n.t("bot.msg.quote.reply_to_required", locale=lang))
         return
     quote_message = message.reply_to_message
+    if not quote_message:
+        return
     quote_user = common.get_message_origin(quote_message)
     if not quote_user:
         await message.reply_text(i18n.t("bot.msg.quote.origin_not_found", locale=lang))
@@ -76,6 +80,8 @@ async def make_quote(client: PyrogramClient, message: pyrogram.types.Message):
 )
 async def random_quote_cmd(client: PyrogramClient, message: pyrogram.types.Message):
     chat = message.chat
+    if not chat or not chat.id:
+        return
     chat_config = await database.get_chat_config(chat.id)
     if chat_config.quote_probability <= 0:
         return
@@ -111,7 +117,7 @@ async def set_quote_probability(
 ):
     chat = message.chat
     user = message.sender_chat or message.from_user
-    if not user or not chat:
+    if not user or not chat or not chat.id:
         return
     chat_config = await database.get_chat_config(chat.id)
     if not chat_config:
@@ -121,7 +127,7 @@ async def set_quote_probability(
             i18n.t("bot.msg.no_permission_group", locale=chat_config.lang)
         )
         return
-    if len(message.command) < 2:
+    if not message.command or len(message.command) < 2:
         await message.reply_text(
             i18n.t("bot.msg.quote.probability_usage", locale=chat_config.lang)
         )
@@ -171,8 +177,10 @@ $
 )
 async def delete_quote_in_chat(client: PyrogramClient, message: pyrogram.types.Message):
     chat = message.chat
-    chat_config = await database.get_chat_config(chat.id)
     user = message.sender_chat or message.from_user
+    if not chat or not chat.id or not user:
+        return
+    chat_config = await database.get_chat_config(chat.id)
     is_admin = await common.can_user_manage_bot_in_chat(user, chat)
 
     quote_link = None
@@ -182,7 +190,7 @@ async def delete_quote_in_chat(client: PyrogramClient, message: pyrogram.types.M
         quote_message = message.reply_to_message
         quote_link = common.get_msg_link(quote_message)
         reply_target = quote_message
-    elif len(message.command) > 1:
+    elif message.command and len(message.command) > 1:
         quote_link = message.command[1]
         reply_target = message
         if not re.match(r"^https?://t.me/.+/\d+$", quote_link, re.IGNORECASE):
@@ -240,8 +248,10 @@ async def delete_quote_in_private(
     client: PyrogramClient, message: pyrogram.types.Message
 ):
     user = message.from_user
+    if not user:
+        return
     user_config = await database.get_user_config(user.id)
-    if len(message.command) < 2:
+    if not message.command or len(message.command) < 2:
         await message.reply_text(
             i18n.t("bot.msg.quote.invalid_link", locale=user_config.lang)
         )
@@ -285,6 +295,8 @@ async def delete_quote_in_private(
 async def random_quote(client: PyrogramClient, message: pyrogram.types.Message):
     """尝试主动发送引用消息"""
     chat = message.chat
+    if not chat or not chat.id:
+        return
     chat_config = await database.get_chat_config(chat.id)
     pb = chat_config.quote_probability
     if pb <= 0:

@@ -89,7 +89,7 @@ async def today_waifu(client: PyrogramClient, message: pyrogram.types.Message):
                 reply_markup=waifu_markup,  # type: ignore
                 parse_mode=pyrogram.enums.ParseMode.HTML,
             )
-            if msg.photo is not None:
+            if msg is not None and msg.photo is not None:
                 await database.update_user_avatar(
                     waifu.id, avatar_big_id=msg.photo.file_id
                 )
@@ -124,6 +124,8 @@ async def waifu_graph(client: PyrogramClient, message: pyrogram.types.Message):
 
 @PyrogramClient.on_callback_query(pyrogram.filters.regex(r"^remove_waifu"), group=0)
 async def remove_waifu(client: PyrogramClient, query: pyrogram.types.CallbackQuery):
+    if not query.message:
+        return
     chat = query.message.chat
     user = query.from_user
     if not chat or not user:
@@ -147,7 +149,7 @@ async def remove_waifu(client: PyrogramClient, query: pyrogram.types.CallbackQue
     waifu_id = int(data[1])
     user_id = int(data[2])
     db_waifu = await database.get_user_by_id(waifu_id)
-    db_user: UserData = await database.get_user_by_id(user_id)
+    db_user = await database.get_user_by_id(user_id)
     if not db_waifu or not db_user:
         await query.answer(
             text=i18n.t("bot.msg.waifu.remove_not_found", locale=lang),
@@ -205,6 +207,8 @@ async def remove_waifu(client: PyrogramClient, query: pyrogram.types.CallbackQue
 
 @PyrogramClient.on_callback_query(pyrogram.filters.regex(r"^marry_waifu"), group=0)
 async def marry_waifu(client: PyrogramClient, query: pyrogram.types.CallbackQuery):
+    if not query.message:
+        return
     chat = query.message.chat
     if not chat or not chat.id:
         return
@@ -216,6 +220,8 @@ async def marry_waifu(client: PyrogramClient, query: pyrogram.types.CallbackQuer
     db_user = await database.get_user_by_id(user_id)
     chat_config = await database.get_chat_config(chat)
     lang = chat_config.lang
+    if not db_waifu or not db_user:
+        return
     if not db_waifu.is_real_user:
         await query.answer(
             text=i18n.t("bot.msg.waifu.marry_not_real", locale=lang),
@@ -233,6 +239,8 @@ async def marry_waifu(client: PyrogramClient, query: pyrogram.types.CallbackQuer
             )
             return
         update_db_user = await database.get_user_by_id(update_user.id)
+        if not update_db_user:
+            return
         if update_db_user.married_waifu_id is not None:
             if update_db_user.married_waifu_id == db_waifu.id:
                 await query.answer(
@@ -250,6 +258,8 @@ async def marry_waifu(client: PyrogramClient, query: pyrogram.types.CallbackQuer
                 )
             return
         db_waifu = await database.get_user_by_id(waifu_id)
+        if not db_waifu:
+            return
         if db_waifu.married_waifu_id is not None:
             if db_waifu.married_waifu_id == update_user.id:
                 await query.answer(
@@ -374,6 +384,8 @@ async def marry_waifu(client: PyrogramClient, query: pyrogram.types.CallbackQuer
 
 @PyrogramClient.on_callback_query(pyrogram.filters.regex(r"^change_waifu"), group=0)
 async def change_waifu(client: PyrogramClient, query: pyrogram.types.CallbackQuery):
+    if not query.message:
+        return
     chat = query.message.chat
     user = query.from_user
     if not chat or not user:

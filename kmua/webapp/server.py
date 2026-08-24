@@ -11,6 +11,7 @@ await-only. The existing `LoopLagMonitor` already reports it when something bloc
 from __future__ import annotations
 
 import asyncio
+from typing import Any, cast
 
 import uvicorn
 
@@ -59,7 +60,7 @@ class WebAppServer:
             )
             server = uvicorn.Server(config)
             # This process is not uvicorn's: kurigram's idle() owns the signals.
-            server.install_signal_handlers = False
+            cast(Any, server).install_signal_handlers = False
 
             self._server = server
             self._task = spawn(server.serve(), name="webapp-server")

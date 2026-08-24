@@ -12,7 +12,7 @@ async def word_reply(client: Client, message: pyrogram.types.Message):
     if not user:
         return
     user_config = await database.get_user_config(user)
-    if not message.text or not client.me:
+    if not message.text or not client.me or not client.me.username:
         return
     text = zhconv.convert(
         message.text.replace(client.me.username, "").strip().lower(), "zh-cn"

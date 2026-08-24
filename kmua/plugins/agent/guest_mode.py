@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 from pyrogram.client import Client as PyrogramClient
-from pyrogram.raw.functions.messages import SetBotGuestChatResult
+from pyrogram.raw.functions.messages.set_bot_guest_chat_result import (
+    SetBotGuestChatResult,
+)
 from pyrogram.types import InlineQueryResultArticle, InputTextMessageContent, Message
 
 from kmua.logger import logger
@@ -34,7 +36,7 @@ async def answer_guest_query(
     try:
         content = InputTextMessageContent(
             message_text=plain,
-            entities=entities,
+            entities=entities or [],
         )
         result = InlineQueryResultArticle(
             title=".",

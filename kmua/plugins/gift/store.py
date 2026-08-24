@@ -137,7 +137,10 @@ async def handle_buy_gift_callback(client: Client, callback_query: types.Callbac
                 price_percent = 100
             display_name = gift.get_display_name(gift_item.id)
             text = f"<b>{display_name}</b>\n<i>{gift_item.description}</i>\n\n效果注释: {gift_item.comment}\n\n你确定要购买 {display_name}*1 吗? 这将花费你 {price_percent}% 的余额哦"
-            await callback_query.message.edit_text(
+            message = callback_query.message
+            if message is None:
+                return
+            await message.edit_text(
                 text=text,
                 parse_mode=enums.ParseMode.HTML,
                 reply_markup=types.InlineKeyboardMarkup(

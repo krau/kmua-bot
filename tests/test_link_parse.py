@@ -6,8 +6,10 @@ from __future__ import annotations
 
 import asyncio
 from types import SimpleNamespace
+from typing import cast
 
 import pytest
+from pyrogram.client import Client
 
 from kmua.services import link_parse
 
@@ -112,9 +114,9 @@ def test_match_social_url_detects_each_source():
 
 
 def test_match_social_url_strips_trailing_punctuation():
-    assert link_parse.match_social_url("https://tieba.baidu.com/p/7654321。")[
-        1
-    ].endswith("7654321")
+    match = link_parse.match_social_url("https://tieba.baidu.com/p/7654321。")
+    assert match is not None
+    assert match[1].endswith("7654321")
 
 
 def test_match_social_url_rejects_unknown():
@@ -269,7 +271,7 @@ async def test_plugin_gated_by_parse_sites_enabled(fake_message, monkeypatch):
 
     monkeypatch.setattr("kmua.database.get_chat_config", fake_get_chat_config)
     monkeypatch.setattr(link_parse, "fetch_social_post", fake_fetch)
-    await plugin.parse_social_link(None, message)
+    await plugin.parse_social_link(None, message)  # type: ignore
     assert reply.texts == []
 
 
@@ -300,7 +302,7 @@ async def test_plugin_sends_text_without_images(fake_message, monkeypatch):
     monkeypatch.setattr("kmua.database.get_chat_config", fake_get_chat_config)
     monkeypatch.setattr(link_parse, "fetch_social_post", fake_fetch)
     monkeypatch.setattr(plugin, "_download_images", fake_download)
-    await plugin.parse_social_link(None, message)
+    await plugin.parse_social_link(None, message)  # type: ignore
     assert reply.texts and "标题" in reply.texts[0]
     assert "正文内容" in reply.texts[0]
     assert "查看原文" in reply.texts[0]
@@ -342,7 +344,7 @@ async def test_plugin_sends_media_group(fake_message, monkeypatch):
     monkeypatch.setattr(link_parse, "fetch_social_post", fake_fetch)
     monkeypatch.setattr(plugin, "_download_images", fake_download)
     client = SimpleNamespace(send_media_group=fake_send_media_group)
-    await plugin.parse_social_link(client, message)
+    await plugin.parse_social_link(cast(Client, client), message)
     assert len(sent) == 1
     assert len(sent[0]) == 1
     assert isinstance(sent[0][0], pyrogram.types.InputMediaPhoto)

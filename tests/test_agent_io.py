@@ -3,10 +3,16 @@
 from __future__ import annotations
 
 from types import SimpleNamespace
+from typing import cast
 
 import pytest
+from pydantic_ai import RunContext, RunUsage
+from pydantic_ai.models.test import TestModel
+from pyrogram.client import Client
+from pyrogram.types import Message
 
 from kmua.config import app_config
+from kmua.plugins.agent import datatype
 from kmua.plugins.agent.tools import code_repo, io, workspace
 
 
@@ -38,16 +44,19 @@ async def ws(monkeypatch, tmp_path):
         await agent.close()
 
 
-def _ctx(client=None, guest=False):
-    return SimpleNamespace(
-        deps=SimpleNamespace(
-            client=client,
-            chat_id=-100_123,
-            user_id=1001,
-            message=SimpleNamespace(id=7, guest_query_id=1 if guest else None),
-            is_guest_mode=guest,
-            powermemory=SimpleNamespace(),
-        )
+def _ctx(client=None, guest=False) -> RunContext[datatype.ContextDeps]:
+    return cast(
+        RunContext[datatype.ContextDeps],
+        SimpleNamespace(
+            deps=SimpleNamespace(
+                client=client,
+                chat_id=-100_123,
+                user_id=1001,
+                message=SimpleNamespace(id=7, guest_query_id=1 if guest else None),
+                is_guest_mode=guest,
+                powermemory=SimpleNamespace(),
+            )
+        ),
     )
 
 
@@ -345,21 +354,16 @@ async def test_workspace_db_files_per_session(tmp_path, monkeypatch):
 
 
 async def test_io_prepare_trims_group_protocols_in_private(monkeypatch):
-    from pydantic_ai import RunContext
     from pydantic_ai import ToolDefinition as _TD
-
-    from kmua.plugins.agent import datatype
 
     async def _visible(chat_id, user_id, desc):
         deps = datatype.ContextDeps(
-            client=SimpleNamespace(),
+            client=cast(Client, SimpleNamespace()),
             user_id=user_id,
             chat_id=chat_id,
-            message=SimpleNamespace(id=1, guest_query_id=None),
+            message=cast(Message, SimpleNamespace(id=1, guest_query_id=None)),
         )
-        ctx = RunContext(
-            deps=deps, model=SimpleNamespace(), usage=SimpleNamespace(), messages=[]
-        )
+        ctx = RunContext(deps=deps, model=TestModel(), usage=RunUsage(), messages=[])
         td = _TD(name="read", description=desc, parameters_json_schema={})
         result = await io.prepare_io_tools(ctx, td)
         return result

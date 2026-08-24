@@ -4,12 +4,13 @@ import io
 import pyrogram
 from PIL import Image, ImageFont
 from pilmoji import Pilmoji
+from pyrogram.client import Client
 
 from kmua import common, consts
 
 
 async def send_quote(
-    client: pyrogram.Client,
+    client: Client,
     chat_id: int,
     message: pyrogram.types.Message,
     user: pyrogram.types.User | pyrogram.types.Chat,
@@ -27,6 +28,7 @@ async def send_quote(
     """
     if not message.text or len(message.text) > 200:
         return None
+    assert user.id is not None
     avatar = await common.ChatAvatar(user.id).get_or_default_bytes(True)
     await client.send_chat_action(chat_id, pyrogram.enums.ChatAction.UPLOAD_PHOTO)
     quote_img = await gen_quote_img(

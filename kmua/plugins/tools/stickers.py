@@ -3,15 +3,14 @@ from io import BytesIO
 from typing import BinaryIO
 
 import pyrogram
+from pyrogram.client import Client
 
 from kmua import common
 from kmua.config import app_config
 
 
-@pyrogram.Client.on_message(
-    pyrogram.filters.sticker & pyrogram.filters.private, group=1
-)
-async def handle_sticker(client: pyrogram.Client, message: pyrogram.types.Message):
+@Client.on_message(pyrogram.filters.sticker & pyrogram.filters.private, group=1)
+async def handle_sticker(client: Client, message: pyrogram.types.Message):
     sticker = message.sticker
     if not sticker:
         return
@@ -36,7 +35,7 @@ async def handle_sticker(client: pyrogram.Client, message: pyrogram.types.Messag
         force_document=True,
         file_name=f"{sticker.set_name}_{sticker.file_unique_id}.{ext}",
     )
-    if msg.document and msg.document.file_id:
+    if msg and msg.document and msg.document.file_id:
         await common.memttlcache.set(
             f"sticker_file:{sticker.file_unique_id}",
             msg.document.file_id,

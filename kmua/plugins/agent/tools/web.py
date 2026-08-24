@@ -306,7 +306,7 @@ def _format_telegram_message(
         parts.append(f"Date: {message.date.isoformat()}")
 
     # Message content
-    content_parts = []
+    content_parts: list[str] = []
 
     if message.text:
         content_parts.append(message.text)

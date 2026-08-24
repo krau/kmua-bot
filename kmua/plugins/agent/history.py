@@ -23,6 +23,7 @@ from pydantic_ai.messages import (
     RetryPromptPart,
     ToolCallPart,
     ToolReturnPart,
+    UserContent,
     UserPromptPart,
 )
 from pydantic_ai.models import Model
@@ -123,7 +124,7 @@ def truncate_multimodal(
                 break
 
             if isinstance(part, UserPromptPart) and isinstance(part.content, list):
-                new_content = []
+                new_content: list[UserContent] = []
                 for item in part.content:
                     if to_remove > 0 and isinstance(item, MULTI_MODAL_CONTENT_TYPES):
                         new_content.append("[multimodal content removed]")

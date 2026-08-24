@@ -1,0 +1,4 @@
+{
+  "include": ["kmua", "tests", "scripts", "alembic"],
+  "exclude": ["test.py", "test2.py"]
+}
