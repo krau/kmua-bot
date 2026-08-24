@@ -39,12 +39,22 @@ if app_config.db_url.startswith("sqlite"):
 def _get_jobstore_db_url() -> str:
     """获取 APScheduler job store 的数据库 URL
 
-    优先使用配置的 jobstore_db_url，否则从 db_url 推断同步驱动版本
+    优先使用配置的 jobstore_db_url，否则使用本地 SQLite 文件。
+
+    The job store is queried with synchronous SQLAlchemy from the event loop
+    on every scheduler wakeup. Deriving it from db_url used to put those
+    queries on the main database server - over the network for PostgreSQL -
+    so one slow query or lock wait froze the whole process. A local file
+    keeps every job-store operation sub-millisecond; pending jobs are
+    migrated once from the legacy location (see _migrate_legacy_jobstore).
     """
     if app_config.jobstore_db_url:
         return app_config.jobstore_db_url
+    return f"sqlite:///{pathlib.Path('data') / 'kmua-jobstore.db'}"
 
-    # 从异步 URL 推断同步版本
+
+def _legacy_jobstore_url() -> str:
+    """Pre-2.x derivation: db_url with the async driver stripped."""
     url = app_config.db_url
     replacements = [
         ("+aiosqlite", ""),  # sqlite+aiosqlite -> sqlite
@@ -54,6 +64,69 @@ def _get_jobstore_db_url() -> str:
     for async_driver, sync_driver in replacements:
         url = url.replace(async_driver, sync_driver)
     return url
+
+
+def _migrate_legacy_jobstore() -> None:
+    """Copy pending jobs from the legacy job-store location once.
+
+    Older versions stored APScheduler jobs in the main database server. When
+    the local store is empty and the legacy table exists, its rows are
+    carried over so scheduled jobs (e.g. agent timers) survive the upgrade.
+    Best effort: failures are logged and never block startup.
+    """
+    legacy_engine = None
+    try:
+        if app_config.jobstore_db_url:
+            return  # user-managed location; nothing to migrate from
+        # The job-store table normally appears when APScheduler starts; the
+        # migration runs earlier (init_db), so create it with the same schema.
+        with sync_engine.begin() as dst:
+            dst.execute(
+                sqlalchemy.text(
+                    "CREATE TABLE IF NOT EXISTS apscheduler_jobs ("
+                    "id VARCHAR(191) NOT NULL, "
+                    "next_run_time FLOAT(53), "
+                    "job_state BLOB NOT NULL, "
+                    "PRIMARY KEY (id))"
+                )
+            )
+            existing = dst.execute(
+                sqlalchemy.text("SELECT COUNT(*) FROM apscheduler_jobs")
+            ).scalar_one()
+        if existing > 0:
+            return
+        legacy_engine = create_engine(_legacy_jobstore_url(), future=True)
+        if not sqlalchemy.inspect(legacy_engine).has_table("apscheduler_jobs"):
+            return
+        with legacy_engine.connect() as src:
+            rows = src.execute(
+                sqlalchemy.text(
+                    "SELECT id, next_run_time, job_state FROM apscheduler_jobs"
+                )
+            ).fetchall()
+        if not rows:
+            return
+        with sync_engine.begin() as dst:
+            dst.execute(
+                sqlalchemy.text(
+                    "INSERT INTO apscheduler_jobs (id, next_run_time, job_state) "
+                    "VALUES (:id, :next_run_time, :job_state)"
+                ),
+                [
+                    {
+                        "id": row.id,
+                        "next_run_time": row.next_run_time,
+                        "job_state": row.job_state,
+                    }
+                    for row in rows
+                ],
+            )
+        logger.info(f"jobstore migration: carried over {len(rows)} job(s)")
+    except Exception as e:
+        logger.warning(f"jobstore migration skipped ({e.__class__.__name__}: {e})")
+    finally:
+        if legacy_engine is not None:
+            legacy_engine.dispose()
 
 
 # Create sync engine for APScheduler job store
@@ -225,6 +298,7 @@ async def init_db() -> None:
 
     await init_affection_histogram()
     await manage_quote_text_index()
+    _migrate_legacy_jobstore()
 
 
 async def close_db() -> None:
