@@ -1,4 +1,5 @@
 import pyrogram
+from pyrogram.client import Client
 
 from kmua import common, database, i18n
 from kmua.common import ops
@@ -15,17 +16,15 @@ _RESULT_MESSAGE_KEYS = {
 }
 
 
-@pyrogram.Client.on_message(
+@Client.on_message(
     (pyrogram.filters.command("botpromote") | pyrogram.filters.command("botdemote"))
     & pyrogram.filters.group,
     group=0,
 )
-async def set_user_bot_admin_in_chat(
-    client: pyrogram.Client, message: pyrogram.types.Message
-):
+async def set_user_bot_admin_in_chat(client: Client, message: pyrogram.types.Message):
     user = message.sender_chat or message.from_user
     chat = message.chat
-    if not chat or not user:
+    if not chat or chat.id is None or not user or user.id is None:
         return
     chat_config = await database.get_chat_config(chat)
     if not await common.can_user_manage_bot_in_chat(user, chat):

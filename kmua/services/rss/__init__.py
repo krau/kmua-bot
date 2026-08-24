@@ -29,6 +29,7 @@ import ipaddress
 import re
 import socket
 from dataclasses import dataclass, field
+from typing import Any, cast
 from urllib.parse import urljoin, urlsplit
 
 import feedparser
@@ -490,7 +491,7 @@ async def fetch_feed(
         else:
             raise ValueError("too many redirects")
 
-    parsed = await asyncio.to_thread(feedparser.parse, content)
+    parsed = cast(Any, await asyncio.to_thread(feedparser.parse, content))
 
     if parsed.bozo and not parsed.entries:
         raise ValueError(f"malformed feed: {parsed.get('bozo_exception')}")

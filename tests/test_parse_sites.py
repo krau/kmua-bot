@@ -34,12 +34,12 @@ def _make_message(url):
     )
     user = pyrogram.types.User(id=1001, first_name="Tester")
     message = pyrogram.types.Message(
-        id=1, chat=chat, from_user=user, text=url, service=False, outgoing=False
+        id=1, chat=chat, from_user=user, text=url, service=None, outgoing=False
     )
-    message.matches = [type("M", (), {"group": lambda self: url})()]
+    setattr(message, "matches", [type("M", (), {"group": lambda self: url})()])
     reply = _FakeReply()
-    message.reply_text = reply.reply_text
-    message.reply_chat_action = reply.reply_chat_action
+    message.reply_text = reply.reply_text  # type: ignore
+    message.reply_chat_action = reply.reply_chat_action  # type: ignore
     return message, reply
 
 
@@ -120,7 +120,7 @@ async def test_twitter_skipped_when_site_off(chat_config_factory, monkeypatch):
 
     monkeypatch.setattr(twitter_service, "fetch_tweet", fake_fetch)
     message, reply = _make_message("https://twitter.com/jack/status/20")
-    await twitter_plugin.parse_tweet(None, message)
+    await twitter_plugin.parse_tweet(None, message)  # type: ignore
     assert fetched == []
     assert reply.texts == []
 
@@ -142,7 +142,7 @@ async def test_twitter_runs_when_other_sites_off(chat_config_factory, monkeypatc
 
     monkeypatch.setattr(twitter_service, "fetch_tweet", fake_fetch)
     message, reply = _make_message("https://twitter.com/jack/status/20")
-    await twitter_plugin.parse_tweet(None, message)
+    await twitter_plugin.parse_tweet(None, message)  # type: ignore
     assert len(fetched) == 1
     assert len(reply.texts) == 1
 
@@ -158,7 +158,7 @@ async def test_manyacg_skipped_when_site_off(chat_config_factory, monkeypatch):
 
     monkeypatch.setattr(manyacg_plugin.manyacg_client, "fetch_artwork", fake_fetch)
     message, reply = _make_message("https://pixiv.net/artworks/123")
-    await manyacg_plugin.parse_artwork(None, message)
+    await manyacg_plugin.parse_artwork(None, message)  # type: ignore
     assert calls == []
     assert reply.texts == []
 
@@ -186,7 +186,7 @@ async def test_manyacg_runs_when_other_sites_off(chat_config_factory, monkeypatc
 
     monkeypatch.setattr(manyacg_plugin.manyacg_client, "fetch_artwork", fake_fetch)
     message, reply = _make_message("https://danbooru.donmai.us/posts/1")
-    await manyacg_plugin.parse_artwork(None, message)
+    await manyacg_plugin.parse_artwork(None, message)  # type: ignore
     assert calls == ["https://danbooru.donmai.us/posts/1"]
 
 
@@ -213,5 +213,5 @@ async def test_manyacg_runs_with_locale_pixiv_url(chat_config_factory, monkeypat
 
     monkeypatch.setattr(manyacg_plugin.manyacg_client, "fetch_artwork", fake_fetch)
     message, reply = _make_message("https://www.pixiv.net/en/artworks/128546841")
-    await manyacg_plugin.parse_artwork(None, message)
+    await manyacg_plugin.parse_artwork(None, message)  # type: ignore
     assert calls == ["https://www.pixiv.net/en/artworks/128546841"]

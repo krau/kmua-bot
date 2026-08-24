@@ -63,6 +63,8 @@ class PrivateStartBotMarkup:
 
 @Client.on_message(filters.command("start") & filters.private, group=0)
 async def start(client: Client, message: Message):
+    if not message.from_user:
+        return
     user_config = await database.get_user_config(message.from_user)
     lang = user_config.lang
     if message.command is None:
@@ -75,6 +77,8 @@ async def start(client: Client, message: Message):
         return
     cmd = message.command[1]
     if cmd.startswith("inline_query"):
+        if not client.me or not client.me.username:
+            return
         await message.reply(
             text=i18n.t("bot.msg.help_inline", locale=lang).format(
                 me_username=client.me.username
@@ -96,6 +100,8 @@ async def start(client: Client, message: Message):
             )
             return
         sender_user = await database.get_user_by_id(bottle.sender_id)
+        if sender_user is None:
+            return
         sender_mention = await common.mention_html(sender_user)
         requester = await database.get_user_by_id(message.from_user.id)
         is_admin = requester is not None and requester.is_bot_global_admin
@@ -213,7 +219,7 @@ async def start(client: Client, message: Message):
                     bottle.text,
                     reply_markup=reply_markup,
                 )
-            if bot_msg:
+            if bot_msg and bot_msg.chat:
                 await memttlcache.set(
                     f"{_BOTTLE_MSG_PREFIX}{bot_msg.chat.id}:{bot_msg.id}",
                     {
@@ -238,8 +244,12 @@ async def start(client: Client, message: Message):
 
 @Client.on_message(filters.command("start") & filters.group, group=0)
 async def start_group(client: Client, message: Message):
+    if not message.chat or message.chat.id is None:
+        return
     chat_config = await database.get_chat_config(message.chat)
     lang = chat_config.lang
+    if not client.me or not client.me.username:
+        return
     rows = [
         [
             InlineKeyboardButton(
@@ -262,6 +272,8 @@ async def start_group(client: Client, message: Message):
 
 @Client.on_callback_query(filters.regex(r"^back_home"))
 async def back_home(client: Client, callback_query: CallbackQuery):
+    if not callback_query.message:
+        return
     user_config = await database.get_user_config(callback_query.from_user)
     lang = user_config.lang
     try:
@@ -275,6 +287,8 @@ async def back_home(client: Client, callback_query: CallbackQuery):
 
 @Client.on_callback_query(filters.regex(r"^delete_callback_query_message$"))
 async def delete_callback_query_message(client: Client, callback_query: CallbackQuery):
+    if not callback_query.message:
+        return
     try:
         await callback_query.message.delete()
     except Exception as e:
@@ -288,9 +302,10 @@ async def _can_manage(message: Message) -> bool:
     lookup error must not take down the whole /start reply.
     """
     try:
-        return await common.can_user_manage_bot_in_chat(
-            message.sender_chat or message.from_user, message.chat
-        )
+        user = message.sender_chat or message.from_user
+        if not user or not message.chat:
+            return False
+        return await common.can_user_manage_bot_in_chat(user, message.chat)
     except Exception as e:
         logger.debug(f"panel button: permission check failed: {e}")
         return False

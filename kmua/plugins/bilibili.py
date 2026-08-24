@@ -1,7 +1,8 @@
 import re
 
 import httpx
-from pyrogram import Client, filters
+from pyrogram import filters
+from pyrogram.client import Client
 from pyrogram.enums import ChatType, ParseMode
 from pyrogram.types import Message
 
@@ -13,10 +14,15 @@ from kmua import common, database, i18n
 )
 async def bililink_convert(client: Client, message: Message):
     chat = message.chat
-    in_group = chat.type in (ChatType.GROUP, ChatType.SUPERGROUP)
-    chat_config = await database.get_chat_config(chat.id) if in_group else None
-    if in_group and not chat_config.convert_b23_enabled:
+    if not chat or chat.id is None:
         return
+    in_group = chat.type in (ChatType.GROUP, ChatType.SUPERGROUP)
+    if in_group:
+        chat_config = await database.get_chat_config(chat.id)
+        if not chat_config.convert_b23_enabled:
+            return
+    else:
+        chat_config = None
     if not message.text:
         return
     b23link = re.search(r"(?:b23\.tv|bili2233\.cn)/([a-zA-Z0-9]+)", message.text)
@@ -35,10 +41,15 @@ async def bililink_convert(client: Client, message: Message):
         real_url = real_url.split("?")[0]
     if in_group:
         user = message.sender_chat or message.from_user
+        if not user:
+            return
+        assert chat_config is not None
         text = i18n.t("bot.msg.b23_converted_group", locale=chat_config.lang).format(
             real_url=real_url, from_user=(await common.mention_html(user))
         )
     else:
+        if not message.from_user:
+            return
         user_config = await database.get_user_config(message.from_user.id)
         text = i18n.t("bot.msg.b23_converted", locale=user_config.lang).format(
             real_url=real_url

@@ -11,6 +11,7 @@ from __future__ import annotations
 import importlib
 from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
+from typing import cast
 
 import pytest
 
@@ -179,7 +180,7 @@ def rss_agent_env(monkeypatch):
     """Enable agent gating, stub the database and the Telegram client."""
     monkeypatch.setattr(app_config, "rss_agent_broadcast_interval", 30, raising=False)
 
-    sent: list[tuple[int, str | None, str]] = []  # (chat_id, text, parse_mode)
+    sent: list[tuple[int, str | None, str | None]] = []  # (chat_id, text, parse_mode)
 
     async def fake_send_message(chat_id, text, parse_mode=None, **kwargs):
         sent.append((chat_id, text, parse_mode))
@@ -345,7 +346,7 @@ async def test_rss_agent_toggle_requires_chat_row(
     async def reply(text, **kwargs):
         replies.append(text)
 
-    message = SimpleNamespace(chat=chat, reply=reply)
+    message = cast(pyrogram.types.Message, SimpleNamespace(chat=chat, reply=reply))
     await _rss_agent_toggle(
         message, "zh-CN", ["rss", "digest", "on"], "rss_agent_summary"
     )
@@ -370,7 +371,7 @@ async def test_rss_agent_toggle_persists_for_group_chat(
     async def reply(text, **kwargs):
         replies.append(text)
 
-    message = SimpleNamespace(chat=chat, reply=reply)
+    message = cast(pyrogram.types.Message, SimpleNamespace(chat=chat, reply=reply))
     await _rss_agent_toggle(
         message, "zh-CN", ["rss", "digest", "on"], "rss_agent_summary"
     )

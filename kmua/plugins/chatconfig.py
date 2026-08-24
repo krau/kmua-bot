@@ -1,4 +1,5 @@
 import pyrogram
+from pyrogram.client import Client
 from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
 from kmua import common, database
@@ -119,12 +120,12 @@ class ChatConfigMarkup:
         return [[button]] if button else []
 
 
-@pyrogram.Client.on_message(
-    pyrogram.filters.command("config") & pyrogram.filters.group, group=0
-)
-async def config_chat_cmd(client: pyrogram.Client, message: pyrogram.types.Message):
+@Client.on_message(pyrogram.filters.command("config") & pyrogram.filters.group, group=0)
+async def config_chat_cmd(client: Client, message: pyrogram.types.Message):
     user = message.sender_chat or message.from_user
     chat = message.chat
+    if not user or not chat:
+        return
     if not await common.can_user_manage_bot_in_chat(user, chat):
         chat_config = await database.get_chat_config(chat)
         lang = chat_config.lang
@@ -140,11 +141,12 @@ async def config_chat_cmd(client: pyrogram.Client, message: pyrogram.types.Messa
     )
 
 
-@pyrogram.Client.on_callback_query(pyrogram.filters.regex("^config_chat"), group=0)
-async def config_chat(
-    client: pyrogram.Client, callback_query: pyrogram.types.CallbackQuery
-):
-    chat = callback_query.message.chat
+@Client.on_callback_query(pyrogram.filters.regex("^config_chat"), group=0)
+async def config_chat(client: Client, callback_query: pyrogram.types.CallbackQuery):
+    message = callback_query.message
+    if not message or not message.chat:
+        return
+    chat = message.chat
     user = callback_query.from_user
     if not await common.can_user_manage_bot_in_chat(user, chat):
         user_config = await database.get_user_config(user)
@@ -206,6 +208,6 @@ async def config_chat(
     if data[1] == "save":
         await callback_query.edit_message_text(
             text=i18n.t("bot.msg.group_config_saved", locale=lang),
-            reply_markup=None,
+            reply_markup=None,  # type: ignore
         )
         return

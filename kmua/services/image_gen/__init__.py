@@ -2,9 +2,11 @@ import asyncio
 import base64
 from dataclasses import dataclass
 from io import BytesIO
+from typing import Literal, cast
 
 import httpx
 from openai import AsyncOpenAI
+from openai.types import ImagesResponse
 
 from kmua.config import app_config
 from kmua.logger import logger
@@ -97,12 +99,19 @@ class _ImageGenerationClient:
             response = await self._client.images.generate(
                 model=self.model,
                 prompt=prompt,
-                size=size,  # type: ignore[arg-type]
-                quality=quality,  # type: ignore[arg-type]
+                size=size,
+                quality=cast(
+                    Literal["standard", "hd", "low", "medium", "high", "auto"],
+                    quality,
+                ),
                 n=n,
                 response_format="b64_json",
             )
-            item = response.data[0]  # type: ignore[index]
+            if response.data is None:
+                return ImageGenResult(
+                    success=False, error="No image data returned by the model."
+                )
+            item = response.data[0]
             if item.b64_json:
                 image_bytes = await asyncio.to_thread(base64.b64decode, item.b64_json)
             elif item.url:
@@ -163,7 +172,11 @@ class _ImageEditClient:
             )
             if mask_data is not None:
                 kwargs["mask"] = ("mask.png", BytesIO(mask_data), "image/png")
-            response = await self._client.images.edit(**kwargs)
+            response = cast(ImagesResponse, await self._client.images.edit(**kwargs))
+            if response.data is None:
+                return ImageEditResult(
+                    success=False, error="No image data returned by the model."
+                )
             item = response.data[0]
             if item.b64_json:
                 result_bytes = await asyncio.to_thread(base64.b64decode, item.b64_json)

@@ -2,7 +2,7 @@ from os import cpu_count
 from pathlib import Path
 
 from pyrogram.client import Client
-from pyrogram.session import Session
+from pyrogram.session.session import Session
 
 from kmua.bot.kurigram_patch import install as install_kurigram_patch
 from kmua.config import app_config

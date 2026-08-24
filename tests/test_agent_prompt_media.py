@@ -5,7 +5,9 @@ from __future__ import annotations
 
 from io import BytesIO
 from types import SimpleNamespace
+from typing import cast
 
+from pydantic_ai import Agent
 from pyrogram.enums import ChatType, MessageMediaType
 
 from kmua.config import app_config
@@ -141,8 +143,11 @@ async def test_transcribe_replaces_media_with_description(monkeypatch):
         def __init__(self):
             super().__init__(custom_output_text="图里有一只猫")
 
-    prompt_mod.Agent = lambda **kw: __import__("pydantic_ai").Agent(
-        model=_TranscribeModel(), retries=2
+    prompt_mod.Agent = cast(
+        type[Agent],
+        lambda **kw: __import__("pydantic_ai").Agent(
+            model=_TranscribeModel(), retries=2
+        ),
     )
     try:
         result = await prompt_mod.transcribe_multimodal_content(
@@ -177,8 +182,9 @@ async def test_transcribe_failure_falls_back_to_placeholder(monkeypatch):
         async def request(self, *args, **kwargs):
             raise RuntimeError("model down")
 
-    prompt_mod.Agent = lambda **kw: __import__("pydantic_ai").Agent(
-        model=_BoomModel(), retries=1
+    prompt_mod.Agent = cast(
+        type[Agent],
+        lambda **kw: __import__("pydantic_ai").Agent(model=_BoomModel(), retries=1),
     )
     try:
         result = await prompt_mod.transcribe_multimodal_content(
@@ -218,7 +224,7 @@ async def test_transcribe_uses_configured_instructions(monkeypatch):
     monkeypatch.setattr(
         app_config, "agent_multimodal_transcribe_prompt", "CUSTOM 转述要求"
     )
-    prompt_mod.Agent = fake_agent
+    prompt_mod.Agent = cast(type[Agent], fake_agent)
     try:
         await prompt_mod.transcribe_multimodal_content(
             object(),

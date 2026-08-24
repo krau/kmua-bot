@@ -5,8 +5,10 @@ plugin wiring with network and Telegram calls stubbed.
 from __future__ import annotations
 
 from types import SimpleNamespace
+from typing import cast
 
 import pytest
+from pyrogram.client import Client
 
 from kmua.plugins import twitter as twitter_plugin
 from kmua.services import twitter as twitter_service
@@ -186,10 +188,10 @@ def _make_message(fake_message, url):
         chat=chat,
         from_user=user,
         text=url,
-        service=False,
+        service=None,
         outgoing=False,
     )
-    message.matches = [type("M", (), {"group": lambda self: url})()]
+    setattr(message, "matches", [type("M", (), {"group": lambda self: url})()])
     message.reply_text = reply.reply_text
     message.reply_chat_action = reply.reply_chat_action
     return message
@@ -211,7 +213,7 @@ async def test_plugin_sends_text_for_pure_tweet(fake_message, monkeypatch):
 
     monkeypatch.setattr(twitter_service, "fetch_tweet", fake_fetch)
     message = _make_message(fake_message, "https://twitter.com/jack/status/20")
-    await twitter_plugin.parse_tweet(None, message)
+    await twitter_plugin.parse_tweet(None, message)  # type: ignore
 
     chat, user, reply = fake_message
     assert len(reply.texts) == 1
@@ -248,7 +250,7 @@ async def test_plugin_sends_media_group(fake_message, monkeypatch):
     message = _make_message(
         fake_message, "https://twitter.com/BarackObama/status/266031293945503744"
     )
-    await twitter_plugin.parse_tweet(fake_client, message)
+    await twitter_plugin.parse_tweet(cast(Client, fake_client), message)
 
     assert len(media_calls) == 1
     inputs, kwargs = media_calls[0]
@@ -273,7 +275,7 @@ async def test_plugin_disabled_by_chat_config(fake_message, monkeypatch):
 
     monkeypatch.setattr(twitter_service, "fetch_tweet", fake_fetch)
     message = _make_message(fake_message, "https://twitter.com/jack/status/20")
-    await twitter_plugin.parse_tweet(None, message)
+    await twitter_plugin.parse_tweet(None, message)  # type: ignore
     assert called == []
 
 
@@ -290,7 +292,7 @@ async def test_plugin_silent_when_fetch_fails(fake_message, monkeypatch):
 
     monkeypatch.setattr(twitter_service, "fetch_tweet", fake_fetch)
     message = _make_message(fake_message, "https://twitter.com/jack/status/20")
-    await twitter_plugin.parse_tweet(None, message)
+    await twitter_plugin.parse_tweet(None, message)  # type: ignore
 
     chat, user, reply = fake_message
     assert reply.texts == []

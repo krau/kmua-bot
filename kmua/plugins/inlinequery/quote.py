@@ -1,11 +1,12 @@
 import pyrogram
+from pyrogram.client import Client
 
 from kmua import database
 from kmua.logger import logger
 
 
 async def query_quote(
-    client: pyrogram.Client,
+    client: Client,
     query: pyrogram.types.InlineQuery,
     chat_id: int | None = None,
     text: str = "",

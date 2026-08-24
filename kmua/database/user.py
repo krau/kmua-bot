@@ -378,7 +378,7 @@ async def get_users_page(
     assert session is not None
 
     page, size = pagination.normalize_page(page, size)
-    conditions = []
+    conditions: list[sqlalchemy.ColumnElement[bool]] = []
     if only_real:
         conditions.append(UserData.is_real_user.is_(True))
 

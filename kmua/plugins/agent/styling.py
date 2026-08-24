@@ -8,6 +8,8 @@ Returns (plain_text, entities) on success, or (original_text, []) on failure.
 Entities use UTF-16 code-unit offsets as required by the Telegram Bot API.
 """
 
+from typing import Any
+
 import pyrogram.enums
 import pyrogram.types
 import telegramify_markdown
@@ -53,7 +55,7 @@ def convert_md(
         pyrogram_entities = []
         for e in tg_entities:
             etype = _entity_type(e.type)
-            kwargs = {
+            kwargs: dict[str, Any] = {
                 "type": etype,
                 "offset": e.offset,
                 "length": e.length,

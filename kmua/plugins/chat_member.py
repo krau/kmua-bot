@@ -35,7 +35,10 @@ async def chat_member_updated(client: Client, chat_member_updated: ChatMemberUpd
     """
     if not any((old_obj, new_obj)):
         return
-    user = new_obj.user if new_obj else old_obj.user
+    member = new_obj or old_obj
+    if member is None:
+        return
+    user = member.user
     if user is None:
         return
     if user.is_deleted:

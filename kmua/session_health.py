@@ -26,9 +26,9 @@ avatar refreshes) would otherwise never recover.
 import asyncio
 from datetime import datetime
 
-from pyrogram import raw
 from pyrogram.client import Client
 from pyrogram.errors import RPCError
+from pyrogram.raw.functions.updates.get_state import GetState
 
 from kmua.logger import logger
 
@@ -86,7 +86,7 @@ class SessionHealthMonitor:
             # whole probe so a wedged session can never hang this monitor.
             await asyncio.wait_for(
                 session.invoke(
-                    raw.functions.updates.GetState(),
+                    GetState(),
                     retries=1,
                     timeout=self.probe_timeout,
                     # Never sleep on FloodWait inside a probe: raising is the

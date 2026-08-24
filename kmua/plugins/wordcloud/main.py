@@ -3,6 +3,7 @@ import datetime
 from io import BytesIO
 
 import pyrogram
+from pyrogram.client import Client
 from wordcloud import WordCloud
 
 from kmua import common, consts, database, i18n
@@ -16,10 +17,10 @@ def _encode_png(image) -> bytes:
     return buf.getvalue()
 
 
-@pyrogram.Client.on_message(
+@Client.on_message(
     pyrogram.filters.command("wordcloud") & pyrogram.filters.group, group=0
 )
-async def wordcloud_command(client: pyrogram.Client, message: pyrogram.types.Message):
+async def wordcloud_command(client: Client, message: pyrogram.types.Message):
     chat = message.chat
     if not chat or not chat.id:
         return

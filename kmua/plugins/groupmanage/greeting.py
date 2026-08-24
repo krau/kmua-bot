@@ -1,26 +1,25 @@
 from string import Template
 
 import pyrogram
+from pyrogram.client import Client
 
 from kmua import common, database, i18n
 from kmua.logger import logger
 
 
-@pyrogram.Client.on_message(
-    pyrogram.filters.command("greet") & pyrogram.filters.group, group=0
-)
-async def set_greeting_command(
-    client: pyrogram.Client, message: pyrogram.types.Message
-):
+@Client.on_message(pyrogram.filters.command("greet") & pyrogram.filters.group, group=0)
+async def set_greeting_command(client: Client, message: pyrogram.types.Message):
     chat = message.chat
     user = message.sender_chat or message.from_user
-    if not chat or not user:
+    if not chat or chat.id is None or not user:
         return
     chat_config = await database.get_chat_config(chat)
     if not await common.can_user_manage_bot_in_chat(user, chat):
         await message.reply(
             i18n.t("bot.msg.no_permission_group", locale=chat_config.lang)
         )
+        return
+    if not message.command:
         return
     if len(message.command) < 2:
         await message.reply(i18n.t("bot.msg.greeting.usage", locale=chat_config.lang))
@@ -83,12 +82,18 @@ async def set_greeting_command(
             )
 
 
-@pyrogram.Client.on_message(pyrogram.filters.new_chat_members, group=1)
-async def greeting_new_member(client: pyrogram.Client, message: pyrogram.types.Message):
+@Client.on_message(pyrogram.filters.new_chat_members, group=1)
+async def greeting_new_member(client: Client, message: pyrogram.types.Message):
     chat = message.chat
+    if not chat or chat.id is None:
+        return
     db_chat = await database.get_chat_by_id(chat.id)
+    if db_chat is None:
+        return
     chat_config = db_chat.chat_config
     if not chat_config.greeting:
+        return
+    if not message.new_chat_members:
         return
     new_member = message.new_chat_members[0]  # TODO: handle multiple new members
     t = Template(chat_config.greeting)

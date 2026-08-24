@@ -1,6 +1,6 @@
 """Low-priority, payload-free Telegram update throughput observation."""
 
-from pyrogram import Client
+from pyrogram.client import Client
 
 from kmua.webapp.metrics import runtime_metrics
 

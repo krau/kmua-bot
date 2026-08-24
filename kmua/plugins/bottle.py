@@ -1,3 +1,5 @@
+from typing import Any
+
 from pyrogram import enums, filters, types
 from pyrogram.client import Client
 
@@ -19,7 +21,9 @@ async def _bottle_reply_filter(_, client: Client, message: types.Message) -> boo
     if not is_explicit_reply(message):
         return False
     reply_to = message.reply_to_message
-    if not reply_to or not reply_to.from_user or reply_to.from_user.id != client.me.id:
+    if not reply_to or not reply_to.from_user:
+        return False
+    if client.me is None or reply_to.from_user.id != client.me.id:
         return False
     if not reply_to.chat:
         return False
@@ -44,9 +48,15 @@ bottle_reply_filter = filters.create(_bottle_reply_filter)
 async def throw_bottle(client: Client, message: types.Message):
     # 在命令后直接跟文本内容作为瓶中信
     # 或者用命令回复一条消息, 将该消息内容作为瓶中信
+    if message.chat is None:
+        return
+    if message.chat.id is None:
+        return
     lang = "zh-CN"
     chat_type = message.chat.type
     if chat_type == enums.ChatType.PRIVATE:
+        if message.from_user is None:
+            return
         config = await database.get_user_config(message.from_user.id)
         lang = config.lang
     else:
@@ -144,9 +154,15 @@ async def throw_bottle(client: Client, message: types.Message):
 
 @Client.on_message(filters.command("pickbottle"), group=0)
 async def pick_bottle(client: Client, message: types.Message):
+    if message.chat is None:
+        return
+    if message.chat.id is None:
+        return
     lang = "zh-CN"
     chat_type = message.chat.type
     if chat_type == enums.ChatType.PRIVATE:
+        if message.from_user is None:
+            return
         config = await database.get_user_config(message.from_user.id)
         lang = config.lang
     else:
@@ -227,7 +243,7 @@ async def pick_bottle(client: Client, message: types.Message):
     ]
     reply_markup = types.InlineKeyboardMarkup(buttons)
 
-    content_kwargs = {}
+    content_kwargs: dict[str, Any] = {}
     content_kwargs["has_spoiler"] = True
     if bottle.text:
         content_kwargs["caption"] = bottle.text
@@ -266,7 +282,7 @@ async def pick_bottle(client: Client, message: types.Message):
     else:
         bot_msg = None
 
-    if bot_msg:
+    if bot_msg and bot_msg.chat:
         original_data = {
             "bottle_id": bottle.id,
             "text": bottle.text,
@@ -530,8 +546,12 @@ async def handle_reply_bottle_cancel_callback(
 
 @Client.on_message(bottle_reply_filter, group=0)
 async def handle_bottle_reply_message(client: Client, message: types.Message):
+    if not message.from_user or not message.from_user.id:
+        return
     user_id = message.from_user.id
     reply_to = message.reply_to_message
+    if not reply_to or not reply_to.chat:
+        return
     bottle_data = await memttlcache.get(
         f"{_BOTTLE_MSG_PREFIX}{reply_to.chat.id}:{reply_to.id}"
     )
@@ -782,33 +802,40 @@ async def handle_bottle_reply_message(client: Client, message: types.Message):
                 case enums.MessageMediaType.PHOTO.name:
                     await reply_to.edit_media(
                         media=types.InputMediaPhoto(
-                            original_file_id, caption=caption, has_spoiler=True
+                            original_file_id,
+                            caption=caption,  # type: ignore
+                            has_spoiler=True,
                         ),
                         reply_markup=types.InlineKeyboardMarkup(restored_buttons),
                     )
                 case enums.MessageMediaType.VIDEO.name:
                     await reply_to.edit_media(
                         media=types.InputMediaVideo(
-                            original_file_id, caption=caption, has_spoiler=True
+                            original_file_id,
+                            caption=caption,  # type: ignore
+                            has_spoiler=True,
                         ),
                         reply_markup=types.InlineKeyboardMarkup(restored_buttons),
                     )
                 case enums.MessageMediaType.AUDIO.name:
                     await reply_to.edit_media(
-                        media=types.InputMediaAudio(original_file_id, caption=caption),
+                        media=types.InputMediaAudio(original_file_id, caption=caption),  # type: ignore
                         reply_markup=types.InlineKeyboardMarkup(restored_buttons),
                     )
                 case enums.MessageMediaType.DOCUMENT.name:
                     await reply_to.edit_media(
                         media=types.InputMediaDocument(
-                            original_file_id, caption=caption
+                            original_file_id,
+                            caption=caption,  # type: ignore
                         ),
                         reply_markup=types.InlineKeyboardMarkup(restored_buttons),
                     )
                 case enums.MessageMediaType.ANIMATION.name:
                     await reply_to.edit_media(
                         media=types.InputMediaAnimation(
-                            original_file_id, caption=caption, has_spoiler=True
+                            original_file_id,
+                            caption=caption,  # type: ignore
+                            has_spoiler=True,
                         ),
                         reply_markup=types.InlineKeyboardMarkup(restored_buttons),
                     )

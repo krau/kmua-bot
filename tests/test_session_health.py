@@ -18,8 +18,10 @@ from __future__ import annotations
 
 import asyncio
 from datetime import datetime, timedelta
+from typing import cast
 
 import pytest
+from pyrogram.client import Client
 from pyrogram.errors import FloodWait, RPCError, UserMigrate
 
 from kmua.session_health import SessionHealthMonitor
@@ -74,7 +76,7 @@ def _monitor(
     restart_timeout: float = 1.0,
 ) -> SessionHealthMonitor:
     return SessionHealthMonitor(
-        client=client,
+        client=cast(Client, client),
         check_interval=60.0,
         probe_timeout=probe_timeout,
         probe_grace=probe_grace,

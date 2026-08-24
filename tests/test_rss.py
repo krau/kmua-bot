@@ -75,6 +75,7 @@ async def test_add_subscription_rejects_duplicates():
 
 async def test_remove_subscription_deletes_orphan_feed():
     sub, _ = await database.add_subscription(-100900001, "http://feed.test")
+    assert sub is not None
     await database.add_subscription(-100900002, "http://feed.test")
 
     await database.remove_subscription(-100900001, sub.feed_id)
@@ -90,11 +91,13 @@ async def test_remove_subscription_deletes_orphan_feed():
 
 async def test_remove_an_absent_subscription_is_false():
     sub, _ = await database.add_subscription(-100900001, "http://feed.test")
+    assert sub is not None
     assert await database.remove_subscription(-100900002, sub.feed_id) is False
 
 
 async def test_pause_and_resume():
     sub, _ = await database.add_subscription(-100900001, "http://feed.test")
+    assert sub is not None
 
     assert await database.set_subscription_paused(-100900001, sub.feed_id, True) is True
     assert await database.get_feed_target_chats(sub.feed_id) == []
@@ -113,7 +116,9 @@ async def test_pausing_an_absent_subscription_is_false():
 
 async def test_get_active_feeds_skips_fully_paused_feeds():
     sub, _ = await database.add_subscription(-100900001, "http://a.test")
+    assert sub is not None
     sub2, _ = await database.add_subscription(-100900001, "http://b.test")
+    assert sub2 is not None
     await database.set_subscription_paused(-100900001, sub.feed_id, True)
 
     active = await database.get_active_feeds()
@@ -132,6 +137,7 @@ async def test_active_feeds_default_to_the_global_interval(monkeypatch):
 
 async def test_active_feed_interval_is_the_minimum_across_subscriptions():
     sub, _ = await database.add_subscription(-100900001, "http://feed.test")
+    assert sub is not None
     await database.add_subscription(-100900002, "http://feed.test")
 
     await database.set_subscription_interval(-100900001, sub.feed_id, 10)
@@ -148,6 +154,7 @@ async def test_active_feed_interval_is_the_minimum_across_subscriptions():
 
 async def test_set_subscription_interval_and_reset():
     sub, _ = await database.add_subscription(-100900001, "http://feed.test")
+    assert sub is not None
     assert await database.set_subscription_interval(-100900001, sub.feed_id, 7) is True
     assert await database.set_subscription_interval(-100900001, 999, 7) is False
 
@@ -161,11 +168,14 @@ async def test_set_subscription_interval_and_reset():
 
 async def test_touch_fetch_updates_last_fetched_at():
     sub, _ = await database.add_subscription(-100900001, "http://feed.test")
+    assert sub is not None
     feed = await database.get_feed_by_id(sub.feed_id)
+    assert feed is not None
     assert feed.last_fetched_at is None
 
     await database.touch_fetch(sub.feed_id)
     feed = await database.get_feed_by_id(sub.feed_id)
+    assert feed is not None
     assert feed.last_fetched_at is not None
     assert feed.last_error is None and feed.seen_entry_ids == []
 
@@ -174,6 +184,7 @@ async def test_get_chat_subscriptions_is_newest_first():
     subs = []
     for i in range(3):
         sub, _ = await database.add_subscription(-100900001, f"http://feed{i}.test")
+        assert sub is not None
         subs.append(sub)
 
     listed = await database.get_chat_subscriptions(-100900001)
@@ -194,9 +205,11 @@ async def test_paged_subscriptions(whitelist_mode):
 
 async def test_record_fetch_success_seeds_seen_ids_and_clears_error():
     sub, _ = await database.add_subscription(-100900001, "http://feed.test")
+    assert sub is not None
     await database.record_fetch_failure(sub.feed_id, "HTTPStatusError: 404")
 
     feed = await database.get_feed_by_id(sub.feed_id)
+    assert feed is not None
     assert feed.last_error is not None
     assert feed.failure_count == 1
 
@@ -209,6 +222,7 @@ async def test_record_fetch_success_seeds_seen_ids_and_clears_error():
     )
 
     feed = await database.get_feed_by_id(sub.feed_id)
+    assert feed is not None
     assert feed.last_error is None
     assert feed.failure_count == 0
     assert feed.title == "Test Feed"
@@ -218,6 +232,7 @@ async def test_record_fetch_success_seeds_seen_ids_and_clears_error():
 
 async def test_record_fetch_success_truncates_the_seen_window():
     sub, _ = await database.add_subscription(-100900001, "http://feed.test")
+    assert sub is not None
 
     await database.record_fetch_success(
         sub.feed_id,
@@ -228,12 +243,14 @@ async def test_record_fetch_success_truncates_the_seen_window():
     )
 
     feed = await database.get_feed_by_id(sub.feed_id)
+    assert feed is not None
     assert len(feed.seen_entry_ids) == database.MAX_SEEN_IDS
     assert feed.seen_entry_ids[0] == "10"
 
 
 async def test_record_fetch_success_keeps_an_existing_title():
     sub, _ = await database.add_subscription(-100900001, "http://feed.test")
+    assert sub is not None
     await database.record_fetch_success(
         sub.feed_id,
         title="Real Title",
@@ -247,12 +264,15 @@ async def test_record_fetch_success_keeps_an_existing_title():
     )
 
     feed = await database.get_feed_by_id(sub.feed_id)
+    assert feed is not None
     assert feed.title == "Real Title"
 
 
 async def test_delete_chat_subscriptions_drops_all_rows():
     sub, _ = await database.add_subscription(-100900001, "http://a.test")
+    assert sub is not None
     sub2, _ = await database.add_subscription(-100900001, "http://b.test")
+    assert sub2 is not None
     await database.add_subscription(-100900002, "http://a.test")
 
     removed = await database.delete_chat_subscriptions(-100900001)
@@ -633,6 +653,7 @@ async def test_add_subscribes_and_seeds_seen_ids(
     assert body["paused"] is False
 
     feed = await database.get_feed_by_url("http://example.com/feed.xml")
+    assert feed is not None
     assert feed.seen_entry_ids == ["1"]
 
 
@@ -887,7 +908,9 @@ async def test_me_rss_is_scoped_to_the_caller(monkeypatch, whitelist_mode):
         assert listed.json()["total"] == 0
 
         # And cannot pause or delete it: the feed id is scoped by session user.
-        feed_id = (await database.get_feed_by_url("http://me.test/feed")).id
+        feed = await database.get_feed_by_url("http://me.test/feed")
+        assert feed is not None
+        feed_id = feed.id
         gone = await client.delete(f"/api/me/rss/{feed_id}", headers=bearer(other.id))
         assert gone.status_code == 404
 

@@ -4,23 +4,32 @@ from __future__ import annotations
 
 from io import BytesIO
 from types import SimpleNamespace
+from typing import Any, cast
 
 import pyrogram
+from pydantic_ai import RunContext, RunUsage
+from pydantic_ai.models.test import TestModel
+from pyrogram.client import Client
+from pyrogram.types import Message
 
+from kmua.plugins.agent import datatype
 from kmua.plugins.agent.tools import tg_ops
 
 
-def _ctx(client=None):
-    return SimpleNamespace(
-        deps=SimpleNamespace(
-            client=client or SimpleNamespace(),
-            chat_id=-100_123,
-            user_id=1001,
-            message=SimpleNamespace(id=7, guest_query_id=None),
-            is_guest_mode=False,
-            powermemory=None,
-            tools_called_this_turn=set(),
-        )
+def _ctx(client=None) -> RunContext[datatype.ContextDeps]:
+    return cast(
+        RunContext[datatype.ContextDeps],
+        SimpleNamespace(
+            deps=SimpleNamespace(
+                client=client or SimpleNamespace(),
+                chat_id=-100_123,
+                user_id=1001,
+                message=SimpleNamespace(id=7, guest_query_id=None),
+                is_guest_mode=False,
+                powermemory=None,
+                tools_called_this_turn=set(),
+            )
+        ),
     )
 
 
@@ -121,7 +130,7 @@ async def test_missing_required_rejected():
 
 
 async def test_params_must_be_object():
-    result = await tg_ops.tg(_ctx(), "sendMessage", "hello")
+    result = await tg_ops.tg(_ctx(), "sendMessage", cast(dict[str, Any], "hello"))
     assert "params must be an object" in result
 
 
@@ -181,19 +190,15 @@ async def test_send_error_wrapped():
 
 
 def _run_ctx(chat_id, user_id, guest=False):
-    from pydantic_ai import RunContext
-
-    from kmua.plugins.agent import datatype
-
     deps = datatype.ContextDeps(
-        client=SimpleNamespace(),
+        client=cast(Client, SimpleNamespace()),
         user_id=user_id,
         chat_id=chat_id,
-        message=SimpleNamespace(id=1, guest_query_id=1 if guest else None),
+        message=cast(
+            Message, SimpleNamespace(id=1, guest_query_id=1 if guest else None)
+        ),
     )
-    return RunContext(
-        deps=deps, model=SimpleNamespace(), usage=SimpleNamespace(), messages=[]
-    )
+    return RunContext(deps=deps, model=TestModel(), usage=RunUsage(), messages=[])
 
 
 async def _prepare(tool, ctx):
@@ -274,7 +279,11 @@ async def test_send_anime_photo_media_group(monkeypatch):
         )
 
     async def fake_fetch(keyword=""):
-        return fake_artwork(len(send_ops._fetch_anime_artwork.calls)) if False else None
+        return (
+            fake_artwork(len(cast(Any, send_ops._fetch_anime_artwork).calls))
+            if False
+            else None
+        )
 
     calls = {"n": 0}
 
@@ -293,7 +302,7 @@ async def test_send_anime_photo_media_group(monkeypatch):
 
     ctx = _ctx(SimpleNamespace(send_media_group=fake_send_media_group))
     ctx.deps.user_id = 1001
-    ctx.deps.is_guest_mode = False
+    ctx.deps.is_guest_mode = False  # type: ignore
 
     import kmua.database as database
 
@@ -353,7 +362,7 @@ async def test_send_anime_photo_single_still_sends_photo(monkeypatch):
 
     ctx = _ctx(SimpleNamespace(send_photo=fake_send_photo))
     ctx.deps.user_id = 1001
-    ctx.deps.is_guest_mode = False
+    ctx.deps.is_guest_mode = False  # type: ignore
 
     result = await send_ops.send_anime_photo(ctx, count=1)
     assert result.success is True
