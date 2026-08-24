@@ -116,6 +116,34 @@ def test_parse_article_html_splits_paragraph_tags():
     assert article.paragraphs == ["第一段", "第二段", "第三段", "第三段续"]
 
 
+class _FakeStreamResponse:
+    """Minimal httpx stream-context response for download_capped."""
+
+    def __init__(self, data: bytes):
+        self._data = data
+        self.headers: dict[str, str] = {}
+
+    def raise_for_status(self) -> None:
+        return None
+
+    async def aiter_bytes(self, chunk_size: int | None = None):
+        yield self._data
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, *exc_info) -> bool:
+        return False
+
+
+class _FakeDownloadClient:
+    def __init__(self, data: bytes):
+        self._data = data
+
+    def stream(self, method: str, url: str, timeout=None):
+        return _FakeStreamResponse(self._data)
+
+
 def test_download_image_rejects_extreme_aspect_ratio():
     """Telegram rejects >20:1 photos; such WeChat strips must be dropped."""
     import io
@@ -125,16 +153,7 @@ def test_download_image_rejects_extreme_aspect_ratio():
     buf = io.BytesIO()
     Image.new("RGB", (844, 18), color="red").save(buf, format="JPEG")
 
-    async def fake_get(url):
-        async def fake_aread():
-            return buf.getvalue()
-
-        return SimpleNamespace(
-            raise_for_status=lambda: None,
-            aread=fake_aread,
-        )
-
-    fake_client = SimpleNamespace(get=fake_get)
+    fake_client = _FakeDownloadClient(buf.getvalue())
 
     async def run():
         try:
@@ -156,16 +175,7 @@ async def test_download_image_converts_to_jpeg():
     buf = io.BytesIO()
     Image.new("RGBA", (100, 50), color="blue").save(buf, format="PNG")
 
-    async def fake_get(url):
-        async def fake_aread():
-            return buf.getvalue()
-
-        return SimpleNamespace(
-            raise_for_status=lambda: None,
-            aread=fake_aread,
-        )
-
-    fake_client = SimpleNamespace(get=fake_get)
+    fake_client = _FakeDownloadClient(buf.getvalue())
     data = await wechat_service.download_image(fake_client, "https://mmbiz.qpic.cn/1")
     with Image.open(io.BytesIO(data)) as im:
         assert im.format == "JPEG"

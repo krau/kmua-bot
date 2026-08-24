@@ -21,6 +21,7 @@ from lxml import html as lxml_html
 from PIL import Image
 
 from kmua import common
+from kmua.common.download import download_capped
 
 # Parsed articles are cached per URL: WeChat pages are multi-megabyte and
 # several people may share the same link; 1h keeps repeats cheap while still
@@ -495,11 +496,7 @@ async def download_image(client: httpx.AsyncClient, url: str) -> bytes:
     """Download one article image; raises when it fails or is unusable."""
     if not _is_wechat_image_url(url):
         raise ValueError(f"not a wechat cdn image url: {url!r}")
-    resp = await client.get(url)
-    resp.raise_for_status()
-    data = await resp.aread()
-    if len(data) > 10 * 1024 * 1024:
-        raise ValueError("image too large")
+    data = await download_capped(client, url, 10 * 1024 * 1024)
     return await asyncio.to_thread(_validate_image, data)
 
 

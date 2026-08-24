@@ -36,6 +36,7 @@ from pyrogram.raw.types.input_rich_message import (
 from pyrogram.types import Message
 
 from kmua import database, i18n
+from kmua.common.download import download_capped
 from kmua.logger import logger
 from kmua.services import link_parse
 from kmua.services import wechat as wechat_service
@@ -408,11 +409,9 @@ async def _download_images(urls: list[str]) -> list[bytes]:
     async with httpx.AsyncClient(timeout=_DOWNLOAD_TIMEOUT) as http_client:
         for url in urls[:_MAX_IMAGES]:
             try:
-                resp = await http_client.get(url)
-                resp.raise_for_status()
-                data = await resp.aread()
-                if len(data) > _MAX_DOWNLOAD_BYTES:
-                    continue
+                data = await download_capped(
+                    http_client, url, _MAX_DOWNLOAD_BYTES, timeout=_DOWNLOAD_TIMEOUT
+                )
                 results.append(data)
             except Exception:
                 continue

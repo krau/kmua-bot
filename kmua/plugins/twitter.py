@@ -13,6 +13,7 @@ import pyrogram
 from pyrogram.client import Client as PyrogramClient
 
 from kmua import common, database, i18n
+from kmua.common.download import download_capped
 from kmua.logger import logger
 from kmua.services import twitter as twitter_service
 from kmua.services.twitter import TWITTER_URL_RE
@@ -145,12 +146,9 @@ async def _download_media(
     cached = await common.memttlcache.get(f"twitter:media_file_id:{media.url}")
     if cached:
         return cached
-    resp = await client.get(media.url)
-    resp.raise_for_status()
-    data = await resp.aread()
-    if len(data) > _MAX_DOWNLOAD_BYTES:
-        raise ValueError("media too large")
-    return data
+    return await download_capped(
+        client, media.url, _MAX_DOWNLOAD_BYTES, timeout=_DOWNLOAD_TIMEOUT
+    )
 
 
 def _build_caption(tweet: twitter_service.TweetData, lang: str) -> str:
