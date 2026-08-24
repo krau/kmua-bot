@@ -796,6 +796,10 @@ async def _send_sticker_checked(
         return "Error: Stickers are only available in group chats."
     try:
         sticker_count = await sticker_vec.count(ctx.deps.chat_id)
+        if not (
+            await database.get_chat_config(ctx.deps.chat_id)
+        ).sticker_memory_enabled:
+            return "Error: Sticker sending is disabled for this chat."
     except Exception as e:
         logger.warning(
             f"Failed to check sticker count for chat {ctx.deps.chat_id}: {e}"

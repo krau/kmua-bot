@@ -276,6 +276,7 @@ class ChatConfigOut(ApiModel):
     parse_sites_enabled: dict[str, bool] = {}
     pick_bottle_enabled: bool
     group_memory_enabled: bool
+    sticker_memory_enabled: bool
     parse_wechat_enabled: bool
     rss_agent_summary: bool
     rss_agent_broadcast: bool
@@ -306,6 +307,7 @@ class ChatConfigIn(ApiModel):
     parse_sites_enabled: dict[str, bool] = {}
     pick_bottle_enabled: bool
     group_memory_enabled: bool
+    sticker_memory_enabled: bool
     parse_wechat_enabled: bool
     rss_agent_summary: bool
     rss_agent_broadcast: bool

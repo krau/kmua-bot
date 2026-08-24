@@ -171,6 +171,8 @@
     "pick_bottle_enabled": "捡漂流瓶",
     "group_memory_enabled": "群组记忆",
     "group_memory_enabledHint": "让 kmua 记住这个群的对话内容",
+    "sticker_memory_enabled": "贴纸记忆",
+    "sticker_memory_enabledHint": "让 kmua 记住这个群发送的贴纸, 并能在对话中发送贴纸",
     "parseSites": "解析站点",
     "parseSitesHint": "需开启“解析链接”总开关；未配置的站点默认解析",
     "rss_agent_summary": "RSS 推送 AI 摘要",

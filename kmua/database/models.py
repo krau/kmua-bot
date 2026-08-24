@@ -64,6 +64,7 @@ class ChatConfig:
     parse_sites_enabled: dict[str, bool] = field(default_factory=dict)
     pick_bottle_enabled: bool = True
     group_memory_enabled: bool = True
+    sticker_memory_enabled: bool = True
     parse_wechat_enabled: bool = True
     rss_agent_summary: bool = False
     rss_agent_broadcast: bool = False
@@ -100,6 +101,7 @@ class ChatConfig:
             pick_bottle_enabled=data.get("pick_bottle_enabled", True),
             ai_comment=data.get("ai_comment", False),
             group_memory_enabled=data.get("group_memory_enabled", True),
+            sticker_memory_enabled=data.get("sticker_memory_enabled", True),
             parse_wechat_enabled=data.get("parse_wechat_enabled", True),
             rss_agent_summary=data.get("rss_agent_summary", False),
             rss_agent_broadcast=data.get("rss_agent_broadcast", False),

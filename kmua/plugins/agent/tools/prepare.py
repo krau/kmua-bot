@@ -3,6 +3,7 @@ from collections.abc import Awaitable, Callable
 from pydantic_ai import RunContext
 from pydantic_ai.tools import ToolDefinition
 
+from kmua import database
 from kmua.config import app_config
 from kmua.logger import logger
 from kmua.plugins.agent import datatype
@@ -70,6 +71,10 @@ async def prepare_sticker_tools(
             return None
         count = await sticker_vec.count(ctx.deps.chat_id)
         if count < 20:
+            return None
+        if not (
+            await database.get_chat_config(ctx.deps.chat_id)
+        ).sticker_memory_enabled:
             return None
     except Exception as e:
         logger.warning(f"Sticker availability check failed: {e}")

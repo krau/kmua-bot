@@ -274,7 +274,10 @@ async def on_sticker(client: PyrogramClient, message: pyrogram.types.Message) ->
         return
     if not common.random_chance(app_config.agent_sticker_memory_sample_rate):
         return
-    if not (await database.get_chat_config(chat.id)).ai_reply:
+    chat_config = await database.get_chat_config(chat.id)
+    if not chat_config.ai_reply:
+        return
+    if not chat_config.sticker_memory_enabled:
         return
     common.spawn(
         _process_sticker(client, sticker, chat.id),

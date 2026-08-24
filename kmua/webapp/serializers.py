@@ -75,6 +75,7 @@ def chat_config_out(config: ChatConfig) -> ChatConfigOut:
         parse_sites_enabled=config.parse_sites_enabled,
         pick_bottle_enabled=config.pick_bottle_enabled,
         group_memory_enabled=config.group_memory_enabled,
+        sticker_memory_enabled=config.sticker_memory_enabled,
         parse_wechat_enabled=config.parse_wechat_enabled,
         rss_agent_summary=config.rss_agent_summary,
         rss_agent_broadcast=config.rss_agent_broadcast,

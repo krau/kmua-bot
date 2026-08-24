@@ -35,6 +35,7 @@ export const TOGGLE_GROUPS: ToggleGroup[] = [
       "ai_reply_other_bots_enabled",
       "ai_comment",
       "group_memory_enabled",
+      "sticker_memory_enabled",
       "rss_agent_summary",
       "rss_agent_broadcast",
     ],
@@ -58,6 +59,7 @@ export const TOGGLE_GROUPS: ToggleGroup[] = [
  */
 export const TOGGLES_WITH_HINTS: ReadonlySet<ChatToggleKey> = new Set<ChatToggleKey>([
   "group_memory_enabled",
+  "sticker_memory_enabled",
 ]);
 
 /** The 12 /t permission keys, in the order they are rendered. */

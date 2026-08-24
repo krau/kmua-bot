@@ -58,6 +58,7 @@ const EMPTY_CONFIG: ChatConfigInput = {
   parse_sites_enabled: {},
   pick_bottle_enabled: true,
   group_memory_enabled: true,
+  sticker_memory_enabled: true,
   parse_wechat_enabled: true,
   rss_agent_summary: false,
   rss_agent_broadcast: false,

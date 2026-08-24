@@ -171,6 +171,8 @@
     "pick_bottle_enabled": "Pick drift bottles",
     "group_memory_enabled": "Group memory",
     "group_memory_enabledHint": "Let kmua remember this group's conversations",
+    "sticker_memory_enabled": "Sticker memory",
+    "sticker_memory_enabledHint": "Let kmua remember stickers sent here and send them in conversation",
     "parseSites": "Parse sites",
     "parseSitesHint": "Requires the “Parse links” master switch; unlisted sites default to on",
     "rss_agent_summary": "AI summary on RSS pushes",

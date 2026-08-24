@@ -236,10 +236,24 @@ async def test_prepare_sticker_gates_private(monkeypatch):
     async def count_thirty(chat_id):
         return 30
 
+    # Chat config lookups must not hit the real database.
+    from kmua.database.models import ChatConfig
+
+    async def config_disabled(chat_id):
+        return ChatConfig(sticker_memory_enabled=False)
+
+    async def config_enabled(chat_id):
+        return ChatConfig(sticker_memory_enabled=True)
+
+    monkeypatch.setattr(prepare.database, "get_chat_config", config_enabled)
+
     monkeypatch.setattr(sticker_vec, "count", count_zero)
     assert not await _prepare(tool, _run_ctx(-100123, 1001))
     monkeypatch.setattr(sticker_vec, "count", count_thirty)
     assert await _prepare(tool, _run_ctx(-100123, 1001))
+    # chat-level disable hides the tool even with enough stickers stored
+    monkeypatch.setattr(prepare.database, "get_chat_config", config_disabled)
+    assert not await _prepare(tool, _run_ctx(-100123, 1001))
 
 
 async def test_send_anime_photo_media_group(monkeypatch):

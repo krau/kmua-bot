@@ -45,6 +45,7 @@ def valid_config(**overrides) -> dict:
         "parse_sites_enabled": {},
         "pick_bottle_enabled": True,
         "group_memory_enabled": True,
+        "sticker_memory_enabled": True,
         "parse_wechat_enabled": True,
         "rss_agent_summary": False,
         "rss_agent_broadcast": False,
@@ -82,10 +83,12 @@ async def test_saves_a_full_config_document(chat_admin):
     body = response.json()
     assert body["waifu_enabled"] is False
     assert body["quote_probability"] == 0.5
+    assert body["sticker_memory_enabled"] is True
 
     stored = await database.get_chat_config(CHAT_ID)
     assert stored.waifu_enabled is False
     assert stored.quote_probability == 0.5
+    assert stored.sticker_memory_enabled is True
 
 
 @pytest.mark.parametrize("probability", [-0.1, 1.1, 2, -1])
