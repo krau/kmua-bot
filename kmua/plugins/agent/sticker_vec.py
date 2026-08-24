@@ -213,6 +213,25 @@ async def delete(file_unique_id: str, chat_id: int) -> bool:
         return True
 
 
+async def clear(chat_id: int) -> int:
+    """Remove every sticker stored for a chat; returns how many were deleted."""
+    async with _connect(write=True) as db:
+        cursor = await db.execute(
+            "SELECT id FROM stickers WHERE chat_id = ?", (chat_id,)
+        )
+        rows = await cursor.fetchall()
+        if not rows:
+            return 0
+        ids = [row[0] for row in rows]
+        placeholders = ",".join("?" * len(ids))
+        await db.execute(
+            f"DELETE FROM sticker_embeddings WHERE rowid IN ({placeholders})", ids
+        )
+        await db.execute(f"DELETE FROM stickers WHERE id IN ({placeholders})", ids)
+        await db.commit()
+        return len(ids)
+
+
 async def touch(file_unique_id: str, chat_id: int) -> None:
     async with _connect(write=True) as db:
         await db.execute(

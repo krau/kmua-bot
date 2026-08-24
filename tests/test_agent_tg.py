@@ -45,6 +45,7 @@ async def test_send_message_maps_params():
     assert calls["text"] == "hello"
     assert calls["parse_mode"] == pyrogram.enums.ParseMode.HTML
 
+
 async def test_send_message_reply_and_preview():
     calls = {}
 
@@ -540,6 +541,31 @@ async def test_sticker_vec_delete_removes_sticker(monkeypatch, tmp_path):
     await sticker_vec.upsert("uid1", "file1", -100456, "同一个贴纸别的群", embedding)
     assert await sticker_vec.delete("uid1", -100123) is False
     assert await sticker_vec.exists("uid1", -100456)
+
+
+async def test_sticker_vec_clear_wipes_one_chat(monkeypatch, tmp_path):
+    """clear() removes every sticker of one chat and leaves other chats alone."""
+    from kmua.config import app_config as cfg
+    from kmua.plugins.agent import sticker_vec
+
+    db_path = tmp_path / "stickers-clear.db"
+    monkeypatch.setattr(cfg, "agent_sticker_db_path", str(db_path))
+    monkeypatch.setattr(sticker_vec, "_DB_PATH", None)
+    monkeypatch.setattr(sticker_vec, "_INITIALIZED", False)
+    dims = cfg.agent_sticker_embed_dimensions
+    embedding = [0.1] * dims
+    await sticker_vec.init()
+
+    await sticker_vec.upsert("uid1", "file1", -100123, "猫猫贴纸", embedding)
+    await sticker_vec.upsert("uid2", "file2", -100123, "狗狗贴纸", embedding)
+    await sticker_vec.upsert("uid3", "file3", -100456, "别的群", embedding)
+
+    assert await sticker_vec.clear(-100123) == 2
+    assert not await sticker_vec.exists("uid1", -100123)
+    assert not await sticker_vec.exists("uid2", -100123)
+    assert await sticker_vec.exists("uid3", -100456)
+    # Already-empty chat is a clean no-op.
+    assert await sticker_vec.clear(-100123) == 0
 
 
 def test_parse_schedule_time_naive_means_local():

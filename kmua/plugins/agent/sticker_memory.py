@@ -231,6 +231,31 @@ async def del_sticker_command(
         await message.reply_text("这个贴纸本就不在库中呢")
 
 
+@PyrogramClient.on_message(filters.command("clearsticker") & filters.group, group=11)
+async def clear_sticker_command(
+    client: PyrogramClient, message: pyrogram.types.Message
+) -> None:
+    """Let a group administrator wipe this chat's entire sticker memory."""
+    if not app_config.agent_sticker_memory:
+        return
+    if not await _is_admin_actor(client, message):
+        return
+    user = message.from_user
+    if not user or not user.id:
+        return
+    chat = message.chat
+    if not chat or not chat.id:
+        return
+    removed = await sticker_vec.clear(chat.id)
+    if removed:
+        logger.info(
+            f"Sticker memory cleared for chat {chat.id} by {user.id}: {removed} stickers"
+        )
+        await message.reply_text(f"已清空本群的贴纸记忆 ({removed} 张贴纸)")
+    else:
+        await message.reply_text("本群贴纸库本来就是空的呢")
+
+
 @PyrogramClient.on_message(_sticker_filter, group=11)
 async def on_sticker(client: PyrogramClient, message: pyrogram.types.Message) -> None:
     if not app_config.agent:
