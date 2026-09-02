@@ -128,7 +128,11 @@ async def _follow_up_filter_func(
         # Deliver it straight into the live run (budget-checked), so the
         # running turn picks it up on its next model request.
         text = (message.text or message.caption or "").strip()
-        if text and not state.enqueue_interjection(chat.id, user.id, text):
+        if not text:
+            return False
+        if app_config.nickname and app_config.nickname in text:
+            return False
+        if not state.enqueue_interjection(chat.id, user.id, text):
             logger.warning(
                 f"Follow-up interjection dropped for user {user.id} in "
                 f"chat {chat.id}: interjection budget exhausted"

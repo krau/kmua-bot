@@ -554,3 +554,82 @@ async def test_clear_steering_resets_budget():
     finally:
         state._steering_messages.clear()
         state._interjection_budget.clear()
+
+
+def _running_user_message(text: str, user_id: int = 1) -> SimpleNamespace:
+    """A group message from a user whose agent turn is in flight."""
+    import pyrogram
+
+    return SimpleNamespace(
+        text=text,
+        caption=None,
+        entities=None,
+        outgoing=False,
+        service=False,
+        automatic_forward=False,
+        sender_chat=None,
+        from_user=SimpleNamespace(id=user_id),
+        chat=SimpleNamespace(id=-100, type=pyrogram.enums.ChatType.SUPERGROUP),
+    )
+
+
+def _patch_follow_up_filter(monkeypatch) -> list[tuple[int, int, str]]:
+    """Wire the follow-up filter's dependencies; returns the enqueue spy."""
+    from kmua.config import app_config
+    from kmua.plugins.agent import followup, state
+
+    enqueued: list[tuple[int, int, str]] = []
+
+    def _enqueue(chat_id: int, user_id: int, text: str) -> bool:
+        enqueued.append((chat_id, user_id, text))
+        return True
+
+    monkeypatch.setattr(app_config, "agent", True)
+    monkeypatch.setattr(app_config, "agent_follow_up", True)
+    monkeypatch.setattr(followup, "_default_relevance_check_agent", object())
+    monkeypatch.setattr(followup, "is_chat_allowed", lambda _chat_id: True)
+    monkeypatch.setattr(followup, "is_explicit_reply", lambda _m: False)
+    monkeypatch.setattr(state, "is_running", lambda _c, _u: True)
+    monkeypatch.setattr(state, "enqueue_interjection", _enqueue)
+    return enqueued
+
+
+async def test_follow_up_interjection_skips_nickname_mention(monkeypatch):
+    """A mid-turn nickname mention is already interjected by the wake
+    handler (group=0); the follow-up filter must not enqueue it again, or
+    the same message lands twice in the running turn (duplicated history
+    and a doubled interjection-budget charge)."""
+    from kmua.config import app_config
+    from kmua.plugins.agent import followup
+
+    monkeypatch.setattr(app_config, "nickname", "kmua")
+    enqueued = _patch_follow_up_filter(monkeypatch)
+    msg = _running_user_message("kmua 继续说")
+    assert await followup._follow_up_filter_func(None, None, msg) is False
+    assert enqueued == []
+
+
+async def test_follow_up_interjection_enqueues_plain_message(monkeypatch):
+    """A mid-turn plain message (no mention, no reply) is only handled by
+    the follow-up filter and must be delivered into the running turn."""
+    from kmua.config import app_config
+    from kmua.plugins.agent import followup
+
+    monkeypatch.setattr(app_config, "nickname", "kmua")
+    enqueued = _patch_follow_up_filter(monkeypatch)
+    msg = _running_user_message("继续说说看")
+    assert await followup._follow_up_filter_func(None, None, msg) is False
+    assert enqueued == [(-100, 1, "继续说说看")]
+
+
+async def test_follow_up_interjection_keeps_nickname_text_when_unset(monkeypatch):
+    """With no configured nickname the wake handler cannot fire for a
+    nickname-like text, so the follow-up filter must still deliver it."""
+    from kmua.config import app_config
+    from kmua.plugins.agent import followup
+
+    monkeypatch.setattr(app_config, "nickname", "")
+    enqueued = _patch_follow_up_filter(monkeypatch)
+    msg = _running_user_message("kmua 继续说")
+    assert await followup._follow_up_filter_func(None, None, msg) is False
+    assert enqueued == [(-100, 1, "kmua 继续说")]
