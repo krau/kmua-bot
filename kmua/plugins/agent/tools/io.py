@@ -58,7 +58,7 @@ def _split_target(path: str) -> tuple[str, str]:
         f"Unsupported target: {path}. Use kmua:// (codebase), work:// "
         f"(workspace), persist:// (persisted files), chat:// (current chat: "
         f"info, history, media), memory:// (memory), web:// (web search) or "
-        f"http(s):// (web; t.me message links download the media)."
+        f"http(s):// (web; t.me message links return the message content)."
     )
 
 
@@ -137,7 +137,7 @@ async def read_bytes(path: str, ctx: RunContext[datatype.ContextDeps]) -> bytes:
     if protocol == "chat://" and rest.startswith("/media/"):
         return await _download_chat_media(ctx, rest)
     if protocol == "http":
-        if urlsplit(rest).hostname in ("t.me", "telegram.me"):
+        if _tme_message_parts(rest) is not None:
             # Telegram media is downloaded through the bot client, not the
             # plain HTTP path (t.me pages are HTML, the files live in MTProto).
             return await _download_tme_media(ctx, rest)
@@ -359,7 +359,8 @@ def _tme_message_parts(url: str) -> tuple[str, str] | None:
 
 
 async def _download_tme_media(ctx: RunContext[datatype.ContextDeps], url: str) -> bytes:
-    """Download the media of a public t.me message link.
+    """Download the media of a public t.me message link (binary copies only;
+    the read tool returns formatted message content instead).
 
     Public channels are readable by any bot; groups the bot is not a member
     of, private channels and invite links fail with a clear error.
@@ -495,18 +496,29 @@ async def _read_content(
         return "\n".join(selected)
     if protocol == "http":
         if _tme_message_parts(rest) is not None:
-            try:
-                data = await _download_tme_media(ctx, rest)
-            except _NoMediaError:
-                # A plain-text t.me post has no media to download; fall back
-                # to the web text extraction, which renders the post text.
-                result = await web.fetch_web_page(ctx, rest)
-                if not result.success:
-                    raise ValueError(result.error or "fetch failed")
-                return result.content or ""
             if raw:
+                data = await _download_tme_media(ctx, rest)
                 return data.decode("utf-8", errors="replace")
-            text = data.decode("utf-8", errors="replace")
+            # Public t.me message link: prefer the message itself over the
+            # t.me web page — the page is an HTML shell, the message carries
+            # the real text/caption.
+            tg_result = await web._fetch_telegram_message(ctx, rest)
+            if tg_result is not None and tg_result.success and tg_result.content:
+                text = tg_result.content
+            else:
+                # Unresolvable chat or deleted message: fall back to the
+                # public web page extraction.
+                if app_config.agent_crawl_api_url:
+                    web_result = await web._fetch_crawl_api(rest)
+                else:
+                    web_result = await web._fetch_http(rest)
+                if not web_result.success:
+                    raise ValueError(
+                        web_result.error
+                        or (tg_result.error if tg_result else None)
+                        or "fetch failed"
+                    )
+                text = web_result.content or ""
             lines = text.splitlines()
             selected = lines[start_line - 1 : start_line - 1 + max_lines]
             return "\n".join(selected)
@@ -530,14 +542,15 @@ async def read(
     - work://notes/hello.html — a file from this chat's workspace
     - persist://report.txt    — a file the agent persisted for this chat
     - chat://media/123        — the media of message 123 in this chat
-    - https://t.me/MoreACG/27411 — the media of a public t.me message
+    - https://t.me/MoreACG/27411 — a public t.me message: sender, date and
+      text/caption; media posts note the media type instead of file bytes
     - chat://info             — information about the current group
     - chat://history?direction=latest|before|after|between&count=N&anchor_id=N&start_id=N&end_id=N
                               — messages from the current group
     - https://example.com     — a web page as markdown/text
 
-    Use start_line/max_lines to page through kmua://, work:// and
-    persist:// targets (1-indexed; max_lines up to 1500).
+    Use start_line/max_lines to page through kmua://, work://, persist://
+    and t.me targets (1-indexed; max_lines up to 1500).
     """
     if max_lines < 1 or max_lines > 1500:
         raise ModelRetry("max_lines must be between 1 and 1500")

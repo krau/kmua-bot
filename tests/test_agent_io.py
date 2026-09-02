@@ -422,3 +422,116 @@ async def test_edit_line_out_of_range(ws):
 async def test_edit_line_missing_text(ws):
     result = await io.edit(_ctx(), "work://demo.py", "zzz", "y", line=1)
     assert "not found on line 1" in result
+
+
+# ------------------------------------------------------------ t.me message links
+
+
+def _fake_message(**overrides):
+    fields = dict(
+        id=2333,
+        from_user=None,
+        sender_chat=SimpleNamespace(title="Some Channel"),
+        date=None,
+        text="Hello from the channel!",
+        caption=None,
+        photo=None,
+        video=None,
+        audio=None,
+        voice=None,
+        document=None,
+        sticker=None,
+        poll=None,
+        forward_from=None,
+        forward_from_chat=None,
+        forward_from_message_id=None,
+        reply_to_message=None,
+        reply_to_top_message_id=None,
+        topic_message=False,
+        media=None,
+    )
+    fields.update(overrides)
+    return SimpleNamespace(**fields)
+
+
+async def test_read_tme_text_post(ws, monkeypatch):
+    """A public t.me text post returns the message content, not an error."""
+
+    async def fake_fetch(ctx, url):
+        return SimpleNamespace(success=True, url=url, content="From: Chan")
+
+    monkeypatch.setattr(io.web, "_fetch_telegram_message", fake_fetch)
+    result = await io.read(_ctx(), "https://t.me/somechannel/2333")
+    assert result == "From: Chan"
+
+
+async def test_read_tme_media_post_notes_media_not_bytes(ws, monkeypatch):
+    """A media post formats caption + media marker instead of binary garbage."""
+
+    async def fake_fetch(ctx, url):
+        return SimpleNamespace(
+            success=True,
+            url=url,
+            content="From: Chan\n\n--- Content ---\n[Caption]: look\n[Contains photo]",
+        )
+
+    monkeypatch.setattr(io.web, "_fetch_telegram_message", fake_fetch)
+
+    async def fail_download(ctx, url):
+        raise AssertionError("media bytes must not be downloaded for read")
+
+    monkeypatch.setattr(io, "_download_tme_media", fail_download)
+    result = await io.read(_ctx(), "https://t.me/somechannel/2333")
+    assert "[Contains photo]" in result
+    assert "[Caption]: look" in result
+
+
+async def test_read_tme_unresolvable_falls_back_to_web_page(ws, monkeypatch):
+    """When the client cannot resolve the chat, the t.me web page is used."""
+
+    async def fake_fetch(ctx, url):
+        return SimpleNamespace(success=False, url=url, error="Cannot access")
+
+    monkeypatch.setattr(io.web, "_fetch_telegram_message", fake_fetch)
+
+    async def fake_http(url):
+        return SimpleNamespace(success=True, url=url, content="Channel post text")
+
+    monkeypatch.setattr(io.web, "_fetch_http", fake_http)
+    result = await io.read(_ctx(), "https://t.me/somechannel/2333")
+    assert result == "Channel post text"
+
+
+async def test_read_tme_all_paths_fail(ws, monkeypatch):
+    async def fake_fetch(ctx, url):
+        return SimpleNamespace(success=False, url=url, error="Cannot access")
+
+    monkeypatch.setattr(io.web, "_fetch_telegram_message", fake_fetch)
+
+    async def fail_http(url):
+        raise AssertionError("crawl api is not configured; must use _fetch_http")
+
+    monkeypatch.setattr(io.web, "_fetch_crawl_api", fail_http)
+
+    async def fake_http(url):
+        return SimpleNamespace(success=False, url=url, error="page gone")
+
+    monkeypatch.setattr(io.web, "_fetch_http", fake_http)
+    result = await io.read(_ctx(), "https://t.me/somechannel/2333")
+    assert "page gone" in result
+
+
+async def test_read_tme_private_share_link_rejected(ws):
+    result = await io.read(_ctx(), "https://t.me/c/1234567/2333")
+    assert "Error" in result
+
+
+async def test_read_tme_paging(ws, monkeypatch):
+    async def fake_fetch(ctx, url):
+        return SimpleNamespace(success=True, url=url, content="l1\nl2\nl3")
+
+    monkeypatch.setattr(io.web, "_fetch_telegram_message", fake_fetch)
+    result = await io.read(
+        _ctx(), "https://t.me/somechannel/2333", start_line=2, max_lines=1
+    )
+    assert result == "l2"
