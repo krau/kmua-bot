@@ -27,6 +27,11 @@ async def _close_agentfs():
     await workspace.close_workspace_agentfs()
 
 
+def _text(result):
+    """Narrow a read-tool result to its text payload."""
+    return result if isinstance(result, str) else result.return_value
+
+
 @pytest.fixture
 def ctx():
     return RunContext(
@@ -181,7 +186,7 @@ async def test_persist_scope_isolated_between_chats(ctx, monkeypatch):
         usage=RunUsage(),
     )
     result = await io.read(other, "persist://report.txt")
-    assert "No persisted file named 'report.txt'" in result
+    assert "No persisted file named 'report.txt'" in _text(result)
 
 
 # ---- sandbox:// read / write / list / delete ----
@@ -193,7 +198,7 @@ async def test_write_sandbox_and_read_back(ctx, sandbox_dir):
     assert (sandbox_dir / "out" / "data.txt").read_text() == "hello sandbox"
 
     result = await io.read(ctx, "sandbox://out/data.txt", start_line=1, max_lines=10)
-    assert "hello sandbox" in result
+    assert "hello sandbox" in _text(result)
 
 
 async def test_list_sandbox(ctx, sandbox_dir):
@@ -274,8 +279,8 @@ async def test_sandbox_symlink_read_rejected(ctx, sandbox_dir, tmp_path):
     (sandbox_dir / "evil").symlink_to(secret)
 
     result = await io.read(ctx, "sandbox://evil")
-    assert "Error" in result
-    assert "top-secret" not in result
+    assert "Error" in _text(result)
+    assert "top-secret" not in _text(result)
 
 
 async def test_sandbox_symlink_write_rejected(ctx, sandbox_dir, tmp_path):
@@ -541,13 +546,22 @@ async def test_tme_link_telegram_me_host(ctx, monkeypatch):
 
 
 async def test_tme_link_invalid_format(ctx, monkeypatch):
+    """A t.me URL without a message id is not message media; the write
+    reference resolution falls through to the plain HTTP downloader and
+    fails there (t.me pages are not direct files)."""
     result = await io.write(ctx, "work://x", "https://t.me/MoreACG")
-    assert "Not a t.me message link" in result
+    assert "Error" in result
+    assert "Download failed" in result
 
 
 async def test_read_tg_link_returns_text(ctx, monkeypatch):
-    fake = _tg_public_client(media_data=b"a\nb\nc")
-    ctx.deps.client = fake
+    """A public t.me message link reads as the message text, paged."""
+    from kmua.plugins.agent.tools import io as io_mod
+
+    async def fake_fetch(ctx_arg, url):
+        return SimpleNamespace(success=True, url=url, content="a\nb\nc")
+
+    monkeypatch.setattr(io_mod.web, "_fetch_telegram_message", fake_fetch)
     result = await io.read(ctx, "https://t.me/MoreACG/27411", start_line=2, max_lines=5)
     assert result == "b\nc"
 
@@ -602,42 +616,34 @@ async def test_http_reference_download_failure_is_clear(ctx, monkeypatch):
 
 
 async def test_tme_link_rejects_private_channel_form(ctx, monkeypatch):
-    """t.me/c/<id>/<msg> (private-channel shares) must be refused: reading
-    media from private chats beyond the current conversation is out of
-    scope for the agent."""
+    """t.me/c/<id>/<msg> (private-channel shares) must not be read as media:
+    reading from private chats beyond the current conversation is out of
+    scope for the agent; the URL falls through to the plain HTTP downloader
+    which refuses it."""
     result = await io.write(ctx, "work://x", "https://t.me/c/123456789/100")
-    assert "Not a t.me message link" in result
+    assert "Error" in result
+    assert "Download failed" in result
 
 
 async def test_read_tme_text_post_falls_back_to_web(ctx, monkeypatch):
-    """A plain-text t.me post has no media; read must fall back to the web
-    text extraction instead of failing."""
+    """When the client path cannot serve a t.me message, the public web
+    page text extraction is used instead."""
     from kmua.plugins.agent.tools import io as io_mod
 
-    class FakeChat:
-        id = -100123456789
+    async def tg_fail(ctx_arg, url):
+        return SimpleNamespace(success=False, url=url, error="Cannot access")
 
-    class FakeMessage:
-        media = False
-
-    class FakeClient:
-        async def get_chat(self, ref):
-            return FakeChat()
-
-        async def get_messages(self, chat_id, msg_id):
-            return FakeMessage()
-
-    ctx.deps.client = FakeClient()
+    monkeypatch.setattr(io_mod.web, "_fetch_telegram_message", tg_fail)
 
     captured = {}
 
-    async def fake_fetch(ctx_arg, url):
+    async def fake_http(url):
         captured["url"] = url
-        return SimpleNamespace(success=True, content="帖子的文本内容")
+        return SimpleNamespace(success=True, url=url, content="帖子的文本内容")
 
-    monkeypatch.setattr(io_mod.web, "fetch_web_page", fake_fetch)
+    monkeypatch.setattr(io_mod.web, "_fetch_http", fake_http)
     result = await io.read(ctx, "https://t.me/SomeChannel/123")
-    assert "帖子的文本内容" in result
+    assert "帖子的文本内容" in _text(result)
     assert captured["url"] == "https://t.me/SomeChannel/123"
 
 
@@ -680,38 +686,25 @@ async def test_tg_download_applies_timeout(ctx, monkeypatch):
 
 
 async def test_read_tme_webpage_preview_falls_back(ctx, monkeypatch):
-    """A plain-text post with a web-page preview (message.media is truthy
-    but nothing is downloadable) must fall back to web text extraction."""
+    """When the client path cannot serve a t.me message, the public web
+    page text extraction is used instead (covers text-only posts whose
+    web-page preview is the only content)."""
     from kmua.plugins.agent.tools import io as io_mod
 
-    class FakeChat:
-        id = -100123456789
+    async def tg_fail(ctx_arg, url):
+        return SimpleNamespace(success=False, url=url, error="Cannot access")
 
-    class FakeMessage:
-        media = True
-        web_page = SimpleNamespace(url="https://example.com")
-        # no photo/document/video: nothing downloadable
+    monkeypatch.setattr(io_mod.web, "_fetch_telegram_message", tg_fail)
 
-    class FakeClient:
-        async def get_chat(self, ref):
-            return FakeChat()
-
-        async def get_messages(self, chat_id, msg_id):
-            return FakeMessage()
-
-        async def download_media(self, *args, **kwargs):
-            raise AssertionError("must not attempt a download")
-
-    ctx.deps.client = FakeClient()
     captured = {}
 
-    async def fake_fetch(ctx_arg, url):
+    async def fake_http(url):
         captured["url"] = url
-        return SimpleNamespace(success=True, content="预览帖子的文本")
+        return SimpleNamespace(success=True, url=url, content="预览帖子的文本")
 
-    monkeypatch.setattr(io_mod.web, "fetch_web_page", fake_fetch)
+    monkeypatch.setattr(io_mod.web, "_fetch_http", fake_http)
     result = await io.read(ctx, "https://t.me/SomeChannel/456")
-    assert "预览帖子的文本" in result
+    assert "预览帖子的文本" in _text(result)
     assert captured["url"] == "https://t.me/SomeChannel/456"
 
 

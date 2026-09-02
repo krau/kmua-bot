@@ -6,7 +6,7 @@ from types import SimpleNamespace
 from typing import cast
 
 import pytest
-from pydantic_ai import RunContext, RunUsage
+from pydantic_ai import BinaryContent, RunContext, RunUsage, ToolReturn
 from pydantic_ai.models.test import TestModel
 from pyrogram.client import Client
 from pyrogram.types import Message
@@ -44,7 +44,14 @@ async def ws(monkeypatch, tmp_path):
         await agent.close()
 
 
-def _ctx(client=None, guest=False) -> RunContext[datatype.ContextDeps]:
+def _text(result):
+    """Narrow a read-tool result to its text payload."""
+    return result if isinstance(result, str) else result.return_value
+
+
+def _ctx(
+    client=None, guest=False, model_name: str | None = None
+) -> RunContext[datatype.ContextDeps]:
     return cast(
         RunContext[datatype.ContextDeps],
         SimpleNamespace(
@@ -55,7 +62,8 @@ def _ctx(client=None, guest=False) -> RunContext[datatype.ContextDeps]:
                 message=SimpleNamespace(id=7, guest_query_id=1 if guest else None),
                 is_guest_mode=guest,
                 powermemory=SimpleNamespace(),
-            )
+            ),
+            model=SimpleNamespace(model_name=model_name) if model_name else None,
         ),
     )
 
@@ -76,14 +84,14 @@ async def test_write_creates_and_reads(ws):
     result = await io.write(_ctx(), "work://notes.txt", "hi there")
     assert "Wrote" in result
     content = await io.read(_ctx(), "work://notes.txt")
-    assert "hi there" in content
+    assert "hi there" in _text(content)
 
 
 async def test_write_overwrites_existing(ws):
     await io.write(_ctx(), "work://hello.html", "v2")
     content = await io.read(_ctx(), "work://hello.html")
-    assert "v2" in content
-    assert "hi" not in content
+    assert "v2" in _text(content)
+    assert "hi" not in _text(content)
 
 
 async def test_write_rejects_codebase(ws):
@@ -101,15 +109,15 @@ async def test_edit_unique_match(ws):
     result = await io.edit(_ctx(), "work://demo.py", "line2", "LINE2")
     assert "Edited" in result
     content = await io.read(_ctx(), "work://demo.py")
-    assert "LINE2" in content
-    assert "line2" not in content
+    assert "LINE2" in _text(content)
+    assert "line2" not in _text(content)
 
 
 async def test_edit_ambiguous_match_fails(ws):
     result = await io.edit(_ctx(), "work://demo.py", "line", "X")
     assert "matches 3 times" in result
     content = await io.read(_ctx(), "work://demo.py")
-    assert "line1" in content  # unchanged
+    assert "line1" in _text(content)  # unchanged
 
 
 async def test_edit_missing_text_fails(ws):
@@ -133,8 +141,8 @@ async def test_read_kmua_protocol(ws, monkeypatch, tmp_path):
         content = await io.read(
             _ctx(), "kmua:///kmua/config/__init__.py", start_line=1, max_lines=5
         )
-        assert "lineA" in content
-        assert "lineB" in content
+        assert "lineA" in _text(content)
+        assert "lineB" in _text(content)
     finally:
         await code_agent.close()
         (tmp_path / "code.db").unlink(missing_ok=True)
@@ -160,7 +168,7 @@ async def test_workspace_disabled(ws, monkeypatch):
 async def test_web_read_disabled(ws, monkeypatch):
     monkeypatch.setattr(app_config, "agent_extra_tools", ["websearch"])
     result = await io.read(_ctx(), "https://example.com")
-    assert "disabled" in result
+    assert "disabled" in _text(result)
 
 
 async def test_write_requires_content_for_work(ws):
@@ -186,8 +194,8 @@ async def test_read_chat_info(ws, monkeypatch):
 
     monkeypatch.setattr(io.db, "get_chat_info", fake_get_chat_info)
     result = await io.read(_ctx(), "chat://info")
-    assert "测试群" in result
-    assert "-100_123" in result or "-100123" in result
+    assert "测试群" in _text(result)
+    assert "-100_123" in _text(result) or "-100123" in _text(result)
 
 
 async def test_read_chat_history(ws, monkeypatch):
@@ -211,7 +219,7 @@ async def test_read_chat_rejected_in_private(ws, monkeypatch):
     ctx = _ctx()
     ctx.deps.chat_id = ctx.deps.user_id  # private chat
     result = await io.read(ctx, "chat://info")
-    assert "only available in group chats" in result
+    assert "only available in group chats" in _text(result)
 
 
 async def test_write_memory(ws, monkeypatch):
@@ -278,9 +286,9 @@ async def test_workspace_session_isolation(ws):
     ctx_b = _ctx()
     ctx_b.deps.chat_id = -100999
     assert "hello.html" not in await io.list(ctx_b, "work://")
-    assert "File not found" in await io.read(ctx_b, "work://hello.html")
+    assert "File not found" in _text(await io.read(ctx_b, "work://hello.html"))
     # Session B's file is invisible to session A.
-    assert "File not found" in await io.read(_ctx(), "work://secret.html")
+    assert "File not found" in _text(await io.read(_ctx(), "work://secret.html"))
     # Search is scoped per session too.
     assert "No results" in await io.search(_ctx(), "secret", "work://")
 
@@ -289,7 +297,7 @@ async def test_write_work_copy_from_reference(ws):
     result = await io.write(_ctx(), "work://copy.py", content="work://demo.py")
     assert "Wrote" in result
     copied = await io.read(_ctx(), "work://copy.py")
-    assert "line2" in copied
+    assert "line2" in _text(copied)
 
 
 async def test_write_reference_not_readable(ws):
@@ -297,7 +305,7 @@ async def test_write_reference_not_readable(ws):
     result = await io.write(_ctx(), "work://x.txt", content="telegram://y.txt")
     assert "Wrote" in result
     content = await io.read(_ctx(), "work://x.txt")
-    assert "telegram://y.txt" in content
+    assert "telegram://y.txt" in _text(content)
 
 
 async def test_workspace_lru_eviction_closes(monkeypatch, tmp_path):
@@ -390,7 +398,7 @@ async def test_io_prepare_trims_group_protocols_in_private(monkeypatch):
 async def test_delete_removes_file(ws):
     result = await io.delete(_ctx(), "work://hello.html")
     assert result == "Deleted work://hello.html."
-    assert "File not found" in await io.read(_ctx(), "work://hello.html")
+    assert "File not found" in _text(await io.read(_ctx(), "work://hello.html"))
     assert "hello.html" not in await io.list(_ctx(), "work://")
 
 
@@ -409,9 +417,9 @@ async def test_edit_with_line_number(ws):
     result = await io.edit(_ctx(), "work://demo.py", "line", "LINE", line=2)
     assert "Edited" in result
     content = await io.read(_ctx(), "work://demo.py")
-    assert "LINE2" in content
-    assert "line1" in content  # line 1 untouched
-    assert "line3" in content  # line 3 untouched
+    assert "LINE2" in _text(content)
+    assert "line1" in _text(content)  # line 1 untouched
+    assert "line3" in _text(content)  # line 3 untouched
 
 
 async def test_edit_line_out_of_range(ws):
@@ -482,8 +490,8 @@ async def test_read_tme_media_post_notes_media_not_bytes(ws, monkeypatch):
 
     monkeypatch.setattr(io, "_download_tme_media", fail_download)
     result = await io.read(_ctx(), "https://t.me/somechannel/2333")
-    assert "[Contains photo]" in result
-    assert "[Caption]: look" in result
+    assert "[Contains photo]" in _text(result)
+    assert "[Caption]: look" in _text(result)
 
 
 async def test_read_tme_unresolvable_falls_back_to_web_page(ws, monkeypatch):
@@ -518,12 +526,12 @@ async def test_read_tme_all_paths_fail(ws, monkeypatch):
 
     monkeypatch.setattr(io.web, "_fetch_http", fake_http)
     result = await io.read(_ctx(), "https://t.me/somechannel/2333")
-    assert "page gone" in result
+    assert "page gone" in _text(result)
 
 
 async def test_read_tme_private_share_link_rejected(ws):
     result = await io.read(_ctx(), "https://t.me/c/1234567/2333")
-    assert "Error" in result
+    assert "Error" in _text(result)
 
 
 async def test_read_tme_paging(ws, monkeypatch):
@@ -535,3 +543,94 @@ async def test_read_tme_paging(ws, monkeypatch):
         _ctx(), "https://t.me/somechannel/2333", start_line=2, max_lines=1
     )
     assert result == "l2"
+
+
+# ------------------------------------------------------------ native image reads
+
+
+def _photo_message(**overrides):
+    fields = dict(
+        media="photo",
+        photo=SimpleNamespace(file_size=100, file_id="x"),
+        document=None,
+        caption="a cat",
+        paid_media=None,
+    )
+    fields.update(overrides)
+    return SimpleNamespace(**fields)
+
+
+class _MediaClient:
+    def __init__(self, message):
+        self.message = message
+
+    async def get_messages(self, chat_id, msg_id):
+        return self.message
+
+    async def get_chat(self, ref):
+        return SimpleNamespace(id=-100_999)
+
+    async def download_media(self, message, in_memory=True):
+        from io import BytesIO
+
+        return BytesIO(b"\x89PNG fake image bytes")
+
+
+async def test_read_chat_media_native_image_when_gated(monkeypatch):
+    """A gated run model sees a chat://media photo as native image content."""
+    ctx = _ctx(client=_MediaClient(_photo_message()), model_name="kmua-vl")
+    monkeypatch.setattr(io, "_run_model_accepts_images", lambda c: True)
+    result = await io.read(ctx, "chat://media/7")
+    assert isinstance(result, ToolReturn)
+    assert "[Caption]: a cat" in _text(result)
+    binaries = [c for c in (result.content or []) if isinstance(c, BinaryContent)]
+    assert [b.media_type for b in binaries] == ["image/jpeg"]
+
+
+async def test_read_chat_media_falls_back_when_not_gated(monkeypatch):
+    """Without image capability the photo falls back to the text path."""
+    ctx = _ctx(client=_MediaClient(_photo_message()))
+    result = await io.read(ctx, "chat://media/7")
+    assert not isinstance(result, ToolReturn)
+
+
+async def test_read_chat_media_video_not_native(monkeypatch):
+    """Only still images go native; video keeps the existing text/bytes path."""
+    video_msg = _photo_message(
+        media="video",
+        photo=None,
+        video=SimpleNamespace(file_size=5000, file_id="v"),
+        caption=None,
+    )
+    ctx = _ctx(client=_MediaClient(video_msg), model_name="kmua-vl")
+    monkeypatch.setattr(io, "_run_model_accepts_images", lambda c: True)
+    result = await io.read(ctx, "chat://media/8")
+    assert not isinstance(result, ToolReturn)
+
+
+async def test_read_tme_native_image_with_caption(monkeypatch):
+    """A public t.me photo post is returned as a native image with caption."""
+    ctx = _ctx(
+        client=_MediaClient(_photo_message(caption="big news")), model_name="kmua-vl"
+    )
+    monkeypatch.setattr(io, "_run_model_accepts_images", lambda c: True)
+    result = await io.read(ctx, "https://t.me/somechannel/2333")
+    assert isinstance(result, ToolReturn)
+    assert "[Caption]: big news" in _text(result)
+    binaries = [c for c in (result.content or []) if isinstance(c, BinaryContent)]
+    assert [b.media_type for b in binaries] == ["image/jpeg"]
+
+
+async def test_read_native_image_error_surfaced_once(monkeypatch):
+    """An oversized image errors once; the fallback path must not retry."""
+
+    class NoDownload(_MediaClient):
+        async def download_media(self, message, in_memory=True):
+            raise AssertionError("oversize pre-check must prevent download")
+
+    big = _photo_message(photo=SimpleNamespace(file_size=10**9))
+    ctx = _ctx(client=NoDownload(big), model_name="kmua-vl")
+    monkeypatch.setattr(io, "_run_model_accepts_images", lambda c: True)
+    result = await io.read(ctx, "chat://media/10")
+    assert "over the" in _text(result)
+    assert "Error" in _text(result)

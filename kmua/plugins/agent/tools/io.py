@@ -20,7 +20,7 @@ from typing import Any
 from urllib.parse import parse_qs, urlsplit
 
 from ddgs import DDGS
-from pydantic_ai import ModelRetry, RunContext
+from pydantic_ai import BinaryContent, ModelRetry, RunContext, ToolReturn
 from pydantic_ai.common_tools.duckduckgo import DuckDuckGoSearchTool
 from pydantic_ai.tools import ToolDefinition
 
@@ -28,6 +28,7 @@ from kmua.common.safe_http import UnsafeUrlError, safe_download_bytes
 from kmua.config import app_config
 from kmua.logger import logger
 
+from .. import provider
 from . import bot, chat, code_repo, datatype, db, web, workspace
 
 _PROTOCOLS = (
@@ -316,14 +317,13 @@ async def _download_tg_bytes(client: Any, message: Any, what: str) -> bytes:
     return data
 
 
-async def _download_chat_media(
+async def _get_chat_media_message(
     ctx: RunContext[datatype.ContextDeps], rest: str
-) -> bytes:
-    """Download the media of a message in the current chat
-    (chat://media/<message_id>).
+) -> Any:
+    """Resolve chat://media/<message_id> to the message carrying the media.
 
     Scoped to ctx.deps.chat_id: the agent can only pull files from messages
-    it can see. Oversize media is refused before any download happens.
+    it can see. Raises _NoMediaError when there is nothing downloadable.
     """
     if not rest.startswith("/media/"):
         raise ValueError(
@@ -338,7 +338,20 @@ async def _download_chat_media(
     message = await client.get_messages(ctx.deps.chat_id, int(msg_id_str))
     if message is None or not message.media:
         raise _NoMediaError(f"Message {msg_id_str} has no downloadable media.")
-    return await _download_tg_bytes(client, message, f"message {msg_id_str}")
+    return message
+
+
+async def _download_chat_media(
+    ctx: RunContext[datatype.ContextDeps], rest: str
+) -> bytes:
+    """Download the media of a message in the current chat
+    (chat://media/<message_id>). Oversize media is refused before any
+    download happens.
+    """
+    message = await _get_chat_media_message(ctx, rest)
+    return await _download_tg_bytes(
+        ctx.deps.client, message, f"message {rest.removeprefix('/media/')}"
+    )
 
 
 def _tme_message_parts(url: str) -> tuple[str, str] | None:
@@ -358,13 +371,11 @@ def _tme_message_parts(url: str) -> tuple[str, str] | None:
     return None
 
 
-async def _download_tme_media(ctx: RunContext[datatype.ContextDeps], url: str) -> bytes:
-    """Download the media of a public t.me message link (binary copies only;
-    the read tool returns formatted message content instead).
+async def _get_tme_message(ctx: RunContext[datatype.ContextDeps], url: str) -> Any:
+    """Resolve a public t.me message link to the Message object.
 
     Public channels are readable by any bot; groups the bot is not a member
-    of, private channels and invite links fail with a clear error.
-    Size-limited like chat://media.
+    of, private channels and invite links raise ValueError.
     """
     parts = _tme_message_parts(url)
     if parts is None:
@@ -383,8 +394,81 @@ async def _download_tme_media(ctx: RunContext[datatype.ContextDeps], url: str) -
         raise _NoMediaError(
             f"Message {msg_id_str} in {chat_ref} has no downloadable media."
         )
+    return message
+
+
+async def _download_tme_media(ctx: RunContext[datatype.ContextDeps], url: str) -> bytes:
+    """Download the media of a public t.me message link. Size-limited like
+    chat://media.
+    """
+    message = await _get_tme_message(ctx, url)
+    chat_ref, msg_id_str = _tme_message_parts(url) or ("chat", "?")
     return await _download_tg_bytes(
-        client, message, f"message {msg_id_str} in {chat_ref}"
+        ctx.deps.client, message, f"message {msg_id_str} in {chat_ref}"
+    )
+
+
+def _tg_image_media_type(message: Any) -> str | None:
+    """The MIME type when the message's media is a still image, else None."""
+    if getattr(message, "photo", None):
+        return "image/jpeg"
+    document = getattr(message, "document", None)
+    if document is not None:
+        mime = getattr(document, "mime_type", None) or ""
+        base = mime.split(";")[0]
+        if base.startswith("image/"):
+            return base
+    return None
+
+
+def _run_model_accepts_images(ctx: RunContext[datatype.ContextDeps]) -> bool:
+    """Whether the model serving this run can take image parts.
+
+    The multimodal model is the main model unless a separate spec is
+    configured (agent.py), so comparing the run model's name against the
+    effective multimodal spec covers both setups. Conservative: per-chat
+    model overrides that name-differ fall back to text markers.
+    """
+    if "photo" not in app_config.agent_multimodal_inputs:
+        return False
+    spec = app_config.agent_model_multimodal or app_config.agent_model
+    if not spec:
+        return False
+    model_name = getattr(ctx.model, "model_name", None)
+    return bool(model_name) and model_name == provider._parse_spec(spec)[1]
+
+
+async def _native_image_return(
+    ctx: RunContext[datatype.ContextDeps], path: str, what: str
+) -> ToolReturn | None:
+    """Read an image-bearing target as native BinaryContent for the model.
+
+    Returns None when the target is not an image, the run model cannot take
+    images, or the message cannot be resolved — the caller falls back to the
+    text path, which owns resolution errors. Download failures raise (no
+    silent double-download through the fallback path).
+    """
+    if not _run_model_accepts_images(ctx):
+        return None
+    protocol, rest = _split_target(path)
+    try:
+        if protocol == "chat://":
+            message = await _get_chat_media_message(ctx, rest)
+        elif protocol == "http":
+            message = await _get_tme_message(ctx, path)
+        else:
+            return None
+    except Exception:
+        return None
+    media_type = _tg_image_media_type(message)
+    if media_type is None:
+        return None
+    data = await _download_tg_bytes(ctx.deps.client, message, what)
+    caption = (getattr(message, "caption", None) or "").strip()
+    text = f"[Image from {what}]" + (f"\n[Caption]: {caption}" if caption else "")
+    return ToolReturn(
+        return_value=text,
+        content=[text, BinaryContent(data=data, media_type=media_type)],
     )
 
 
@@ -534,7 +618,7 @@ async def read(
     path: str,
     start_line: int = 1,
     max_lines: int = 200,
-) -> str:
+) -> str | ToolReturn:
     """Read content from any target.
 
     Protocols:
@@ -556,6 +640,21 @@ async def read(
         raise ModelRetry("max_lines must be between 1 and 1500")
     if start_line < 1:
         raise ModelRetry("start_line must be >= 1")
+    try:
+        protocol, _ = _split_target(path)
+    except ValueError:
+        protocol = ""
+    is_media_target = (protocol == "chat://" and "/media/" in path) or (
+        protocol == "http" and _tme_message_parts(path) is not None
+    )
+    if is_media_target:
+        try:
+            native = await _native_image_return(ctx, path, path)
+        except Exception as e:
+            logger.error(f"read error for {path}: {e}")
+            return f"Error: {e}"
+        if native is not None:
+            return native
     try:
         return await _read_content(ctx, path, start_line, max_lines)
     except Exception as e:
