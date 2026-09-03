@@ -87,6 +87,8 @@ _PUBLIC_FIELDS: dict[str, tuple[str, ...]] = {
         "agent_cross_group_memory",
         "agent_follow_up",
         "agent_sticker_memory",
+        "agent_sticker_memory_sample_rate",
+        "agent_sticker_warmup_count",
         "agent_code_awareness",
         "agent_periodic_sticker_interval",
         "agent_periodic_reaction_interval",
@@ -158,6 +160,7 @@ def _secret_state(value: Any) -> str | None:
     if value is None or value == "":
         return _NOT_SET
     return _REDACTED
+
 
 def config_snapshot() -> dict[str, Any]:
     """Build the redacted runtime configuration view."""
