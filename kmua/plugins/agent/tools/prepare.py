@@ -69,9 +69,11 @@ async def prepare_sticker_tools(
 
         if sticker_memory.embedder is None:
             return None
-        count = await sticker_vec.count(ctx.deps.chat_id)
-        if count < 20:
-            return None
+        target = app_config.agent_sticker_warmup_count
+        if target is not None and target > 0:
+            count = await sticker_vec.count(ctx.deps.chat_id)
+            if count < target:
+                return None
         if not (
             await database.get_chat_config(ctx.deps.chat_id)
         ).sticker_memory_enabled:
