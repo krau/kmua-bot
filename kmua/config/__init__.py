@@ -312,6 +312,9 @@ class _AppConfig(pydantic.BaseModel):
     # Sticker semantic memory
     agent_sticker_memory: bool = False
     agent_sticker_memory_sample_rate: float = 0.5
+    # 入库冷启动: 采样率随聊天已存贴纸数在此目标以下线性放大到 1.0, 加快冷启动群的库填充
+    # None 或 <=0 关闭该行为 (恒用 agent_sticker_memory_sample_rate, 且不设工具显示的库存门槛)
+    agent_sticker_warmup_count: int | None = 30
     agent_sticker_db_path: str = "data/sticker_vec.db"
     agent_sticker_ttl: int = 86400 * 7
     agent_sticker_min_keep_count: int = 100  # 少于此数量时不逐出过期贴纸

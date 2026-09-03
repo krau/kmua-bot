@@ -82,6 +82,15 @@ async def _get_description(image_bytes: bytes, mime_type: str) -> str | None:
         return None
 
 
+def sample_rate_for(chat_count: int) -> float:
+    """入库采样率: 库存低于 warmup 目标时线性放大到 1.0, 加快冷启动填充."""
+    base = app_config.agent_sticker_memory_sample_rate
+    target = app_config.agent_sticker_warmup_count
+    if not target or target <= 0 or chat_count >= target:
+        return base
+    return base + (1.0 - base) * (1.0 - chat_count / target)
+
+
 async def _process_sticker(
     client: PyrogramClient,
     sticker: pyrogram.types.Sticker,
@@ -272,12 +281,13 @@ async def on_sticker(client: PyrogramClient, message: pyrogram.types.Message) ->
     sticker = message.sticker
     if sticker is None:
         return
-    if not common.random_chance(app_config.agent_sticker_memory_sample_rate):
-        return
     chat_config = await database.get_chat_config(chat.id)
     if not chat_config.ai_reply:
         return
     if not chat_config.sticker_memory_enabled:
+        return
+    count = await sticker_vec.count(chat.id)
+    if not common.random_chance(sample_rate_for(count)):
         return
     common.spawn(
         _process_sticker(client, sticker, chat.id),
