@@ -130,10 +130,6 @@ async def time_info(
 ) -> str:
     """Get the current date and time, or the gap between two timestamps.
 
-    Use "now" to know the current time — to date a message, answer "what time
-    is it", or reason about relative times. Use "difference" when the user
-    asks how long ago something happened or how long until something.
-
     Args:
         operation: "now" reads the current time; "difference" compares two times.
         time1, time2: Required for "difference" — timestamps in ISO format

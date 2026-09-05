@@ -325,13 +325,13 @@ async def tg(
     chat_id is always the current chat and is set for you.
 
     Standard methods (params follow Bot API field names):
-    - sendMessage: text, parse_mode (HTML / MarkdownV2), disable_web_page_preview, reply_to_message_id
     - sendPhoto: photo (http(s) URL, work:// or kmua:// reference), caption, has_spoiler, reply_to_message_id
     - sendDocument: document (http(s) URL or a work:// / kmua:// reference) OR content (plain text made into the document), plus file_name, caption, reply_to_message_id
     - sendReaction: message_id, emoji
     - sendPoll: question, options (2-8 strings), is_anonymous, allows_multiple_answers, reply_to_message_id
     - sendDice: emoji (🎲 🎯 🎳 🎰 🎲 variants)
     - sendAudio / sendVideo / sendVoice / sendAnimation: the media field, caption, reply_to_message_id
+    - sendMessage: text, parse_mode (HTML / MarkdownV2), disable_web_page_preview, reply_to_message_id
 
     Media fields accept a public http(s) URL, a work:// file reference from this chat's workspace, or a kmua:// codebase file.
 
@@ -340,7 +340,7 @@ async def tg(
     - blockUser: duration_minutes (1-10080), user_id (optional, defaults to the person who asked), reason (optional).
 
     Note: your text output is automatically sent as a reply to the current user --
-          you do not need `sendMessage` for normal replies. Use this tool only when you need an extra action beyond the default reply (e.g. reply to others, second message).
+          you do not need `sendMessage` for normal replies. Use this tool only when you need some extra message sending beyond the default reply (e.g. reply to others, second message).
 
     Example: tg("sendPoll", {"question": "Lunch?", "options": ["noodles", "rice"]})
     """

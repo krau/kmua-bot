@@ -97,8 +97,8 @@ async def shell(
 ) -> str:
     """Run a bash command in this chat's sandbox.
 
-    Commands share the same sandbox directory across calls — files persist,
-    so later commands can build on earlier ones (`pwd` shows it). Anywhere
+    Commands share the same sandbox directory across calls,
+    so later commands can build on earlier ones. Anywhere
     that accepts a work:// reference (io tools, tg media fields) also
     accepts sandbox:// for a file in this sandbox, e.g.
     `write work://out/result.json content="sandbox://result.json"` copies a
