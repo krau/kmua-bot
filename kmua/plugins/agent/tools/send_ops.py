@@ -455,62 +455,6 @@ async def send_sticker(
     return SendResult(success=True).text()
 
 
-async def send_reaction(
-    ctx: RunContext[datatype.ContextDeps],
-    emoji: str,
-    target_message_id: int | None = None,
-) -> str:
-    """Add a Telegram reaction emoji to a message.
-
-    Telegram only supports a limited set of reaction emojis, and each chat may
-    allow only some of them. Prefer common Telegram reactions such as "👍",
-    "❤️", "🔥", "🥰", "👏", "😁", "🤔", "😢", "😡", or "🎉".
-
-    Args:
-        emoji: The reaction emoji to use.
-        target_message_id: Optional message ID to react to. If not provided,
-            reacts to the current user's message.
-
-    Returns:
-        A SendResult indicating success or failure.
-    """
-    if ctx.deps.message is None:
-        return SendResult(
-            success=False, message="Message context is unavailable."
-        ).text()
-
-    # Use provided target message ID or default to current message
-    message_id = (
-        target_message_id if target_message_id is not None else ctx.deps.message.id
-    )
-
-    try:
-        await ctx.deps.client.send_reaction(
-            chat_id=ctx.deps.chat_id,
-            message_id=message_id,
-            emoji=emoji,
-        )
-    except pyrogram.errors.exceptions.bad_request_400.ReactionInvalid:
-        chat = await common.get_chat_full(ctx.deps.client, ctx.deps.chat_id)
-        if chat and chat.available_reactions and chat.available_reactions.reactions:
-            emojis = [
-                r.emoji
-                for r in chat.available_reactions.reactions
-                if r.emoji is not None
-            ]
-            raise ModelRetry(
-                f"Invalid reaction emoji. This chat supports the following reactions: {', '.join(emojis)}"
-            )
-        raise ModelRetry("Invalid reaction emoji, try another one.")
-    except Exception as e:
-        logger.error(f"send_reaction error: {e.__class__.__name__}: {e}")
-        raise ModelRetry(f"Failed to send reaction: {e.__class__.__name__}: {e}")
-    # Mark as already called this turn so prepare_periodic_reaction suppresses
-    # the "MUST call" hint for any further steps within the same agent run.
-    ctx.deps.tools_called_this_turn.add("send_reaction")
-    return SendResult(success=True).text()
-
-
 @dataclass
 class Artist:
     name: str
