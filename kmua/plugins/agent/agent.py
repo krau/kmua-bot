@@ -995,14 +995,13 @@ async def wake_agent(client: PyrogramClient, message: pyrogram.types.Message):
             history=history,
             is_group_chat=is_group_chat,
         )
-        ctx_info_text = ctx_info.to_text() if ctx_info else None
-        # 在群聊场景中获取附近消息作为上下文
-        # [TODO] 好像自动添加附近消息反而效果不好了
+        # 在群聊场景中获取附近消息作为上下文; 群聊的新格式把 ctx_info 折进首帧
+        # 环境信息, 因此 additional_instructions 不再重复携带。
         nearby_count = (
             app_config.agent_group_context_nearby_message_count if is_group_chat else 0
         )
         user_prompt, _ = await get_input_prompt(
-            client, message, include_nearby=nearby_count, ctx=None
+            client, message, include_nearby=nearby_count, ctx=ctx_info
         )
         stale_steering = state.drain_steering(chat.id, user.id)
         if stale_steering:
@@ -1025,7 +1024,6 @@ async def wake_agent(client: PyrogramClient, message: pyrogram.types.Message):
             user.id,
             run_agent(
                 agi=agent,
-                additional_instructions=ctx_info_text,
                 client=client,
                 message=message,
                 user_id=user.id,

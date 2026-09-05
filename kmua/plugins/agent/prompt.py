@@ -28,7 +28,7 @@ from kmua.common.memory_store import memttlcache
 from kmua.common.utils import is_explicit_reply
 from kmua.config import app_config
 from kmua.logger import logger
-from kmua.plugins.agent import datatype, provider, state
+from kmua.plugins.agent import datatype, input_format, provider, state
 
 
 def _utf16_len(s: str) -> int:
@@ -232,6 +232,25 @@ def _media_omitted_note(
     return f"[模型无法处理的内容: {label}{detail}]"
 
 
+async def _fetch_nearby(
+    message: pyrogram.types.Message, include_nearby: int
+) -> list[pyrogram.types.Message]:
+    """The include_nearby messages before the current one, old to new."""
+    if (
+        not include_nearby
+        or include_nearby <= 0
+        or message.chat is None
+        or message.chat.id is None
+    ):
+        return []
+    base_id = message.id
+    message_ids = [mid for i in range(include_nearby) if (mid := base_id - i - 1) > 0]
+    message_ids.reverse()
+    if not message_ids:
+        return []
+    return await common.get_cached_messages_objects(message.chat.id, message_ids)
+
+
 async def get_input_prompt(
     client: PyrogramClient,
     message: pyrogram.types.Message,
@@ -241,11 +260,27 @@ async def get_input_prompt(
     """Build the user prompt list and return whether the current message itself
     contains media that requires multimodal understanding.
 
+    Group chats use the markdown assembly (input_format.build_group_prompt) when
+    nearby history is requested; private chats and other callers keep the
+    legacy inline format below.
+
     The second element is True only when the *current* message (or its direct
     reply_to_message) contributed a BinaryContent item — nearby group context
     messages and deep reply-chain entries are intentionally excluded so that the
     smart text model is not swapped out just because unrelated media exists nearby.
     """
+    is_group = message.chat is not None and message.chat.type in (
+        pyrogram.enums.ChatType.SUPERGROUP,
+        pyrogram.enums.ChatType.GROUP,
+    )
+    if is_group and include_nearby > 0:
+        nearby = await _fetch_nearby(message, include_nearby)
+        prompt = await input_format.build_group_prompt(client, message, nearby, ctx)
+        needs_multimodal = any(
+            isinstance(item, (ImageUrl, AudioUrl, DocumentUrl, VideoUrl, BinaryContent))
+            for item in prompt
+        )
+        return prompt, needs_multimodal
 
     def sender_label(sender: Any) -> str:
         """Label a message sender as 'name(id)' so history recall can tell
@@ -735,15 +770,16 @@ async def transcribe_multimodal_content(
     sees what the user sent without receiving the binary itself. Returns the
     prompt unchanged when there is no media, and falls back to a plain
     placeholder when the transcription fails - the run never blocks on it.
+
+    For the group-chat markdown format the media arrive as one binary per
+    image_number slot; each transcription is folded back into the <msg> line
+    as its transcribed attribute instead of an appended blob.
     """
     media_items = [
         item for item in user_prompt if isinstance(item, MULTI_MODAL_CONTENT_TYPES)
     ]
     if not media_items:
         return user_prompt
-    text_items = [
-        item for item in user_prompt if not isinstance(item, MULTI_MODAL_CONTENT_TYPES)
-    ]
     transcribe_agent = Agent(
         model=model,
         retries=2,
@@ -752,6 +788,33 @@ async def transcribe_multimodal_content(
         ),
         instructions=app_config.agent_multimodal_transcribe_prompt,
     )
+
+    async def _transcribe_one(item: Any) -> str | None:
+        try:
+            result = await transcribe_agent.run([item])
+            text = str(result.output).strip()
+            return text or None
+        except Exception as e:
+            logger.error(
+                f"multimodal transcription failed: {e.__class__.__name__} - {e}"
+            )
+            return None
+
+    if (
+        user_prompt
+        and isinstance(user_prompt[0], str)
+        and "## 当前消息" in user_prompt[0]
+    ):
+        transcriptions = []
+        for item in media_items:
+            text = await _transcribe_one(item)
+            if text:
+                transcriptions.append(text)
+        return input_format.apply_transcriptions(user_prompt, transcriptions)
+
+    text_items = [
+        item for item in user_prompt if not isinstance(item, MULTI_MODAL_CONTENT_TYPES)
+    ]
     try:
         result = await transcribe_agent.run([*text_items, *media_items])
     except Exception as e:

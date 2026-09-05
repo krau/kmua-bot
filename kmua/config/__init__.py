@@ -283,8 +283,10 @@ class _AppConfig(pydantic.BaseModel):
     ]
     # Max multimodal items (images/video/binary) across user_prompt + history sent to model.
     # Oldest history items are stripped first when the total exceeds this limit.
-    # 0 = no limit.
-    agent_multimodal_max_items: int = 4
+    # 0 = no limit. 大部分'原生多模态'的模型无此限制
+    agent_multimodal_max_items: int = 0
+    # 每次 user prompt 中最多发送的多模态内容, 0 = no limit
+    agent_multimodal_input_count: int = 2
     agent_extra_tools: list[str] = ["websearch", "webfetch"]
     # crawl4ai API server for JS-rendered pages (e.g. docker run crawl4ai)
     # if not set, js=True requests will return an error
