@@ -247,37 +247,37 @@ if app_config.agent and app_config.agent_model:
             Tool(
                 tools.read,
                 prepare=tools.compose_prepare(
-                    tools.prepare_io_tools, tools.prepare_not_guest_mode
+                    tools.prepare_read, tools.prepare_not_guest_mode
                 ),
             ),
             Tool(
                 tools.write,
                 prepare=tools.compose_prepare(
-                    tools.prepare_io_tools, tools.prepare_not_guest_mode
+                    tools.prepare_write, tools.prepare_not_guest_mode
                 ),
             ),
             Tool(
                 tools.edit,
                 prepare=tools.compose_prepare(
-                    tools.prepare_io_tools, tools.prepare_not_guest_mode
+                    tools.prepare_edit, tools.prepare_not_guest_mode
                 ),
             ),
             Tool(
                 tools.list,
                 prepare=tools.compose_prepare(
-                    tools.prepare_io_tools, tools.prepare_not_guest_mode
+                    tools.prepare_list, tools.prepare_not_guest_mode
                 ),
             ),
             Tool(
                 tools.search,
                 prepare=tools.compose_prepare(
-                    tools.prepare_io_tools, tools.prepare_not_guest_mode
+                    tools.prepare_search, tools.prepare_not_guest_mode
                 ),
             ),
             Tool(
                 tools.delete,
                 prepare=tools.compose_prepare(
-                    tools.prepare_io_tools, tools.prepare_not_guest_mode
+                    tools.prepare_delete, tools.prepare_not_guest_mode
                 ),
             ),
             Tool(

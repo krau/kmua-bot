@@ -573,7 +573,7 @@ async def test_http_reference_downloads_direct_link(ctx, monkeypatch):
     """A plain https file link is downloaded through the SSRF-guarded
     downloader with the configured size cap."""
     from kmua.config import app_config
-    from kmua.plugins.agent.tools import io as io_mod
+    from kmua.plugins.agent.tools.io import targets as io_targets
 
     captured = {}
 
@@ -582,9 +582,9 @@ async def test_http_reference_downloads_direct_link(ctx, monkeypatch):
         captured["max_bytes"] = max_bytes
         return b"direct-file-data"
 
-    monkeypatch.setattr(io_mod, "safe_download_bytes", fake_download)
+    monkeypatch.setattr(io_targets, "safe_download_bytes", fake_download)
     monkeypatch.setattr(
-        io_mod,
+        io_targets,
         "UnsafeUrlError",
         __import__("kmua.common.safe_http", fromlist=["UnsafeUrlError"]).UnsafeUrlError,
     )
@@ -601,13 +601,13 @@ async def test_http_reference_downloads_direct_link(ctx, monkeypatch):
 
 async def test_http_reference_download_failure_is_clear(ctx, monkeypatch):
     from kmua.common.safe_http import UnsafeUrlError
-    from kmua.plugins.agent.tools import io as io_mod
+    from kmua.plugins.agent.tools.io import targets as io_targets
 
     async def fake_download(url, max_bytes):
         raise UnsafeUrlError("Unsafe URL: http://169.254.169.254/latest/meta-data")
 
-    monkeypatch.setattr(io_mod, "safe_download_bytes", fake_download)
-    monkeypatch.setattr(io_mod, "UnsafeUrlError", UnsafeUrlError)
+    monkeypatch.setattr(io_targets, "safe_download_bytes", fake_download)
+    monkeypatch.setattr(io_targets, "UnsafeUrlError", UnsafeUrlError)
     result = await io.write(ctx, "work://x", "https://169.254.169.254/latest")
     assert "Download failed" in result
 
@@ -711,7 +711,7 @@ async def test_read_tme_webpage_preview_falls_back(ctx, monkeypatch):
 def test_format_search_results_uses_dict_fields():
     """Search results are dicts (title/href/body); attribute access would
     render every entry empty."""
-    from kmua.plugins.agent.tools.io import _format_search_results
+    from kmua.plugins.agent.tools.io.tools import _format_search_results
 
     results = [
         {"title": "白雪乃爱 - 维基", "href": "https://example.com/a", "body": "介绍"},

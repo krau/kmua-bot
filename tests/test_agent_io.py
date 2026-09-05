@@ -166,6 +166,7 @@ async def test_workspace_disabled(ws, monkeypatch):
 
 
 async def test_web_read_disabled(ws, monkeypatch):
+    # websearch does not enable http(s):// fetching; that needs webfetch.
     monkeypatch.setattr(app_config, "agent_extra_tools", ["websearch"])
     result = await io.read(_ctx(), "https://example.com")
     assert "disabled" in _text(result)
@@ -249,7 +250,8 @@ async def test_search_web(ws, monkeypatch):
     async def fake_web(query, max_results):
         return "web results for " + query
 
-    monkeypatch.setattr(io, "_search_web", fake_web)
+    monkeypatch.setattr(io.tools, "_search_web", fake_web)
+    monkeypatch.setattr(app_config, "agent_extra_tools", ["websearch"])
     result = await io.search(_ctx(), "kmua", "web://")
     assert result == "web results for kmua"
 
@@ -364,7 +366,7 @@ async def test_workspace_db_files_per_session(tmp_path, monkeypatch):
 async def test_io_prepare_trims_group_protocols_in_private(monkeypatch):
     from pydantic_ai import ToolDefinition as _TD
 
-    async def _visible(chat_id, user_id, desc):
+    async def _prepare(prepare, chat_id, user_id, desc):
         deps = datatype.ContextDeps(
             client=cast(Client, SimpleNamespace()),
             user_id=user_id,
@@ -373,8 +375,7 @@ async def test_io_prepare_trims_group_protocols_in_private(monkeypatch):
         )
         ctx = RunContext(deps=deps, model=TestModel(), usage=RunUsage(), messages=[])
         td = _TD(name="read", description=desc, parameters_json_schema={})
-        result = await io.prepare_io_tools(ctx, td)
-        return result
+        return await prepare(ctx, td)
 
     desc_with_group = (
         "- kmua://x — codebase\n"
@@ -384,15 +385,130 @@ async def test_io_prepare_trims_group_protocols_in_private(monkeypatch):
         "- https://x — web page"
     )
     # private: chat:// and memory:// lines removed
-    td = await _visible(1001, 1001, desc_with_group)
+    monkeypatch.setattr(io.prepares, "_kmua_enabled", lambda: True)
+    td = await _prepare(io.prepare_read, 1001, 1001, desc_with_group)
     assert td is not None
     assert "chat://" not in (td.description or "")
     assert "memory://" not in (td.description or "")
     assert "kmua://" in (td.description or "")
     # group: description untouched
-    td2 = await _visible(-100123, 1001, desc_with_group)
+    td2 = await _prepare(io.prepare_read, -100123, 1001, desc_with_group)
     assert td2 is not None
     assert "chat://info" in (td2.description or "")
+
+
+async def test_io_prepare_hides_edit_without_workspace(monkeypatch):
+    from pydantic_ai import ToolDefinition as _TD
+
+    deps = cast(
+        datatype.ContextDeps,
+        SimpleNamespace(
+            client=SimpleNamespace(),
+            user_id=1001,
+            chat_id=-100123,
+            message=SimpleNamespace(id=1, guest_query_id=None),
+            is_guest_mode=False,
+            powermemory=None,
+        ),
+    )
+    ctx = RunContext(deps=deps, model=TestModel(), usage=RunUsage(), messages=[])
+    td = _TD(name="edit", description="Edit a work:// file.", parameters_json_schema={})
+    monkeypatch.setattr(app_config, "agent_workspace_enabled", False)
+    assert await io.prepare_edit(ctx, td) is None
+
+
+async def test_io_prepare_trims_disabled_protocols_per_tool(monkeypatch):
+    from pydantic_ai import ToolDefinition as _TD
+
+    deps = cast(
+        datatype.ContextDeps,
+        SimpleNamespace(
+            client=SimpleNamespace(),
+            user_id=1001,
+            chat_id=-100123,
+            message=SimpleNamespace(id=1, guest_query_id=None),
+            is_guest_mode=False,
+            powermemory=SimpleNamespace(),
+        ),
+    )
+    ctx = RunContext(deps=deps, model=TestModel(), usage=RunUsage(), messages=[])
+
+    def _td(name, desc):
+        return _TD(name=name, description=desc, parameters_json_schema={})
+
+    search_desc = (
+        "- kmua:// — codebase\n"
+        "- work:// — workspace\n"
+        "- web:// — web search\n"
+        "- chat:// — group messages\n"
+        "- memory:// — group memory\n"
+        "query must be at least 2 characters."
+    )
+    # websearch not listed: web:// line dropped even though webfetch is on;
+    # the two names enable independent capabilities, prose stays
+    monkeypatch.setattr(app_config, "agent_extra_tools", ["webfetch"])
+    monkeypatch.setattr(io.prepares, "_kmua_enabled", lambda: True)
+    td = await io.prepare_search(ctx, _td("search", search_desc))
+    assert td is not None
+    assert "web://" not in (td.description or "")
+    assert "work://" in (td.description or "")
+    assert "2 characters" in (td.description or "")
+
+    # everything off except persist: read stays visible with only persist lines
+    monkeypatch.setattr(app_config, "agent_extra_tools", [])
+    monkeypatch.setattr(app_config, "agent_workspace_enabled", False)
+    monkeypatch.setattr(io.prepares, "_kmua_enabled", lambda: False)
+    read_desc = (
+        "- kmua://x — codebase\n"
+        "- work://f — workspace\n"
+        "- persist://f — persisted\n"
+        "- chat://info — group\n"
+        "- https://x — web page"
+    )
+    td = await io.prepare_read(ctx, _td("read", read_desc))
+    assert td is not None
+    assert "persist://" in (td.description or "")
+    assert "kmua://" not in (td.description or "")
+    assert "work://" not in (td.description or "")
+    assert "https://" not in (td.description or "")
+
+
+async def test_io_prepare_hides_memory_line_until_ready(monkeypatch):
+    from pydantic_ai import ToolDefinition as _TD
+
+    deps = cast(
+        datatype.ContextDeps,
+        SimpleNamespace(
+            client=SimpleNamespace(),
+            user_id=1001,
+            chat_id=-100123,
+            message=SimpleNamespace(id=1, guest_query_id=None),
+            is_guest_mode=False,
+            powermemory=SimpleNamespace(),
+        ),
+    )
+    ctx = RunContext(deps=deps, model=TestModel(), usage=RunUsage(), messages=[])
+    desc = "- work://f — workspace\n- memory:// — group memory"
+
+    from kmua.plugins.agent import agent as _agent
+
+    async def _chat_config_ok(chat_id):
+        return SimpleNamespace(group_memory_enabled=True)
+
+    monkeypatch.setattr("kmua.database.get_chat_config", _chat_config_ok)
+
+    monkeypatch.setattr(_agent, "powermemory_ready", False)
+    td = _TD(name="write", description=desc, parameters_json_schema={})
+    result = await io.prepare_write(ctx, td)
+    assert result is not None
+    assert "memory://" not in (result.description or "")
+    assert "work://" in (result.description or "")
+
+    monkeypatch.setattr(_agent, "powermemory_ready", True)
+    td = _TD(name="write", description=desc, parameters_json_schema={})
+    result = await io.prepare_write(ctx, td)
+    assert result is not None
+    assert "memory://" in (result.description or "")
 
 
 async def test_delete_removes_file(ws):
@@ -488,7 +604,7 @@ async def test_read_tme_media_post_notes_media_not_bytes(ws, monkeypatch):
     async def fail_download(ctx, url):
         raise AssertionError("media bytes must not be downloaded for read")
 
-    monkeypatch.setattr(io, "_download_tme_media", fail_download)
+    monkeypatch.setattr(io.targets, "_download_tme_media", fail_download)
     result = await io.read(_ctx(), "https://t.me/somechannel/2333")
     assert "[Contains photo]" in _text(result)
     assert "[Caption]: look" in _text(result)
@@ -579,7 +695,7 @@ class _MediaClient:
 async def test_read_chat_media_native_image_when_gated(monkeypatch):
     """A gated run model sees a chat://media photo as native image content."""
     ctx = _ctx(client=_MediaClient(_photo_message()), model_name="kmua-vl")
-    monkeypatch.setattr(io, "_run_model_accepts_images", lambda c: True)
+    monkeypatch.setattr(io.media, "_run_model_accepts_images", lambda c: True)
     result = await io.read(ctx, "chat://media/7")
     assert isinstance(result, ToolReturn)
     assert "[Caption]: a cat" in _text(result)
@@ -603,7 +719,7 @@ async def test_read_chat_media_video_not_native(monkeypatch):
         caption=None,
     )
     ctx = _ctx(client=_MediaClient(video_msg), model_name="kmua-vl")
-    monkeypatch.setattr(io, "_run_model_accepts_images", lambda c: True)
+    monkeypatch.setattr(io.media, "_run_model_accepts_images", lambda c: True)
     result = await io.read(ctx, "chat://media/8")
     assert not isinstance(result, ToolReturn)
 
@@ -613,7 +729,7 @@ async def test_read_tme_native_image_with_caption(monkeypatch):
     ctx = _ctx(
         client=_MediaClient(_photo_message(caption="big news")), model_name="kmua-vl"
     )
-    monkeypatch.setattr(io, "_run_model_accepts_images", lambda c: True)
+    monkeypatch.setattr(io.media, "_run_model_accepts_images", lambda c: True)
     result = await io.read(ctx, "https://t.me/somechannel/2333")
     assert isinstance(result, ToolReturn)
     assert "[Caption]: big news" in _text(result)
@@ -630,7 +746,7 @@ async def test_read_native_image_error_surfaced_once(monkeypatch):
 
     big = _photo_message(photo=SimpleNamespace(file_size=10**9))
     ctx = _ctx(client=NoDownload(big), model_name="kmua-vl")
-    monkeypatch.setattr(io, "_run_model_accepts_images", lambda c: True)
+    monkeypatch.setattr(io.media, "_run_model_accepts_images", lambda c: True)
     result = await io.read(ctx, "chat://media/10")
     assert "over the" in _text(result)
     assert "Error" in _text(result)

@@ -39,14 +39,6 @@ async def prepare_not_guest_mode(
     return tool_def
 
 
-async def prepare_configurable_tools(
-    ctx: RunContext[datatype.ContextDeps], tool_def: ToolDefinition
-) -> ToolDefinition | None:
-    if tool_def.name in app_config.agent_extra_tools:
-        return tool_def
-    return None
-
-
 async def prepare_manyacg_tools(
     ctx: RunContext[datatype.ContextDeps], tool_def: ToolDefinition
 ) -> ToolDefinition | None:
