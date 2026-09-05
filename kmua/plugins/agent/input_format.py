@@ -245,10 +245,7 @@ async def allocate_budget(
     # chronological numbering: 1 = oldest winner; current message last
     winners.sort(key=lambda m: (m.id or 0, m.id == current_message_id))
     for msg in winners:
-        file_id = deliverable_file_id(msg)
-        if file_id is None:
-            continue
-        data = await _download(client, file_id)
+        data = await _download(client, msg)
         if data is None:
             continue
         unique = file_unique_id_of(msg)
@@ -279,14 +276,37 @@ def _effective_budget() -> int:
 
 
 async def _download(
-    client: pyrogram.client.Client, file_id: str
+    client: pyrogram.client.Client, message: pyrogram.types.Message
 ) -> BinaryContent | None:
+    """Download the message's media with the correct media_type for its kind.
+
+    Video stickers carry no raster image: their first frame is extracted with
+    ffmpeg and delivered as WebP, like the legacy path.
+    """
     from .prompt import _download_media_with_timeout
 
+    media = message.media
+    file_id = deliverable_file_id(message)
+    if media is None or file_id is None:
+        return None
     data = await _download_media_with_timeout(client, file_id)
     if data is None:
         return None
-    return BinaryContent(data=data.getvalue(), media_type="image/jpeg")
+    payload = getattr(message, media.name.lower(), None) if media.name else None
+    if media is pyrogram.enums.MessageMediaType.PHOTO:
+        return BinaryContent(data=data.getvalue(), media_type="image/jpeg")
+    if media is pyrogram.enums.MessageMediaType.STICKER:
+        sticker = message.sticker
+        if sticker is not None and sticker.is_video:
+            from kmua.common.utils import webm_first_frame
+
+            frame = await webm_first_frame(data.getvalue())
+            if frame is None:
+                return None
+            return BinaryContent(data=frame, media_type="image/webp")
+        return BinaryContent(data=data.getvalue(), media_type="image/webp")
+    media_type = getattr(payload, "mime_type", None) or "application/octet-stream"
+    return BinaryContent(data=data.getvalue(), media_type=media_type)
 
 
 def _service_text(message: pyrogram.types.Message) -> str:

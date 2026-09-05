@@ -27,6 +27,8 @@ def _msg(
     sender_chat=None,
     is_bot: bool = False,
     from_user_id: int | None = None,
+    voice=None,
+    sticker=None,
 ) -> pyrogram.types.Message:
     from_user = None
     if sender_id is not None:
@@ -50,9 +52,9 @@ def _msg(
             photo=photo,
             video=None,
             audio=None,
-            voice=None,
+            voice=voice,
             document=None,
-            sticker=None,
+            sticker=sticker,
             poll=None,
             web_page=None,
             date=date or datetime(2026, 9, 5, 12, 0, id % 60),
@@ -294,3 +296,64 @@ async def test_reply_block_one_level(monkeypatch):
     assert "当前用户所回复的消息:" in cast(str, result[0])
     assert "B(2)" in cast(str, result[0])
     assert "被回复" in cast(str, result[0])
+
+
+async def test_voice_delivered_with_audio_mime(monkeypatch):
+    """A voice message must ride as audio/* — never the photo jpeg default
+    (regression: hardcoded image/jpeg caused provider 400)."""
+    monkeypatch.setattr(input_format.app_config, "agent_multimodal_input_count", 5)
+    monkeypatch.setattr(input_format.app_config, "agent_multimodal_inputs", ["audio"])
+    voice = SimpleNamespace(
+        file_id="voice-1", file_unique_id="vu1", mime_type="audio/ogg", file_size=1000
+    )
+    history = [
+        _msg(
+            1,
+            text="",
+            media=MessageMediaType.VOICE,
+            voice=voice,
+        ),
+    ]
+    current = _msg(2, sender_id=9, text="当前")
+    result = await input_format.build_group_prompt(
+        cast(_Client_t, _Client()), current, history, None
+    )
+    assert len(result) == 2
+    binary = result[1]
+    assert binary.media_type == "audio/ogg"
+
+
+async def test_video_sticker_uses_first_frame(monkeypatch):
+    """A video sticker delivers its extracted first frame as image/webp —
+    never the raw webm (regression: raw webm caused provider 400)."""
+    monkeypatch.setattr(input_format.app_config, "agent_multimodal_input_count", 5)
+    monkeypatch.setattr(input_format.app_config, "agent_multimodal_inputs", ["photo"])
+    sticker = SimpleNamespace(
+        file_id="stk-1", file_unique_id="su1", is_video=True, is_animated=False
+    )
+    history = [
+        _msg(
+            1,
+            text="",
+            media=MessageMediaType.STICKER,
+            sticker=sticker,
+        ),
+    ]
+    current = _msg(2, sender_id=9, text="当前")
+
+    frames: list[bytes] = []
+
+    import kmua.common.utils as common_utils
+
+    async def fake_frame(webm: bytes) -> bytes | None:
+        frames.append(webm)
+        return b"webp-frame"
+
+    monkeypatch.setattr(common_utils, "webm_first_frame", fake_frame)
+    result = await input_format.build_group_prompt(
+        cast(_Client_t, _Client()), current, history, None
+    )
+    assert len(frames) == 1
+    assert len(result) == 2
+    assert result[1].media_type == "image/webp"
+    assert result[1].data == b"webp-frame"
