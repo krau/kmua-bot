@@ -1,6 +1,5 @@
 import datetime
 from dataclasses import dataclass
-from typing import Literal
 
 from pydantic_ai import ModelRetry, RunContext
 
@@ -22,28 +21,31 @@ class ChatMessage:
 
 async def get_history_messages(
     ctx: RunContext[datatype.ContextDeps],
-    direction: Literal["latest", "before", "after", "between"] = "latest",
-    count: int = 50,
-    anchor_id: int | None = None,
-    start_id: int | None = None,
-    end_id: int | None = None,
+    before: int | None = None,
+    after: int | None = None,
+    from_id: int | None = None,
+    to_id: int | None = None,
+    count: int | None = None,
 ) -> str:
     """
-    Fetch historical messages from chat, can not be used in private chats.
+    Fetch historical messages from this group.
+
+    Pick exactly one selector:
+        (nothing)          — the latest `count` messages
+        before=<id>        — the `count` messages immediately before message <id>
+        after=<id>         — the `count` messages immediately after message <id>
+        from_id=<a>&to_id=<b> — messages <a>..<b> inclusive; ignores count, range capped at 200
 
     Args:
-        direction:
-            - "latest": fetch latest messages;
-            - "before": messages before anchor_id;
-            - "after": messages after anchor_id;
-            - "between": messages from start_id to end_id (inclusive of start, exclusive of end).
-        count: max number of messages to fetch (1~200).
-        anchor_id: used for "before"/"after" directions, usually can be the current message ID or reply to message ID.
-        start_id: starting message ID (for "between" mode).
-        end_id: ending message ID (for "between" mode).
+        before: anchor message id; selects messages older than it.
+        after: anchor message id; selects messages newer than it.
+        from_id: first message id of an inclusive range (with to_id).
+        to_id: last message id of an inclusive range (with from_id).
+        count: max number of messages (1~200, default 50); only used with
+            before/after selectors.
 
     Returns:
-        Formatted string of chat history or error message.
+        Formatted message list or an error message.
     """
     chat_id = ctx.deps.chat_id
     user_id = ctx.deps.user_id
@@ -51,40 +53,37 @@ async def get_history_messages(
     if chat_id == user_id:
         return "This tool is not available in private chats."
 
+    if count is None:
+        count = 50
     if count <= 0 or count > 200:
         raise ModelRetry("Count must be between 1 and 200, inclusive.")
 
-    current_id = ctx.deps.message.id
+    selectors = [s for s in (before, after, from_id, to_id) if s is not None]
+    if len(selectors) > 2 or (from_id is None) != (to_id is None):
+        return (
+            "Error: pick exactly one selector: before=<id>, after=<id>, "
+            "or from_id=<a>&to_id=<b>."
+        )
 
-    if direction == "latest":
+    if before is not None:
+        start_id = max(1, before - count)
+        end_id = before
+    elif after is not None:
+        start_id = after + 1
+        end_id = after + 1 + count
+    elif from_id is not None and to_id is not None:
+        if to_id < from_id:
+            return "Error: to_id must be >= from_id."
+        if to_id - from_id + 1 > 200:
+            return "Error: the requested range exceeds 200 messages; use a narrower from_id..to_id."
+        start_id, end_id = from_id, to_id + 1
+    else:
+        current_id = ctx.deps.message.id
         if current_id is None:
-            return "Cannot fetch latest messages: current message ID is unknown."
+            return "Error: cannot fetch latest messages; the current message ID is unknown."
         start_id = max(1, current_id - count + 1)
         end_id = current_id + 1
 
-    elif direction == "before":
-        if anchor_id is None:
-            return "Missing anchor_id for direction 'before'."
-        start_id = max(1, anchor_id - count)
-        end_id = anchor_id
-
-    elif direction == "after":
-        if anchor_id is None:
-            raise ModelRetry("Missing anchor_id for direction 'after'.")
-        start_id = anchor_id + 1
-        end_id = anchor_id + 1 + count
-
-    elif direction == "between":
-        if start_id is None or end_id is None:
-            raise ModelRetry("Both start_id and end_id are required for 'between'.")
-        if end_id <= start_id:
-            raise ModelRetry("end_id must be greater than start_id.")
-        if end_id - start_id > 200:
-            raise ModelRetry("Maximum allowed range is 200 messages.")
-    else:
-        raise ModelRetry(
-            "Invalid direction. Use 'latest', 'before', 'after', or 'between'."
-        )
     try:
         msgs = await common.get_messages_with_cache(
             chat_id=chat_id, message_ids=list(range(start_id, end_id)), replies=1

@@ -33,7 +33,9 @@ async def read(
     - chat://media/123        — the media of message 123 in this chat
     - https://t.me/MoreACG/27411 — a public t.me message.
     - chat://info             — information about the current group
-- chat://history?direction=latest|before|after|between&count=N&anchor_id=N&start_id=N&end_id=N
+    - chat://history — the latest messages of this group; optional query:
+      ?before=<id> / ?after=<id> anchor N messages around an id (count=N,
+      default 50), or ?from_id=<a>&to_id=<b> for an inclusive id range
     - https://example.com     — a web page as text
 
     Use start_line/max_lines to page through kmua://, work://, persist://

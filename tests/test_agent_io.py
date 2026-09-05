@@ -207,13 +207,43 @@ async def test_read_chat_history(ws, monkeypatch):
         return "history text"
 
     monkeypatch.setattr(io.bot, "get_history_messages", fake_history)
-    result = await io.read(
-        _ctx(), "chat://history?direction=before&anchor_id=7&count=30"
-    )
+    result = await io.read(_ctx(), "chat://history?before=7&count=30")
     assert result == "history text"
-    assert calls["direction"] == "before"
-    assert calls["anchor_id"] == 7
+    assert calls["before"] == 7
     assert calls["count"] == 30
+
+
+async def test_read_chat_history_range(ws, monkeypatch):
+    calls = {}
+
+    async def fake_history(ctx, **kwargs):
+        calls.update(kwargs)
+        return "history text"
+
+    monkeypatch.setattr(io.bot, "get_history_messages", fake_history)
+    result = await io.read(_ctx(), "chat://history?from_id=10&to_id=20")
+    assert result == "history text"
+    assert calls["from_id"] == 10
+    assert calls["to_id"] == 20
+    assert "count" not in calls
+
+
+async def test_read_chat_history_default(ws, monkeypatch):
+    calls = {}
+
+    async def fake_history(ctx, **kwargs):
+        calls.update(kwargs)
+        return "history text"
+
+    monkeypatch.setattr(io.bot, "get_history_messages", fake_history)
+    result = await io.read(_ctx(), "chat://history")
+    assert result == "history text"
+    assert calls == {}
+
+
+async def test_read_chat_history_rejects_old_params(ws):
+    result = await io.read(_ctx(), "chat://history?direction=before&anchor_id=7")
+    assert "unknown query parameters" in _text(result)
 
 
 async def test_read_chat_rejected_in_private(ws, monkeypatch):

@@ -39,22 +39,24 @@ async def _read_chat(
         return _format_chat_info(info)
     if parts.path == "/history":
         query = parse_qs(parts.query)
+        known = {"before", "after", "from_id", "to_id", "count"}
+        if any(key not in known for key in query):
+            return (
+                "Error: unknown query parameters; supported: before=<id>, "
+                "after=<id>, from_id=<a>&to_id=<b>, count=N."
+            )
         try:
-            direction = query.get("direction", ["latest"])[0]
-            count = int(query.get("count", ["50"])[0])
-            anchor_id = int(query["anchor_id"][0]) if query.get("anchor_id") else None
-            start_id = int(query["start_id"][0]) if query.get("start_id") else None
-            end_id = int(query["end_id"][0]) if query.get("end_id") else None
+            params = {
+                key: int(values[0])
+                for key in ("before", "after", "from_id", "to_id", "count")
+                if (values := query.get(key))
+            }
         except (ValueError, IndexError):
-            return "Error: Invalid query parameters; expected direction/count/anchor_id/start_id/end_id integers."
-        return await bot.get_history_messages(
-            ctx,
-            direction=direction,  # type: ignore[arg-type]
-            count=count,
-            anchor_id=anchor_id,
-            start_id=start_id,
-            end_id=end_id,
-        )
+            return (
+                "Error: invalid query parameters; expected integers for "
+                "before/after/from_id/to_id/count."
+            )
+        return await bot.get_history_messages(ctx, **params)
     return f"Error: Unknown chat:// target {parts.path}; use /info or /history."
 
 
