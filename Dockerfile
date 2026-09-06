@@ -9,7 +9,9 @@ RUN corepack enable
 # ../kmua/webapp/dist relative to webapp/.
 WORKDIR /build/webapp
 # Manifests first: dependencies only re-install when they actually change.
-COPY webapp/package.json webapp/pnpm-lock.yaml webapp/.npmrc ./
+# pnpm-workspace.yaml carries the overrides (pnpm 11): without it the
+# frozen install fails with LOCKFILE_CONFIG_MISMATCH.
+COPY webapp/package.json webapp/pnpm-lock.yaml webapp/.npmrc webapp/pnpm-workspace.yaml ./
 RUN pnpm install --frozen-lockfile
 COPY webapp/ ./
 # vue-tsc runs as part of `build`, so a type error fails the image build.
