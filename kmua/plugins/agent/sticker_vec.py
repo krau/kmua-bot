@@ -52,11 +52,11 @@ async def _connect(*, write: bool = False) -> AsyncGenerator[aiosqlite.Connectio
             _write_lock.release()
 
 
-async def init() -> None:
+async def init(dims: int | None = None) -> None:
     global _INITIALIZED
     if _INITIALIZED:
         return
-    dims = app_config.agent_sticker_embed_dimensions
+    effective_dims = dims or app_config.agent_sticker_embed_dimensions
     async with _connect(write=True) as db:
         await db.executescript(f"""
             CREATE TABLE IF NOT EXISTS stickers (
@@ -71,7 +71,7 @@ async def init() -> None:
             CREATE INDEX IF NOT EXISTS idx_stickers_chat ON stickers(chat_id);
             CREATE INDEX IF NOT EXISTS idx_stickers_uid ON stickers(file_unique_id, chat_id);
             CREATE VIRTUAL TABLE IF NOT EXISTS sticker_embeddings
-                USING vec0(embedding float[{dims}]);
+                USING vec0(embedding float[{effective_dims}]);
         """)
         await db.commit()
     _INITIALIZED = True

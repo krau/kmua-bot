@@ -16,15 +16,22 @@ from . import provider, sticker_vec
 from .whitelist import is_chat_allowed
 
 embedder: Embedder | None = None
+_embed_model: provider.EmbeddingModel | None = None
 _description_agent: Agent[None, str] | None = None
 
+# Effective embedding dimension used by sticker_vec.init(). None until
+# probed (Ollama) or forced to the configured value (OpenAI-compatible).
+_embed_dimensions: int | None = None
+_embed_dimensions_resolved = False
+
 if app_config.agent_sticker_memory:
-    embedder = Embedder(
-        provider.make_embed_model(app_config.agent_sticker_embed_model),
-        settings=EmbeddingSettings(
+    _embed_model = provider.make_embed_model(app_config.agent_sticker_embed_model)
+    embed_settings: EmbeddingSettings | None = None
+    if _embed_model.system != "ollama":
+        embed_settings = EmbeddingSettings(
             dimensions=app_config.agent_sticker_embed_dimensions
-        ),
-    )
+        )
+    embedder = Embedder(_embed_model, settings=embed_settings)
 
     _desc_spec = app_config.agent_sticker_description_model or app_config.agent_model
     if _desc_spec:
@@ -44,6 +51,38 @@ async def get_embedding(text: str) -> list[float] | None:
     except Exception as e:
         logger.error(f"sticker embed error: {e.__class__.__name__}: {e}")
         return None
+
+
+async def ensure_embed_dimensions() -> int:
+    """Return the embedding dimension for the sticker vector store.
+
+    For Ollama providers, the model's native vector length is probed once via
+    ``/api/embed`` so ``sticker_vec`` creates its sqlite-vec table with
+    matching dimensions. OpenAI-compatible providers use
+    ``agent_sticker_embed_dimensions`` as configured. On probe failure the
+    configured dimension is returned with an error log (embedding will likely
+    fail until Ollama is reachable).
+    """
+    global _embed_dimensions, _embed_dimensions_resolved
+    if _embed_dimensions_resolved:
+        return _embed_dimensions or app_config.agent_sticker_embed_dimensions
+    _embed_dimensions_resolved = True
+    if isinstance(_embed_model, provider.OllamaEmbeddingModel):
+        try:
+            _embed_dimensions = await _embed_model.detect_dimensions()
+            logger.info(
+                f"Ollama embed model {_embed_model.model_name} "
+                f"native dimension: {_embed_dimensions}"
+            )
+        except Exception as e:
+            logger.error(
+                f"ollama embedding dimension detection failed: "
+                f"{e.__class__.__name__}: {e}; "
+                f"falling back to agent_sticker_embed_dimensions="
+                f"{app_config.agent_sticker_embed_dimensions}"
+            )
+            _embed_dimensions = None
+    return _embed_dimensions or app_config.agent_sticker_embed_dimensions
 
 
 async def _get_description(image_bytes: bytes, mime_type: str) -> str | None:

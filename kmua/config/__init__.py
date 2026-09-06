@@ -16,6 +16,19 @@ class ProviderConfig(pydantic.BaseModel):
     - "chat_completions": OpenAI Chat Completions API (default, broadly compatible)
     - "responses": OpenAI Responses API (newer OpenAI-native API)
     """
+    api_type: str = "openai"
+    """Underlying API family used for embedding requests (and URL routing).
+
+    Supported values:
+    - "openai": OpenAI-compatible API (default; embed via ``/embeddings``)
+    - "ollama": Ollama native API (embeddings via ``/api/embed``; chat via
+      the OpenAI-compatible ``/v1/chat/completions`` endpoint).
+
+    For "ollama", ``url`` should be the Ollama server root (e.g.
+    ``http://localhost:11434``); a trailing ``/v1`` is stripped and re-added
+    where the OpenAI-compatible path is required. No API key is required
+    (``key`` is optional and sent as a bearer token when set).
+    """
     proxy: str | None = None
     """Optional HTTP proxy for requests to this provider.
 
@@ -187,8 +200,9 @@ class _AppConfig(pydantic.BaseModel):
     #   url = "https://api.openai.com/v1"
     #   api_key = "sk-..."
     #   [agent_providers.local]
-    #   url = "http://localhost:11434/v1"
+    #   url = "http://localhost:11434"
     #   api_key = "ollama"
+    #   api_type = "ollama"   # native Ollama API for embeddings
     agent_providers: dict[str, ProviderConfig] = {"default": ProviderConfig()}
     # Global proxy for all agent model requests (fallback for providers without
     # an explicit ``proxy``). Accepts the same URL forms as

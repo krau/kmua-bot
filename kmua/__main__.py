@@ -240,9 +240,10 @@ async def init_bot(client: Client = client):
     common.jobqueue.add_daily_job("cleanup", jobs.cleanup, hour=4)
 
     if app_config.agent and app_config.agent_sticker_memory:
-        from kmua.plugins.agent import sticker_vec
+        from kmua.plugins.agent import sticker_memory, sticker_vec
 
-        await sticker_vec.init()
+        embed_dims = await sticker_memory.ensure_embed_dimensions()
+        await sticker_vec.init(embed_dims)
         logger.debug("Sticker vector DB initialized")
 
     # 添加定时更换 bot 头像任务
