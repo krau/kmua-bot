@@ -130,19 +130,53 @@ async def test_consecutive_sender_grouping(monkeypatch):
     assert "## 当前消息" in md
 
 
-async def test_header_only_when_ctx_present(monkeypatch):
+async def test_env_header_in_every_prompt(monkeypatch):
+    """The stamp (chat title + current time) must appear on every prompt;
+    ContextInfo extras only on the first prompt (ctx present)."""
     monkeypatch.setattr(input_format.app_config, "agent_multimodal_input_count", 0)
     history = [_msg(1, text="早")]
     current = _msg(2, sender_id=9, text="现在")
-    with_header, _ = await input_format.build_group_prompt(
+    with_ctx, _ = await input_format.build_group_prompt(
         cast(_Client_t, _Client()), current, history, _ctx_info()
     )
-    assert "# 群聊 - 测试群" in cast(str, with_header[0])
-    assert "当前时间: 2026" in cast(str, with_header[0])
-    without_header, _ = await input_format.build_group_prompt(
+    md = cast(str, with_ctx[0])
+    assert "# 群聊 - 测试群" in md
+    assert "当前时间: " in md
+    assert "用户信息: 姓名: u" in md
+    without_ctx, _ = await input_format.build_group_prompt(
         cast(_Client_t, _Client()), current, history, None
     )
-    assert "# 群聊" not in cast(str, without_header[0])
+    md = cast(str, without_ctx[0])
+    assert "# 群聊 - 测试群" in md
+    assert "当前时间: " in md
+    assert "用户信息" not in md
+    assert "群组信息" not in md
+
+
+async def test_env_header_carries_ctx_extras(monkeypatch):
+    """Memory and the affection append_prompt ride only in the ctx header."""
+    ctx = _ctx_info()
+    ctx.memory_about_user = datatype.ChatMemoryy(
+        disposition=["高冷"],
+        interests=[],
+        doings=[],
+        works=[],
+        wishes=[],
+        worries=[],
+        skills=[],
+        attitudes_to_you=[],
+        experiences_with_you=[],
+        extra_info=[],
+    )
+    ctx.append_prompt = "好感度提示"
+    history = [_msg(1, text="早")]
+    current = _msg(2, sender_id=9, text="现在")
+    result, _ = await input_format.build_group_prompt(
+        cast(_Client_t, _Client()), current, history, ctx
+    )
+    md = cast(str, result[0])
+    assert "关于用户的记忆: (性格: 高冷)" in md
+    assert "附加提示: 好感度提示" in md
 
 
 async def test_budget_newest_first_and_numbering(monkeypatch):

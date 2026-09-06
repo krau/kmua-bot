@@ -376,23 +376,31 @@ def _unprocessed_reason(message: pyrogram.types.Message) -> str | None:
     return "无法查看此内容"
 
 
-def _env_header(message: pyrogram.types.Message, ctx: datatype.ContextInfo) -> str:
-    """First-prompt environment block: chat title, time, chat info and the
-    ContextInfo content (memory, affection prompts, guest notice)."""
+def _env_header(
+    message: pyrogram.types.Message, ctx: datatype.ContextInfo | None
+) -> str:
+    """Per-prompt environment stamp: chat title and current time. The chat
+    info and the ContextInfo fields the per-turn message blocks do not
+    already show (user profile, memory about the user, affection prompt)
+    are included only on the first prompt (ctx present)."""
     chat = message.chat
     title = getattr(chat, "title", None) or "未知群组"
     lines = [f"# 群聊 - {title}", f"当前时间: {_now_text()}"]
+    if ctx is None:
+        return "\n".join(lines)
     info_lines = _chat_info_lines(chat)
     if info_lines:
         lines.append("群组信息:")
         lines.extend(f"  {line}" for line in info_lines)
-    ctx_lines = [
-        line
-        for line in ctx.to_text().splitlines()
-        if line and not line.startswith("ContextInfo[")
-    ]
-    if ctx_lines:
-        lines.extend(ctx_lines)
+    if ctx.user_data is not None:
+        username = f"@{ctx.user_data.username}" if ctx.user_data.username else "无"
+        lines.append(f"用户信息: 姓名: {ctx.user_data.full_name}, 用户名: {username}")
+    if ctx.memory_about_user is not None:
+        memory_text = ctx.memory_about_user.to_text(is_group_chat=ctx.is_group_chat)
+        if memory_text:
+            lines.append(f"关于用户的记忆: ({memory_text})")
+    if ctx.append_prompt:
+        lines.append(f"附加提示: {ctx.append_prompt}")
     return "\n".join(lines)
 
 
@@ -504,9 +512,9 @@ async def build_group_prompt(
     Nearby messages already delivered in a previous turn of the same
     conversation (id <= coverage.last_message_id) are omitted entirely: they
     live verbatim in the model history, so resending them would only duplicate
-    tokens and re-download media. The env header (chat name, time, chat info
-    and the ContextInfo content) appears only when ctx is present — i.e. the
-    first prompt of a conversation.
+    tokens and re-download media. The env header (chat name, current time)
+    goes into every prompt; ContextInfo extras (chat info, user profile,
+    memory, affection prompt) only on the first prompt (ctx present).
     """
     chat = message.chat
     chat_id = chat.id if chat is not None and chat.id is not None else 0
@@ -557,9 +565,7 @@ async def build_group_prompt(
         start_number=coverage.next_number if coverage else 1,
     )
 
-    parts: list[str] = []
-    if ctx is not None:
-        parts.append(_env_header(message, ctx))
+    parts: list[str] = [_env_header(message, ctx)]
 
     if history:
         parts.append("## 历史消息\n")

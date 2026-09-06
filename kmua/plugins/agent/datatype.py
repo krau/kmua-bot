@@ -178,31 +178,27 @@ class ContextInfo:
     is_group_chat: bool = False
 
     def to_text(self) -> str:
+        """The per-turn instruction block for additional_instructions: only
+        fields the per-turn message blocks do not already carry. Profile,
+        time, msg id, chat type and reply fields are intentionally excluded
+        (duplicated there or in the per-message labels)."""
         parts = []
-        if self.user_data:
-            parts.append(
-                f"用户信息: 姓名: {self.user_data.full_name}, 用户名: {self.user_data.username or '无'}"
+        if self.user_data is not None:
+            username = (
+                f"@{self.user_data.username}" if self.user_data.username else "无"
             )
-        if self.msg_id:
-            parts.append(f"消息ID: {self.msg_id}")
-        if self.current_time:
-            parts.append(f"当前时间: {self.current_time}")
-        if self.chat_type:
-            parts.append(f"聊天类型: {self.chat_type}")
-        if self.reply_to_msg_text:
-            parts.append(f"回复的消息内容: {self.reply_to_msg_text}")
-        if self.reply_to_msg_id:
-            parts.append(f"回复的消息ID: {self.reply_to_msg_id}")
-        if self.memory_about_user:
             parts.append(
-                f"关于用户的记忆: ({self.memory_about_user.to_text(is_group_chat=self.is_group_chat)})"
+                f"用户信息: 姓名: {self.user_data.full_name}, 用户名: {username}"
             )
-        if self.is_group_chat:
-            parts.append("群聊场景, 请注意收集上下文信息")
+        if self.memory_about_user is not None:
+            memory_text = self.memory_about_user.to_text(
+                is_group_chat=self.is_group_chat
+            )
+            if memory_text:
+                parts.append(f"关于用户的记忆: ({memory_text})")
         if self.append_prompt:
             parts.append(f"附加提示: {self.append_prompt}")
-        text = "\n".join(parts)
-        return f"ContextInfo[{text}]" if text else ""
+        return "\n".join(parts)
 
 
 @dataclass
