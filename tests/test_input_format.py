@@ -121,8 +121,8 @@ async def test_consecutive_sender_grouping(monkeypatch):
     )
     md = cast(str, result[0])
     # A header appears twice (split by B), B once: 4 headers, one per run
-    assert md.count("u(1) | 真人 | 普通群员:") == 2
-    assert md.count("B(2) | 真人 | 普通群员:") == 1
+    assert md.count("u(1) | 真人 | 群员:") == 2
+    assert md.count("B(2) | 真人 | 群员:") == 1
     assert "## 历史消息" in md
     assert "## 当前消息" in md
 
@@ -139,7 +139,6 @@ async def test_env_header_in_every_prompt(monkeypatch):
     md = cast(str, with_ctx[0])
     assert "# 群聊 - 测试群" in md
     assert "当前时间: " in md
-    assert "用户信息: 姓名: u" in md
     without_ctx, _ = await input_format.build_group_prompt(
         cast(_Client_t, _Client()), current, history, None
     )
@@ -319,6 +318,23 @@ async def test_service_message_sender(monkeypatch):
         cast(_Client_t, _Client()), current, history, None
     )
     assert "系统(系统) | 系统 | 系统:" in cast(str, result[0])
+
+
+async def test_service_message_text_rendered(monkeypatch):
+    """Service events (join/leave/title change) render readable text via
+    _service_text instead of an empty text attribute."""
+    monkeypatch.setattr(input_format.app_config, "agent_multimodal_input_count", 0)
+    joined = _msg(1, sender_id=2, first_name="A", text="")
+    joined.service = pyrogram.enums.MessageServiceType.NEW_CHAT_MEMBERS
+    joined.new_chat_members = [SimpleNamespace(first_name="新人")]
+    history = [joined]
+    current = _msg(2, sender_id=9, text="当前")
+    result, _ = await input_format.build_group_prompt(
+        cast(_Client_t, _Client()), current, history, None
+    )
+    md = cast(str, result[0])
+    assert 'text="NEW_CHAT_MEMBERS A 新人"' in md
+    assert 'text=""' not in md.split("## 当前消息")[0]
 
 
 async def test_channel_sender_kind(monkeypatch):

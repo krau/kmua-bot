@@ -449,7 +449,11 @@ def _msg_line(
             attrs.append(f"image_number={image_number}")
     if unprocessed:
         attrs.append(f"unprocessed={_quote(unprocessed)}")
-    text = message.text or message.caption or ""
+    if message.service is not None:
+        # join/leave/pin/title change: no text or caption, describe the event
+        text = _service_text(message)
+    else:
+        text = message.text or message.caption or ""
     attrs.append(f"text={_quote(text)}")
     return f"    - <msg {' '.join(attrs)}>"
 
