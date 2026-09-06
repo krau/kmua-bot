@@ -23,6 +23,7 @@ from kmua.services import link_parse, manyacg
 from . import datatype, myfilter, provider, runner, safety, state, tools, utils
 from .history import compact_history
 from .model_log import ModelActivityLog
+from .output import TypingKeepAlive
 from .prompt import build_ctx_info, get_input_prompt
 from .runner import (
     get_chat_model_override,
@@ -945,8 +946,16 @@ async def wake_agent(client: PyrogramClient, message: pyrogram.types.Message):
             return
         await _queue_interjection(message, chat.id, user.id)
         return
+    typing_keepalive: TypingKeepAlive | None = None
     await conv_lock.acquire()
     try:
+        # Start typing as soon as the turn is committed so context collection
+        # (history, nearby messages, model overrides) runs behind a live
+        # typing indicator. The keepalive is caller-owned: entered here and
+        # handed to the runner, which reuses it instead of starting its own.
+        if not message.guest_query_id:
+            typing_keepalive = TypingKeepAlive(client, message)
+            await typing_keepalive.__aenter__()
         # Check if there's a pending ask — clear it and let the normal flow handle
         # the new message (the ask context is already in history).
         ask_state = await tools.get_ask_state(chat.id, user.id)
@@ -1042,6 +1051,7 @@ async def wake_agent(client: PyrogramClient, message: pyrogram.types.Message):
                 multimodal_model=multimodal_model,
                 model=model,
                 lang=lang,
+                typing_keepalive=typing_keepalive,
             ),
         )
         # Increment periodic counters after each completed conversation turn.
@@ -1061,6 +1071,8 @@ async def wake_agent(client: PyrogramClient, message: pyrogram.types.Message):
                 reaction_ctr + 1,
             )
     finally:
+        if typing_keepalive is not None:
+            await typing_keepalive.__aexit__(None, None, None)
         conv_lock.release()
         if bot_user_wake_lock_acquired and bot_user_wake_lock is not None:
             bot_user_wake_lock.release()

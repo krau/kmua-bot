@@ -111,6 +111,7 @@ async def run_agent(
     model: Any,
     lang: str,
     additional_instructions: str | None = None,
+    typing_keepalive: TypingKeepAlive | None = None,
 ) -> None:
     """Run the agent with an overall wall-clock timeout guard.
 
@@ -118,6 +119,10 @@ async def run_agent(
     model response or tool call can never block a dispatcher worker (and thus
     the whole event loop) indefinitely. The timeout is controlled by
     ``app_config.agent_run_timeout`` (0 disables it).
+
+    ``typing_keepalive`` is an already-started keepalive owned by the caller;
+    when provided, the runner uses it instead of starting its own and never
+    stops it.
     """
     timeout = app_config.agent_run_timeout
     coro = _run_agent_impl(
@@ -133,6 +138,7 @@ async def run_agent(
         model=model,
         lang=lang,
         additional_instructions=additional_instructions,
+        typing_keepalive=typing_keepalive,
     )
     if not timeout or timeout <= 0:
         await coro
@@ -168,6 +174,7 @@ async def _run_agent_impl(
     model: Any,
     lang: str,
     additional_instructions: str | None = None,
+    typing_keepalive: TypingKeepAlive | None = None,
 ) -> None:
     """Run the agent with full streaming/non-streaming support, history saving,
     TypingKeepAlive and unified error handling.
@@ -230,8 +237,10 @@ async def _run_agent_impl(
         model_settings = provider.make_model_settings(app_config.agent_model_options)
 
     try:
-        ctx = TypingKeepAlive(client, message) if not is_guest_mode else None
-        if ctx is not None:
+        ctx = typing_keepalive
+        ctx_owned = ctx is None
+        if ctx is None and not is_guest_mode:
+            ctx = TypingKeepAlive(client, message)
             await ctx.__aenter__()
         try:
             if app_config.agent_streaming and not is_guest_mode:
@@ -434,7 +443,7 @@ async def _run_agent_impl(
                     )
                     log_run_cache_stats(use_model.model_name, agent_run.usage)
         finally:
-            if ctx is not None:
+            if ctx is not None and ctx_owned:
                 await ctx.__aexit__(None, None, None)
     except TypeError as e:
         # https://github.com/pydantic/pydantic-ai/issues/527
