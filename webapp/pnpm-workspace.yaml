@@ -1,0 +1,8 @@
+packages:
+  - .
+
+# Force patched versions for transitive dependencies with open
+# dependabot security advisories (CVE-2026-67213, CVE-2026-59952).
+overrides:
+  nanoid: 3.3.18
+  valibot: 1.4.2
