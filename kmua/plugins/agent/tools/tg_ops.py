@@ -120,11 +120,10 @@ async def _call_kmua_extension(
             return "Error: blockUser requires duration_minutes (integer)."
         if duration <= 0:
             return "Error: blockUser requires duration_minutes (1-10080)."
-        user_id = params.get("user_id")
         return await block.block_user(
             ctx,
             duration,
-            int(user_id) if user_id is not None else None,
+            ctx.deps.user_id,
             str(params.get("reason") or ""),
         )
     return f"Error: Unknown method: {method}"
@@ -337,7 +336,7 @@ async def tg(
 
     kmua extensions:
     - scheduleMessage: text, schedule_time (ISO 8601, must be in the future).
-    - blockUser: duration_minutes (1-10080), user_id (optional, defaults to the person who asked), reason (optional).
+    - blockUser: duration_minutes (1-10080), reason (optional).
 
     Note: your text output is automatically sent as a reply to the current user --
           you do not need `sendMessage` for normal replies. Use this tool only when you need some extra message sending beyond the default reply (e.g. reply to others, second message).
@@ -348,8 +347,6 @@ async def tg(
         return "Error: Current message context is unavailable."
     if ctx.deps.is_guest_mode:
         return "Error: This tool is not available in guest mode."
-    if not isinstance(params, dict):
-        return "Error: params must be an object with Bot API field names."
 
     if method in _KMUA_EXTENSIONS:
         return await _call_kmua_extension(ctx, method, params)
