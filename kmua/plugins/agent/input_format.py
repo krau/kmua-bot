@@ -175,14 +175,14 @@ async def resolve_sender(
             return SenderInfo(name, user_id_str, "匿名管理", "管理员")
         return SenderInfo(name, user_id_str, "匿名管理", "管理员")
     if getattr(message.from_user, "is_bot", False):
-        return SenderInfo(name, user_id_str, "bot", "普通群员")
-    status = "普通群员"
+        return SenderInfo(name, user_id_str, "Bot", "群员")
+    status = "群员"
     if user_id is not None:
         try:
             from kmua.common.tgmethod import get_chat_member
 
             member = await get_chat_member(client, chat_id, user_id)
-            status = _STATUS_NAMES.get(member.status, "普通群员")
+            status = _STATUS_NAMES.get(member.status, "群员")
         except Exception as e:
             logger.debug(
                 f"member status lookup failed for {user_id} in {chat_id}: "
@@ -392,9 +392,6 @@ def _env_header(
     if info_lines:
         lines.append("群组信息:")
         lines.extend(f"  {line}" for line in info_lines)
-    if ctx.user_data is not None:
-        username = f"@{ctx.user_data.username}" if ctx.user_data.username else "无"
-        lines.append(f"用户信息: 姓名: {ctx.user_data.full_name}, 用户名: {username}")
     if ctx.memory_about_user is not None:
         memory_text = ctx.memory_about_user.to_text(is_group_chat=ctx.is_group_chat)
         if memory_text:
