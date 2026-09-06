@@ -104,9 +104,6 @@ def _ctx_info() -> datatype.ContextInfo:
         user_data=datatype.UserData(
             user_id=1001, full_name="u", username=None, config=None
         ),
-        msg_id=999,
-        current_time="2026-09-05T12:00:00",
-        chat_type="SUPERGROUP",
     )
 
 

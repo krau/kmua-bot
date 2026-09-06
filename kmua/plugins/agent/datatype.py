@@ -168,20 +168,15 @@ class UserData:
 @dataclass
 class ContextInfo:
     user_data: UserData | None = None
-    msg_id: int | None = None
-    current_time: str | None = None
-    chat_type: str | None = None
-    reply_to_msg_text: str | None = None
-    reply_to_msg_id: int | None = None
     memory_about_user: ChatMemoryy | None = None
     append_prompt: str | None = None
     is_group_chat: bool = False
 
     def to_text(self) -> str:
-        """The per-turn instruction block for additional_instructions: only
-        fields the per-turn message blocks do not already carry. Profile,
-        time, msg id, chat type and reply fields are intentionally excluded
-        (duplicated there or in the per-message labels)."""
+        """The per-turn instruction block for additional_instructions (guest and
+        follow-up paths): user profile, memory about the user, affection prompt.
+        Time/msg/chat/reply metadata deliberately live in the per-message prompt
+        blocks instead."""
         parts = []
         if self.user_data is not None:
             username = (
