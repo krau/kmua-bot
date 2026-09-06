@@ -11,7 +11,7 @@ import pyrogram
 from pyrogram.client import Client as _Client_t
 from pyrogram.enums import ChatType, MessageMediaType
 
-from kmua.plugins.agent import datatype, input_format
+from kmua.plugins.agent import datatype, input_format, state
 
 
 def _msg(
@@ -78,6 +78,27 @@ class _Client:
         return BytesIO(b"fake-image-bytes")
 
 
+class _CountingClient:
+    """Client wrapper recording every download_media call."""
+
+    def __init__(self):
+        self._inner = _Client()
+        self.downloads = 0
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        return False
+
+    async def get_chat_member(self, chat_id, user_id):
+        return await self._inner.get_chat_member(chat_id, user_id)
+
+    async def download_media(self, *args, **kwargs):
+        self.downloads += 1
+        return await self._inner.download_media(*args, **kwargs)
+
+
 def _ctx_info() -> datatype.ContextInfo:
     return datatype.ContextInfo(
         user_data=datatype.UserData(
@@ -98,7 +119,7 @@ async def test_consecutive_sender_grouping(monkeypatch):
         _msg(4, sender_id=1, text="消息4"),
     ]
     current = _msg(5, sender_id=9, first_name="D", text="当前")
-    result = await input_format.build_group_prompt(
+    result, _ = await input_format.build_group_prompt(
         cast(_Client_t, _Client()), current, history, None
     )
     md = cast(str, result[0])
@@ -113,12 +134,12 @@ async def test_header_only_when_ctx_present(monkeypatch):
     monkeypatch.setattr(input_format.app_config, "agent_multimodal_input_count", 0)
     history = [_msg(1, text="早")]
     current = _msg(2, sender_id=9, text="现在")
-    with_header = await input_format.build_group_prompt(
+    with_header, _ = await input_format.build_group_prompt(
         cast(_Client_t, _Client()), current, history, _ctx_info()
     )
     assert "# 群聊 - 测试群" in cast(str, with_header[0])
     assert "当前时间: 2026" in cast(str, with_header[0])
-    without_header = await input_format.build_group_prompt(
+    without_header, _ = await input_format.build_group_prompt(
         cast(_Client_t, _Client()), current, history, None
     )
     assert "# 群聊" not in cast(str, without_header[0])
@@ -151,7 +172,7 @@ async def test_budget_newest_first_and_numbering(monkeypatch):
         ),
     ]
     current = _msg(4, sender_id=9, text="当前")
-    result = await input_format.build_group_prompt(
+    result, _ = await input_format.build_group_prompt(
         cast(_Client_t, _Client()), current, history, None
     )
     md = cast(str, result[0])
@@ -187,12 +208,14 @@ async def test_file_unique_id_dedup(monkeypatch):
         ),
     ]
     current = _msg(3, sender_id=9, text="当前")
-    result = await input_format.build_group_prompt(
+    result, _ = await input_format.build_group_prompt(
         cast(_Client_t, _Client()), current, history, None
     )
     md = cast(str, result[0])
-    # same image content: both lines reference 图1, only one binary sent
-    assert md.count("image_number=1") == 2
+    # same image content: first line gets the fresh number, the later copy
+    # is a pure reference (no second binary, no duplicate number)
+    assert md.count("image_number=1") == 1
+    assert "referenced_media=1" in md
     assert len(result) == 2  # markdown + 1 binary
 
 
@@ -208,7 +231,7 @@ async def test_text_always_present_and_quoted(monkeypatch):
         ),
     ]
     current = _msg(3, sender_id=9, text="当前")
-    result = await input_format.build_group_prompt(
+    result, _ = await input_format.build_group_prompt(
         cast(_Client_t, _Client()), current, history, None
     )
     md = cast(str, result[0])
@@ -226,7 +249,7 @@ async def test_reply_chain_depth_attribute(monkeypatch):
         reply_to_message_id=8,
         reply_to_top_message_id=None,
     )
-    result = await input_format.build_group_prompt(
+    result, _ = await input_format.build_group_prompt(
         cast(_Client_t, _Client()), current, [], None
     )
     assert "reply_chain_depth=1" not in cast(str, result[0])  # single reply: no hint
@@ -243,7 +266,7 @@ async def test_deep_reply_chain_hint(monkeypatch):
         reply_to_message_id=8,
         reply_to_top_message_id=5,
     )
-    result = await input_format.build_group_prompt(
+    result, _ = await input_format.build_group_prompt(
         cast(_Client_t, _Client()), current, [], None
     )
     assert "reply_chain_depth=" in cast(str, result[0])
@@ -261,7 +284,7 @@ async def test_service_message_sender(monkeypatch):
         ),
     ]
     current = _msg(2, sender_id=9, text="当前")
-    result = await input_format.build_group_prompt(
+    result, _ = await input_format.build_group_prompt(
         cast(_Client_t, _Client()), current, history, None
     )
     assert "系统(系统) | 系统 | 系统:" in cast(str, result[0])
@@ -278,7 +301,7 @@ async def test_channel_sender_kind(monkeypatch):
         ),
     ]
     current = _msg(2, sender_id=9, text="当前")
-    result = await input_format.build_group_prompt(
+    result, _ = await input_format.build_group_prompt(
         cast(_Client_t, _Client()), current, history, None
     )
     assert "频道A(-100999) | 频道 | 频道:" in cast(str, result[0])
@@ -290,7 +313,7 @@ async def test_reply_block_one_level(monkeypatch):
     current = _msg(9, sender_id=9, text="当前", reply_to_message_id=8)
     current.reply_to_message = replied
 
-    result = await input_format.build_group_prompt(
+    result, _ = await input_format.build_group_prompt(
         cast(_Client_t, _Client()), current, [], None
     )
     assert "当前用户所回复的消息:" in cast(str, result[0])
@@ -315,7 +338,7 @@ async def test_voice_delivered_with_audio_mime(monkeypatch):
         ),
     ]
     current = _msg(2, sender_id=9, text="当前")
-    result = await input_format.build_group_prompt(
+    result, _ = await input_format.build_group_prompt(
         cast(_Client_t, _Client()), current, history, None
     )
     assert len(result) == 2
@@ -350,10 +373,234 @@ async def test_video_sticker_uses_first_frame(monkeypatch):
         return b"webp-frame"
 
     monkeypatch.setattr(common_utils, "webm_first_frame", fake_frame)
-    result = await input_format.build_group_prompt(
+    result, _ = await input_format.build_group_prompt(
         cast(_Client_t, _Client()), current, history, None
     )
     assert len(frames) == 1
     assert len(result) == 2
     assert result[1].media_type == "image/webp"
     assert result[1].data == b"webp-frame"
+
+
+async def test_seen_nearby_omitted(monkeypatch):
+    """Messages at or below coverage.last_message_id are dropped from the
+    history section; newer ones still render (dedup cuts repeated input)."""
+    monkeypatch.setattr(input_format.app_config, "agent_multimodal_input_count", 5)
+    coverage = state.PromptCoverage(last_message_id=2)
+    history = [
+        _msg(1, sender_id=1, first_name="A", text="旧1"),
+        _msg(2, sender_id=2, first_name="B", text="旧2"),
+        _msg(3, sender_id=3, first_name="C", text="新3"),
+    ]
+    current = _msg(4, sender_id=9, text="当前")
+    result, meta = await input_format.build_group_prompt(
+        cast(_Client_t, _Client()), current, history, None, coverage=coverage
+    )
+    md = cast(str, result[0])
+    assert "id=1 " not in md
+    assert "id=2 " not in md
+    assert "id=3 " in md
+    assert meta == {}
+
+
+async def test_seen_media_not_downloaded(monkeypatch):
+    """A media message already covered is skipped entirely: no download,
+    no binary, no image_number (regression: repeated downloads and tokens)."""
+    monkeypatch.setattr(input_format.app_config, "agent_multimodal_input_count", 5)
+    coverage = state.PromptCoverage(last_message_id=1, sent_media={"u1": 1})
+    history = [
+        _msg(
+            1,
+            text="",
+            media=MessageMediaType.PHOTO,
+            photo=SimpleNamespace(file_id="f1", file_unique_id="u1"),
+        )
+    ]
+    current = _msg(2, sender_id=9, text="当前")
+    with _CountingClient() as client:
+        result, meta = await input_format.build_group_prompt(
+            cast(_Client_t, client), current, history, None, coverage=coverage
+        )
+    assert client.downloads == 0
+    assert len(result) == 1
+    assert "image_number" not in cast(str, result[0])
+    assert meta == {}
+
+
+async def test_reply_to_seen_image_references_number(monkeypatch):
+    """Replying to an image already delivered references its old image_number
+    instead of downloading again."""
+    monkeypatch.setattr(input_format.app_config, "agent_multimodal_input_count", 5)
+    coverage = state.PromptCoverage(last_message_id=1, sent_media={"u1": 1})
+    replied = _msg(
+        1,
+        sender_id=2,
+        text="旧图",
+        media=MessageMediaType.PHOTO,
+        photo=SimpleNamespace(file_id="f1", file_unique_id="u1"),
+    )
+    current = _msg(2, sender_id=9, text="当前", reply_to_message_id=1)
+    current.reply_to_message = replied
+    with _CountingClient() as client:
+        result, meta = await input_format.build_group_prompt(
+            cast(_Client_t, client), current, [], None, coverage=coverage
+        )
+    assert client.downloads == 0
+    md = cast(str, result[0])
+    assert "消息图号: 图1" in md
+    assert len(result) == 1
+    assert meta == {}  # references never advance the number cursor
+
+
+async def test_resent_photo_references_old_number(monkeypatch):
+    """A newer message re-sending the same unique image (forward/re-send)
+    references the old number and skips the download."""
+    monkeypatch.setattr(input_format.app_config, "agent_multimodal_input_count", 5)
+    coverage = state.PromptCoverage(last_message_id=1, sent_media={"u1": 1})
+    current = _msg(
+        2,
+        sender_id=9,
+        text="重发",
+        media=MessageMediaType.PHOTO,
+        photo=SimpleNamespace(file_id="f2", file_unique_id="u1"),
+    )
+    with _CountingClient() as client:
+        result, meta = await input_format.build_group_prompt(
+            cast(_Client_t, client), current, [], None, coverage=coverage
+        )
+    assert client.downloads == 0
+    md = cast(str, result[0])
+    assert "消息图号: 图1" in md
+    assert meta == {}  # reference only: nothing freshly downloaded
+
+
+async def test_fresh_media_still_delivered(monkeypatch):
+    """Newer-than-cursor media is downloaded and numbered as usual, and its
+    unique id lands in the returned media meta for cursor advancement."""
+    monkeypatch.setattr(input_format.app_config, "agent_multimodal_input_count", 5)
+    coverage = state.PromptCoverage(last_message_id=1)
+    history = [
+        _msg(
+            2,
+            sender_id=2,
+            first_name="C",
+            text="新",
+            media=MessageMediaType.PHOTO,
+            photo=SimpleNamespace(file_id="f2", file_unique_id="u2"),
+        )
+    ]
+    current = _msg(3, sender_id=9, text="当前")
+    with _CountingClient() as client:
+        result, meta = await input_format.build_group_prompt(
+            cast(_Client_t, client), current, history, None, coverage=coverage
+        )
+    assert client.downloads == 1
+    assert len(result) == 2
+    assert meta == {"u2": 1}
+
+
+async def test_advance_coverage_merges_and_caps(monkeypatch):
+    """advance_prompt_coverage grows the cursor, appends media, and resets to
+    the latest turn when the media map exceeds its cap."""
+    from kmua.common.memory_store import memttlcache
+    from kmua.plugins.agent.runner import advance_prompt_coverage
+
+    await memttlcache.delete(state.prompt_coverage_key(-100, 7))
+    await advance_prompt_coverage(
+        -100, 7, state.PromptCoverage(last_message_id=10, sent_media={"a": 1})
+    )
+    cov = await memttlcache.get(state.prompt_coverage_key(-100, 7))
+    assert cov.last_message_id == 10
+    assert cov.sent_media == {"a": 1}
+    assert cov.next_number == 2  # monotonic numbering past the delivered set
+    # a later, smaller cursor never regresses
+    await advance_prompt_coverage(-100, 7, state.PromptCoverage(last_message_id=8))
+    cov = await memttlcache.get(state.prompt_coverage_key(-100, 7))
+    assert cov.last_message_id == 10
+    # cap: overflow keeps only the newest turn's media
+    await advance_prompt_coverage(
+        -100,
+        7,
+        state.PromptCoverage(
+            last_message_id=11,
+            sent_media={f"k{i}": i for i in range(300)},
+        ),
+    )
+    cov = await memttlcache.get(state.prompt_coverage_key(-100, 7))
+    assert len(cov.sent_media) == 300  # replaced wholesale with this turn's set
+    assert cov.last_message_id == 11
+
+
+async def test_no_number_collision_across_turns(monkeypatch):
+    """A fresh image and a re-sent image in the same turn must not share a
+    number: fresh numbers start above every previously delivered number and
+    references keep their old, strictly smaller number."""
+    monkeypatch.setattr(input_format.app_config, "agent_multimodal_input_count", 5)
+    coverage = state.PromptCoverage(
+        last_message_id=2, sent_media={"puA": 1}, next_number=2
+    )
+    history = [
+        _msg(
+            3,
+            text="新图B",
+            media=MessageMediaType.PHOTO,
+            photo=SimpleNamespace(file_id="pB", file_unique_id="puB"),
+        ),
+        _msg(
+            4,
+            text="重发A",
+            media=MessageMediaType.PHOTO,
+            photo=SimpleNamespace(file_id="pA", file_unique_id="puA"),
+        ),
+    ]
+    current = _msg(5, sender_id=9, text="当前")
+    with _CountingClient() as client:
+        result, meta = await input_format.build_group_prompt(
+            cast(_Client_t, client), current, history, None, coverage=coverage
+        )
+    md = cast(str, result[0])
+    assert client.downloads == 1  # only B downloaded
+    assert md.count("image_number=2") == 1
+    assert "referenced_media=1" in md
+    assert len(result) == 2
+    assert meta == {"puB": 2}  # only the fresh image advances the cursor
+
+
+async def test_stale_next_number_never_collides(monkeypatch):
+    """Defensive: an old coverage snapshot with next_number=1 and existing
+    media must still number a fresh image above all delivered numbers."""
+    monkeypatch.setattr(input_format.app_config, "agent_multimodal_input_count", 5)
+    coverage = state.PromptCoverage(last_message_id=1, sent_media={"puA": 7})
+    history = [
+        _msg(
+            2,
+            text="新图",
+            media=MessageMediaType.PHOTO,
+            photo=SimpleNamespace(file_id="pN", file_unique_id="puN"),
+        )
+    ]
+    current = _msg(3, sender_id=9, text="当前")
+    result, meta = await input_format.build_group_prompt(
+        cast(_Client_t, _Client()), current, history, None, coverage=coverage
+    )
+    md = cast(str, result[0])
+    assert "image_number=8" in md
+    assert meta == {"puN": 8}
+
+
+async def test_transcribe_folds_by_occurrence(monkeypatch):
+    """Transcription must land on the matching image_number attribute even
+    when numbers are not 1..N (references use referenced_media instead, so
+    they never shadow a fresh image slot)."""
+    markdown = (
+        "## 历史消息\n"
+        '    - <msg id=1 media_type="photo" referenced_media=1 text="">\n'
+        '    - <msg id=3 media_type="photo" image_number=5 text="">\n'
+        "## 当前消息\n"
+        "消息内容: x\n"
+    )
+    out = input_format.apply_transcriptions([markdown, "b1"], ["转述A", "转述B"])
+    md = cast(str, out[0])
+    # only one fresh slot exists: the second transcription has no target
+    assert 'image_number=5 transcribed="转述A" ' in md
+    assert "转述B" not in md

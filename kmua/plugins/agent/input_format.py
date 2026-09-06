@@ -7,6 +7,7 @@ back-fills the transcribed attribute by image_number.
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 from datetime import datetime
 from types import SimpleNamespace
@@ -19,7 +20,7 @@ from kmua import enums
 from kmua.common.utils import is_explicit_reply
 from kmua.config import app_config
 from kmua.logger import logger
-from kmua.plugins.agent import datatype
+from kmua.plugins.agent import datatype, state
 
 # Media types deliverable to the model, with size caps and the multimodal-inputs key.
 _SIZE_CAPS = {
@@ -199,34 +200,52 @@ def _quote(value: str) -> str:
 class Budget:
     """Allocated image numbering over the assembled messages.
 
-    numbered maps message id -> 1-based image_number (chronological: 1 is the
-    oldest winner); binaries holds the downloads in the same order, so the
-    N-th binary corresponds to image_number N. Messages carrying an already-sent
-    unique image reference its number without a new binary.
+    numbered maps message id -> image_number (globally monotonic across the
+    conversation: 1 is the oldest image the conversation ever delivered);
+    binaries holds the downloads in the same order, so the N-th binary
+    corresponds to the N-th fresh image. Messages whose media was already
+    delivered (this turn or in an earlier turn) carry a referenced_image_number
+    instead of a fresh one — they are tracked in referenced_ids and rendered
+    without an image_number attribute.
     """
 
     numbered: dict[int, int] = field(default_factory=dict)
     binaries: list[BinaryContent] = field(default_factory=list)
+    referenced_ids: set[int] = field(default_factory=set)
 
 
 async def allocate_budget(
     client: pyrogram.client.Client,
     media_messages: list[pyrogram.types.Message],
     current_message_id: int | None,
+    initial_seen: dict[str, int] | None = None,
+    start_number: int = 1,
 ) -> Budget:
     """Pick which media messages get their image delivered: newest-first
     selection, deduped by file_unique_id, numbered chronologically. Later
-    messages with the same unique image reference the first number."""
+    messages with the same unique image reference the first number.
+
+    ``initial_seen`` carries the unique images already delivered in earlier
+    turns of this conversation: those messages are referenced by their old
+    number without downloading again. Fresh images number from
+    ``start_number`` (the conversation's next free number), so references
+    (older numbers) can never collide with them.
+    """
     limit = _effective_budget()
     result = Budget()
     if not media_messages:
         return result
+    # fresh numbers must always stay above every previously delivered number,
+    # whatever the cursor says (defensive: a stale next_number from an old
+    # coverage snapshot must never collide with a reference).
+    if initial_seen:
+        start_number = max(start_number, max(initial_seen.values()) + 1)
     newest_first = sorted(
         media_messages,
         key=lambda m: (m.id or 0, m.id == current_message_id),
         reverse=True,
     )
-    seen_unique: dict[str, int] = {}
+    seen_unique: dict[str, int] = dict(initial_seen or {})
     winners: list[pyrogram.types.Message] = []
     references: list[pyrogram.types.Message] = []
     for msg in newest_first:
@@ -244,12 +263,14 @@ async def allocate_budget(
         winners.append(msg)
     # chronological numbering: 1 = oldest winner; current message last
     winners.sort(key=lambda m: (m.id or 0, m.id == current_message_id))
+    next_number = start_number
     for msg in winners:
         data = await _download(client, msg)
         if data is None:
             continue
         unique = file_unique_id_of(msg)
-        number = len(result.binaries) + 1
+        number = next_number
+        next_number += 1
         result.numbered[msg.id] = number
         result.binaries.append(data)
         if unique is not None:
@@ -259,7 +280,25 @@ async def allocate_budget(
         number = seen_unique.get(unique) if unique else None
         if number:
             result.numbered[msg.id] = number
+            result.referenced_ids.add(msg.id)
     return result
+
+
+def _budget_media_meta(
+    media_messages: list[pyrogram.types.Message], budget: Budget
+) -> dict[str, int]:
+    """file_unique_id -> image_number for every image freshly delivered this
+    turn (references to already-seen media are excluded: they carry old
+    numbers that must not advance the cursor)."""
+    meta: dict[str, int] = {}
+    for msg in media_messages:
+        if msg.id not in budget.numbered or msg.id in budget.referenced_ids:
+            continue
+        unique = file_unique_id_of(msg)
+        if unique is None:
+            continue
+        meta[unique] = budget.numbered[msg.id]
+    return meta
 
 
 def _effective_budget() -> int:
@@ -382,6 +421,7 @@ def _msg_line(
     message: pyrogram.types.Message,
     image_number: int | None,
     unprocessed: str | None,
+    referenced: bool = False,
 ) -> str:
     attrs = [f"id={message.id}"]
     if message.date:
@@ -396,7 +436,12 @@ def _msg_line(
     if type_name:
         attrs.append(f"media_type={_quote(type_name)}")
     if image_number is not None:
-        attrs.append(f"image_number={image_number}")
+        if referenced:
+            # already delivered in an earlier turn (or earlier in this one):
+            # the model saw it verbatim, so reference the number, never resend
+            attrs.append(f"referenced_media={image_number}")
+        else:
+            attrs.append(f"image_number={image_number}")
     if unprocessed:
         attrs.append(f"unprocessed={_quote(unprocessed)}")
     text = message.text or message.caption or ""
@@ -419,7 +464,12 @@ def _render_history(
             lines.append(f"{label}:")
             current_label = label
         lines.append(
-            _msg_line(msg, budget.numbered.get(msg.id), _unprocessed_reason(msg))
+            _msg_line(
+                msg,
+                budget.numbered.get(msg.id),
+                _unprocessed_reason(msg),
+                referenced=msg.id in budget.referenced_ids,
+            )
         )
     return "\n".join(lines)
 
@@ -444,16 +494,24 @@ async def build_group_prompt(
     message: pyrogram.types.Message,
     nearby: list[pyrogram.types.Message],
     ctx: datatype.ContextInfo | None,
-) -> list[UserContent]:
+    coverage: state.PromptCoverage | None = None,
+) -> tuple[list[UserContent], dict[str, int]]:
     """Assemble the group-chat markdown user prompt.
 
-    Returns the prompt list: the markdown string followed by any binary media
-    in image_number order. The env header (chat name, time, chat info and the
-    ContextInfo content) appears only when ctx is present — i.e. the first
-    prompt of a conversation.
+    Returns (prompt list, media meta): the markdown string followed by any
+    binary media in image_number order, plus file_unique_id -> image_number of
+    every image this turn delivered (for the conversation coverage cursor).
+    Nearby messages already delivered in a previous turn of the same
+    conversation (id <= coverage.last_message_id) are omitted entirely: they
+    live verbatim in the model history, so resending them would only duplicate
+    tokens and re-download media. The env header (chat name, time, chat info
+    and the ContextInfo content) appears only when ctx is present — i.e. the
+    first prompt of a conversation.
     """
     chat = message.chat
     chat_id = chat.id if chat is not None and chat.id is not None else 0
+    covered_until = coverage.last_message_id if coverage else 0
+    initial_seen = coverage.sent_media if coverage else None
 
     # one-level reply target; deeper chains surface as reply_chain_depth
     reply_msg = None
@@ -466,7 +524,8 @@ async def build_group_prompt(
         if prev.id in seen:
             continue
         seen.add(prev.id)
-        history.append(prev)
+        if prev.id > covered_until:
+            history.append(prev)
 
     if reply_msg is not None and reply_msg.id not in seen:
         seen.add(reply_msg.id)
@@ -477,10 +536,26 @@ async def build_group_prompt(
             continue
         senders[msg.id] = await resolve_sender(client, chat_id, msg)
 
+    # A seen (already delivered) reply target whose image was never sent is
+    # text-only; referencing its media would download it for nothing.
+    def keep_media(msg: pyrogram.types.Message) -> bool:
+        if msg is message or msg.id > covered_until:
+            return True
+        unique = file_unique_id_of(msg)
+        return unique is not None and unique in (initial_seen or {})
+
     media_messages = [
-        m for m in (*history, reply_msg, message) if m is not None and m.media
+        m
+        for m in (*history, reply_msg, message)
+        if m is not None and m.media and keep_media(m)
     ]
-    budget = await allocate_budget(client, media_messages, message.id)
+    budget = await allocate_budget(
+        client,
+        media_messages,
+        message.id,
+        initial_seen=initial_seen,
+        start_number=coverage.next_number if coverage else 1,
+    )
 
     parts: list[str] = []
     if ctx is not None:
@@ -497,7 +572,12 @@ async def build_group_prompt(
     current_text = message.text or message.caption or ""
     current_lines.append(f"消息内容: {_quote(current_text)}")
     if message.id in budget.numbered:
-        current_lines.append(f"消息图号: 图{budget.numbered[message.id]}")
+        if message.id in budget.referenced_ids:
+            current_lines.append(
+                f"消息图号: 图{budget.numbered[message.id]} (此图已在之前的对话中展示)"
+            )
+        else:
+            current_lines.append(f"消息图号: 图{budget.numbered[message.id]}")
     current_lines.append(f"消息 ID: {message.id}")
     depth = _reply_chain_depth(message)
     if depth > 1:
@@ -512,12 +592,23 @@ async def build_group_prompt(
         current_lines.append(f"    发送者: {reply_label}")
         current_lines.append(f"    消息内容: {_quote(reply_text)}")
         if reply_msg.id in budget.numbered:
-            current_lines.append(f"    消息图号: 图{budget.numbered[reply_msg.id]}")
+            if reply_msg.id in budget.referenced_ids:
+                current_lines.append(
+                    f"    消息图号: 图{budget.numbered[reply_msg.id]} (此图已在之前的对话中展示)"
+                )
+            else:
+                current_lines.append(f"    消息图号: 图{budget.numbered[reply_msg.id]}")
         current_lines.append(f"    消息 ID: {reply_msg.id}")
     parts.append("\n".join(current_lines))
 
     markdown = "\n\n".join(parts)
-    return [markdown, *budget.binaries]
+    meta = _budget_media_meta(media_messages, budget)
+    return [markdown, *budget.binaries], meta
+
+
+# An image_number= attribute (not referenced_media=): negative lookbehind so
+# the dedicated reference attribute never matches.
+_IMAGE_NUMBER_RE = re.compile(r"(?<![A-Za-z_])image_number=\d+ ")
 
 
 def apply_transcriptions(
@@ -525,20 +616,28 @@ def apply_transcriptions(
 ) -> list[UserContent]:
     """Transcribe-mode post-processing: the runner replaced each binary with
     its transcription text in order; fold the texts back into the markdown as
-    the transcribed attribute of the matching image_number."""
+    the transcribed attribute of the matching image_number.
+
+    Numbers are globally monotonic across the conversation, so match by
+    occurrence order instead of the number value. Reference attributes
+    (referenced_media=) are not image_number attributes and are skipped.
+    """
     if not prompt or not isinstance(prompt[0], str) or not transcriptions:
         return prompt
     markdown = prompt[0]
-    for offset, transcription in enumerate(transcriptions, start=1):
-        marker = f"image_number={offset} "
-        idx = markdown.find(marker)
-        if idx < 0:
+    matches = list(_IMAGE_NUMBER_RE.finditer(markdown))
+    if not matches:
+        return prompt
+    # insert from the back so earlier match positions stay valid
+    for idx in range(len(transcriptions) - 1, -1, -1):
+        offset = idx + 1
+        if offset > len(matches):
             continue
-        # insert transcribed="..." right after the image_number attr
-        insert_at = idx + len(marker)
+        match = matches[offset - 1]
+        insert_at = match.end()
         markdown = (
             markdown[:insert_at]
-            + f"transcribed={_quote(transcription)} "
+            + f"transcribed={_quote(transcriptions[idx])} "
             + markdown[insert_at:]
         )
     return [markdown, *prompt[1:]]

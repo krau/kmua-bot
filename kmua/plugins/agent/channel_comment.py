@@ -294,7 +294,7 @@ async def comment_channel_message(client: Client, message: pyrogram.types.Messag
     ]
     instructions += "\n\n" + "\n".join(ctx_parts)
 
-    prompts, _ = await get_input_prompt(client, message, ctx=None)
+    prompts, _, _ = await get_input_prompt(client, message, ctx=None)
     if not prompts:
         return
     logger.debug(

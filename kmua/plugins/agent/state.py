@@ -1,9 +1,32 @@
 import asyncio
+from dataclasses import dataclass, field
 from typing import Any
 
 
 def history_key(chat_id: int, user_id: int) -> str:
     return f"message_history_with_agent:{chat_id}:{user_id}"
+
+
+@dataclass
+class PromptCoverage:
+    """Cursor of what the model has already seen in this conversation.
+
+    last_message_id: nearby messages at or below this id were delivered in a
+    previous turn (same conversation), so their re-appearance is skipped in
+    the prompt. sent_media maps a file_unique_id to the image_number it was
+    delivered under, so a re-sent copy is referenced instead of downloaded
+    again. next_number is the first image_number of the next turn: numbers
+    grow monotonically across the conversation, so a reference (old number)
+    never collides with a freshly numbered image.
+    """
+
+    last_message_id: int = 0
+    sent_media: dict[str, int] = field(default_factory=dict)
+    next_number: int = 1
+
+
+def prompt_coverage_key(chat_id: int, user_id: int) -> str:
+    return f"agent_prompt_coverage:{chat_id}:{user_id}"
 
 
 def waiting_key(user_id: int) -> str:

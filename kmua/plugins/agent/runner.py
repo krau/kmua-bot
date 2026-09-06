@@ -98,6 +98,32 @@ async def _iter_with_spill_session(
         safety.reset_spill_session(token)
 
 
+_COVERAGE_MAX_MEDIA = 256
+
+
+async def advance_prompt_coverage(
+    chat_id: int, user_id: int, update: state.PromptCoverage
+) -> None:
+    """Merge one turn's delivered content into the conversation coverage cursor.
+
+    Called only after the run's history was persisted, so a failed turn
+    leaves the cursor untouched and the next turn re-sends its prompt fully.
+    """
+    key = state.prompt_coverage_key(chat_id, user_id)
+    cov = await memttlcache.get(key)
+    if cov is None:
+        cov = state.PromptCoverage()
+    cov.last_message_id = max(cov.last_message_id, update.last_message_id)
+    for unique, number in update.sent_media.items():
+        cov.sent_media[unique] = number
+    new_max = max(update.sent_media.values(), default=0)
+    cov.next_number = max(cov.next_number, new_max + 1)
+    if len(cov.sent_media) > _COVERAGE_MAX_MEDIA:
+        # keep only this turn's media: recency beats completeness
+        cov.sent_media = dict(update.sent_media)
+    await memttlcache.set(key, cov, ttl=app_config.cachettl_agent_history)
+
+
 async def run_agent(
     agi: Agent[Any, Any],
     client: PyrogramClient,
@@ -112,6 +138,7 @@ async def run_agent(
     lang: str,
     additional_instructions: str | None = None,
     typing_keepalive: TypingKeepAlive | None = None,
+    coverage_meta: state.PromptCoverage | None = None,
 ) -> None:
     """Run the agent with an overall wall-clock timeout guard.
 
@@ -139,6 +166,7 @@ async def run_agent(
         lang=lang,
         additional_instructions=additional_instructions,
         typing_keepalive=typing_keepalive,
+        coverage_meta=coverage_meta,
     )
     if not timeout or timeout <= 0:
         await coro
@@ -175,6 +203,7 @@ async def _run_agent_impl(
     lang: str,
     additional_instructions: str | None = None,
     typing_keepalive: TypingKeepAlive | None = None,
+    coverage_meta: state.PromptCoverage | None = None,
 ) -> None:
     """Run the agent with full streaming/non-streaming support, history saving,
     TypingKeepAlive and unified error handling.
@@ -350,6 +379,10 @@ async def _run_agent_impl(
                             agent_run.all_messages(),
                             ttl=app_config.cachettl_agent_history,
                         )
+                        if not is_guest_mode and coverage_meta is not None:
+                            await advance_prompt_coverage(
+                                chat_id, user_id, coverage_meta
+                            )
                         log_run_cache_stats(use_model.model_name, agent_run.usage)
                 except Exception:
                     if streaming_output is not None:
@@ -441,6 +474,8 @@ async def _run_agent_impl(
                         agent_run.all_messages(),
                         ttl=app_config.cachettl_agent_history,
                     )
+                    if not is_guest_mode and coverage_meta is not None:
+                        await advance_prompt_coverage(chat_id, user_id, coverage_meta)
                     log_run_cache_stats(use_model.model_name, agent_run.usage)
         finally:
             if ctx is not None and ctx_owned:

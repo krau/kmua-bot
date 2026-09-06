@@ -151,6 +151,7 @@ async def _clear_conversation_session(chat_id: int, user_id: int) -> None:
     and (private chats only) the session workspace files. Group sandboxes
     are shared by the whole chat and stay untouched."""
     await common.memttlcache.delete(state.history_key(chat_id, user_id))
+    await common.memttlcache.delete(state.prompt_coverage_key(chat_id, user_id))
     await tools.clear_ask_state(chat_id, user_id)
     await safety.delete_spill_session(f"{chat_id}_{user_id}")
     state.clear_steering(chat_id, user_id)
@@ -384,6 +385,7 @@ if app_config.agent and app_config.agent_model:
                     multimodal_model=multimodal_model,
                     model=model,
                     lang=lang,
+                    coverage_meta=state.PromptCoverage(last_message_id=message.id),
                 ),
             )
         finally:
@@ -445,6 +447,7 @@ if app_config.agent and app_config.agent_model:
         if active_runs:
             await asyncio.gather(*active_runs, return_exceptions=True)
         histories = await _clear_memttlcache_prefix("message_history_with_agent:")
+        coverages = await _clear_memttlcache_prefix("agent_prompt_coverage:")
         asks = _clear_memstore_prefix("agent_ask_state:")
         steered = state.clear_all_steering()
         state.clear_all_locks()
@@ -459,15 +462,16 @@ if app_config.agent and app_config.agent_model:
         persisted = await persistent_file_db.delete_all_persistent_files()
         logger.info(
             f"All agent sessions cleared by {user.id}: "
-            f"histories={histories} asks={asks} spills={spills} "
-            f"steered={steered} shells={shells} workspaces={workspaces} "
-            f"persisted={persisted}"
+            f"histories={histories} coverages={coverages} asks={asks} "
+            f"spills={spills} steered={steered} shells={shells} "
+            f"workspaces={workspaces} persisted={persisted}"
         )
         await message.reply_text(
-            f"Cleared {histories} conversation histories, {asks} pending "
-            f"questions, {spills} stored overflow entries, {steered} queued "
-            f"messages, {shells} shell workspaces, {workspaces} workspace "
-            f"databases, {persisted} persisted files (chat messages stay)."
+            f"Cleared {histories} conversation histories, {coverages} prompt "
+            f"cursors, {asks} pending questions, {spills} stored overflow "
+            f"entries, {steered} queued messages, {shells} shell workspaces, "
+            f"{workspaces} workspace databases, {persisted} persisted files "
+            f"(chat messages stay)."
         )
 
     @PyrogramClient.on_callback_query(
@@ -1009,8 +1013,15 @@ async def wake_agent(client: PyrogramClient, message: pyrogram.types.Message):
         nearby_count = (
             app_config.agent_group_context_nearby_message_count if is_group_chat else 0
         )
-        user_prompt, _ = await get_input_prompt(
-            client, message, include_nearby=nearby_count, ctx=ctx_info
+        coverage: state.PromptCoverage | None = await common.memttlcache.get(
+            state.prompt_coverage_key(chat.id, user.id)
+        )
+        user_prompt, _, prompt_media_meta = await get_input_prompt(
+            client,
+            message,
+            include_nearby=nearby_count,
+            ctx=ctx_info,
+            coverage=coverage,
         )
         stale_steering = state.drain_steering(chat.id, user.id)
         if stale_steering:
@@ -1052,6 +1063,9 @@ async def wake_agent(client: PyrogramClient, message: pyrogram.types.Message):
                 model=model,
                 lang=lang,
                 typing_keepalive=typing_keepalive,
+                coverage_meta=state.PromptCoverage(
+                    last_message_id=message.id, sent_media=prompt_media_meta
+                ),
             ),
         )
         # Increment periodic counters after each completed conversation turn.
@@ -1142,7 +1156,7 @@ async def on_guest_chat_query(
             is_group_chat=is_group_chat,
         )
 
-        user_prompt, _ = await get_input_prompt(
+        user_prompt, _, _ = await get_input_prompt(
             client, message, include_nearby=0, ctx=None
         )
 

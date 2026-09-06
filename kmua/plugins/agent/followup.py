@@ -258,7 +258,7 @@ Bot回复: {bot_full_output}
             history=history,
             is_group_chat=True,
         )
-        follow_up_prompt, _ = await get_input_prompt(
+        follow_up_prompt, _, _ = await get_input_prompt(
             client, message, include_nearby=0, ctx=None
         )
         addtional_instructions = ctx_info.to_text() if ctx_info else ""
@@ -297,6 +297,7 @@ Bot回复: {bot_full_output}
                 multimodal_model=multimodal_model,
                 model=model,
                 lang=chat_config.lang,
+                coverage_meta=state.PromptCoverage(last_message_id=message.id),
             ),
         )
 

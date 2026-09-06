@@ -256,7 +256,8 @@ async def get_input_prompt(
     message: pyrogram.types.Message,
     include_nearby: int = 0,
     ctx: datatype.ContextInfo | Any | None = None,
-) -> tuple[list[UserContent], bool]:
+    coverage: state.PromptCoverage | None = None,
+) -> tuple[list[UserContent], bool, dict[str, int]]:
     """Build the user prompt list and return whether the current message itself
     contains media that requires multimodal understanding.
 
@@ -268,6 +269,10 @@ async def get_input_prompt(
     reply_to_message) contributed a BinaryContent item — nearby group context
     messages and deep reply-chain entries are intentionally excluded so that the
     smart text model is not swapped out just because unrelated media exists nearby.
+
+    The third element is the file_unique_id -> image_number map of media this
+    turn actually delivered (empty when the legacy path ran); it feeds the
+    conversation coverage cursor so repeated media is referenced, not resent.
     """
     is_group = message.chat is not None and message.chat.type in (
         pyrogram.enums.ChatType.SUPERGROUP,
@@ -275,12 +280,14 @@ async def get_input_prompt(
     )
     if is_group and include_nearby > 0:
         nearby = await _fetch_nearby(message, include_nearby)
-        prompt = await input_format.build_group_prompt(client, message, nearby, ctx)
+        prompt, media_meta = await input_format.build_group_prompt(
+            client, message, nearby, ctx, coverage=coverage
+        )
         needs_multimodal = any(
             isinstance(item, (ImageUrl, AudioUrl, DocumentUrl, VideoUrl, BinaryContent))
             for item in prompt
         )
-        return prompt, needs_multimodal
+        return prompt, needs_multimodal, media_meta
 
     def sender_label(sender: Any) -> str:
         """Label a message sender as 'name(id)' so history recall can tell
@@ -678,7 +685,7 @@ async def get_input_prompt(
         for item in user_prompt
     )
 
-    return user_prompt, needs_multimodal
+    return user_prompt, needs_multimodal, {}
 
 
 async def build_ctx_info(
