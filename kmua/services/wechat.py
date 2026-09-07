@@ -323,12 +323,18 @@ def build_rich_blocks(
     the native MTProto equivalent of Bot API 10.2 media support — no URL
     fetching involved. ``photo_refs`` maps the article's image blocks in
     order to uploaded ``InputPhoto`` objects; ``None`` drops the image.
+
+    The title and a short article preview stay visible. When an uploaded
+    image is available, the preview extends through the first such image;
+    otherwise it ends at the first text paragraph. Everything after that
+    preview is rendered inside a collapsed details block.
     """
     # kurigram does not re-export the new rich-message raw types from the
     # package namespace; import each from its generated module file.
     from pyrogram.raw.types.page_block_blockquote import (
         PageBlockBlockquote as _RBlockquote,
     )
+    from pyrogram.raw.types.page_block_details import PageBlockDetails as _RDetails
     from pyrogram.raw.types.page_block_divider import PageBlockDivider as _RDivider
     from pyrogram.raw.types.page_block_heading1 import (
         PageBlockHeading1 as _RHeading1,
@@ -364,23 +370,48 @@ def build_rich_blocks(
     ]
     image_index = 0
     remaining = _MAX_BODY_CHARS
-    quote_buffer: list[str] = []
 
-    def flush_quote() -> None:
+    preview_end: int | None = None
+    first_text_index: int | None = None
+    preview_image_index = 0
+    for body_index, block in enumerate(body):
+        if block.kind == "text" and first_text_index is None:
+            first_text_index = body_index
+        if block.kind != "image":
+            continue
+        ref = (
+            photo_refs[preview_image_index]
+            if photo_refs and preview_image_index < len(photo_refs)
+            else None
+        )
+        preview_image_index += 1
+        if ref is not None:
+            preview_end = body_index
+            break
+    if preview_end is None:
+        preview_end = first_text_index
+
+    collapsed_blocks: list[Any] = []
+    preview_quote_buffer: list[str] = []
+    collapsed_quote_buffer: list[str] = []
+
+    def flush_quote(buffer: list[str], target: list[Any]) -> None:
         # Consecutive paragraphs share ONE block quote (separated by blank
-        # lines inside it) instead of one block per paragraph, so the body
-        # reads as a continuous quotation.
-        if not quote_buffer:
+        # lines inside it) instead of one block per paragraph.
+        if not buffer:
             return
-        blocks.append(
+        target.append(
             _RBlockquote(
-                text=text("\n\n".join(quote_buffer)),
+                text=text("\n\n".join(buffer)),
                 caption=_REmpty(),
             )
         )
-        quote_buffer.clear()
+        buffer.clear()
 
-    for block in body:
+    for body_index, block in enumerate(body):
+        is_preview = preview_end is None or body_index <= preview_end
+        quote_buffer = preview_quote_buffer if is_preview else collapsed_quote_buffer
+        target = blocks if is_preview else collapsed_blocks
         if block.kind == "image":
             ref = (
                 photo_refs[image_index]
@@ -388,10 +419,10 @@ def build_rich_blocks(
                 else None
             )
             image_index += 1
-            flush_quote()
+            flush_quote(quote_buffer, target)
             if ref is None:
                 continue
-            blocks.append(
+            target.append(
                 _RPhoto(
                     photo_id=ref.id,
                     caption=_RCaption(text=_REmpty(), credit=_REmpty()),
@@ -407,7 +438,16 @@ def build_rich_blocks(
         chunk = re.sub(r"\n+", "\n", chunk).strip()
         quote_buffer.append(chunk)
         remaining -= len(chunk)
-    flush_quote()
+    flush_quote(preview_quote_buffer, blocks)
+    flush_quote(collapsed_quote_buffer, collapsed_blocks)
+    if collapsed_blocks:
+        blocks.append(
+            _RDetails(
+                blocks=collapsed_blocks,
+                title=text(i18n.t("bot.msg.wechat.expand", locale=lang)),
+                open=False,
+            )
+        )
 
     blocks.append(_RDivider())
     blocks.append(

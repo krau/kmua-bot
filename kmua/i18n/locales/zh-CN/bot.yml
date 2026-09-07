@@ -206,6 +206,7 @@ bot:
       untitled: 无标题
     wechat:
       read_original: 阅读原文
+      expand: 展开全文
     link_parse:
       view_original: 查看原文
     twitter:

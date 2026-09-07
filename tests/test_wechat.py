@@ -200,8 +200,9 @@ def test_parse_article_html_limits_images():
 # ------------------------------------------------------------------ formatting
 
 
-def test_build_rich_blocks_interleaves_images_and_quotes():
+def test_build_rich_blocks_interleaves_images_and_collapses_body():
     from pyrogram.raw.types.page_block_blockquote import PageBlockBlockquote
+    from pyrogram.raw.types.page_block_details import PageBlockDetails
     from pyrogram.raw.types.page_block_heading1 import PageBlockHeading1
     from pyrogram.raw.types.page_block_photo import PageBlockPhoto
 
@@ -215,13 +216,22 @@ def test_build_rich_blocks_interleaves_images_and_quotes():
             wechat_service.WechatBlock(kind="text", content="第二段"),
         ],
     )
-    # Without photo ids the image block is dropped.
+    # Without photo ids the image block is dropped, and the first paragraph
+    # remains visible while later text is collapsed.
     blocks = wechat_service.build_rich_blocks(article, lang="zh-CN")
     assert not any(isinstance(b, PageBlockPhoto) for b in blocks)
     assert isinstance(blocks[0], PageBlockHeading1)
-    assert any(isinstance(b, PageBlockBlockquote) for b in blocks)
+    visible_quotes = [b for b in blocks if isinstance(b, PageBlockBlockquote)]
+    assert len(visible_quotes) == 1
+    assert cast(Any, visible_quotes[0].text).text == "第一段"
+    details = next(b for b in blocks if isinstance(b, PageBlockDetails))
+    assert details.open is False
+    details_quotes = [b for b in details.blocks if isinstance(b, PageBlockBlockquote)]
+    assert len(details_quotes) == 1
+    assert cast(Any, details_quotes[0].text).text == "第二段"
 
-    # With a photo id the image is interleaved at its document position.
+    # With a photo id the first image is part of the visible preview; later
+    # content remains inside the collapsed details block.
     class FakePhotoRef:
         id = 42
 
@@ -229,13 +239,15 @@ def test_build_rich_blocks_interleaves_images_and_quotes():
         article, lang="zh-CN", photo_refs=[FakePhotoRef()]
     )
     kinds = [type(b).__name__ for b in blocks2]
-    assert "PageBlockPhoto" in kinds
     photo_idx = kinds.index("PageBlockPhoto")
-    assert kinds[photo_idx - 1] == "PageBlockBlockquote"  # text before image
-    assert kinds[photo_idx + 1] == "PageBlockBlockquote"  # text after image
+    assert isinstance(blocks2[photo_idx - 1], PageBlockBlockquote)
+    assert isinstance(blocks2[photo_idx + 1], PageBlockDetails)
     assert blocks2[photo_idx].photo_id == 42
+    details2 = blocks2[photo_idx + 1]
+    details2_quotes = [b for b in details2.blocks if isinstance(b, PageBlockBlockquote)]
+    assert cast(Any, details2_quotes[0].text).text == "第二段"
 
-    # Consecutive paragraphs share one block quote, separated by blank lines.
+    # Consecutive paragraphs share one quote in each visibility region.
     article3 = wechat_service.WechatArticle(
         url=ARTICLE_URL,
         blocks=[
@@ -247,7 +259,11 @@ def test_build_rich_blocks_interleaves_images_and_quotes():
     blocks3 = wechat_service.build_rich_blocks(article3, lang="zh-CN")
     quotes = [b for b in blocks3 if isinstance(b, PageBlockBlockquote)]
     assert len(quotes) == 1
-    assert cast(Any, quotes[0].text).text == "第一段\n\n第二段\n\n第三段"
+    assert cast(Any, quotes[0].text).text == "第一段"
+    details3 = next(b for b in blocks3 if isinstance(b, PageBlockDetails))
+    details3_quotes = [b for b in details3.blocks if isinstance(b, PageBlockBlockquote)]
+    assert len(details3_quotes) == 1
+    assert cast(Any, details3_quotes[0].text).text == "第二段\n\n第三段"
 
 
 def test_build_media_caption_truncates_to_1024():
@@ -419,6 +435,7 @@ async def test_plugin_media_group_send(fake_message, monkeypatch):
 
     from pyrogram.raw.functions.messages.upload_media import UploadMedia
     from pyrogram.raw.types.input_photo import InputPhoto
+    from pyrogram.raw.types.page_block_details import PageBlockDetails
     from pyrogram.raw.types.page_block_photo import PageBlockPhoto
 
     rich_calls = []
@@ -459,6 +476,8 @@ async def test_plugin_media_group_send(fake_message, monkeypatch):
     assert rich.photos and isinstance(rich.photos[0], InputPhoto)
     assert rich.photos[0].id == 777
     photo_blocks = [b for b in rich.blocks if isinstance(b, PageBlockPhoto)]
+    details = next(b for b in rich.blocks if isinstance(b, PageBlockDetails))
+    photo_blocks.extend(b for b in details.blocks if isinstance(b, PageBlockPhoto))
     assert len(photo_blocks) == 2
     assert all(b.photo_id == 777 for b in photo_blocks)
 

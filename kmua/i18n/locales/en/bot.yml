@@ -326,6 +326,7 @@ bot:
       untitled: Untitled
     wechat:
       read_original: Read original
+      expand: Expand article
     link_parse:
       view_original: View original
     twitter:
