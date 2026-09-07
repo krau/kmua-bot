@@ -902,3 +902,48 @@ async def test_read_binary_transcription_failure_is_explicit(ws, monkeypatch):
     assert "Media transcription failed" in result
     assert "not decoded as text" in result
     assert "PNG" not in result
+
+
+async def test_empty_message_cache_entries_are_not_reused(monkeypatch):
+    from kmua.common import tgmethod
+
+    class _Cache:
+        def __init__(self):
+            self.deleted: list[str] = []
+
+        async def get(self, key, default=None):
+            return SimpleNamespace(id=7, empty=True)
+
+        async def delete(self, key):
+            self.deleted.append(key)
+
+    cache = _Cache()
+    fetched = SimpleNamespace(id=7, empty=True)
+    monkeypatch.setattr(tgmethod, "memttlcache", cache)
+
+    async def fake_get_messages(**kwargs):
+        return [fetched]
+
+    monkeypatch.setattr(tgmethod.client, "get_messages", fake_get_messages)
+
+    result = await tgmethod.get_cached_messages_objects(-100123, [7])
+
+    assert result == []
+    assert cache.deleted == [tgmethod.chat_message_object_cache_key(-100123, 7)]
+
+
+async def test_deleted_update_invalidates_cached_message_object(monkeypatch):
+    from kmua.common import tgmethod
+
+    deleted: list[str] = []
+
+    class _Cache:
+        async def delete(self, key):
+            deleted.append(key)
+
+    monkeypatch.setattr(tgmethod, "memttlcache", _Cache())
+    messages = [SimpleNamespace(chat=SimpleNamespace(id=-100123), id=7)]
+
+    await tgmethod.invalidate_cached_message_objects(messages)
+
+    assert deleted == [tgmethod.chat_message_object_cache_key(-100123, 7)]

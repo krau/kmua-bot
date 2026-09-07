@@ -512,6 +512,11 @@ def _reply_chain_depth(message: pyrogram.types.Message) -> int:
     return depth
 
 
+def _is_deleted_message(message: pyrogram.types.Message | None) -> bool:
+    """Return whether Telegram supplied an empty/deleted message shell."""
+    return message is None or bool(getattr(message, "empty", False))
+
+
 async def build_group_prompt(
     client: pyrogram.client.Client,
     message: pyrogram.types.Message,
@@ -542,13 +547,15 @@ async def build_group_prompt(
     # one-level reply target; deeper chains surface as reply_chain_depth
     reply_msg = None
     if is_explicit_reply(message) and message.reply_to_message:
-        reply_msg = message.reply_to_message
+        candidate = message.reply_to_message
+        if not _is_deleted_message(candidate):
+            reply_msg = candidate
     reply_id = reply_msg.id if reply_msg is not None else None
 
     seen: set[int] = {message.id}
     history: list[pyrogram.types.Message] = []
     for prev in nearby:
-        if prev.id in seen or prev.id == reply_id:
+        if _is_deleted_message(prev) or prev.id in seen or prev.id == reply_id:
             continue
         seen.add(prev.id)
         if prev.id > covered_until:
@@ -578,6 +585,7 @@ async def build_group_prompt(
         # Historical media from any other sender, including stickers, is
         # rendered as metadata only and never enters the media budget.
         return historical_media_allowed(msg)
+
     media_messages = [
         m
         for m in (*history, reply_msg, message)

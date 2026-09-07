@@ -233,6 +233,10 @@ def _media_omitted_note(
     return f"[模型无法处理的内容: {label}{detail}]"
 
 
+def _is_deleted_message(message: Any) -> bool:
+    return bool(getattr(message, "empty", False))
+
+
 async def _fetch_nearby(
     message: pyrogram.types.Message, include_nearby: int
 ) -> list[pyrogram.types.Message]:
@@ -571,8 +575,11 @@ async def get_input_prompt(
             break
         if not current.reply_to_message:
             break
-        reply_chain.append(current.reply_to_message)
-        current = current.reply_to_message
+        reply = current.reply_to_message
+        if _is_deleted_message(reply):
+            break
+        reply_chain.append(reply)
+        current = reply
     reply_chain.reverse()
 
     # 检测回复链是否是 bot 与用户交替对话的历史记录（已存在于 message history 中）。
@@ -626,10 +633,14 @@ async def get_input_prompt(
             )
             closest_media_msg: pyrogram.types.Message | None = None
             for prev_msg in reversed(prev_msgs):
+                if _is_deleted_message(prev_msg):
+                    continue
                 if prev_msg.media and not closest_media_msg:
                     closest_media_msg = prev_msg
                     break
             for prev_msg in prev_msgs:
+                if _is_deleted_message(prev_msg):
+                    continue
                 if prev_msg.id in seen_msg_ids:
                     continue
                 seen_msg_ids.add(prev_msg.id)

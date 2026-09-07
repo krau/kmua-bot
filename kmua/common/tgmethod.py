@@ -1,5 +1,6 @@
 import datetime
 import html
+from collections.abc import Iterable
 from dataclasses import dataclass
 
 import pyrogram
@@ -26,7 +27,9 @@ def chat_message_object_cache_key(chat_id: int, message_id: int) -> str:
 
 
 async def cache_message_object(message: pyrogram.types.Message) -> None:
-    """Cache a full message object for later retrieval."""
+    """Cache a full, non-deleted message object for later retrieval."""
+    if getattr(message, "empty", False):
+        return
     if not message.chat or not message.chat.id:
         return
 
@@ -34,8 +37,20 @@ async def cache_message_object(message: pyrogram.types.Message) -> None:
     message_id = message.id
     cache_key = chat_message_object_cache_key(chat_id, message_id)
     ttl = app_config.cachettl_message_object
-
     await memttlcache.set(cache_key, message, ttl=ttl)
+
+
+async def invalidate_cached_message_objects(
+    messages: Iterable[pyrogram.types.Message],
+) -> None:
+    """Remove message-object cache entries announced as deleted by Telegram."""
+    for message in messages:
+        chat = getattr(message, "chat", None)
+        chat_id = getattr(chat, "id", None)
+        message_id = getattr(message, "id", None)
+        if chat_id is None or not message_id:
+            continue
+        await memttlcache.delete(chat_message_object_cache_key(chat_id, message_id))
 
 
 async def get_cached_message_object(
@@ -57,7 +72,10 @@ async def get_cached_messages_objects(
         if msg_id in cached_messages:
             continue
         cached = await get_cached_message_object(chat_id, msg_id)
-        if cached:
+        if cached is not None and getattr(cached, "empty", False):
+            await memttlcache.delete(chat_message_object_cache_key(chat_id, msg_id))
+            cached = None
+        if cached is not None:
             cached_messages[msg_id] = cached
         else:
             to_fetch_ids.append(msg_id)
@@ -75,7 +93,7 @@ async def get_cached_messages_objects(
                 fetched = fetched or []
 
             for msg in fetched:
-                if msg:
+                if msg and not getattr(msg, "empty", False):
                     await cache_message_object(msg)
                     cached_messages[msg.id] = msg
         except Exception as e:

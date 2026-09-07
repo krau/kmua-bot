@@ -29,6 +29,7 @@ def _msg(
     from_user_id: int | None = None,
     voice=None,
     sticker=None,
+    empty: bool = False,
 ) -> pyrogram.types.Message:
     from_user = None
     if sender_id is not None:
@@ -41,6 +42,7 @@ def _msg(
         pyrogram.types.Message,
         SimpleNamespace(
             id=id,
+            empty=empty,
             chat=SimpleNamespace(id=-100123, type=ChatType.SUPERGROUP, title="测试群"),
             from_user=from_user,
             sender_chat=sender_chat,
@@ -213,6 +215,56 @@ async def test_budget_newest_first_and_numbering(monkeypatch):
     assert 'media_type="photo" text=""' in md
     # one binary delivered
     assert len(result) == 2
+
+
+async def test_deleted_nearby_media_is_omitted_before_budget(monkeypatch):
+    monkeypatch.setattr(input_format.app_config, "agent_multimodal_input_count", 1)
+    monkeypatch.setattr(input_format.app_config, "agent_multimodal_inputs", ["photo"])
+
+    def photo_payload(unique):
+        return SimpleNamespace(file_id=f"file-{unique}", file_unique_id=unique)
+
+    history = [
+        _msg(
+            1,
+            sender_id=9,
+            media=MessageMediaType.PHOTO,
+            photo=photo_payload("deleted"),
+            empty=True,
+        ),
+        _msg(
+            2,
+            sender_id=9,
+            media=MessageMediaType.PHOTO,
+            photo=photo_payload("live"),
+        ),
+    ]
+    current = _msg(3, sender_id=9, text="当前")
+    with _CountingClient() as client:
+        result, meta = await input_format.build_group_prompt(
+            cast(_Client_t, client), current, history, None
+        )
+
+    md = cast(str, result[0])
+    assert "id=1" not in md
+    assert "id=2" in md
+    assert 'media_type="photo" image_number=1' in md
+    assert meta == {"live": 1}
+    assert client.downloads == 1
+
+
+async def test_deleted_direct_reply_is_not_rendered():
+    deleted = _msg(1, text="已删除的回复", empty=True)
+    current = _msg(2, text="当前", reply_to_message_id=1)
+    current.reply_to_message = deleted
+
+    result, _ = await input_format.build_group_prompt(
+        cast(_Client_t, _Client()), current, [], None
+    )
+
+    md = cast(str, result[0])
+    assert "已删除的回复" not in md
+    assert "当前用户所回复的消息:" not in md
 
 
 async def test_file_unique_id_dedup(monkeypatch):
@@ -447,7 +499,10 @@ async def test_historical_media_only_current_sender_is_downloaded(monkeypatch):
             sender_id=9,
             media=MessageMediaType.STICKER,
             sticker=SimpleNamespace(
-                file_id="sticker-file", file_unique_id="sticker", is_video=False, is_animated=False
+                file_id="sticker-file",
+                file_unique_id="sticker",
+                is_video=False,
+                is_animated=False,
             ),
         ),
     ]
@@ -460,7 +515,7 @@ async def test_historical_media_only_current_sender_is_downloaded(monkeypatch):
     other_line = next(line for line in md.splitlines() if "id=2 " in line)
     sticker_line = next(line for line in md.splitlines() if "id=3 " in line)
     assert client.downloads == 1
-    assert 'id=1 ' in md and 'media_type="photo" image_number=1' in md
+    assert "id=1 " in md and 'media_type="photo" image_number=1' in md
     assert 'media_type="photo"' in other_line and "image_number" not in other_line
     assert 'media_type="sticker"' in sticker_line and "image_number" not in sticker_line
     assert len(result) == 2
@@ -482,7 +537,10 @@ async def test_current_and_reply_media_remain_eligible(monkeypatch):
         sender_id=9,
         media=MessageMediaType.STICKER,
         sticker=SimpleNamespace(
-            file_id="current-sticker", file_unique_id="current", is_video=False, is_animated=False
+            file_id="current-sticker",
+            file_unique_id="current",
+            is_video=False,
+            is_animated=False,
         ),
         reply_to_message_id=8,
         text="当前",

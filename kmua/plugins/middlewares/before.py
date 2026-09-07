@@ -65,6 +65,12 @@ async def on_m(client: Client, message: Message):
             await common.tgmethod.cache_message_object(message)
 
 
+@Client.on_deleted_messages(group=-100)
+async def on_deleted_messages(client: Client, messages: list[Message]):
+    """Drop cached history objects as soon as Telegram reports deletion."""
+    await common.invalidate_cached_message_objects(messages)
+
+
 @Client.on_chat_member_updated()
 async def on_chat_member(client: Client, update: pyrogram.types.ChatMemberUpdated):
     """Leave a blocked chat whenever the bot is added to it again.
