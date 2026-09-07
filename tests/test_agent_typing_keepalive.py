@@ -59,3 +59,44 @@ async def test_run_agent_forwards_caller_keepalive(monkeypatch):
         typing_keepalive=keepalive,  # type: ignore[arg-type]
     )
     assert captured["typing_keepalive"] is keepalive
+
+
+async def test_run_agent_stops_typing_before_timeout_reply(monkeypatch):
+    async def stalled_impl(**kwargs):
+        await asyncio.sleep(10)
+
+    class _ReplyMessage:
+        chat = SimpleNamespace(id=-100123)
+        guest_query_id = None
+
+        def __init__(self):
+            self.replies: list[str] = []
+
+        async def reply_text(self, text: str, **kwargs):
+            self.replies.append(text)
+
+    monkeypatch.setattr(runner, "_run_agent_impl", stalled_impl)
+    monkeypatch.setattr(app_config, "agent_run_timeout", 0.01)
+    client = _FakeClient()
+    message = _ReplyMessage()
+    keepalive = TypingKeepAlive(client, message)  # type: ignore[arg-type]
+    await keepalive.__aenter__()
+
+    await runner.run_agent(  # type: ignore[arg-type]
+        agi=object(),
+        client=client,  # type: ignore[arg-type]
+        message=message,  # type: ignore[arg-type]
+        user_id=1,
+        chat_id=-100123,
+        user_prompt=[],
+        history=[],
+        deps=SimpleNamespace(is_guest_mode=False),
+        multimodal_model=None,
+        model=None,
+        lang="zh",
+        typing_keepalive=keepalive,
+    )
+
+    assert len(message.replies) == 1
+    assert "Timeout" in message.replies[0]
+    assert keepalive._task is not None and keepalive._task.done()

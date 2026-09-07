@@ -265,3 +265,57 @@ async def test_text_document_readable_without_multimodal_no_mime(monkeypatch):
     joined = " ".join(str(p) for p in prompts)
     assert "这是文本文档内容" in joined
     assert "模型无法处理" not in joined
+
+
+async def test_transcribe_history_replaces_user_and_tool_media():
+    from pydantic_ai import BinaryContent, UserPromptPart
+    from pydantic_ai.messages import ModelRequest, ToolReturnPart
+    from pydantic_ai.models.test import TestModel
+
+    from kmua.plugins.agent import prompt as prompt_mod
+
+    class _DescriptionModel(TestModel):
+        def __init__(self):
+            super().__init__(custom_output_text="历史图片描述")
+
+    image = BinaryContent(data=b"synthetic-image", media_type="image/png")
+    history = [
+        ModelRequest(
+            parts=[
+                UserPromptPart(["旧消息", image]),
+                ToolReturnPart(tool_name="read", content=["文件", image]),
+            ]
+        )
+    ]
+
+    sanitized = await prompt_mod.transcribe_multimodal_history(
+        _DescriptionModel(), history
+    )
+
+    assert prompt_mod.check_needs_multimodal([], sanitized) is False
+    request = sanitized[0]
+    assert isinstance(request, ModelRequest)
+    assert "历史图片描述" in str(request.parts[0].content)
+    assert "历史图片描述" in str(request.parts[1].content)
+    assert "BinaryContent" not in str(request)
+
+
+async def test_transcribe_group_removes_media_after_failure():
+    from pydantic_ai import BinaryContent
+    from pydantic_ai.models.test import TestModel
+
+    from kmua.plugins.agent import prompt as prompt_mod
+
+    class _BrokenModel(TestModel):
+        async def request(self, *args, **kwargs):
+            raise RuntimeError("synthetic provider failure")
+
+    prompt = [
+        '## 当前消息\n<msg image_number=1 media_type="photo" text="">',
+        BinaryContent(data=b"synthetic-image", media_type="image/jpeg"),
+    ]
+
+    result = await prompt_mod.transcribe_multimodal_content(_BrokenModel(), prompt)
+
+    assert all(not isinstance(item, BinaryContent) for item in result)
+    assert "转述失败" in str(result[0])

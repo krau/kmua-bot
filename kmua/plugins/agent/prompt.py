@@ -1,5 +1,7 @@
 import asyncio
 import mimetypes
+from collections.abc import Iterator
+from dataclasses import replace
 from io import BytesIO
 from typing import Any
 
@@ -732,52 +734,77 @@ async def build_ctx_info(
     return ctx_info
 
 
+def _iter_multimodal_content(value: Any) -> Iterator[Any]:
+    if isinstance(value, MULTI_MODAL_CONTENT_TYPES):
+        yield value
+    elif isinstance(value, (list, tuple)):
+        for item in value:
+            yield from _iter_multimodal_content(item)
+    elif isinstance(value, dict):
+        for item in value.values():
+            yield from _iter_multimodal_content(item)
+
+
+def _contains_multimodal_content(value: Any) -> bool:
+    return next(_iter_multimodal_content(value), None) is not None
+
+
+def _replace_multimodal_content(
+    value: Any, replacements: Iterator[str]
+) -> tuple[Any, bool]:
+    if isinstance(value, MULTI_MODAL_CONTENT_TYPES):
+        return next(replacements), True
+    if isinstance(value, list):
+        replaced = []
+        changed = False
+        for item in value:
+            new_item, item_changed = _replace_multimodal_content(item, replacements)
+            replaced.append(new_item)
+            changed = changed or item_changed
+        return replaced, changed
+    if isinstance(value, tuple):
+        replaced_items = []
+        changed = False
+        for item in value:
+            new_item, item_changed = _replace_multimodal_content(item, replacements)
+            replaced_items.append(new_item)
+            changed = changed or item_changed
+        return tuple(replaced_items), changed
+    if isinstance(value, dict):
+        replaced_dict = {}
+        changed = False
+        for key, item in value.items():
+            new_item, item_changed = _replace_multimodal_content(item, replacements)
+            replaced_dict[key] = new_item
+            changed = changed or item_changed
+        return replaced_dict, changed
+    return value, False
+
+
 def check_needs_multimodal(
     user_prompt: list[UserContent],
     history: list[ModelMessage],
 ) -> bool:
-    """Return True if the user_prompt or any message in history contains
-    multimodal content (image, audio, video, document, binary)."""
-    if any(isinstance(item, MULTI_MODAL_CONTENT_TYPES) for item in user_prompt):
+    """Return True if the prompt or history contains media content."""
+    if _contains_multimodal_content(user_prompt):
         return True
     for msg in history:
         if not isinstance(msg, ModelRequest):
             continue
         for part in msg.parts:
             if isinstance(part, UserPromptPart):
-                content = part.content
-                if isinstance(content, list) and any(
-                    isinstance(item, MULTI_MODAL_CONTENT_TYPES) for item in content
-                ):
+                if _contains_multimodal_content(part.content):
                     return True
             elif isinstance(part, ToolReturnPart):
-                if part.has_content and isinstance(
-                    part.content, MULTI_MODAL_CONTENT_TYPES
-                ):
+                if part.has_content() and _contains_multimodal_content(part.content):
                     return True
     return False
 
 
-async def transcribe_multimodal_content(
-    model: Any, user_prompt: list[UserContent]
-) -> list[UserContent]:
-    """Have the multimodal model describe the prompt's media as text.
-
-    The media items are replaced by the description so the main (text) model
-    sees what the user sent without receiving the binary itself. Returns the
-    prompt unchanged when there is no media, and falls back to a plain
-    placeholder when the transcription fails - the run never blocks on it.
-
-    For the group-chat markdown format the media arrive as one binary per
-    image_number slot; each transcription is folded back into the <msg> line
-    as its transcribed attribute instead of an appended blob.
-    """
-    media_items = [
-        item for item in user_prompt if isinstance(item, MULTI_MODAL_CONTENT_TYPES)
-    ]
-    if not media_items:
-        return user_prompt
-    transcribe_agent = Agent(
+def _make_transcribe_agent(model: Any) -> Agent[Any, Any] | None:
+    if model is None:
+        return None
+    return Agent(
         model=model,
         retries=2,
         model_settings=provider.make_model_settings(
@@ -786,34 +813,130 @@ async def transcribe_multimodal_content(
         instructions=app_config.agent_multimodal_transcribe_prompt,
     )
 
-    async def _transcribe_one(item: Any) -> str | None:
+
+async def _run_transcription(agent: Agent[Any, Any], prompt: list[Any]) -> Any:
+    coro = agent.run(prompt)
+    timeout = app_config.agent_model_timeout
+    if timeout and timeout > 0:
+        return await asyncio.wait_for(coro, timeout=float(timeout))
+    return await coro
+
+
+async def _transcribe_media_items(
+    model: Any,
+    media_items: list[Any],
+    *,
+    failure_text: str,
+) -> list[str]:
+    """Describe each historical media item, replacing failures with text."""
+    transcribe_agent = _make_transcribe_agent(model)
+    if transcribe_agent is None:
+        return [failure_text] * len(media_items)
+
+    transcriptions: list[str] = []
+    for item in media_items:
         try:
-            result = await transcribe_agent.run([item])
+            result = await _run_transcription(transcribe_agent, [item])
             text = str(result.output).strip()
-            return text or None
         except Exception as e:
             logger.error(
                 f"multimodal transcription failed: {e.__class__.__name__} - {e}"
             )
-            return None
+            text = ""
+        transcriptions.append(text or failure_text)
+    return transcriptions
+
+
+async def transcribe_multimodal_history(
+    model: Any, history: list[ModelMessage]
+) -> list[ModelMessage]:
+    """Replace media in cached requests so text models never receive old media.
+
+    Historical media can predate the current ``transcribe`` mode or come from a
+    tool return. Each item is transcribed independently; a failed transcription
+    becomes an explicit placeholder rather than leaving the binary in history.
+    """
+    media_items: list[Any] = []
+    for msg in history:
+        if not isinstance(msg, ModelRequest):
+            continue
+        for part in msg.parts:
+            if isinstance(part, UserPromptPart):
+                media_items.extend(_iter_multimodal_content(part.content))
+            elif isinstance(part, ToolReturnPart) and part.has_content():
+                media_items.extend(_iter_multimodal_content(part.content))
+    if not media_items:
+        return history
+
+    replacements = await _transcribe_media_items(
+        model,
+        media_items,
+        failure_text="[历史多媒体内容转述失败, 已省略]",
+    )
+    replacement_iter = iter(replacements)
+    sanitized: list[ModelMessage] = []
+    for msg in history:
+        if not isinstance(msg, ModelRequest):
+            sanitized.append(msg)
+            continue
+        parts: list[Any] = []
+        changed = False
+        for part in msg.parts:
+            if isinstance(part, UserPromptPart) and _contains_multimodal_content(
+                part.content
+            ):
+                content, part_changed = _replace_multimodal_content(
+                    part.content, replacement_iter
+                )
+                parts.append(replace(part, content=content))
+                changed = changed or part_changed
+            elif (
+                isinstance(part, ToolReturnPart)
+                and part.has_content()
+                and _contains_multimodal_content(part.content)
+            ):
+                content, part_changed = _replace_multimodal_content(
+                    part.content, replacement_iter
+                )
+                parts.append(replace(part, content=content))
+                changed = changed or part_changed
+            else:
+                parts.append(part)
+        sanitized.append(replace(msg, parts=parts) if changed else msg)
+    return sanitized
+
+
+async def transcribe_multimodal_content(
+    model: Any, user_prompt: list[UserContent]
+) -> list[UserContent]:
+    """Describe current media and remove every binary before the main run."""
+    media_items = list(_iter_multimodal_content(user_prompt))
+    if not media_items:
+        return user_prompt
 
     if (
         user_prompt
         and isinstance(user_prompt[0], str)
         and "## 当前消息" in user_prompt[0]
     ):
-        transcriptions = []
-        for item in media_items:
-            text = await _transcribe_one(item)
-            if text:
-                transcriptions.append(text)
-        return input_format.apply_transcriptions(user_prompt, transcriptions)
+        transcriptions = await _transcribe_media_items(
+            model,
+            media_items,
+            failure_text="[用户发送了多媒体内容, 但转述失败, 已省略]",
+        )
+        folded = input_format.apply_transcriptions(user_prompt, transcriptions)
+        return [
+            item for item in folded if not isinstance(item, MULTI_MODAL_CONTENT_TYPES)
+        ]
 
     text_items = [
         item for item in user_prompt if not isinstance(item, MULTI_MODAL_CONTENT_TYPES)
     ]
+    transcribe_agent = _make_transcribe_agent(model)
+    if transcribe_agent is None:
+        return [*text_items, "[用户发送了多媒体内容, 但转述失败, 已省略]"]
     try:
-        result = await transcribe_agent.run([*text_items, *media_items])
+        result = await _run_transcription(transcribe_agent, [*text_items, *media_items])
     except Exception as e:
         logger.error(f"multimodal transcription failed: {e.__class__.__name__} - {e}")
         return [

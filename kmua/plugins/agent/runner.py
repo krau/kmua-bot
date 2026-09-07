@@ -9,7 +9,6 @@ from pydantic_ai import (
     UserContent,
 )
 from pydantic_ai.messages import (
-    MULTI_MODAL_CONTENT_TYPES,
     ModelMessage,
     PartDeltaEvent,
     PartStartEvent,
@@ -27,7 +26,11 @@ from kmua.plugins.agent import datatype, provider, safety, state
 from kmua.plugins.agent.cache_stats import log_run_cache_stats
 from kmua.plugins.agent.datatype import AskUserOutput, EndTurn
 from kmua.plugins.agent.output import StreamingOutput, TypingKeepAlive, reply_output
-from kmua.plugins.agent.prompt import check_needs_multimodal
+from kmua.plugins.agent.prompt import (
+    check_needs_multimodal,
+    transcribe_multimodal_content,
+    transcribe_multimodal_history,
+)
 from kmua.plugins.agent.whitelist import is_chat_allowed
 
 
@@ -124,6 +127,21 @@ async def advance_prompt_coverage(
     await memttlcache.set(key, cov, ttl=app_config.cachettl_agent_history)
 
 
+async def _stop_typing_keepalive(
+    typing_keepalive: TypingKeepAlive | None,
+) -> None:
+    """Stop a caller-owned typing task without masking the agent outcome."""
+    if typing_keepalive is None:
+        return
+    stop = getattr(typing_keepalive, "stop", None)
+    if stop is None:
+        return
+    try:
+        await stop()
+    except Exception as e:
+        logger.debug(f"Failed to stop typing keepalive: {e.__class__.__name__} - {e}")
+
+
 async def run_agent(
     agi: Agent[Any, Any],
     client: PyrogramClient,
@@ -142,14 +160,9 @@ async def run_agent(
 ) -> None:
     """Run the agent with an overall wall-clock timeout guard.
 
-    Wraps :func:`_run_agent_impl` with ``asyncio.wait_for`` so that a stuck
-    model response or tool call can never block a dispatcher worker (and thus
-    the whole event loop) indefinitely. The timeout is controlled by
-    ``app_config.agent_run_timeout`` (0 disables it).
-
-    ``typing_keepalive`` is an already-started keepalive owned by the caller;
-    when provided, the runner uses it instead of starting its own and never
-    stops it.
+    ``typing_keepalive`` is normally started by the caller before context
+    collection. The runner owns cleanup on every exit, including cancellation,
+    timeout, and model errors, so an error reply cannot leave a live indicator.
     """
     timeout = app_config.agent_run_timeout
     coro = _run_agent_impl(
@@ -168,25 +181,31 @@ async def run_agent(
         typing_keepalive=typing_keepalive,
         coverage_meta=coverage_meta,
     )
-    if not timeout or timeout <= 0:
-        await coro
-        return
     try:
-        await asyncio.wait_for(coro, timeout=timeout)
-    except TimeoutError:
-        logger.warning(
-            f"Agent run timed out after {timeout}s for user {user_id} in chat {chat_id}"
-        )
+        if not timeout or timeout <= 0:
+            await coro
+            return
         try:
-            err_text = i18n.t("bot.msg.agent.errors.interrupted", locale=lang).format(
-                error="Timeout"
+            await asyncio.wait_for(coro, timeout=timeout)
+        except TimeoutError:
+            await _stop_typing_keepalive(typing_keepalive)
+            logger.warning(
+                f"Agent run timed out after {timeout}s for user {user_id} in chat {chat_id}"
             )
-            if deps.is_guest_mode:
-                await reply_output(client, message, err_text, deps=deps)
-            else:
-                await message.reply_text(err_text)
-        except Exception as e:
-            logger.error(f"Failed to send timeout notice: {e.__class__.__name__} - {e}")
+            try:
+                err_text = i18n.t(
+                    "bot.msg.agent.errors.interrupted", locale=lang
+                ).format(error="Timeout")
+                if deps.is_guest_mode:
+                    await reply_output(client, message, err_text, deps=deps)
+                else:
+                    await message.reply_text(err_text)
+            except Exception as e:
+                logger.error(
+                    f"Failed to send timeout notice: {e.__class__.__name__} - {e}"
+                )
+    finally:
+        await _stop_typing_keepalive(typing_keepalive)
 
 
 async def _run_agent_impl(
@@ -218,13 +237,6 @@ async def _run_agent_impl(
         return
 
     needs_multimodal = check_needs_multimodal(user_prompt, history)
-    if app_config.agent_multimodal_mode == "transcribe":
-        # Only the current message's media matters: past media was already
-        # transcribed into text, so history never routes back to the
-        # multimodal model.
-        needs_multimodal = any(
-            isinstance(item, MULTI_MODAL_CONTENT_TYPES) for item in user_prompt
-        )
 
     override_name = await get_chat_model_override(chat_id, "main")
     multimodal_override = await get_chat_model_override(chat_id, "multimodal")
@@ -233,19 +245,32 @@ async def _run_agent_impl(
         if multimodal_override
         else multimodal_model
     )
-    if (
-        app_config.agent_multimodal_mode == "transcribe"
-        and needs_multimodal
-        and effective_multimodal
-    ):
-        # Transcribe mode: the multimodal model describes the media as text,
-        # the main model continues the run, and history keeps only the
-        # transcription so later requests stay on the main model.
-        from kmua.plugins.agent.prompt import transcribe_multimodal_content
-
-        user_prompt = await transcribe_multimodal_content(
-            effective_multimodal, user_prompt
-        )
+    if app_config.agent_multimodal_mode == "transcribe":
+        if needs_multimodal:
+            sanitized_history = await transcribe_multimodal_history(
+                effective_multimodal, history
+            )
+            if sanitized_history is not history:
+                history = sanitized_history
+                deps.history = history
+                # Persist the migration even when the main model later fails;
+                # otherwise the same binary would be retried on every turn.
+                try:
+                    await memttlcache.set(
+                        state.history_key(chat_id, user_id),
+                        history,
+                        ttl=app_config.cachettl_agent_history,
+                    )
+                except Exception as e:
+                    logger.warning(
+                        f"Failed to cache sanitized agent history: "
+                        f"{e.__class__.__name__} - {e}"
+                    )
+            user_prompt = await transcribe_multimodal_content(
+                effective_multimodal, user_prompt
+            )
+        # A text-model run must never receive historical or current media,
+        # including when the transcription provider is unavailable.
         needs_multimodal = False
     if override_name:
         if needs_multimodal and effective_multimodal:
@@ -481,6 +506,7 @@ async def _run_agent_impl(
             if ctx is not None and ctx_owned:
                 await ctx.__aexit__(None, None, None)
     except TypeError as e:
+        await _stop_typing_keepalive(typing_keepalive)
         # https://github.com/pydantic/pydantic-ai/issues/527
         # https://github.com/pydantic/pydantic-ai/issues/1813
         # https://github.com/pydantic/pydantic-ai/issues/1746
@@ -494,6 +520,7 @@ async def _run_agent_impl(
         pydantic_ai.exceptions.ModelHTTPError,
         pydantic_ai.exceptions.ModelAPIError,
     ) as e:
+        await _stop_typing_keepalive(typing_keepalive)
         logger.error(f"Agent HTTP error: {e.__class__.__name__}: {e}")
         markup = InlineKeyboardMarkup(
             [
@@ -530,6 +557,7 @@ async def _run_agent_impl(
                 reply_markup=markup,
             )
     except Exception as e:
+        await _stop_typing_keepalive(typing_keepalive)
         logger.error(f"Agent run error: {e.__class__.__name__} - {e}")
         err_text = i18n.t("bot.msg.agent.errors.interrupted", locale=lang).format(
             error="Error"
