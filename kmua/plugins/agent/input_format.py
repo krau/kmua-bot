@@ -133,6 +133,20 @@ def deliverable_file_id(message: pyrogram.types.Message) -> str | None:
     return getattr(payload, "file_id", None)
 
 
+def _sender_key(message: pyrogram.types.Message) -> tuple[str, int] | None:
+    """Return the stable sender identity used for historical media rules."""
+    sender_chat = getattr(message, "sender_chat", None)
+    if sender_chat is not None:
+        sender_id = getattr(sender_chat, "id", None)
+        if sender_id is not None:
+            return ("chat", sender_id)
+    sender = getattr(message, "from_user", None)
+    sender_id = getattr(sender, "id", None)
+    if sender_id is not None:
+        return ("user", sender_id)
+    return None
+
+
 @dataclass
 class SenderInfo:
     name: str
@@ -513,9 +527,12 @@ async def build_group_prompt(
     Nearby messages already delivered in a previous turn of the same
     conversation (id <= coverage.last_message_id) are omitted entirely: they
     live verbatim in the model history, so resending them would only duplicate
-    tokens and re-download media. The env header (chat name, current time)
-    goes into every prompt; ContextInfo extras (chat info, user profile,
-    memory, affection prompt) only on the first prompt (ctx present).
+    tokens and re-download media.
+    Only historical media from the current sender, except stickers, enters the
+    media budget; the current message and its direct reply remain unrestricted.
+    The env header (chat name, current time) goes into every prompt; ContextInfo
+    extras (chat info, user profile, memory, affection prompt) only on the first
+    prompt (ctx present).
     """
     chat = message.chat
     chat_id = chat.id if chat is not None and chat.id is not None else 0
@@ -526,17 +543,18 @@ async def build_group_prompt(
     reply_msg = None
     if is_explicit_reply(message) and message.reply_to_message:
         reply_msg = message.reply_to_message
+    reply_id = reply_msg.id if reply_msg is not None else None
 
     seen: set[int] = {message.id}
     history: list[pyrogram.types.Message] = []
     for prev in nearby:
-        if prev.id in seen:
+        if prev.id in seen or prev.id == reply_id:
             continue
         seen.add(prev.id)
         if prev.id > covered_until:
             history.append(prev)
 
-    if reply_msg is not None and reply_msg.id not in seen:
+    if reply_msg is not None:
         seen.add(reply_msg.id)
 
     senders: dict[int, SenderInfo] = {}
@@ -545,14 +563,21 @@ async def build_group_prompt(
             continue
         senders[msg.id] = await resolve_sender(client, chat_id, msg)
 
-    # A seen (already delivered) reply target whose image was never sent is
-    # text-only; referencing its media would download it for nothing.
-    def keep_media(msg: pyrogram.types.Message) -> bool:
-        if msg is message or msg.id > covered_until:
-            return True
-        unique = file_unique_id_of(msg)
-        return unique is not None and unique in (initial_seen or {})
+    current_sender = _sender_key(message)
 
+    def historical_media_allowed(msg: pyrogram.types.Message) -> bool:
+        if msg.media is pyrogram.enums.MessageMediaType.STICKER:
+            return False
+        return current_sender is not None and _sender_key(msg) == current_sender
+
+    def keep_media(msg: pyrogram.types.Message) -> bool:
+        # The current message and its direct reply are always eligible; the
+        # budget and file_unique_id deduplication still apply to both.
+        if msg is message or msg is reply_msg:
+            return True
+        # Historical media from any other sender, including stickers, is
+        # rendered as metadata only and never enters the media budget.
+        return historical_media_allowed(msg)
     media_messages = [
         m
         for m in (*history, reply_msg, message)

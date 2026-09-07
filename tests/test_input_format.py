@@ -189,6 +189,7 @@ async def test_budget_newest_first_and_numbering(monkeypatch):
     history = [
         _msg(
             1,
+            sender_id=9,
             text="",
             media=MessageMediaType.PHOTO,
             photo=photo_payload("old"),
@@ -196,6 +197,7 @@ async def test_budget_newest_first_and_numbering(monkeypatch):
         _msg(2, text="文本"),
         _msg(
             3,
+            sender_id=9,
             text="",
             media=MessageMediaType.PHOTO,
             photo=photo_payload("new"),
@@ -223,14 +225,14 @@ async def test_file_unique_id_dedup(monkeypatch):
     history = [
         _msg(
             1,
-            sender_id=1,
+            sender_id=9,
             text="",
             media=MessageMediaType.PHOTO,
             photo=photo_payload("same"),
         ),
         _msg(
             2,
-            sender_id=2,
+            sender_id=9,
             first_name="B",
             text="",
             media=MessageMediaType.PHOTO,
@@ -255,6 +257,7 @@ async def test_text_always_present_and_quoted(monkeypatch):
         _msg(1, text='含"引号"\n第二行'),
         _msg(
             2,
+            sender_id=9,
             text="",
             media=MessageMediaType.PHOTO,
             photo=SimpleNamespace(file_id="f", file_unique_id="u2"),
@@ -379,6 +382,7 @@ async def test_voice_delivered_with_audio_mime(monkeypatch):
     history = [
         _msg(
             1,
+            sender_id=9,
             text="",
             media=MessageMediaType.VOICE,
             voice=voice,
@@ -393,9 +397,8 @@ async def test_voice_delivered_with_audio_mime(monkeypatch):
     assert binary.media_type == "audio/ogg"
 
 
-async def test_video_sticker_uses_first_frame(monkeypatch):
-    """A video sticker delivers its extracted first frame as image/webp —
-    never the raw webm (regression: raw webm caused provider 400)."""
+async def test_historical_sticker_is_not_downloaded(monkeypatch):
+    """Historical stickers never become image input, regardless of sender."""
     monkeypatch.setattr(input_format.app_config, "agent_multimodal_input_count", 5)
     monkeypatch.setattr(input_format.app_config, "agent_multimodal_inputs", ["photo"])
     sticker = SimpleNamespace(
@@ -404,29 +407,98 @@ async def test_video_sticker_uses_first_frame(monkeypatch):
     history = [
         _msg(
             1,
+            sender_id=9,
             text="",
             media=MessageMediaType.STICKER,
             sticker=sticker,
         ),
     ]
     current = _msg(2, sender_id=9, text="当前")
+    with _CountingClient() as client:
+        result, _ = await input_format.build_group_prompt(
+            cast(_Client_t, client), current, history, None
+        )
+    md = cast(str, result[0])
+    assert client.downloads == 0
+    assert len(result) == 1
+    assert 'media_type="sticker" text=""' in md
+    assert "image_number" not in md
 
-    frames: list[bytes] = []
 
-    import kmua.common.utils as common_utils
-
-    async def fake_frame(webm: bytes) -> bytes | None:
-        frames.append(webm)
-        return b"webp-frame"
-
-    monkeypatch.setattr(common_utils, "webm_first_frame", fake_frame)
-    result, _ = await input_format.build_group_prompt(
-        cast(_Client_t, _Client()), current, history, None
-    )
-    assert len(frames) == 1
+async def test_historical_media_only_current_sender_is_downloaded(monkeypatch):
+    monkeypatch.setattr(input_format.app_config, "agent_multimodal", True)
+    monkeypatch.setattr(input_format.app_config, "agent_multimodal_input_count", 5)
+    monkeypatch.setattr(input_format.app_config, "agent_multimodal_inputs", ["photo"])
+    history = [
+        _msg(
+            1,
+            sender_id=9,
+            media=MessageMediaType.PHOTO,
+            photo=SimpleNamespace(file_id="same-file", file_unique_id="same"),
+        ),
+        _msg(
+            2,
+            sender_id=2,
+            media=MessageMediaType.PHOTO,
+            photo=SimpleNamespace(file_id="other-file", file_unique_id="other"),
+        ),
+        _msg(
+            3,
+            sender_id=9,
+            media=MessageMediaType.STICKER,
+            sticker=SimpleNamespace(
+                file_id="sticker-file", file_unique_id="sticker", is_video=False, is_animated=False
+            ),
+        ),
+    ]
+    current = _msg(4, sender_id=9, text="当前")
+    with _CountingClient() as client:
+        result, meta = await input_format.build_group_prompt(
+            cast(_Client_t, client), current, history, None
+        )
+    md = cast(str, result[0])
+    other_line = next(line for line in md.splitlines() if "id=2 " in line)
+    sticker_line = next(line for line in md.splitlines() if "id=3 " in line)
+    assert client.downloads == 1
+    assert 'id=1 ' in md and 'media_type="photo" image_number=1' in md
+    assert 'media_type="photo"' in other_line and "image_number" not in other_line
+    assert 'media_type="sticker"' in sticker_line and "image_number" not in sticker_line
     assert len(result) == 2
-    assert result[1].media_type == "image/webp"
-    assert result[1].data == b"webp-frame"
+    assert meta == {"same": 1}
+
+
+async def test_current_and_reply_media_remain_eligible(monkeypatch):
+    monkeypatch.setattr(input_format.app_config, "agent_multimodal", True)
+    monkeypatch.setattr(input_format.app_config, "agent_multimodal_input_count", 5)
+    monkeypatch.setattr(input_format.app_config, "agent_multimodal_inputs", ["photo"])
+    replied = _msg(
+        8,
+        sender_id=2,
+        media=MessageMediaType.PHOTO,
+        photo=SimpleNamespace(file_id="reply-file", file_unique_id="reply"),
+    )
+    current = _msg(
+        10,
+        sender_id=9,
+        media=MessageMediaType.STICKER,
+        sticker=SimpleNamespace(
+            file_id="current-sticker", file_unique_id="current", is_video=False, is_animated=False
+        ),
+        reply_to_message_id=8,
+        text="当前",
+    )
+    current.reply_to_message = replied
+    with _CountingClient() as client:
+        result, _ = await input_format.build_group_prompt(
+            cast(_Client_t, client), current, [replied], None
+        )
+    md = cast(str, result[0])
+    assert client.downloads == 2
+    assert "## 历史消息" not in md
+    assert "当前用户所回复的消息:" in md
+    assert "消息图号: 图1" in md
+    assert "消息图号: 图2" in md
+    assert len(result) == 3
 
 
 async def test_seen_nearby_omitted(monkeypatch):
@@ -529,7 +601,7 @@ async def test_fresh_media_still_delivered(monkeypatch):
     history = [
         _msg(
             2,
-            sender_id=2,
+            sender_id=9,
             first_name="C",
             text="新",
             media=MessageMediaType.PHOTO,
@@ -589,12 +661,14 @@ async def test_no_number_collision_across_turns(monkeypatch):
     history = [
         _msg(
             3,
+            sender_id=9,
             text="新图B",
             media=MessageMediaType.PHOTO,
             photo=SimpleNamespace(file_id="pB", file_unique_id="puB"),
         ),
         _msg(
             4,
+            sender_id=9,
             text="重发A",
             media=MessageMediaType.PHOTO,
             photo=SimpleNamespace(file_id="pA", file_unique_id="puA"),
@@ -621,6 +695,7 @@ async def test_stale_next_number_never_collides(monkeypatch):
     history = [
         _msg(
             2,
+            sender_id=9,
             text="新图",
             media=MessageMediaType.PHOTO,
             photo=SimpleNamespace(file_id="pN", file_unique_id="puN"),
