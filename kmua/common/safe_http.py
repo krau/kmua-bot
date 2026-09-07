@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import ipaddress
 import socket
+from dataclasses import dataclass
 from urllib.parse import urljoin, urlparse
 
 import httpx
@@ -53,15 +54,20 @@ class UnsafeUrlError(ValueError):
     """Raised when a URL fails the SSRF guard."""
 
 
-async def safe_download_bytes(
+@dataclass(frozen=True, slots=True)
+class SafeDownloadResult:
+    """Bytes fetched after the SSRF and size checks, plus response MIME type."""
+
+    data: bytes
+    media_type: str | None = None
+
+
+async def safe_download(
     url: str,
     max_bytes: int = DEFAULT_MAX_BYTES,
     timeout: float = 30.0,
-) -> bytes:
-    """Download *url* with the SSRF guard applied to every redirect hop.
-
-    Raises UnsafeUrlError for unsafe URLs and httpx errors otherwise.
-    """
+) -> SafeDownloadResult:
+    """Download *url* safely and retain the final response MIME type."""
     current = url
     async with httpx.AsyncClient(follow_redirects=False) as client:
         for _ in range(MAX_REDIRECTS + 1):
@@ -81,9 +87,6 @@ async def safe_download_bytes(
                         response=resp,
                     )
                 # First layer: the declared Content-Length, when present.
-                # Malformed or absent headers fall through to the streaming
-                # count below (which is the authoritative second layer and
-                # also covers servers that under-declare).
                 content_length = resp.headers.get("content-length")
                 if content_length is not None:
                     try:
@@ -103,8 +106,21 @@ async def safe_download_bytes(
                             f"Content exceeds {max_bytes} bytes: {current}"
                         )
                     chunks.append(chunk)
-                return b"".join(chunks)
+                media_type = resp.headers.get("content-type", "")
+                media_type = media_type.split(";", 1)[0].strip().lower() or None
+                return SafeDownloadResult(b"".join(chunks), media_type)
     raise httpx.HTTPError(f"Too many redirects: {url}")
+
+
+async def safe_download_bytes(
+    url: str,
+    max_bytes: int = DEFAULT_MAX_BYTES,
+    timeout: float = 30.0,
+) -> bytes:
+    """Download *url* safely, returning only the payload bytes."""
+    return (
+        await safe_download(url, max_bytes=max_bytes, timeout=timeout)
+    ).data
 
 
 async def safe_fetch_text(

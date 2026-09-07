@@ -12,7 +12,7 @@ Layout:
 - protocols.py — protocol parsing and per-protocol availability (single source
   of truth shared by the call-time gate and the prepare functions)
 - targets.py   — byte/line access to sandbox, workspace and persisted targets
-- media.py     — Telegram media download and native image returns
+- media.py     — Telegram media download, binary classification and native ToolReturn content
 - content.py   — the read-side content dispatcher
 - tools.py     — the six tool functions exposed to the model
 - prepares.py  — per-tool visibility mirroring availability into descriptions

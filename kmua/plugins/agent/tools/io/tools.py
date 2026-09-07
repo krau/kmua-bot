@@ -13,7 +13,13 @@ from kmua.logger import logger
 
 from .. import bot, chat, code_repo, datatype, workspace
 from .content import _read_content
-from .media import _native_image_return, _tme_message_parts
+from .media import (
+    MediaPayload,
+    _media_tool_return,
+    _native_image_return,
+    _native_media_return,
+    _tme_message_parts,
+)
 from .protocols import _require, _split_target
 from .targets import _sandbox_target, _session_key, _write_persisted, read_bytes
 
@@ -24,44 +30,68 @@ async def read(
     start_line: int = 1,
     max_lines: int = 200,
 ) -> str | ToolReturn:
-    """Read content from any target.
+    """Read text or return binary content.
 
     Protocols:
     - kmua://kmua/plugins/x.py — a file from the kmua's own codebase
     - work://notes/hello.html — a file from this chat's workspace
-    - persist://report.txt    — a file the agent persisted for this chat
-    - chat://media/123        — the media of message 123 in this chat
-    - https://t.me/MoreACG/27411 — a public t.me message.
-    - chat://info             — information about the current group
+    - persist://report.txt — a file persisted for this chat
+    - chat://media/123 — media with message id 123 in this chat
+    - https://t.me/MoreACG/27411 — a public t.me message or its media
+    - chat://info — information about the current group
     - chat://history — the latest messages of this group; optional query:
       ?before=<id> / ?after=<id> anchor N messages around an id (count=N,
       default 50), or ?from_id=<a>&to_id=<b> for an inclusive id range
-    - https://example.com     — a web page as text
+    - https://example.com — a web page or binary resource
 
-    Use start_line/max_lines to page through kmua://, work://, persist://
-    and t.me targets (1-indexed; max_lines up to 1500).
+    Text targets support start_line/max_lines paging (1-indexed; max_lines up
+    to 1500).
     """
     if max_lines < 1 or max_lines > 1500:
         raise ModelRetry("max_lines must be between 1 and 1500")
     if start_line < 1:
         raise ModelRetry("start_line must be >= 1")
     try:
-        protocol, _ = _split_target(path)
+        protocol, rest = _split_target(path)
     except ValueError:
-        protocol = ""
-    is_media_target = (protocol == "chat://" and "/media/" in path) or (
+        protocol, rest = "", ""
+
+    is_media_target = (protocol == "chat://" and rest.startswith("/media/")) or (
         protocol == "http" and _tme_message_parts(path) is not None
     )
     if is_media_target:
         try:
-            native = await _native_image_return(ctx, path, path)
+            native = await _native_image_return(
+                ctx,
+                path,
+                path,
+                start_line=start_line,
+                max_lines=max_lines,
+            )
+            if native is None:
+                native = await _native_media_return(
+                    ctx,
+                    path,
+                    path,
+                    start_line=start_line,
+                    max_lines=max_lines,
+                )
         except Exception as e:
             logger.error(f"read error for {path}: {e}")
             return f"Error: {e}"
         if native is not None:
             return native
+
     try:
-        return await _read_content(ctx, path, start_line, max_lines)
+        result = await _read_content(ctx, path, start_line, max_lines)
+        if isinstance(result, MediaPayload):
+            return _media_tool_return(
+                ctx,
+                label=result.label,
+                media_type=result.media_type,
+                data=result.data,
+            )
+        return result
     except Exception as e:
         logger.error(f"read error for {path}: {e}")
         return f"Error: {e}"

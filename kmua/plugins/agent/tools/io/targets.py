@@ -68,7 +68,7 @@ async def read_bytes(path: str, ctx: RunContext[datatype.ContextDeps]) -> bytes:
         agent = await code_repo.get_code_agentfs()
         if agent is None:
             raise ValueError("Code repository not initialized")
-        raw = await agent.fs.read_file(rest)
+        raw = await agent.fs.read_file(rest, encoding=None)
         if isinstance(raw, str):
             raw = raw.encode("utf-8")
         return raw
@@ -88,23 +88,6 @@ async def read_bytes(path: str, ctx: RunContext[datatype.ContextDeps]) -> bytes:
         except (UnsafeUrlError, Exception) as e:
             raise ValueError(f"Download failed: {e}") from None
     raise ValueError(f"Target {path} is not readable.")
-
-
-async def _read_sandbox_lines(
-    ctx: RunContext[datatype.ContextDeps],
-    rel: str,
-    start_line: int,
-    max_lines: int,
-) -> str | None:
-    """Line-numbered view of a sandbox file (None when missing)."""
-    try:
-        target = _sandbox_target(_session_key(ctx), rel)
-        text = target.read_text(encoding="utf-8", errors="replace")
-    except (OSError, ValueError):
-        return None
-    lines = text.splitlines()
-    selected = lines[start_line - 1 : start_line - 1 + max_lines]
-    return "\n".join(selected)
 
 
 async def _write_persisted(

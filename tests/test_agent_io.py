@@ -733,15 +733,17 @@ async def test_read_chat_media_native_image_when_gated(monkeypatch):
     assert [b.media_type for b in binaries] == ["image/jpeg"]
 
 
-async def test_read_chat_media_falls_back_when_not_gated(monkeypatch):
-    """Without image capability the photo falls back to the text path."""
+async def test_read_chat_media_returns_guidance_without_multimodal():
+    """A model without image input gets guidance, never replacement text."""
     ctx = _ctx(client=_MediaClient(_photo_message()))
     result = await io.read(ctx, "chat://media/7")
-    assert not isinstance(result, ToolReturn)
+    assert isinstance(result, ToolReturn)
+    assert "cannot inspect" in _text(result)
+    assert not any(isinstance(c, BinaryContent) for c in (result.content or []))
 
 
-async def test_read_chat_media_video_not_native(monkeypatch):
-    """Only still images go native; video keeps the existing text/bytes path."""
+async def test_read_chat_media_video_returns_guidance_without_video_input():
+    """A configured image-only model must not receive video as text garbage."""
     video_msg = _photo_message(
         media="video",
         photo=None,
@@ -749,9 +751,10 @@ async def test_read_chat_media_video_not_native(monkeypatch):
         caption=None,
     )
     ctx = _ctx(client=_MediaClient(video_msg), model_name="kmua-vl")
-    monkeypatch.setattr(io.media, "_run_model_accepts_images", lambda c: True)
     result = await io.read(ctx, "chat://media/8")
-    assert not isinstance(result, ToolReturn)
+    assert isinstance(result, ToolReturn)
+    assert "video/mp4" in _text(result)
+    assert not any(isinstance(c, BinaryContent) for c in (result.content or []))
 
 
 async def test_read_tme_native_image_with_caption(monkeypatch):
@@ -780,3 +783,62 @@ async def test_read_native_image_error_surfaced_once(monkeypatch):
     result = await io.read(ctx, "chat://media/10")
     assert "over the" in _text(result)
     assert "Error" in _text(result)
+
+async def test_read_workspace_binary_returns_guidance(ws):
+    await workspace.write_file_bytes("-100123", "/image.png", b"\x89PNG\r\n\x1a\n\x00")
+    result = await io.read(_ctx(), "work://image.png")
+    assert isinstance(result, ToolReturn)
+    assert "image/png" in _text(result)
+    assert "cannot inspect" in _text(result)
+    assert not any(isinstance(c, BinaryContent) for c in (result.content or []))
+
+
+async def test_read_workspace_binary_returns_native_content(ws, monkeypatch):
+    data = b"\x89PNG\r\n\x1a\n\x01binary"
+    await workspace.write_file_bytes("-100123", "/image.png", data)
+    monkeypatch.setattr(io.media, "_run_model_accepts_media", lambda c, m: True)
+    result = await io.read(_ctx(model_name="kmua-vl"), "work://image.png")
+    assert isinstance(result, ToolReturn)
+    binaries = [c for c in (result.content or []) if isinstance(c, BinaryContent)]
+    assert [(b.media_type, b.data) for b in binaries] == [("image/png", data)]
+
+
+async def test_read_http_binary_uses_tool_return(monkeypatch):
+    async def fake_fetch(ctx, url):
+        return SimpleNamespace(
+            success=True,
+            url=url,
+            content=None,
+            binary=b"%PDF-1.7\x00binary",
+            media_type="application/pdf",
+        )
+
+    monkeypatch.setattr(io.web, "fetch_web_page", fake_fetch)
+    result = await io.read(_ctx(), "https://example.com/report")
+    assert isinstance(result, ToolReturn)
+    assert "application/pdf" in _text(result)
+    assert "cannot inspect" in _text(result)
+
+
+async def test_read_persisted_binary_returns_guidance(monkeypatch):
+    async def fake_download(ctx, name):
+        assert name == "/image.png"
+        return b"\x89PNG\r\n\x1a\n\x00"
+
+    monkeypatch.setattr(io.content, "_download_persisted", fake_download)
+    result = await io.read(_ctx(), "persist://image.png")
+    assert isinstance(result, ToolReturn)
+    assert "image/png" in _text(result)
+    assert "cannot inspect" in _text(result)
+
+
+async def test_http_fetch_preserves_binary_metadata(monkeypatch):
+    async def fake_download(url, **kwargs):
+        return SimpleNamespace(data=b"%PDF-1.7\x00binary", media_type="application/pdf")
+
+    monkeypatch.setattr(io.web, "safe_download", fake_download)
+    result = await io.web._fetch_http("https://example.com/report")
+    assert result.success is True
+    assert result.binary == b"%PDF-1.7\x00binary"
+    assert result.media_type == "application/pdf"
+    assert result.content is None

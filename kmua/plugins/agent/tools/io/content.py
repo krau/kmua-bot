@@ -1,4 +1,4 @@
-"""The read-side content dispatcher: resolve any protocol target to text."""
+"""The read-side dispatcher for text and native binary content."""
 
 from __future__ import annotations
 
@@ -9,23 +9,52 @@ from pydantic_ai import RunContext
 
 from kmua.config import app_config
 
-from .. import bot, code_repo, datatype, db, web, workspace
-from .media import _download_chat_media, _download_tme_media, _tme_message_parts
+from .. import bot, datatype, db, web
+from .media import (
+    MediaPayload,
+    _download_chat_media,
+    _download_tme_media,
+    _media_payload_from_bytes,
+    _tme_message_parts,
+)
 from .protocols import _require, _split_target
-from .targets import _download_persisted, _read_sandbox_lines, read_bytes
-
-
-def _session_key(ctx: RunContext[datatype.ContextDeps]) -> str:
-    """The workspace session key: the chat id for groups, the user id for
-    private chats — matching the agent session granularity. Each key owns a
-    dedicated workspace database."""
-    deps = ctx.deps
-    return str(deps.chat_id) if deps.chat_id != deps.user_id else str(deps.user_id)
+from .targets import _download_persisted, read_bytes
 
 
 def _format_chat_info(info: db.ChatInfo) -> str:
     data = info.model_dump(exclude_none=True)
     return json.dumps(data, ensure_ascii=False, indent=2)
+
+
+def _decode_text(data: bytes) -> str:
+    return data.decode("utf-8", errors="replace")
+
+
+def _page_lines(text: str, start_line: int, max_lines: int) -> str | None:
+    lines = text.splitlines()
+    start_idx = start_line - 1
+    if start_idx >= len(lines):
+        return None
+    return "\n".join(lines[start_idx : start_idx + max_lines])
+
+
+def _numbered_file(
+    path: str, text: str, start_line: int, max_lines: int
+) -> str | None:
+    lines = text.splitlines()
+    start_idx = start_line - 1
+    if start_idx >= len(lines):
+        return None
+    end_idx = min(start_idx + max_lines, len(lines))
+    result: list[str] = []
+    if start_idx > 0:
+        result.append(f"... ({start_idx} lines above)")
+    for i, line in enumerate(lines[start_idx:end_idx], start=start_line):
+        result.append(f"{i:4d}: {line}")
+    if end_idx < len(lines):
+        result.append(f"... ({len(lines) - end_idx} lines below)")
+    header = f"File: {path} (lines {start_line}-{end_idx} of {len(lines)})"
+    return f"{header}\n{'=' * len(header)}\n" + "\n".join(result)
 
 
 async def _read_chat(
@@ -60,83 +89,100 @@ async def _read_chat(
     return f"Error: Unknown chat:// target {parts.path}; use /info or /history."
 
 
+async def _read_target_bytes(
+    path: str, ctx: RunContext[datatype.ContextDeps]
+) -> bytes:
+    try:
+        return await read_bytes(path, ctx)
+    except Exception as e:
+        if isinstance(e, FileNotFoundError) or "ENOENT" in str(e):
+            raise ValueError(f"File not found: {path}") from e
+        raise
+
+
 async def _read_content(
     ctx: RunContext[datatype.ContextDeps],
     path: str,
     start_line: int = 1,
     max_lines: int = 1500,
     raw: bool = False,
-) -> str:
-    """Resolve a target path to its content. Raises ValueError on failure.
-
-    Shared by the read tool (line-numbered view) and by protocol references
-    in write's content (raw=True, verbatim bytes).
-    """
+) -> str | MediaPayload:
+    """Resolve a target without converting non-text bytes to replacement text."""
     protocol, rest = _split_target(path)
     denied = _require(protocol, ctx.deps)
     if denied:
         raise ValueError(denied)
+
     if protocol == "kmua://":
+        data = await _read_target_bytes(path, ctx)
+        payload = _media_payload_from_bytes(path, data, label=path)
+        if payload is not None:
+            return payload
+        text = _decode_text(data)
         if raw:
-            agent = await code_repo.get_code_agentfs()
-            if agent is None:
-                raise ValueError("Code repository not initialized")
-            raw_bytes = await agent.fs.read_file(rest)
-            if isinstance(raw_bytes, bytes):
-                return raw_bytes.decode("utf-8", errors="replace")
-            return raw_bytes
-        content = await code_repo.read_file(
-            rest, start_line=start_line, max_lines=max_lines
-        )
+            return text
+        content = _numbered_file(rest, text, start_line, max_lines)
         if content is None:
             raise ValueError(f"File not found: {path}")
         return content
+
     if protocol in ("work://", "sandbox://"):
+        data = await _read_target_bytes(path, ctx)
+        payload = _media_payload_from_bytes(path, data, label=path)
+        if payload is not None:
+            return payload
+        text = _decode_text(data)
         if raw:
-            raw_bytes = await read_bytes(path, ctx)
-            return raw_bytes.decode("utf-8", errors="replace")
+            return text
         if protocol == "work://":
-            content = await workspace.read_file(
-                _session_key(ctx), rest, start_line, max_lines
-            )
+            content = _numbered_file(rest, text, start_line, max_lines)
         else:
-            content = await _read_sandbox_lines(ctx, rest, start_line, max_lines)
+            content = _page_lines(text, start_line, max_lines)
         if content is None:
             raise ValueError(f"File not found: {path}")
         return content
+
     if protocol == "persist://":
         data = await _download_persisted(ctx, rest)
+        payload = _media_payload_from_bytes(path, data, label=path)
+        if payload is not None:
+            return payload
+        text = _decode_text(data)
         if raw:
-            return data.decode("utf-8", errors="replace")
-        text = data.decode("utf-8", errors="replace")
-        lines = text.splitlines()
-        selected = lines[start_line - 1 : start_line - 1 + max_lines]
-        return "\n".join(selected)
+            return text
+        content = _page_lines(text, start_line, max_lines)
+        return content or ""
+
     if protocol == "chat://":
         if rest.startswith("/media/"):
             data = await _download_chat_media(ctx, rest)
-        else:
-            return await _read_chat(ctx, rest, max_lines)
-        if raw:
-            return data.decode("utf-8", errors="replace")
-        text = data.decode("utf-8", errors="replace")
-        lines = text.splitlines()
-        selected = lines[start_line - 1 : start_line - 1 + max_lines]
-        return "\n".join(selected)
+            payload = _media_payload_from_bytes(
+                path,
+                data,
+                label=f"message {rest.removeprefix('/media/')}",
+            )
+            if payload is not None:
+                return payload
+            text = _decode_text(data)
+            if raw:
+                return text
+            return _page_lines(text, start_line, max_lines) or ""
+        return await _read_chat(ctx, rest, max_lines)
+
     if protocol == "http":
         if _tme_message_parts(rest) is not None:
             if raw:
                 data = await _download_tme_media(ctx, rest)
-                return data.decode("utf-8", errors="replace")
-            # Public t.me message link: prefer the message itself over the
-            # t.me web page — the page is an HTML shell, the message carries
-            # the real text/caption.
+                payload = _media_payload_from_bytes(path, data, label=path)
+                if payload is not None:
+                    return payload
+                return _decode_text(data)
+            # Prefer the Telegram message over the public HTML shell. When
+            # resolution fails, the normal web fetch remains the fallback.
             tg_result = await web._fetch_telegram_message(ctx, rest)
             if tg_result is not None and tg_result.success and tg_result.content:
                 text = tg_result.content
             else:
-                # Unresolvable chat or deleted message: fall back to the
-                # public web page extraction.
                 if app_config.agent_crawl_api_url:
                     web_result = await web._fetch_crawl_api(rest)
                 else:
@@ -147,12 +193,28 @@ async def _read_content(
                         or (tg_result.error if tg_result else None)
                         or "fetch failed"
                     )
+                binary = getattr(web_result, "binary", None)
+                if binary is not None:
+                    return MediaPayload(
+                        data=binary,
+                        media_type=getattr(web_result, "media_type", None)
+                        or "application/octet-stream",
+                        label=path,
+                    )
                 text = web_result.content or ""
-            lines = text.splitlines()
-            selected = lines[start_line - 1 : start_line - 1 + max_lines]
-            return "\n".join(selected)
+            return _page_lines(text, start_line, max_lines) or ""
+
         result = await web.fetch_web_page(ctx, rest)
         if not result.success:
             raise ValueError(result.error or "fetch failed")
+        binary = getattr(result, "binary", None)
+        if binary is not None:
+            return MediaPayload(
+                data=binary,
+                media_type=getattr(result, "media_type", None)
+                or "application/octet-stream",
+                label=path,
+            )
         return result.content or ""
+
     raise ValueError(f"Target {path} is not readable.")

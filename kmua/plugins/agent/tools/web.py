@@ -1,3 +1,4 @@
+import mimetypes
 import re
 from dataclasses import dataclass
 from typing import Any
@@ -8,7 +9,11 @@ from pydantic_ai import ModelRetry, RunContext
 from pyrogram.errors import ChannelInvalid, ChannelPrivate, MessageIdsEmpty
 from pyrogram.types import Message
 
-from kmua.common.safe_http import UnsafeUrlError, is_safe_web_url, safe_fetch_text
+from kmua.common.safe_http import (
+    UnsafeUrlError,
+    is_safe_web_url,
+    safe_download,
+)
 from kmua.common.utils import is_explicit_reply
 from kmua.config import app_config
 from kmua.database import get_chat_by_id
@@ -25,6 +30,8 @@ class WebFetchResult:
     url: str
     content: str | None = None
     error: str | None = None
+    binary: bytes | None = None
+    media_type: str | None = None
 
 
 def _truncate(text: str) -> str:
@@ -36,10 +43,55 @@ def _truncate(text: str) -> str:
     return text
 
 
+def _looks_like_text(raw: bytes) -> bool:
+    if not raw:
+        return True
+    if b"\x00" in raw:
+        return False
+    try:
+        text = raw.decode("utf-8")
+    except UnicodeDecodeError:
+        return False
+    controls = sum(
+        1
+        for char in text
+        if ord(char) < 32 and char not in "\n\r\t\f"
+    )
+    return controls <= max(1, len(text) // 100)
+
+
+def _is_text_media_type(media_type: str | None) -> bool:
+    if not media_type:
+        return False
+    base = media_type.split(";", 1)[0].strip().lower()
+    return base.startswith("text/") or base in {
+        "application/json",
+        "application/javascript",
+        "application/ld+json",
+        "application/xml",
+        "application/xhtml+xml",
+        "application/yaml",
+        "application/toml",
+        "application/x-www-form-urlencoded",
+    }
+
+
+def _response_text(raw: bytes) -> str:
+    try:
+        from bs4 import BeautifulSoup
+
+        soup = BeautifulSoup(raw, "html.parser")
+        for tag in soup(["script", "style", "nav", "footer", "aside"]):
+            tag.decompose()
+        return soup.get_text("\n", strip=True)
+    except Exception:
+        return raw.decode("utf-8", errors="replace")
+
+
 async def _fetch_http(url: str) -> WebFetchResult:
     timeout = app_config.agent_webfetch_timeout or 30
     try:
-        text = await safe_fetch_text(url, timeout=float(timeout))
+        downloaded = await safe_download(url, timeout=float(timeout))
     except UnsafeUrlError as e:
         return WebFetchResult(success=False, url=url, error=str(e))
     except TimeoutError:
@@ -56,6 +108,28 @@ async def _fetch_http(url: str) -> WebFetchResult:
             url=url,
             error=f"{e.__class__.__name__}: {e}",
         )
+    media_type = downloaded.media_type
+    guessed, _ = mimetypes.guess_type(urlparse(url).path)
+    guessed_is_binary = bool(guessed and not _is_text_media_type(guessed))
+    is_binary = bool(
+        (
+            media_type
+            and (
+                not _is_text_media_type(media_type)
+                or not _looks_like_text(downloaded.data)
+            )
+        )
+        or guessed_is_binary
+        or (media_type is None and not _looks_like_text(downloaded.data))
+    )
+    if is_binary:
+        return WebFetchResult(
+            success=True,
+            url=url,
+            binary=downloaded.data,
+            media_type=media_type or "application/octet-stream",
+        )
+    text = _response_text(downloaded.data)
     if not text.strip():
         return WebFetchResult(
             success=False,
