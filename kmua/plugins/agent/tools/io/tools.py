@@ -9,6 +9,7 @@ from ddgs import DDGS
 from pydantic_ai import ModelRetry, RunContext, ToolReturn
 from pydantic_ai.common_tools.duckduckgo import DuckDuckGoSearchTool
 
+from kmua.config import app_config
 from kmua.logger import logger
 
 from .. import bot, chat, code_repo, datatype, workspace
@@ -19,6 +20,7 @@ from .media import (
     _native_image_return,
     _native_media_return,
     _tme_message_parts,
+    _transcribe_media_tool_return,
 )
 from .protocols import _require, _split_target
 from .targets import _sandbox_target, _session_key, _write_persisted, read_bytes
@@ -85,6 +87,13 @@ async def read(
     try:
         result = await _read_content(ctx, path, start_line, max_lines)
         if isinstance(result, MediaPayload):
+            if app_config.agent_multimodal_mode == "transcribe":
+                return await _transcribe_media_tool_return(
+                    ctx,
+                    label=result.label,
+                    media_type=result.media_type,
+                    data=result.data,
+                )
             return _media_tool_return(
                 ctx,
                 label=result.label,

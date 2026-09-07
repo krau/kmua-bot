@@ -245,6 +245,7 @@ async def _run_agent_impl(
         if multimodal_override
         else multimodal_model
     )
+    deps.multimodal_model = effective_multimodal
     if app_config.agent_multimodal_mode == "transcribe":
         if needs_multimodal:
             sanitized_history = await transcribe_multimodal_history(

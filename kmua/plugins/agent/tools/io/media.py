@@ -13,6 +13,7 @@ from urllib.parse import urlsplit
 from pydantic_ai import BinaryContent, RunContext, ToolReturn
 
 from kmua.config import app_config
+from kmua.logger import logger
 
 from ... import provider
 from .. import datatype
@@ -332,6 +333,64 @@ def _run_model_accepts_media(
     return media_type in app_config.agent_multimodal_inputs
 
 
+def _read_transcription_model(
+    ctx: RunContext[datatype.ContextDeps],
+) -> Any | None:
+    if not app_config.agent_multimodal:
+        return None
+    selected = getattr(ctx.deps, "multimodal_model", None)
+    if selected is not None:
+        return selected
+    spec = app_config.agent_model_multimodal or app_config.agent_model
+    if not spec:
+        return None
+    try:
+        return provider.make_chat_model(spec)
+    except Exception as e:
+        logger.error(
+            f"read transcription model unavailable: {e.__class__.__name__} - {e}"
+        )
+        return None
+
+
+def _binary_read_guidance(label: str, media_type: str, reason: str) -> str:
+    return (
+        f"{label} contains binary content ({media_type}). {reason} "
+        "The bytes were not decoded as text."
+    )
+
+
+async def _transcribe_media_tool_return(
+    ctx: RunContext[datatype.ContextDeps],
+    *,
+    label: str,
+    media_type: str,
+    data: bytes | None,
+) -> str:
+    """Turn a read-side binary payload into text for transcribe-mode runs."""
+    if data is None:
+        return _binary_read_guidance(
+            label, media_type, "The media bytes were unavailable for transcription."
+        )
+    model = _read_transcription_model(ctx)
+    if model is None:
+        return _binary_read_guidance(
+            label,
+            media_type,
+            "No multimodal transcription model is available.",
+        )
+    from ...prompt import transcribe_binary_content
+
+    try:
+        description = await transcribe_binary_content(model, data, media_type)
+    except Exception as e:
+        logger.error(f"read media transcription failed: {e.__class__.__name__} - {e}")
+        description = None
+    if not description:
+        return _binary_read_guidance(label, media_type, "Media transcription failed.")
+    return f"[Media transcription from {label} ({media_type})]:\n{description}"
+
+
 def _media_tool_return(
     ctx: RunContext[datatype.ContextDeps],
     *,
@@ -406,11 +465,23 @@ async def _native_media_return(
         return None
     if image_only and not media_type.startswith("image/"):
         return None
+    caption = (getattr(message, "caption", None) or "").strip()
+    if app_config.agent_multimodal_mode == "transcribe":
+        if data is None:
+            data = await _download_tg_bytes(ctx.deps.client, message, what)
+        result = await _transcribe_media_tool_return(
+            ctx,
+            label=label,
+            media_type=media_type,
+            data=data,
+        )
+        if caption:
+            result += f"\n[Caption]: {caption}"
+        return result
     if not _run_model_accepts_media(ctx, media_type):
         return _media_tool_return(ctx, label=label, media_type=media_type, data=None)
     if data is None:
         data = await _download_tg_bytes(ctx.deps.client, message, what)
-    caption = (getattr(message, "caption", None) or "").strip()
     result = _media_tool_return(ctx, label=label, media_type=media_type, data=data)
     if caption and result.content:
         result.return_value = f"{result.return_value}\n[Caption]: {caption}"

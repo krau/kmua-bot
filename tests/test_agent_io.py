@@ -784,6 +784,7 @@ async def test_read_native_image_error_surfaced_once(monkeypatch):
     assert "over the" in _text(result)
     assert "Error" in _text(result)
 
+
 async def test_read_workspace_binary_returns_guidance(ws):
     await workspace.write_file_bytes("-100123", "/image.png", b"\x89PNG\r\n\x1a\n\x00")
     result = await io.read(_ctx(), "work://image.png")
@@ -842,3 +843,62 @@ async def test_http_fetch_preserves_binary_metadata(monkeypatch):
     assert result.binary == b"%PDF-1.7\x00binary"
     assert result.media_type == "application/pdf"
     assert result.content is None
+
+
+async def test_read_workspace_binary_is_transcribed_in_transcribe_mode(ws, monkeypatch):
+    data = b"\x89PNG\r\n\x1a\nsynthetic-image"
+    await workspace.write_file_bytes("-100123", "/image.png", data)
+    monkeypatch.setattr(app_config, "agent_multimodal_mode", "transcribe")
+    monkeypatch.setattr(app_config, "agent_model_multimodal", "synthetic/glm")
+    monkeypatch.setattr(
+        io.media.provider,
+        "make_chat_model",
+        lambda spec: TestModel(custom_output_text="读取到一只合成猫"),
+    )
+
+    result = await io.read(_ctx(), "work://image.png")
+
+    assert isinstance(result, str)
+    assert "读取到一只合成猫" in result
+    assert "image/png" in result
+
+
+async def test_read_chat_media_is_transcribed_with_caption(monkeypatch):
+    monkeypatch.setattr(app_config, "agent_multimodal_mode", "transcribe")
+    monkeypatch.setattr(app_config, "agent_model_multimodal", "synthetic/glm")
+    monkeypatch.setattr(
+        io.media.provider,
+        "make_chat_model",
+        lambda spec: TestModel(custom_output_text="合成图片描述"),
+    )
+
+    result = await io.read(
+        _ctx(client=_MediaClient(_photo_message(caption="一张合成图片"))),
+        "chat://media/7",
+    )
+
+    assert isinstance(result, str)
+    assert "合成图片描述" in result
+    assert "[Caption]: 一张合成图片" in result
+
+
+async def test_read_binary_transcription_failure_is_explicit(ws, monkeypatch):
+    class _BrokenModel(TestModel):
+        async def request(self, *args, **kwargs):
+            raise RuntimeError("synthetic transcription failure")
+
+    await workspace.write_file_bytes(
+        "-100123", "/image.png", b"\x89PNG\r\n\x1a\nsynthetic-image"
+    )
+    monkeypatch.setattr(app_config, "agent_multimodal_mode", "transcribe")
+    monkeypatch.setattr(app_config, "agent_model_multimodal", "synthetic/glm")
+    monkeypatch.setattr(
+        io.media.provider, "make_chat_model", lambda spec: _BrokenModel()
+    )
+
+    result = await io.read(_ctx(), "work://image.png")
+
+    assert isinstance(result, str)
+    assert "Media transcription failed" in result
+    assert "not decoded as text" in result
+    assert "PNG" not in result

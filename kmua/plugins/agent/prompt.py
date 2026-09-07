@@ -822,6 +822,35 @@ async def _run_transcription(agent: Agent[Any, Any], prompt: list[Any]) -> Any:
     return await coro
 
 
+def _transcription_request_text(item: Any) -> str:
+    media_type = getattr(item, "media_type", "多媒体内容")
+    return f"请描述这份多媒体内容（类型: {media_type}），转述其中的关键信息。"
+
+
+async def _transcribe_one_media(agent: Agent[Any, Any], item: Any) -> str | None:
+    try:
+        result = await _run_transcription(
+            agent, [_transcription_request_text(item), item]
+        )
+        text = str(result.output).strip()
+    except Exception as e:
+        logger.error(f"multimodal transcription failed: {e.__class__.__name__} - {e}")
+        return None
+    return text or None
+
+
+async def transcribe_binary_content(
+    model: Any, data: bytes, media_type: str
+) -> str | None:
+    """Describe one raw binary payload for a text-only agent run."""
+    agent = _make_transcribe_agent(model)
+    if agent is None:
+        return None
+    return await _transcribe_one_media(
+        agent, BinaryContent(data=data, media_type=media_type)
+    )
+
+
 async def _transcribe_media_items(
     model: Any,
     media_items: list[Any],
@@ -835,18 +864,7 @@ async def _transcribe_media_items(
 
     transcriptions: list[str] = []
     for item in media_items:
-        media_type = getattr(item, "media_type", "多媒体内容")
-        request_text = (
-            f"请描述这份多媒体内容（类型: {media_type}），转述其中的关键信息。"
-        )
-        try:
-            result = await _run_transcription(transcribe_agent, [request_text, item])
-            text = str(result.output).strip()
-        except Exception as e:
-            logger.error(
-                f"multimodal transcription failed: {e.__class__.__name__} - {e}"
-            )
-            text = ""
+        text = await _transcribe_one_media(transcribe_agent, item)
         transcriptions.append(text or failure_text)
     return transcriptions
 
@@ -939,8 +957,11 @@ async def transcribe_multimodal_content(
     transcribe_agent = _make_transcribe_agent(model)
     if transcribe_agent is None:
         return [*text_items, "[用户发送了多媒体内容, 但转述失败, 已省略]"]
+    request_items: list[Any] = [*text_items, *media_items]
+    if not text_items:
+        request_items.insert(0, _transcription_request_text(media_items[0]))
     try:
-        result = await _run_transcription(transcribe_agent, [*text_items, *media_items])
+        result = await _run_transcription(transcribe_agent, request_items)
     except Exception as e:
         logger.error(f"multimodal transcription failed: {e.__class__.__name__} - {e}")
         return [

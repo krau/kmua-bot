@@ -1,5 +1,6 @@
 from dataclasses import dataclass, field
 from enum import StrEnum
+from typing import Any
 
 from powermem import AsyncMemory
 from pydantic import BaseModel, Field
@@ -148,6 +149,7 @@ class ContextDeps:
     message: Message
     instructions: str = ""
     powermemory: AsyncMemory | None = None
+    multimodal_model: Any | None = None
     history: list[ModelMessage] = field(default_factory=list)
     tools_called_this_turn: set[str] = field(default_factory=set)
     guest_replied: bool = False
