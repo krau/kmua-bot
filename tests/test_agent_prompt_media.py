@@ -316,6 +316,35 @@ async def test_transcribe_group_removes_media_after_failure():
     ]
 
     result = await prompt_mod.transcribe_multimodal_content(_BrokenModel(), prompt)
-
     assert all(not isinstance(item, BinaryContent) for item in result)
     assert "转述失败" in str(result[0])
+
+
+async def test_transcribe_media_request_includes_text_part(monkeypatch):
+    from pydantic_ai import BinaryContent
+    from pydantic_ai.models.test import TestModel
+
+    from kmua.plugins.agent import prompt as prompt_mod
+
+    captured: list[list] = []
+
+    async def fake_run(agent, request):
+        captured.append(request)
+        return SimpleNamespace(output="合成图片描述")
+
+    monkeypatch.setattr(prompt_mod, "_run_transcription", fake_run)
+    prompt = [
+        '## 当前消息\n<msg image_number=1 media_type="photo" text="">',
+        BinaryContent(data=b"synthetic-image", media_type="image/jpeg"),
+    ]
+
+    result = await prompt_mod.transcribe_multimodal_content(TestModel(), prompt)
+
+    assert (
+        result[0]
+        == '## 当前消息\n<msg image_number=1 transcribed="合成图片描述" media_type="photo" text="">'
+    )
+    assert len(captured) == 1
+    assert isinstance(captured[0][0], str)
+    assert "请描述这份多媒体内容" in captured[0][0]
+    assert isinstance(captured[0][1], BinaryContent)

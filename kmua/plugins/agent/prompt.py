@@ -828,15 +828,19 @@ async def _transcribe_media_items(
     *,
     failure_text: str,
 ) -> list[str]:
-    """Describe each historical media item, replacing failures with text."""
+    """Describe each media item with a text+media user message."""
     transcribe_agent = _make_transcribe_agent(model)
     if transcribe_agent is None:
         return [failure_text] * len(media_items)
 
     transcriptions: list[str] = []
     for item in media_items:
+        media_type = getattr(item, "media_type", "多媒体内容")
+        request_text = (
+            f"请描述这份多媒体内容（类型: {media_type}），转述其中的关键信息。"
+        )
         try:
-            result = await _run_transcription(transcribe_agent, [item])
+            result = await _run_transcription(transcribe_agent, [request_text, item])
             text = str(result.output).strip()
         except Exception as e:
             logger.error(
