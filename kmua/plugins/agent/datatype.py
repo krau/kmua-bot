@@ -130,7 +130,7 @@ class UserMemoryResult(BaseModel):
 
 
 class EndTurn(BaseModel):
-    pass
+    reason: str | None
 
 
 @dataclass
