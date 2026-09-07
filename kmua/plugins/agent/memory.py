@@ -22,6 +22,15 @@ from .myfilter import (
 from .whitelist import is_chat_allowed
 
 _AGENT_MEMORY_TRIGGER_COUNT = 100
+# Pyrogram stops dispatching within a group after the first matching handler.
+# These paths overlap on group messages, so each memory path needs its own group.
+_MEMORY_HANDLER_GROUP = 100
+_AGENT_MEMORY_HANDLER_GROUP = 101
+_GROUP_MEMORY_HANDLER_GROUP = 102
+
+
+_GROUP_MEMORY_MAX_CHARS = 2000
+_GROUP_MEMORY_PREFIX = "群聊消息记录:\n"
 
 
 @dataclass
@@ -48,6 +57,34 @@ class GroupMessage:
     sender_name: str
     sender_id: int
     date: datetime
+
+
+def _group_memory_chunks(messages: list[GroupMessage]) -> list[str]:
+    """Split a group batch into provider-safe, lossless text chunks."""
+    budget = _GROUP_MEMORY_MAX_CHARS - len(_GROUP_MEMORY_PREFIX)
+    chunks: list[str] = []
+    current: list[str] = []
+    current_size = 0
+    for message in messages:
+        line = f"{message.sender_name}({message.sender_id})说: {message.text}"
+        while line:
+            separator = 1 if current else 0
+            capacity = budget - current_size - separator
+            if capacity <= 0:
+                chunks.append(_GROUP_MEMORY_PREFIX + "\n".join(current))
+                current = []
+                current_size = 0
+                continue
+            piece, line = line[:capacity], line[capacity:]
+            current.append(piece)
+            current_size += separator + len(piece)
+            if line:
+                chunks.append(_GROUP_MEMORY_PREFIX + "\n".join(current))
+                current = []
+                current_size = 0
+    if current:
+        chunks.append(_GROUP_MEMORY_PREFIX + "\n".join(current))
+    return chunks
 
 
 async def _base_memory_filter_func(
@@ -122,7 +159,7 @@ def format_user_messages(messages: list[AgentMessage]) -> str:
     return "\n".join(parts)
 
 
-@Client.on_message(base_memory_filter, group=100)
+@Client.on_message(base_memory_filter, group=_MEMORY_HANDLER_GROUP)
 async def record_memory(client: Client, message: pyrogram.types.Message):
     if not app_config.agent or not app_config.agent_cross_group_memory:
         return
@@ -174,7 +211,7 @@ async def record_memory(client: Client, message: pyrogram.types.Message):
     )
 
 
-@Client.on_message(agent_memory_filter, group=100)
+@Client.on_message(agent_memory_filter, group=_AGENT_MEMORY_HANDLER_GROUP)
 async def record_agent_memory(client: Client, message: pyrogram.types.Message):
     if not app_config.agent:
         return
@@ -232,7 +269,7 @@ async def record_agent_memory(client: Client, message: pyrogram.types.Message):
     )
 
 
-@Client.on_message(group_memory_filter, group=100)
+@Client.on_message(group_memory_filter, group=_GROUP_MEMORY_HANDLER_GROUP)
 async def record_group_memory(client: Client, message: pyrogram.types.Message):
     if not app_config.agent or not app_config.agent_group_memory:
         return
@@ -269,37 +306,47 @@ async def record_group_memory(client: Client, message: pyrogram.types.Message):
         )
     )
     if len(group_messages) > 100:
-        group_messages = group_messages[-100:]
+        batch_messages = group_messages[-100:]
         # 每个群组每小时最多通过此函数更新一次记忆
         last_update_key = state.group_memory_update_key(chat.id)
         last_updated = await memttlcache.get(last_update_key)
         if not last_updated:
+            chunks = _group_memory_chunks(batch_messages)
             logger.debug(
-                f"Updating group memory for chat {chat.id} with {len(group_messages)} messages"
+                f"Updating group memory for chat {chat.id} with "
+                f"{len(batch_messages)} messages in {len(chunks)} chunks"
             )
-            await memttlcache.set(last_update_key, True, ttl=3600)
-            text = "群聊消息记录:\n" + "\n".join(
-                [
-                    f"{gm.sender_name}({gm.sender_id})说: {gm.text}"
-                    for gm in group_messages
-                ]
-            )
-            coro = powermemory.add(text, infer=True, user_id=f"group_{chat.id}")
             try:
-                if app_config.agent_model_timeout > 0:
-                    result = await asyncio.wait_for(
-                        coro, timeout=app_config.agent_model_timeout
+                for index, batch_text in enumerate(chunks, start=1):
+                    coro = powermemory.add(
+                        batch_text, infer=True, user_id=f"group_{chat.id}"
                     )
-                else:
-                    result = await coro
+                    if app_config.agent_model_timeout > 0:
+                        result = await asyncio.wait_for(
+                            coro, timeout=app_config.agent_model_timeout
+                        )
+                    else:
+                        result = await coro
+                    logger.debug(
+                        f"Updated group memory chunk {index}/{len(chunks)} for chat "
+                        f"{chat.id}, powermem result: {result}"
+                    )
             except TimeoutError:
                 logger.warning(f"group memory update timed out for chat {chat.id}")
-                result = None
-            else:
-                logger.debug(
-                    f"Updated group memory for chat {chat.id}, powermem result: {result}"
+                group_messages = batch_messages
+            except Exception as e:
+                logger.exception(
+                    f"group memory update failed for chat {chat.id}: "
+                    f"{e.__class__.__name__}: {e}"
                 )
-        group_messages = []
+                # Keep the attempted batch for a later retry; do not mark the
+                # hourly quota until every chunk has been stored.
+                group_messages = batch_messages
+            else:
+                await memttlcache.set(last_update_key, True, ttl=3600)
+                group_messages = []
+        else:
+            group_messages = []
     await memttlcache.set(
         state.group_messages_key(chat.id), group_messages, ttl=86400 * 7
     )
