@@ -62,8 +62,8 @@ async def test_model_activity_logs_request_shape(log_records):
     assert any("tool_returns=1" in r for r in request_lines)
 
 
-async def test_model_activity_truncates_long_input(log_records):
-    """Long user input is truncated, not dumped in full."""
+async def test_model_activity_logs_full_long_input(log_records):
+    """Long user input is logged in full."""
 
     agent = Agent(
         TestModel(),
@@ -72,5 +72,5 @@ async def test_model_activity_truncates_long_input(log_records):
     await agent.run("x" * 10_000)
 
     joined = "\n".join(log_records)
-    assert "x" * 10_000 not in joined
-    assert "..." in joined
+    assert "x" * 10_000 in joined
+    assert "..." not in joined

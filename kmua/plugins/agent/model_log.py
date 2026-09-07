@@ -8,8 +8,6 @@ from pydantic_ai.models import ModelRequestContext
 
 from kmua.logger import logger
 
-_TEXT_LIMIT = 200
-
 
 def _label(deps: Any) -> str:
     """Owner label ('user 123 in chat -100'); empty when deps carry neither."""
@@ -23,12 +21,6 @@ def _label(deps: Any) -> str:
     if chat_id is not None:
         parts.append(f"chat {chat_id}")
     return " in ".join(parts)
-
-
-def _truncate(text: str, limit: int = _TEXT_LIMIT) -> str:
-    if len(text) <= limit:
-        return text
-    return text[:limit] + "..."
 
 
 def _format_tool_args(args: Any) -> str:
@@ -63,7 +55,7 @@ class ModelActivityLog(AbstractCapability[Any]):
         for msg in reversed(request_context.messages):
             for part in reversed(getattr(msg, "parts", ())):
                 if getattr(part, "part_kind", None) == "user-prompt":
-                    user_prompt = _truncate(str(getattr(part, "content", "")))
+                    user_prompt = str(getattr(part, "content", ""))
                     break
             if user_prompt:
                 break
@@ -88,9 +80,7 @@ class ModelActivityLog(AbstractCapability[Any]):
         text_parts: list[str] = []
         for part in response.parts:
             if isinstance(part, ToolCallPart):
-                tools.append(
-                    f"{part.tool_name}({_truncate(_format_tool_args(part.args))})"
-                )
+                tools.append(f"{part.tool_name}({_format_tool_args(part.args)})")
             elif isinstance(part, TextPart):
                 if part.content:
                     text_parts.append(str(part.content))
@@ -98,7 +88,7 @@ class ModelActivityLog(AbstractCapability[Any]):
         if tools:
             details.append("tools=" + "; ".join(tools))
         if text_parts:
-            details.append(f'text="{_truncate(" ".join(text_parts))}"')
+            details.append(f'text="{" ".join(text_parts)}"')
         label = _label(ctx.deps)
         owner = f" for {label}" if label else ""
         logger.debug(
