@@ -1,3 +1,4 @@
+import json
 from typing import Any
 
 from pydantic_ai import ModelResponse, RunContext
@@ -28,6 +29,19 @@ def _truncate(text: str, limit: int = _TEXT_LIMIT) -> str:
     if len(text) <= limit:
         return text
     return text[:limit] + "..."
+
+
+def _format_tool_args(args: Any) -> str:
+    """Render JSON tool arguments without ASCII-only Unicode escapes."""
+    if isinstance(args, str):
+        try:
+            args = json.loads(args)
+        except json.JSONDecodeError:
+            return args
+    try:
+        return json.dumps(args, ensure_ascii=False)
+    except (TypeError, ValueError):
+        return str(args)
 
 
 class ModelActivityLog(AbstractCapability[Any]):
@@ -74,7 +88,9 @@ class ModelActivityLog(AbstractCapability[Any]):
         text_parts: list[str] = []
         for part in response.parts:
             if isinstance(part, ToolCallPart):
-                tools.append(f"{part.tool_name}({_truncate(str(part.args))})")
+                tools.append(
+                    f"{part.tool_name}({_truncate(_format_tool_args(part.args))})"
+                )
             elif isinstance(part, TextPart):
                 if part.content:
                     text_parts.append(str(part.content))
