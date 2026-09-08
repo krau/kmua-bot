@@ -10,7 +10,6 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, field
 from datetime import datetime
-from types import SimpleNamespace
 from typing import Any
 
 import pyrogram
@@ -497,18 +496,76 @@ def _render_history(
     return "\n".join(lines)
 
 
+class _ReplyChainLink:
+    """One hop of the reply chain the depth walker traverses.
+
+    Carries exactly the four fields the walk reads, wrapping a real
+    pyrogram Message when the runtime fetched that ancestor and a stub
+    otherwise (an unknown ancestor ends the walk).
+    """
+
+    __slots__ = (
+        "id",
+        "reply_to_message_id",
+        "reply_to_top_message_id",
+        "reply_to_message",
+    )
+
+    def __init__(
+        self,
+        id: int,
+        reply_to_message_id: int | None,
+        reply_to_top_message_id: int | None,
+        reply_to_message: pyrogram.types.Message | None = None,
+    ) -> None:
+        self.id = id
+        self.reply_to_message_id = reply_to_message_id
+        self.reply_to_top_message_id = reply_to_top_message_id
+        self.reply_to_message = reply_to_message
+
+
 def _reply_chain_depth(message: pyrogram.types.Message) -> int:
     """How many reply hops the current message sits on (1 = direct reply)."""
     depth = 0
-    current = message
+    current: _ReplyChainLink = _ReplyChainLink(
+        id=message.id,
+        reply_to_message_id=message.reply_to_message_id,
+        reply_to_top_message_id=message.reply_to_top_message_id,
+        reply_to_message=message.reply_to_message,
+    )
+    seen: set[int] = {current.id}
     while depth < 50:
         reply_id = current.reply_to_message_id
-        if not reply_id or reply_id == current.reply_to_top_message_id:
+        if (
+            not reply_id
+            or reply_id in seen
+            or reply_id == current.reply_to_top_message_id
+        ):
             break
         depth += 1
-        current = SimpleNamespace(
-            reply_to_message_id=reply_id, reply_to_top_message_id=None
-        )  # type: ignore[arg-type]
+        seen.add(reply_id)
+        resolved = current.reply_to_message
+        if (
+            resolved is not None
+            and not getattr(resolved, "empty", False)
+            and resolved.id == reply_id
+        ):
+            # Keep walking through the resolved ancestor: its own reply link
+            # continues the chain.
+            current = _ReplyChainLink(
+                id=resolved.id,
+                reply_to_message_id=resolved.reply_to_message_id,
+                reply_to_top_message_id=resolved.reply_to_top_message_id,
+                reply_to_message=resolved.reply_to_message,
+            )
+        else:
+            # The ancestor object is unknown (Telegram did not attach it);
+            # end the walk at this hop.
+            current = _ReplyChainLink(
+                id=reply_id,
+                reply_to_message_id=None,
+                reply_to_top_message_id=current.reply_to_top_message_id,
+            )
     return depth
 
 
@@ -622,7 +679,7 @@ async def build_group_prompt(
     depth = _reply_chain_depth(message)
     if depth > 1:
         current_lines.append(
-            f"reply_chain_depth={depth} (可用 chat://history?from_id=<id>&to_id=<id> 获取链上更早的消息)"
+            f"reply_chain_depth={depth} (可用 chat://history?reply_chain_of={message.id} 获取该消息的完整回复链)"
         )
     if reply_msg is not None:
         reply_sender = senders.get(reply_msg.id)
