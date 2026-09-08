@@ -43,7 +43,9 @@ async def read(
     - chat://info — information about the current group
     - chat://history — the latest messages of this group; optional query:
       ?before=<id> / ?after=<id> anchor N messages around an id (count=N,
-      default 50), or ?from_id=<a>&to_id=<b> for an inclusive id range
+      default 50), ?from_id=<a>&to_id=<b> for an inclusive id range, or
+      ?reply_chain_of=<id> for the full reply chain of message <id> (oldest
+      ancestor first, <id> last)
     - https://example.com — a web page or binary resource
 
     Text targets support start_line/max_lines paging (1-indexed; max_lines up

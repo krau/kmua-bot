@@ -38,9 +38,7 @@ def _page_lines(text: str, start_line: int, max_lines: int) -> str | None:
     return "\n".join(lines[start_idx : start_idx + max_lines])
 
 
-def _numbered_file(
-    path: str, text: str, start_line: int, max_lines: int
-) -> str | None:
+def _numbered_file(path: str, text: str, start_line: int, max_lines: int) -> str | None:
     lines = text.splitlines()
     start_idx = start_line - 1
     if start_idx >= len(lines):
@@ -68,30 +66,36 @@ async def _read_chat(
         return _format_chat_info(info)
     if parts.path == "/history":
         query = parse_qs(parts.query)
-        known = {"before", "after", "from_id", "to_id", "count"}
+        known = {"before", "after", "from_id", "to_id", "count", "reply_chain_of"}
         if any(key not in known for key in query):
             return (
                 "Error: unknown query parameters; supported: before=<id>, "
-                "after=<id>, from_id=<a>&to_id=<b>, count=N."
+                "after=<id>, from_id=<a>&to_id=<b>, "
+                "reply_chain_of=<id>, count=N."
             )
         try:
             params = {
                 key: int(values[0])
-                for key in ("before", "after", "from_id", "to_id", "count")
+                for key in (
+                    "before",
+                    "after",
+                    "from_id",
+                    "to_id",
+                    "count",
+                    "reply_chain_of",
+                )
                 if (values := query.get(key))
             }
         except (ValueError, IndexError):
             return (
                 "Error: invalid query parameters; expected integers for "
-                "before/after/from_id/to_id/count."
+                "before/after/from_id/to_id/count/reply_chain_of."
             )
         return await bot.get_history_messages(ctx, **params)
     return f"Error: Unknown chat:// target {parts.path}; use /info or /history."
 
 
-async def _read_target_bytes(
-    path: str, ctx: RunContext[datatype.ContextDeps]
-) -> bytes:
+async def _read_target_bytes(path: str, ctx: RunContext[datatype.ContextDeps]) -> bytes:
     try:
         return await read_bytes(path, ctx)
     except Exception as e:
