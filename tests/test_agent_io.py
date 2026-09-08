@@ -228,6 +228,21 @@ async def test_read_chat_history_range(ws, monkeypatch):
     assert "count" not in calls
 
 
+async def test_read_chat_history_reply_chain(ws, monkeypatch):
+    """chat://history?reply_chain_of=<id> forwards the chain selector."""
+    calls = {}
+
+    async def fake_history(ctx, **kwargs):
+        calls.update(kwargs)
+        return "chain text"
+
+    monkeypatch.setattr(io.bot, "get_history_messages", fake_history)
+    result = await io.read(_ctx(), "chat://history?reply_chain_of=9")
+    assert result == "chain text"
+    assert calls["reply_chain_of"] == 9
+    assert "count" not in calls
+
+
 async def test_read_chat_history_default(ws, monkeypatch):
     calls = {}
 
