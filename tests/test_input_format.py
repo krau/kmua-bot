@@ -5,7 +5,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from types import SimpleNamespace
-from typing import cast
+from typing import Any, cast
 
 import pyrogram
 from pyrogram.client import Client as _Client_t
@@ -337,13 +337,15 @@ async def test_reply_chain_depth_attribute(monkeypatch):
     result, _ = await input_format.build_group_prompt(
         cast(_Client_t, _Client()), current, [], None
     )
-    assert "reply_chain_depth=1" not in cast(str, result[0])  # single reply: no hint
+    md = cast(str, result[0])
+    assert "reply_chain_depth=1" not in md  # single reply: no hint
+    assert "reply_chain_depth=" not in md  # no ancestor shell: chain ends at 1
 
 
 async def test_deep_reply_chain_hint(monkeypatch):
     monkeypatch.setattr(input_format.app_config, "agent_multimodal_input_count", 0)
-    # reply_to_top_message_id present on the current message means the chain
-    # continues beyond the direct reply
+    # 9 -> 8, and the fetched 8 object carries its own reply target 7, so
+    # the hint reports the two resolved hops.
     current = _msg(
         9,
         sender_id=9,
@@ -351,10 +353,66 @@ async def test_deep_reply_chain_hint(monkeypatch):
         reply_to_message_id=8,
         reply_to_top_message_id=5,
     )
+    eight = _msg(
+        8,
+        sender_id=2,
+        first_name="B",
+        text="被回复",
+        reply_to_message_id=7,
+        reply_to_top_message_id=5,
+    )
+    current.reply_to_message = eight
+    eight.reply_to_message = _msg(7, sender_id=9, first_name="u", text="更早")
     result, _ = await input_format.build_group_prompt(
         cast(_Client_t, _Client()), current, [], None
     )
-    assert "reply_chain_depth=" in cast(str, result[0])
+    md = cast(str, result[0])
+    assert "reply_chain_depth=2" in md
+    assert "chat://history?reply_chain_of=9" in md
+
+
+async def test_reply_chain_depth_stops_at_unresolved_hop(monkeypatch):
+    """A fetched ancestor whose own reply target is absent must not keep the
+    walker spinning on synthetic ids (the old walker reported 50 for every
+    reply)."""
+    current = _msg(
+        9,
+        sender_id=9,
+        text="当前",
+        reply_to_message_id=8,
+        reply_to_top_message_id=5,
+    )
+    # 8 is fetched, but 8 -> 7 was never fetched: no id stays reachable.
+    current.reply_to_message = _msg(8, sender_id=2, first_name="B", text="被回复")
+    cast(Any, current.reply_to_message).reply_to_message_id = 7
+    result, _ = await input_format.build_group_prompt(
+        cast(_Client_t, _Client()), current, [], None
+    )
+    md = cast(str, result[0])
+    assert "reply_chain_depth=2" in md
+    assert "reply_chain_depth=50" not in md
+
+
+async def test_reply_chain_depth_stops_at_cycle(monkeypatch):
+    """A reply loop (id -> earlier id) must not inflate the depth to 50:
+    the chain is walked on id attributes only, so a repeated ancestor id
+    terminates the walk at its first hop instead of looping forever."""
+    current = _msg(
+        9,
+        sender_id=9,
+        text="当前",
+        reply_to_message_id=8,
+        reply_to_top_message_id=None,
+    )
+    current.reply_to_message = _msg(8, sender_id=2, first_name="B", text="回")
+    # 8 replies back to 9: message 9 would report reply_chain_depth=50
+    # without the ancestor guard.
+    cast(Any, current.reply_to_message).reply_to_message_id = 9
+    result, _ = await input_format.build_group_prompt(
+        cast(_Client_t, _Client()), current, [], None
+    )
+    assert "reply_chain_depth=50" not in cast(str, result[0])
+    assert "reply_chain_depth=1" not in cast(str, result[0])
 
 
 async def test_service_message_sender(monkeypatch):
