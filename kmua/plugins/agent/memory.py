@@ -28,6 +28,11 @@ _MEMORY_HANDLER_GROUP = 100
 _AGENT_MEMORY_HANDLER_GROUP = 101
 _GROUP_MEMORY_HANDLER_GROUP = 102
 
+# Chats whose group memory update is currently running. Dispatcher workers run
+# handlers concurrently, and the hourly quota key is only written once the update
+# finishes, so it alone cannot stop a second worker from starting the same update.
+_group_memory_inflight_chats: set[int] = set()
+
 
 _GROUP_MEMORY_MAX_CHARS = 2000
 _GROUP_MEMORY_PREFIX = "群聊消息记录:\n"
@@ -310,7 +315,10 @@ async def record_group_memory(client: Client, message: pyrogram.types.Message):
         # 每个群组每小时最多通过此函数更新一次记忆
         last_update_key = state.group_memory_update_key(chat.id)
         last_updated = await memttlcache.get(last_update_key)
-        if not last_updated:
+        if last_updated or chat.id in _group_memory_inflight_chats:
+            group_messages = []
+        else:
+            _group_memory_inflight_chats.add(chat.id)
             chunks = _group_memory_chunks(batch_messages)
             logger.debug(
                 f"Updating group memory for chat {chat.id} with "
@@ -345,8 +353,8 @@ async def record_group_memory(client: Client, message: pyrogram.types.Message):
             else:
                 await memttlcache.set(last_update_key, True, ttl=3600)
                 group_messages = []
-        else:
-            group_messages = []
+            finally:
+                _group_memory_inflight_chats.discard(chat.id)
     await memttlcache.set(
         state.group_messages_key(chat.id), group_messages, ttl=86400 * 7
     )

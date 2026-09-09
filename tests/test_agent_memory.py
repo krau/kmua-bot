@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from datetime import UTC, datetime
 from types import SimpleNamespace
 
@@ -176,6 +177,79 @@ async def test_group_memory_failure_preserves_batch(monkeypatch):
         pending = await memory.memttlcache.get(group_key)
         assert len(pending) == 100
         assert await memory.memttlcache.get(update_key) is None
+    finally:
+        await memory.memttlcache.delete(group_key)
+        await memory.memttlcache.delete(update_key)
+
+
+async def test_group_memory_update_is_single_flight_per_chat(monkeypatch):
+    from kmua.plugins.agent import memory
+
+    class BlockingPowerMem:
+        def __init__(self):
+            self.calls = []
+            self.started = asyncio.Event()
+            self.release = asyncio.Event()
+
+        async def add(self, text, **kwargs):
+            self.calls.append(text)
+            self.started.set()
+            await self.release.wait()
+            return {}
+
+    fake = BlockingPowerMem()
+    chat_id = -910003
+    group_key = memory.state.group_messages_key(chat_id)
+    update_key = memory.state.group_memory_update_key(chat_id)
+    monkeypatch.setattr(memory.app_config, "agent", True)
+    monkeypatch.setattr(memory.app_config, "agent_group_memory", True)
+    monkeypatch.setattr(memory.app_config, "agent_model_timeout", 0)
+    monkeypatch.setattr(memory, "powermemory", fake)
+    monkeypatch.setattr(memory, "is_chat_allowed", lambda _: True)
+
+    async def chat_config(_):
+        return SimpleNamespace(ai_reply=True, group_memory_enabled=True)
+
+    monkeypatch.setattr(memory.database, "get_chat_config", chat_config)
+
+    def message(message_id: int):
+        return SimpleNamespace(
+            id=message_id,
+            text=f"并发消息 {message_id}",
+            caption=None,
+            from_user=SimpleNamespace(id=1001, full_name="测试用户", is_bot=False),
+            chat=SimpleNamespace(id=chat_id),
+            date=None,
+        )
+
+    await memory.memttlcache.delete(group_key)
+    await memory.memttlcache.delete(update_key)
+    try:
+        await memory.memttlcache.set(
+            group_key,
+            [
+                memory.GroupMessage(
+                    chat_id=chat_id,
+                    message_id=i,
+                    text=f"历史消息 {i}",
+                    sender_name="测试用户",
+                    sender_id=1001,
+                    date=datetime(2026, 8, 1, 10, 0, tzinfo=UTC),
+                )
+                for i in range(1, 101)
+            ],
+        )
+        first = asyncio.create_task(memory.record_group_memory(None, message(101)))
+        await asyncio.wait_for(fake.started.wait(), timeout=5)
+        # A concurrent worker handling the next message of the same chat must
+        # not start a second update while the first one is still running.
+        second = asyncio.create_task(memory.record_group_memory(None, message(102)))
+        await asyncio.wait_for(second, timeout=5)
+        fake.release.set()
+        await asyncio.wait_for(first, timeout=5)
+        # Only the first batch was stored; the concurrent message was dropped.
+        assert fake.calls
+        assert all("并发消息 102" not in text for text in fake.calls)
     finally:
         await memory.memttlcache.delete(group_key)
         await memory.memttlcache.delete(update_key)
