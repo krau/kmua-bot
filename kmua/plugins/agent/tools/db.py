@@ -48,6 +48,8 @@ async def get_chat_info(ctx: RunContext[datatype.ContextDeps]) -> ChatInfo | Non
     chat_full = await common.memttlcache.get(f"chatfull_{chat_id}", None)
     if not chat_full:
         chat_full = await ctx.deps.client.get_chat(chat_id)
+        if chat_full is None:
+            return None
         await common.memttlcache.set(
             f"chatfull_{chat_id}", chat_full, app_config.cachettl_chatfull
         )

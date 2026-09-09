@@ -377,7 +377,7 @@ async def get_input_prompt(
                 ):
                     mime_type = document.mime_type
                     if not mime_type:
-                        thetype, _ = mimetypes.guess_type(document.file_name)
+                        thetype, _ = mimetypes.guess_type(document.file_name or "")
                         mime_type = thetype or "application/octet-stream"
                     if mime_type.split(";")[0].startswith("text/"):
                         doc_file = await _download_media_with_timeout(
@@ -478,13 +478,16 @@ async def get_input_prompt(
                         if (
                             document
                             and document.file_id
+                            and document.file_size is not None
                             and document.file_size <= 10 * 1024 * 1024
                         ):
                             mime_type = document.mime_type
                             # .txt tg 返回的是 'text/plain; charset=utf-8'
                             # markdown 返回的却是 'text/markdown'...
                             if not mime_type:
-                                thetype, _ = mimetypes.guess_type(document.file_name)
+                                thetype, _ = mimetypes.guess_type(
+                                    document.file_name or ""
+                                )
                                 mime_type = thetype or "application/octet-stream"
                             if mime_type in app_config.agent_multimodal_inputs:
                                 doc_file = await _download_media_with_timeout(
@@ -499,7 +502,7 @@ async def get_input_prompt(
                                     )
                                     media_included = True
                             elif (
-                                document.mime_type.startswith("image/")
+                                mime_type.startswith("image/")
                                 and "photo" in app_config.agent_multimodal_inputs
                             ):
                                 doc_file = await _download_media_with_timeout(
@@ -509,7 +512,7 @@ async def get_input_prompt(
                                     contents.append(
                                         BinaryContent(
                                             data=doc_file.getvalue(),
-                                            media_type=document.mime_type,
+                                            media_type=mime_type,
                                         )
                                     )
                                     media_included = True

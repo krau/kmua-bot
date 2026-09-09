@@ -524,10 +524,13 @@ if app_config.agent and app_config.agent_model:
                 # Try to resolve a human-readable title for the target chat
                 try:
                     tg_chat = await client.get_chat(target_chat_id)
-                    if hasattr(tg_chat, "title") and tg_chat.title:
-                        target_chat_label = f"{tg_chat.title} ({target_chat_id})"
-                    elif hasattr(tg_chat, "first_name") and tg_chat.first_name:
-                        target_chat_label = f"{tg_chat.first_name} ({target_chat_id})"
+                    if tg_chat is not None:
+                        if hasattr(tg_chat, "title") and tg_chat.title:
+                            target_chat_label = f"{tg_chat.title} ({target_chat_id})"
+                        elif hasattr(tg_chat, "first_name") and tg_chat.first_name:
+                            target_chat_label = (
+                                f"{tg_chat.first_name} ({target_chat_id})"
+                            )
                 except Exception:
                     pass
                 if not target_chat_label:
