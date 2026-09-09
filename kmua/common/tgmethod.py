@@ -14,6 +14,7 @@ from kmua.database.models import ChatData, UserData
 from kmua.logger import logger
 
 from .memory_store import memttlcache
+from .rich_message import message_plain_text
 
 
 def chat_message_cache_key(chat_id: int, message_id: int) -> str:
@@ -142,23 +143,28 @@ async def get_messages_with_cache(
         if isinstance(fetched, pyrogram.types.Message):
             fetched = [fetched]
         fetched_messages.extend(fetched or [])
-    history_messages = [
-        HistoryMessage(
-            message_id=msg.id,
-            chat_id=msg.chat.id if msg.chat and msg.chat.id else 0,
-            user_id=(
-                msg.sender_chat.id
-                if msg.sender_chat and msg.sender_chat.id is not None
-                else msg.from_user.id
-                if msg.from_user and msg.from_user.id is not None
-                else 0
-            ),
-            text=msg.text or msg.caption or "",
-            time=msg.date,
+    history_messages: list[HistoryMessage] = []
+    for msg in fetched_messages:
+        if not (msg.sender_chat or msg.from_user):
+            continue
+        text = message_plain_text(msg)
+        if not text:
+            continue
+        history_messages.append(
+            HistoryMessage(
+                message_id=msg.id,
+                chat_id=msg.chat.id if msg.chat and msg.chat.id else 0,
+                user_id=(
+                    msg.sender_chat.id
+                    if msg.sender_chat and msg.sender_chat.id is not None
+                    else msg.from_user.id
+                    if msg.from_user and msg.from_user.id is not None
+                    else 0
+                ),
+                text=text,
+                time=msg.date,
+            )
         )
-        for msg in fetched_messages
-        if (msg.sender_chat or msg.from_user) and (msg.text or msg.caption)
-    ]
     history_messages.extend(cached_messages.values())
     for msg in history_messages:
         await memttlcache.set(

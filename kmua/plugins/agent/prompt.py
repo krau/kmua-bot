@@ -26,6 +26,7 @@ from pyrogram.client import Client as PyrogramClient
 
 from kmua import affection, common
 from kmua.common.memory_store import memttlcache
+from kmua.common.rich_message import message_plain_text
 from kmua.common.utils import is_explicit_reply
 from kmua.config import app_config
 from kmua.logger import logger
@@ -327,6 +328,10 @@ async def get_input_prompt(
         media_included = False
         raw_text = msg.text or msg.caption or ""
         entities = msg.entities or msg.caption_entities
+        if not raw_text:
+            # rich messages carry no text; render their blocks instead
+            raw_text = message_plain_text(msg)
+            entities = None
         formatted_text = entities_to_markdown(raw_text, entities)
         text_part = f"{ctx_text or ''}\n{formatted_text}".strip()
         if text_part:
