@@ -16,6 +16,7 @@ import pyrogram
 from pydantic_ai import BinaryContent, UserContent
 
 from kmua import enums
+from kmua.common.rich_message import message_plain_text
 from kmua.common.utils import is_explicit_reply
 from kmua.config import app_config
 from kmua.logger import logger
@@ -466,7 +467,7 @@ def _msg_line(
         # join/leave/pin/title change: no text or caption, describe the event
         text = _service_text(message)
     else:
-        text = message.text or message.caption or ""
+        text = message_plain_text(message)
     attrs.append(f"text={_quote(text)}")
     return f"    - <msg {' '.join(attrs)}>"
 
@@ -666,7 +667,7 @@ async def build_group_prompt(
     sender = senders.get(message.id)
     sender_label = sender.label() if sender else "?"
     current_lines = [f"当前用户: {sender_label}"]
-    current_text = message.text or message.caption or ""
+    current_text = message_plain_text(message)
     current_lines.append(f"消息内容: {_quote(current_text)}")
     if message.id in budget.numbered:
         if message.id in budget.referenced_ids:
@@ -684,7 +685,7 @@ async def build_group_prompt(
     if reply_msg is not None:
         reply_sender = senders.get(reply_msg.id)
         reply_label = reply_sender.label() if reply_sender else "?"
-        reply_text = reply_msg.text or reply_msg.caption or ""
+        reply_text = message_plain_text(reply_msg)
         current_lines.append("当前用户所回复的消息:")
         current_lines.append(f"    发送者: {reply_label}")
         current_lines.append(f"    消息内容: {_quote(reply_text)}")

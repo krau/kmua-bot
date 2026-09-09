@@ -152,11 +152,6 @@ class ContextDeps:
     multimodal_model: Any | None = None
     history: list[ModelMessage] = field(default_factory=list)
     tools_called_this_turn: set[str] = field(default_factory=set)
-    guest_replied: bool = False
-
-    @property
-    def is_guest_mode(self) -> bool:
-        return bool(self.message.guest_query_id)
 
 
 @dataclass
@@ -175,10 +170,9 @@ class ContextInfo:
     is_group_chat: bool = False
 
     def to_text(self) -> str:
-        """The per-turn instruction block for additional_instructions (guest and
-        follow-up paths): user profile, memory about the user, affection prompt.
-        Time/msg/chat/reply metadata deliberately live in the per-message prompt
-        blocks instead."""
+        """The per-turn instruction block for additional_instructions: user
+        profile, memory about the user, affection prompt. Time/msg/chat/reply
+        metadata deliberately live in the per-message prompt blocks instead."""
         parts = []
         if self.user_data is not None:
             username = (

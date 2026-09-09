@@ -24,8 +24,7 @@ def _ctx(client=None) -> RunContext[datatype.ContextDeps]:
                 client=client or SimpleNamespace(),
                 chat_id=-100_123,
                 user_id=1001,
-                message=SimpleNamespace(id=7, guest_query_id=None),
-                is_guest_mode=False,
+                message=SimpleNamespace(id=7),
                 powermemory=None,
                 tools_called_this_turn=set(),
             )
@@ -189,14 +188,12 @@ async def test_send_error_wrapped():
 # ------------------------------------------------------------ prepare gating
 
 
-def _run_ctx(chat_id, user_id, guest=False):
+def _run_ctx(chat_id, user_id):
     deps = datatype.ContextDeps(
         client=cast(Client, SimpleNamespace()),
         user_id=user_id,
         chat_id=chat_id,
-        message=cast(
-            Message, SimpleNamespace(id=1, guest_query_id=1 if guest else None)
-        ),
+        message=cast(Message, SimpleNamespace(id=1)),
     )
     return RunContext(deps=deps, model=TestModel(), usage=RunUsage(), messages=[])
 
@@ -302,7 +299,6 @@ async def test_send_anime_photo_media_group(monkeypatch):
 
     ctx = _ctx(SimpleNamespace(send_media_group=fake_send_media_group))
     ctx.deps.user_id = 1001
-    ctx.deps.is_guest_mode = False  # type: ignore
 
     import kmua.database as database
 
@@ -362,7 +358,6 @@ async def test_send_anime_photo_single_still_sends_photo(monkeypatch):
 
     ctx = _ctx(SimpleNamespace(send_photo=fake_send_photo))
     ctx.deps.user_id = 1001
-    ctx.deps.is_guest_mode = False  # type: ignore
 
     result = await send_ops.send_anime_photo(ctx, count=1)
     assert result.success is True

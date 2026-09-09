@@ -50,7 +50,7 @@ def _text(result):
 
 
 def _ctx(
-    client=None, guest=False, model_name: str | None = None
+    client=None, model_name: str | None = None
 ) -> RunContext[datatype.ContextDeps]:
     return cast(
         RunContext[datatype.ContextDeps],
@@ -59,8 +59,7 @@ def _ctx(
                 client=client,
                 chat_id=-100_123,
                 user_id=1001,
-                message=SimpleNamespace(id=7, guest_query_id=1 if guest else None),
-                is_guest_mode=guest,
+                message=SimpleNamespace(id=7),
                 powermemory=SimpleNamespace(),
             ),
             model=SimpleNamespace(model_name=model_name) if model_name else None,
@@ -416,7 +415,7 @@ async def test_io_prepare_trims_group_protocols_in_private(monkeypatch):
             client=cast(Client, SimpleNamespace()),
             user_id=user_id,
             chat_id=chat_id,
-            message=cast(Message, SimpleNamespace(id=1, guest_query_id=None)),
+            message=cast(Message, SimpleNamespace(id=1)),
         )
         ctx = RunContext(deps=deps, model=TestModel(), usage=RunUsage(), messages=[])
         td = _TD(name="read", description=desc, parameters_json_schema={})
@@ -451,8 +450,7 @@ async def test_io_prepare_hides_edit_without_workspace(monkeypatch):
             client=SimpleNamespace(),
             user_id=1001,
             chat_id=-100123,
-            message=SimpleNamespace(id=1, guest_query_id=None),
-            is_guest_mode=False,
+            message=SimpleNamespace(id=1),
             powermemory=None,
         ),
     )
@@ -471,8 +469,7 @@ async def test_io_prepare_trims_disabled_protocols_per_tool(monkeypatch):
             client=SimpleNamespace(),
             user_id=1001,
             chat_id=-100123,
-            message=SimpleNamespace(id=1, guest_query_id=None),
-            is_guest_mode=False,
+            message=SimpleNamespace(id=1),
             powermemory=SimpleNamespace(),
         ),
     )
@@ -527,8 +524,7 @@ async def test_io_prepare_hides_memory_line_until_ready(monkeypatch):
             client=SimpleNamespace(),
             user_id=1001,
             chat_id=-100123,
-            message=SimpleNamespace(id=1, guest_query_id=None),
-            is_guest_mode=False,
+            message=SimpleNamespace(id=1),
             powermemory=SimpleNamespace(),
         ),
     )

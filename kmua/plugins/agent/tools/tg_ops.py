@@ -345,8 +345,6 @@ async def tg(
     """
     if ctx.deps.message is None or ctx.deps.message.id is None:
         return "Error: Current message context is unavailable."
-    if ctx.deps.is_guest_mode:
-        return "Error: This tool is not available in guest mode."
 
     if method in _KMUA_EXTENSIONS:
         return await _call_kmua_extension(ctx, method, params)

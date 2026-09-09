@@ -23,7 +23,7 @@ def _ctx():
             client=SimpleNamespace(),  # type: ignore[arg-type]
             user_id=1001,
             chat_id=-100_123,
-            message=SimpleNamespace(id=7, guest_query_id=None),  # type: ignore[arg-type]
+            message=SimpleNamespace(id=7),  # type: ignore[arg-type]
         ),
         model=TestModel(),
         usage=RunUsage(),
@@ -131,7 +131,7 @@ async def test_shell_prepare_gates(fake_landrun, monkeypatch):
         client=SimpleNamespace(),  # type: ignore[arg-type]
         user_id=1001,
         chat_id=-100123,
-        message=SimpleNamespace(id=1, guest_query_id=None),  # type: ignore[arg-type]
+        message=SimpleNamespace(id=1),  # type: ignore[arg-type]
     )
     from pydantic_ai import RunUsage
     from pydantic_ai.models.test import TestModel

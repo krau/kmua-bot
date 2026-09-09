@@ -33,9 +33,9 @@ def waiting_key(user_id: int) -> str:
     return f"agent_waiting:{user_id}"
 
 
-# Per-conversation turn ownership. The wake/ask/guest/follow-up entries
-# acquire the lock for the whole run; a second message finding it locked is
-# an interjection and gets queued instead of starting a concurrent run.
+# Per-conversation turn ownership. The wake/ask/follow-up entries acquire the
+# lock for the whole run; a second message finding it locked is an interjection
+# and gets queued instead of starting a concurrent run.
 _conversation_locks: dict[tuple[int, int], asyncio.Lock] = {}
 
 

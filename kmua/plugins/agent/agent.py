@@ -219,27 +219,20 @@ if app_config.agent and app_config.agent_model:
         tools=[
             Tool(
                 tools.image_ops,
-                prepare=tools.compose_prepare(
-                    tools.prepare_not_guest_mode, tools.prepare_image_tools
-                ),
+                prepare=tools.prepare_image_tools,
             ),
             Tool(
                 tools.tg,
-                prepare=tools.prepare_not_guest_mode,
                 sequential=True,
             ),
             Tool(
                 tools.send_anime_photo,
-                prepare=tools.compose_prepare(
-                    tools.prepare_not_guest_mode, tools.prepare_manyacg_tools
-                ),
+                prepare=tools.prepare_manyacg_tools,
                 sequential=True,
             ),
             Tool(
                 tools.send_sticker,
-                prepare=tools.compose_prepare(
-                    tools.prepare_not_guest_mode, tools.prepare_sticker_tools
-                ),
+                prepare=tools.prepare_sticker_tools,
                 sequential=True,
             ),
             # Time tools
@@ -248,45 +241,31 @@ if app_config.agent and app_config.agent_model:
             ),  # Unified IO tools (protocol prefixes: kmua://, work://, telegram://, http(s)://)
             Tool(
                 tools.read,
-                prepare=tools.compose_prepare(
-                    tools.prepare_read, tools.prepare_not_guest_mode
-                ),
+                prepare=tools.prepare_read,
             ),
             Tool(
                 tools.write,
-                prepare=tools.compose_prepare(
-                    tools.prepare_write, tools.prepare_not_guest_mode
-                ),
+                prepare=tools.prepare_write,
             ),
             Tool(
                 tools.edit,
-                prepare=tools.compose_prepare(
-                    tools.prepare_edit, tools.prepare_not_guest_mode
-                ),
+                prepare=tools.prepare_edit,
             ),
             Tool(
                 tools.list,
-                prepare=tools.compose_prepare(
-                    tools.prepare_list, tools.prepare_not_guest_mode
-                ),
+                prepare=tools.prepare_list,
             ),
             Tool(
                 tools.search,
-                prepare=tools.compose_prepare(
-                    tools.prepare_search, tools.prepare_not_guest_mode
-                ),
+                prepare=tools.prepare_search,
             ),
             Tool(
                 tools.delete,
-                prepare=tools.compose_prepare(
-                    tools.prepare_delete, tools.prepare_not_guest_mode
-                ),
+                prepare=tools.prepare_delete,
             ),
             Tool(
                 tools.shell,
-                prepare=tools.compose_prepare(
-                    tools.prepare_shell_tools, tools.prepare_not_guest_mode
-                ),
+                prepare=tools.prepare_shell_tools,
                 sequential=True,
             ),
         ],
@@ -545,10 +524,13 @@ if app_config.agent and app_config.agent_model:
                 # Try to resolve a human-readable title for the target chat
                 try:
                     tg_chat = await client.get_chat(target_chat_id)
-                    if hasattr(tg_chat, "title") and tg_chat.title:
-                        target_chat_label = f"{tg_chat.title} ({target_chat_id})"
-                    elif hasattr(tg_chat, "first_name") and tg_chat.first_name:
-                        target_chat_label = f"{tg_chat.first_name} ({target_chat_id})"
+                    if tg_chat is not None:
+                        if hasattr(tg_chat, "title") and tg_chat.title:
+                            target_chat_label = f"{tg_chat.title} ({target_chat_id})"
+                        elif hasattr(tg_chat, "first_name") and tg_chat.first_name:
+                            target_chat_label = (
+                                f"{tg_chat.first_name} ({target_chat_id})"
+                            )
                 except Exception:
                     pass
                 if not target_chat_label:
@@ -957,9 +939,8 @@ async def wake_agent(client: PyrogramClient, message: pyrogram.types.Message):
         # (history, nearby messages, model overrides) runs behind a live
         # typing indicator. The keepalive is caller-owned: entered here and
         # handed to the runner, which reuses it instead of starting its own.
-        if not message.guest_query_id:
-            typing_keepalive = TypingKeepAlive(client, message)
-            await typing_keepalive.__aenter__()
+        typing_keepalive = TypingKeepAlive(client, message)
+        await typing_keepalive.__aenter__()
         # Check if there's a pending ask — clear it and let the normal flow handle
         # the new message (the ask context is already in history).
         ask_state = await tools.get_ask_state(chat.id, user.id)
@@ -1090,103 +1071,3 @@ async def wake_agent(client: PyrogramClient, message: pyrogram.types.Message):
         conv_lock.release()
         if bot_user_wake_lock_acquired and bot_user_wake_lock is not None:
             bot_user_wake_lock.release()
-
-
-@PyrogramClient.on_guest_message(group=0)
-async def on_guest_chat_query(
-    client: PyrogramClient,
-    message: pyrogram.types.Message,
-):
-    """Handle guest bot messages (Layer 225)."""
-    if not app_config.agent or not agent:
-        return
-
-    user = message.sender_chat or message.from_user
-    if not user or not user.id:
-        return
-
-    chat = message.chat
-    if not chat or not chat.id:
-        return
-    if not is_chat_allowed(chat.id):
-        return
-
-    guest_lock = state.get_conversation_lock(chat.id, user.id)
-    if guest_lock.locked():
-        await _queue_interjection(message, chat.id, user.id)
-        return
-
-    user_data = await database.get_user_by_id(user.id)
-    if not user_data:
-        return
-    if await tools.is_user_blocked(user.id):
-        return
-
-    await guest_lock.acquire()
-    try:
-        user_message_text = message.text or message.caption or ""
-        if user_message_text:
-            logger.debug(
-                f"User {user.id} wake agent [guest] in Chat {chat.id}: {user_message_text}"
-            )
-        is_group_chat = chat.type in (
-            pyrogram.enums.ChatType.SUPERGROUP,
-            pyrogram.enums.ChatType.GROUP,
-        )
-        instructions = (
-            app_config.agent_prompt
-            if not is_group_chat
-            else app_config.agent_group_prompt
-            if app_config.agent_group_prompt
-            else app_config.agent_prompt
-        )
-        prompt_override = await get_chat_prompt_override(chat.id)
-        if prompt_override:
-            instructions = prompt_override
-
-        history: list[ModelMessage] = await common.memttlcache.get(
-            state.history_key(chat.id, user.id), []
-        )
-
-        ctx_info = await build_ctx_info(
-            message=message,
-            user=user,
-            user_data=user_data,
-            history=history,
-            is_group_chat=is_group_chat,
-        )
-
-        user_prompt, _, _ = await get_input_prompt(
-            client, message, include_nearby=0, ctx=None
-        )
-
-        await _run_registered(
-            chat.id,
-            user.id,
-            run_agent(
-                agi=agent,  # type: ignore[arg-type]
-                additional_instructions=ctx_info.to_text() if ctx_info else None,
-                client=client,
-                message=message,
-                user_id=user.id,
-                chat_id=chat.id,
-                user_prompt=user_prompt,
-                history=history,
-                deps=datatype.ContextDeps(
-                    user_id=user.id,
-                    chat_id=chat.id,
-                    message=message,
-                    client=client,
-                    instructions=instructions,
-                    powermemory=powermemory,
-                    history=history,
-                ),
-                multimodal_model=multimodal_model,
-                model=model,
-                lang=user_data.user_config.lang
-                if user_data.user_config
-                else app_config.lang,
-            ),
-        )
-    finally:
-        guest_lock.release()

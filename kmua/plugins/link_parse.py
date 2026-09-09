@@ -21,9 +21,6 @@ from pyrogram import filters
 from pyrogram.client import Client
 from pyrogram.client import Client as PyrogramClient
 from pyrogram.enums import ChatType, ParseMode
-from pyrogram.raw.functions.messages.send_message import (
-    SendMessage as _RawSendMessage,
-)
 from pyrogram.raw.functions.messages.upload_media import (
     UploadMedia as _RawUploadMedia,
 )
@@ -38,6 +35,7 @@ from pyrogram.types import Message
 
 from kmua import database, i18n
 from kmua.common.download import download_capped
+from kmua.common.rich_message import send_rich_message
 from kmua.logger import logger
 from kmua.services import link_parse
 from kmua.services import wechat as wechat_service
@@ -256,31 +254,19 @@ async def _send_rich_reply(
 ) -> None:
     """Send one rich message replying to the source message.
 
-    Uses raw ``messages.SendMessage`` directly instead of
-    ``client.send_rich_message``: that helper's response parsing is broken in
-    kurigram 2.2.24 (it indexes ``peer.chat_id`` on an ``InputPeerChannel``,
-    raising AttributeError for any group/channel send). Invoking the raw
-    function and ignoring the response avoids the bug entirely. ``blocks`` is
-    a raw PageBlock list and ``photos`` the InputPhoto list they reference.
+    ``blocks`` is a raw PageBlock list and ``photos`` the InputPhoto list they
+    reference. Sending goes through kmua.common.rich_message, whose raw
+    ``messages.SendMessage`` avoids the broken response parsing of
+    ``client.send_rich_message`` for channel peers.
     """
-    peer = await client.resolve_peer(chat_id)
-    assert peer is not None
-    await client.invoke(
-        _RawSendMessage(
-            peer=peer,
-            message="",
-            random_id=client.rnd_id(),
-            reply_to=await pyrogram.utils.get_reply_to(  # type: ignore
-                client,
-                pyrogram.types.ReplyParameters(message_id=reply_to_message_id),
-                None,
-                None,
-            ),
-            rich_message=_RawInputRichMessage(
-                blocks=blocks,
-                photos=[p for p in photos if p is not None] or None,
-            ),
+    await send_rich_message(
+        client,
+        chat_id,
+        _RawInputRichMessage(
+            blocks=blocks,
+            photos=[p for p in photos if p is not None] or None,
         ),
+        reply_parameters=pyrogram.types.ReplyParameters(message_id=reply_to_message_id),
     )
 
 

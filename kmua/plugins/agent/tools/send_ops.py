@@ -7,17 +7,6 @@ from typing import Literal
 import pyrogram
 import pyrogram.errors
 from pydantic_ai import ModelRetry, RunContext
-from pyrogram.raw.functions.messages.set_bot_guest_chat_result import (
-    SetBotGuestChatResult,
-)
-from pyrogram.raw.types.document_attribute_image_size import (
-    DocumentAttributeImageSize,
-)
-from pyrogram.raw.types.input_bot_inline_message_media_auto import (
-    InputBotInlineMessageMediaAuto,
-)
-from pyrogram.raw.types.input_bot_inline_result import InputBotInlineResult
-from pyrogram.raw.types.input_web_document import InputWebDocument
 
 from kmua import common, database, i18n
 from kmua.bot.client import client
@@ -510,69 +499,6 @@ async def _fetch_anime_artwork(keyword: str = "") -> tuple[dict, dict] | None:
         return None
 
 
-async def _send_anime_photo_guest(
-    ctx: RunContext[datatype.ContextDeps],
-    artwork: dict,
-    picture: dict,
-) -> AnimePhotoResult:
-    query_id = ctx.deps.message.guest_query_id
-    if ctx.deps.guest_replied or not query_id:
-        return AnimePhotoResult(success=False, message="Guest query already replied.")
-    photo_url = picture["regular"]
-    caption = f"{artwork['title']}\n{artwork['source_url']}"
-
-    try:
-        result = InputBotInlineResult(
-            id="0",
-            type="photo",
-            title=artwork["title"],
-            thumb=InputWebDocument(
-                url=photo_url,
-                size=0,
-                mime_type="image/jpeg",
-                attributes=[DocumentAttributeImageSize(w=0, h=0)],
-            ),
-            content=InputWebDocument(
-                url=photo_url,
-                size=0,
-                mime_type="image/jpeg",
-                attributes=[DocumentAttributeImageSize(w=0, h=0)],
-            ),
-            send_message=InputBotInlineMessageMediaAuto(
-                message=caption,
-            ),
-        )
-        await ctx.deps.client.invoke(
-            SetBotGuestChatResult(
-                query_id=int(query_id),
-                result=result,
-            )
-        )
-        ctx.deps.guest_replied = True
-    except Exception as e:
-        logger.error(f"Guest anime photo send error: {e.__class__.__name__} - {e}")
-        return AnimePhotoResult(
-            success=False, message=f"Failed to send photo: {e.__class__.__name__}"
-        )
-
-    return AnimePhotoResult(
-        success=True,
-        data=AnimePhotoInfo(
-            title=artwork["title"],
-            source_url=artwork["source_url"],
-            r18=artwork["r18"],
-            description=artwork.get("description", "")[:512],
-            artist=Artist(
-                name=artwork.get("artist", {}).get("name", ""),
-                type=artwork["artist"].get("type", ""),
-                username=artwork["artist"].get("username", ""),
-                uid=artwork["artist"].get("uid", ""),
-            ),
-            tags=artwork.get("tags", [])[:10],
-        ),
-    )
-
-
 async def send_anime_photo(
     ctx: RunContext[datatype.ContextDeps], keyword: str = "", count: int = 1
 ) -> AnimePhotoResult:
@@ -619,10 +545,8 @@ async def send_anime_photo(
                 success=False, message="Failed to fetch anime artwork."
             )
 
-        if ctx.deps.is_guest_mode or len(fetched) == 1:
+        if len(fetched) == 1:
             artwork, picture = fetched[0]
-            if ctx.deps.is_guest_mode:
-                return await _send_anime_photo_guest(ctx, artwork, picture)
             return await _send_anime_photo_single(ctx, artwork, picture)
 
         media: list[

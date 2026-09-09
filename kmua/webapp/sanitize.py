@@ -75,6 +75,7 @@ _PUBLIC_FIELDS: dict[str, tuple[str, ...]] = {
         "agent_clamp_max_part_ratio",
         "agent_multimodal",
         "agent_streaming",
+        "agent_rich_output",
         "agent_multimodal_inputs",
         "agent_multimodal_max_items",
         "agent_extra_tools",

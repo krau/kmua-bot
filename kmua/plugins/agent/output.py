@@ -1,6 +1,4 @@
 import asyncio
-import random
-import re
 from datetime import datetime
 
 import pyrogram
@@ -8,33 +6,144 @@ import pyrogram.errors
 from pyrogram.client import Client as PyrogramClient
 
 from kmua.common.memory_store import memttlcache
+from kmua.common.rich_message import (
+    message_plain_text,
+    rich_html_plain_text,
+    send_rich_message,
+)
 from kmua.config import app_config
 from kmua.logger import logger
 from kmua.plugins.agent import datatype, state
-from kmua.plugins.agent.guest_mode import answer_guest_query
-from kmua.plugins.agent.styling import convert_md
+from kmua.plugins.agent.styling import (
+    convert_md,
+    convert_md_chunks,
+    convert_rich_md,
+    split_plain_text,
+)
 
-_MD_SEPARATOR_RE = re.compile(r"^(?:[-*_][ \t]*){3,}$")
+# A rich send that keeps failing (unsupported client, server-side outage) is
+# paused for a while: every attempt otherwise costs a failed request before
+# the plain fallback.
+_RICH_FAILURE_LIMIT = 3
+_RICH_FAILURE_TTL = 300
+_RICH_FAILURE_KEY = "agent_rich_failures"
+_RICH_DISABLED_KEY = "agent_rich_disabled"
 
-# Upper bound on the cumulative inter-chunk delay in reply_output. Without this
-# cap, a long reply split into many chunks could keep a dispatcher worker busy
-# (holding its handler lock) for tens of seconds purely on sleeps.
-_MAX_TOTAL_REPLY_DELAY = 12.0
+
+async def _rich_output_enabled() -> bool:
+    if not app_config.agent_rich_output:
+        return False
+    return not await memttlcache.get(_RICH_DISABLED_KEY, False)
 
 
-def _is_markdown_separator_only_chunk(chunk: str) -> bool:
-    lines = [line.strip() for line in chunk.splitlines() if line.strip()]
-    return bool(lines) and all(_MD_SEPARATOR_RE.fullmatch(line) for line in lines)
+async def _note_rich_result(sent: bool) -> None:
+    """Track consecutive rich send failures for the circuit breaker."""
+    if sent:
+        await memttlcache.delete(_RICH_FAILURE_KEY)
+        await memttlcache.delete(_RICH_DISABLED_KEY)
+        return
+    failures = int(await memttlcache.get(_RICH_FAILURE_KEY, 0) or 0) + 1
+    await memttlcache.set(_RICH_FAILURE_KEY, failures, ttl=_RICH_FAILURE_TTL)
+    if failures >= _RICH_FAILURE_LIMIT:
+        logger.warning(
+            f"Rich message output paused for {_RICH_FAILURE_TTL}s after "
+            f"{failures} consecutive send failures"
+        )
+        await memttlcache.set(_RICH_DISABLED_KEY, True, ttl=_RICH_FAILURE_TTL)
+
+
+async def _send_rich_payloads(
+    client: PyrogramClient,
+    message: pyrogram.types.Message,
+    payloads: list[pyrogram.types.InputRichMessage],
+) -> tuple[int, int | None]:
+    """Send rich payloads in order, stopping at the first failure.
+
+    Returns (delivered count, last delivered message id); callers deliver the
+    undelivered tail through the plain text path.
+    """
+    chat = message.chat
+    if not payloads or chat is None or chat.id is None:
+        return 0, None
+    chat_id = chat.id
+    last_id: int | None = None
+    for index, payload in enumerate(payloads):
+        try:
+            last_id = await send_rich_message(
+                client,
+                chat_id,
+                payload.write(),
+                reply_parameters=pyrogram.types.ReplyParameters(message_id=message.id),
+                message_thread_id=message.message_thread_id,
+                direct_messages_topic_id=message.direct_messages_topic_id,
+            )
+        except Exception as e:
+            logger.warning(f"Rich message send failed: {e.__class__.__name__} - {e}")
+            await _note_rich_result(False)
+            return index, last_id
+    await _note_rich_result(True)
+    return len(payloads), last_id
+
+
+async def _send_rich_tail_plain(
+    message: pyrogram.types.Message,
+    payloads: list[pyrogram.types.InputRichMessage],
+) -> None:
+    """Deliver rich payloads that could not be sent as rich, as plain text."""
+    text = "\n\n".join(
+        part
+        for part in (
+            rich_html_plain_text(payload.html or payload.markdown or "")
+            for payload in payloads
+        )
+        if part
+    )
+    if not text:
+        return
+    for chunk in split_plain_text(text):
+        try:
+            await message.reply_text(chunk)
+        except Exception as e:
+            logger.error(
+                f"Failed to send rich fallback text: {e.__class__.__name__} - {e}"
+            )
+            return
+
+
+async def _send_plain_reply(
+    message: pyrogram.types.Message,
+    markdown: str,
+) -> pyrogram.types.Message | None:
+    """Send markdown as plain text + entities.
+
+    Only splits when the converted text exceeds Telegram's per-message limit;
+    a chunk that fails twice is skipped so later chunks still go out. Returns
+    the last delivered message, and raises when nothing could be delivered.
+    """
+    last_msg: pyrogram.types.Message | None = None
+    last_error: Exception | None = None
+    for plain, entities in convert_md_chunks(markdown):
+        try:
+            last_msg = await message.reply_text(plain, entities=entities)
+            last_error = None
+        except Exception as e:
+            logger.warning(f"Send failed: {e.__class__.__name__} - {e}")
+            try:
+                last_msg = await message.reply_text(plain)
+                last_error = None
+            except Exception as e:
+                logger.error(f"Send failed: {e.__class__.__name__} - {e}")
+                last_error = e
+    if last_msg is None and last_error is not None:
+        raise last_error
+    return last_msg
 
 
 async def reply_output(
     client: PyrogramClient,
     message: pyrogram.types.Message,
     text: str,
-    deps: "datatype.ContextDeps | None" = None,
 ):
-    if message.guest_query_id:
-        return await answer_guest_query(client, message, text, deps=deps)
     if message.chat is None:
         return
     is_group_chat = message.chat.type in (
@@ -42,79 +151,43 @@ async def reply_output(
         pyrogram.enums.ChatType.GROUP,
     )
     user = message.sender_chat or message.from_user
-    lines = [line for line in text.split("\n\n") if line.strip()]
-    if not lines:
+    if not text.strip():
         return
-    total_plain, total_entities = convert_md(text)
-    has_block = False
-    for e in total_entities:
-        if (
-            e.type == pyrogram.enums.MessageEntityType.BLOCKQUOTE
-            or e.type == pyrogram.enums.MessageEntityType.PRE
-        ):
-            has_block = True
-            break
-
-    max_messages = 7
-    total_sentences = len(lines)
-    num_messages = min(max_messages, total_sentences)
-
-    base = total_sentences // num_messages
-    remainder = total_sentences % num_messages
-
-    chunks: list[str] = []
-    index = 0
-    for i in range(num_messages):
-        size = base + (1 if i < remainder else 0)
-        part = lines[index : index + size]
-        index += size
-        chunks.append("\n".join(part))
     try:
+        last_reply_id: int | None = None
         last_reply_msg: pyrogram.types.Message | None = None
-        if has_block:
-            try:
-                last_reply_msg = await message.reply_text(
-                    total_plain, entities=total_entities
-                )
-            except Exception as e:
-                logger.warning(f"Send failed: {e.__class__.__name__} - {e}")
-                last_reply_msg = await message.reply_text(total_plain)
-        else:
-            total_delay = 0.0
-            for chunk in chunks:
-                # 如果只有分隔符, 则跳过
-                if _is_markdown_separator_only_chunk(chunk):
-                    continue
-                await message.reply_chat_action(pyrogram.enums.ChatAction.TYPING)
-                plain_chunk, entities = convert_md(chunk)
-                try:
-                    reply_msg = await message.reply_text(plain_chunk, entities=entities)
-                except Exception as e:
-                    logger.warning(f"Send failed: {e.__class__.__name__} - {e}")
-                    try:
-                        reply_msg = await message.reply_text(plain_chunk)
-                    except Exception as e:
-                        logger.error(f"Send failed: {e.__class__.__name__} - {e}")
-                        raise
-                last_reply_msg = reply_msg
-                if total_delay < _MAX_TOTAL_REPLY_DELAY:
-                    delay = random.uniform(0.721, 3.9) + len(chunk) / 600
-                    delay = min(delay, _MAX_TOTAL_REPLY_DELAY - total_delay)
-                    total_delay += delay
-                    await asyncio.sleep(delay)
+        last_reply_text = ""
+        # One message per answer on purpose: the old paragraph chunking (up to
+        # 7 messages with random delays) is gone, only Telegram's per-message
+        # limits split the output now.
+        if await _rich_output_enabled():
+            payloads = convert_rich_md(text)
+            sent_count, last_reply_id = await _send_rich_payloads(
+                client, message, payloads
+            )
+            if sent_count:
+                last_reply_text = text
+            if 0 < sent_count < len(payloads):
+                await _send_rich_tail_plain(message, payloads[sent_count:])
+        if not last_reply_text:
+            last_reply_msg = await _send_plain_reply(message, text)
+            last_reply_text = text
+        last_reply_message_id = last_reply_id or (
+            last_reply_msg.id if last_reply_msg else None
+        )
         if (
-            last_reply_msg
-            and last_reply_msg.text
+            last_reply_message_id
+            and last_reply_text
             and is_group_chat
             and user
             and user.id
         ):
             bot_reply = datatype.BotLastReply(
-                message_id=last_reply_msg.id,
+                message_id=last_reply_message_id,
                 reply_to_user_id=user.id,
                 reply_to_message_id=message.id,
-                reply_text=last_reply_msg.text,
-                original_user_message=message.text or message.caption or "",
+                reply_text=last_reply_text,
+                original_user_message=message_plain_text(message),
                 timestamp=datetime.now().timestamp(),
             )
             _chat = message.chat
@@ -198,14 +271,13 @@ class StreamingOutput:
         self,
         client: PyrogramClient,
         message: pyrogram.types.Message,
-        deps: "datatype.ContextDeps | None" = None,
     ):
         self.client = client
         self.message = message
-        self.deps = deps
         self.current_text = ""
         self._last_sent_text = ""
-        self.reply_message: pyrogram.types.Message | None = None
+        self.reply_message_id: int | None = None
+        self._rich = False
         self.last_edit_time = 0.0
         self.edit_count = 0
         self.start_time = 0.0
@@ -217,7 +289,6 @@ class StreamingOutput:
         self._edit_task: asyncio.Task | None = None
         self._start_task: asyncio.Task | None = None
         self._stop = False
-        self.is_guest = bool(message.guest_query_id)
 
     def _is_within_limits(self) -> bool:
         current_time = asyncio.get_event_loop().time()
@@ -235,15 +306,29 @@ class StreamingOutput:
         return True
 
     async def _do_edit(self, text: str):
-        if not self.reply_message:
+        chat = self.message.chat
+        if self.reply_message_id is None or chat is None or chat.id is None:
             return
+        chat_id = chat.id
         try:
-            # During streaming, send plain text without entities to avoid
-            # rendering partially-formed markdown. Entities applied at finalize.
-            await self.reply_message.edit_text(
-                text[: self.MAX_MESSAGE_LENGTH],
-                parse_mode=pyrogram.enums.ParseMode.DISABLED,
-            )
+            if self._rich:
+                payloads = convert_rich_md(text)
+                if not payloads:
+                    return
+                await self.client.edit_message_text(
+                    chat_id,
+                    self.reply_message_id,
+                    rich_message=payloads[0],
+                )
+            else:
+                # During streaming, send plain text without entities to avoid
+                # rendering partially-formed markdown. Entities applied at finalize.
+                await self.client.edit_message_text(
+                    chat_id,
+                    self.reply_message_id,
+                    text[: self.MAX_MESSAGE_LENGTH],
+                    parse_mode=pyrogram.enums.ParseMode.DISABLED,
+                )
             self._last_sent_text = text
             self.last_edit_time = asyncio.get_event_loop().time()
             self.edit_count += 1
@@ -255,15 +340,37 @@ class StreamingOutput:
             logger.error(f"Error editing message: {e.__class__.__name__} - {e}")
 
     async def _send_new_message(self, text: str):
+        self._rich = await _rich_output_enabled()
+        if self._rich:
+            # Only the first payload opens the stream; the overflow of a
+            # >32768-byte answer goes out once at finalize instead of being
+            # sent twice.
+            payloads = convert_rich_md(text)[:1]
+            sent_count, message_id = await _send_rich_payloads(
+                self.client, self.message, payloads
+            )
+            if sent_count:
+                if message_id is None:
+                    # Without the id the stream can neither edit nor finalize.
+                    raise RuntimeError("Rich streaming reply message was not returned")
+                self.reply_message_id = message_id
+                self._last_sent_text = text
+                self.last_edit_time = asyncio.get_event_loop().time()
+                self.edit_count += 1
+                return
+            self._rich = False
         plain, entities = convert_md(text)
         try:
-            self.reply_message = await self.message.reply_text(
+            reply_message = await self.message.reply_text(
                 plain[: self.MAX_MESSAGE_LENGTH],
                 entities=entities,
             )
         except Exception as e:
             logger.error(f"Send failed in streaming: {e}")
             raise
+        if reply_message is None or reply_message.id is None:
+            raise RuntimeError("Streaming reply message was not returned")
+        self.reply_message_id = reply_message.id
         self._last_sent_text = text
         self.last_edit_time = asyncio.get_event_loop().time()
         self.edit_count += 1
@@ -281,8 +388,6 @@ class StreamingOutput:
             await self._do_edit(text)
 
     async def _start(self):
-        if self.is_guest:
-            return
         await self._send_new_message(self.current_text)
         self._edit_task = asyncio.create_task(self._edit_loop())
 
@@ -290,23 +395,42 @@ class StreamingOutput:
         if not delta:
             return
         self.current_text += delta
-        if self.is_guest:
-            return
         if self.start_time == 0.0 and self.current_text.strip():
             self.start_time = asyncio.get_event_loop().time()
             self._stop = False
             self._start_task = asyncio.create_task(self._start())
 
+    async def _finalize_rich(self, text: str) -> None:
+        chat = self.message.chat
+        if chat is None or chat.id is None or self.reply_message_id is None:
+            return
+        chat_id = chat.id
+        payloads = convert_rich_md(text)
+        if not payloads:
+            return
+        try:
+            await self.client.edit_message_text(
+                chat_id,
+                self.reply_message_id,
+                rich_message=payloads[0],
+            )
+            self._last_sent_text = text
+        except pyrogram.errors.exceptions.bad_request_400.MessageNotModified:
+            pass
+        except Exception as e:
+            logger.error(f"Error editing final message: {e.__class__.__name__} - {e}")
+        # Long answers are split at Telegram's rich message limits; the
+        # overflow goes out even when the final edit failed, so no content is
+        # dropped.
+        if len(payloads) > 1:
+            sent_count, _ = await _send_rich_payloads(
+                self.client, self.message, payloads[1:]
+            )
+            if sent_count < len(payloads) - 1:
+                await _send_rich_tail_plain(self.message, payloads[1 + sent_count :])
+
     async def finalize(self):
         self._stop = True
-        if self.is_guest:
-            if self.current_text:
-                from kmua.plugins.agent.guest_mode import answer_guest_query
-
-                await answer_guest_query(
-                    self.client, self.message, self.current_text, deps=self.deps
-                )
-            return
         if self._start_task and not self._start_task.done():
             await self._start_task
         if self._edit_task and not self._edit_task.done():
@@ -315,29 +439,41 @@ class StreamingOutput:
                 await self._edit_task
             except asyncio.CancelledError:
                 pass
-        if self.reply_message and self.current_text:
+        chat = self.message.chat
+        if (
+            self.reply_message_id is not None
+            and chat is not None
+            and chat.id is not None
+            and self.current_text
+        ):
+            chat_id = chat.id
             text = self.current_text
-            plain, entities = convert_md(text)
-            if text != self._last_sent_text or entities:
-                try:
-                    await self.reply_message.edit_text(
-                        plain[: self.MAX_MESSAGE_LENGTH],
-                        entities=entities,
-                    )
-                    self._last_sent_text = text
-                except pyrogram.errors.exceptions.bad_request_400.MessageNotModified:
-                    pass
-                except Exception as e:
-                    logger.error(f"Error editing final message: {e}")
-            elif not self.reply_message:
-                await self._send_new_message(text)
-        if self.reply_message and self.is_group_chat and self.user and self.user.id:
+            if self._rich:
+                await self._finalize_rich(text)
+            else:
+                plain, entities = convert_md(text)
+                if text != self._last_sent_text or entities:
+                    try:
+                        await self.client.edit_message_text(
+                            chat_id,
+                            self.reply_message_id,
+                            plain[: self.MAX_MESSAGE_LENGTH],
+                            entities=entities,
+                        )
+                        self._last_sent_text = text
+                    except (
+                        pyrogram.errors.exceptions.bad_request_400.MessageNotModified
+                    ):
+                        pass
+                    except Exception as e:
+                        logger.error(f"Error editing final message: {e}")
+        if self.reply_message_id and self.is_group_chat and self.user and self.user.id:
             bot_reply = datatype.BotLastReply(
-                message_id=self.reply_message.id,
+                message_id=self.reply_message_id,
                 reply_to_user_id=self.user.id,
                 reply_to_message_id=self.message.id,
                 reply_text=self.current_text,
-                original_user_message=self.message.text or self.message.caption or "",
+                original_user_message=message_plain_text(self.message),
                 timestamp=datetime.now().timestamp(),
             )
             chat = self.message.chat

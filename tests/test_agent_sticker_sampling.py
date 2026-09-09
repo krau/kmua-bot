@@ -57,7 +57,7 @@ async def test_prepare_gate_skipped_when_warmup_disabled(monkeypatch):
         chat_id=-100123,
         message=cast(
             "pyrogram.types.Message",
-            SimpleNamespace(id=1, guest_query_id=None),
+            SimpleNamespace(id=1),
         ),
     )
     ctx = RunContext(deps=deps, model=TestModel(), usage=RunUsage(), messages=[])
@@ -180,7 +180,7 @@ async def test_prepare_sticker_gate_uses_warmup_config(monkeypatch):
         chat_id=-100123,
         message=cast(
             "pyrogram.types.Message",
-            SimpleNamespace(id=1, guest_query_id=None),
+            SimpleNamespace(id=1),
         ),
     )
     ctx = RunContext(deps=deps, model=TestModel(), usage=RunUsage(), messages=[])
