@@ -103,8 +103,7 @@ def _ctx(client=None) -> RunContext[datatype.ContextDeps]:
                 client=client or SimpleNamespace(),
                 chat_id=-100_123,
                 user_id=1001,
-                message=SimpleNamespace(id=7, guest_query_id=None),
-                is_guest_mode=False,
+                message=SimpleNamespace(id=7),
             )
         ),
     )

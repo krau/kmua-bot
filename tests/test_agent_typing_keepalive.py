@@ -21,7 +21,7 @@ class _FakeClient:
 
 
 def _message(chat_id: int = -100123) -> SimpleNamespace:
-    return SimpleNamespace(chat=SimpleNamespace(id=chat_id), guest_query_id=None)
+    return SimpleNamespace(chat=SimpleNamespace(id=chat_id))
 
 
 async def test_typing_keepalive_sends_immediately_on_start():
@@ -67,7 +67,6 @@ async def test_run_agent_stops_typing_before_timeout_reply(monkeypatch):
 
     class _ReplyMessage:
         chat = SimpleNamespace(id=-100123)
-        guest_query_id = None
 
         def __init__(self):
             self.replies: list[str] = []
@@ -90,7 +89,7 @@ async def test_run_agent_stops_typing_before_timeout_reply(monkeypatch):
         chat_id=-100123,
         user_prompt=[],
         history=[],
-        deps=SimpleNamespace(is_guest_mode=False),
+        deps=SimpleNamespace(),
         multimodal_model=None,
         model=None,
         lang="zh",

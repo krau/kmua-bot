@@ -740,13 +740,6 @@ async def build_ctx_info(
     append_prompt = get_agent_affection_prompt(affection_rank)
     if append_prompt:
         ctx_info.append_prompt = append_prompt
-    if message.guest_query_id:
-        ctx_info.append_prompt = (
-            (ctx_info.append_prompt or "")
-            + "\n[Guest Mode] You are operating in guest mode. "
-            "You can only send a single text reply. "
-            "You cannot access chat history, send media, stickers, reactions, or polls."
-        )
     return ctx_info
 
 

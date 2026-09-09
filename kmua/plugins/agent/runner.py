@@ -196,10 +196,7 @@ async def run_agent(
                 err_text = i18n.t(
                     "bot.msg.agent.errors.interrupted", locale=lang
                 ).format(error="Timeout")
-                if deps.is_guest_mode:
-                    await reply_output(client, message, err_text, deps=deps)
-                else:
-                    await message.reply_text(err_text)
+                await message.reply_text(err_text)
             except Exception as e:
                 logger.error(
                     f"Failed to send timeout notice: {e.__class__.__name__} - {e}"
@@ -230,8 +227,6 @@ async def _run_agent_impl(
     This is the single source of truth for agent execution shared by both
     the normal wake flow and the follow-up flow.
     """
-
-    is_guest_mode = deps.is_guest_mode
 
     if not is_chat_allowed(chat_id):
         return
@@ -294,11 +289,11 @@ async def _run_agent_impl(
     try:
         ctx = typing_keepalive
         ctx_owned = ctx is None
-        if ctx is None and not is_guest_mode:
+        if ctx is None:
             ctx = TypingKeepAlive(client, message)
             await ctx.__aenter__()
         try:
-            if app_config.agent_streaming and not is_guest_mode:
+            if app_config.agent_streaming:
                 streaming_output: StreamingOutput | None = None
                 output: Any = None
                 try:
@@ -323,7 +318,7 @@ async def _run_agent_impl(
                                             if isinstance(event.part, TextPart):
                                                 if streaming_output is None:
                                                     streaming_output = StreamingOutput(
-                                                        client, message, deps=deps
+                                                        client, message
                                                     )
                                                 await streaming_output.append_delta(
                                                     event.part.content
@@ -332,7 +327,7 @@ async def _run_agent_impl(
                                             if isinstance(event.delta, TextPartDelta):
                                                 if streaming_output is None:
                                                     streaming_output = StreamingOutput(
-                                                        client, message, deps=deps
+                                                        client, message
                                                     )
                                                 await streaming_output.append_delta(
                                                     event.delta.content_delta
@@ -371,7 +366,7 @@ async def _run_agent_impl(
                             elif streaming_output is not None:
                                 await streaming_output.finalize()
                             elif output:
-                                await reply_output(client, message, output, deps=deps)
+                                await reply_output(client, message, output)
                         # Save full output for follow-up detection
                         full_output = ""
                         if streaming_output is not None:
@@ -405,7 +400,7 @@ async def _run_agent_impl(
                             agent_run.all_messages(),
                             ttl=app_config.cachettl_agent_history,
                         )
-                        if not is_guest_mode and coverage_meta is not None:
+                        if coverage_meta is not None:
                             await advance_prompt_coverage(
                                 chat_id, user_id, coverage_meta
                             )
@@ -441,10 +436,9 @@ async def _run_agent_impl(
                                             f"The stupid agent returned 'final_result' as text🤡 for user {user_id}"
                                         )
                                     else:
-                                        if not is_guest_mode:
-                                            await reply_output(
-                                                client, message, part.content
-                                            )
+                                        await reply_output(
+                                            client, message, part.content
+                                        )
                                         full_output_parts.append(part.content)
                                         replied = True
                         # next() runs the full capability lifecycle, which
@@ -467,13 +461,8 @@ async def _run_agent_impl(
                             f"Agent returned {type(output).__name__} for user {user_id}"
                         )
                     elif not replied and output:
-                        if not is_guest_mode:
-                            await reply_output(client, message, output)
+                        await reply_output(client, message, output)
                         full_output_parts.append(output)
-                    # In guest mode, send a single collected reply at the end
-                    if is_guest_mode and full_output_parts:
-                        full_text = "\n".join(full_output_parts)
-                        await reply_output(client, message, full_text, deps=deps)
                     # Save full output for follow-up detection
                     full_output = "\n".join(full_output_parts)
                     if (
@@ -500,7 +489,7 @@ async def _run_agent_impl(
                         agent_run.all_messages(),
                         ttl=app_config.cachettl_agent_history,
                     )
-                    if not is_guest_mode and coverage_meta is not None:
+                    if coverage_meta is not None:
                         await advance_prompt_coverage(chat_id, user_id, coverage_meta)
                     log_run_cache_stats(use_model.model_name, agent_run.usage)
         finally:
@@ -513,10 +502,7 @@ async def _run_agent_impl(
         # https://github.com/pydantic/pydantic-ai/issues/1746
         logger.exception(f"Agent run error: {e}")
         err_text = i18n.t("bot.msg.agent.errors.too_fast", locale=lang)
-        if is_guest_mode:
-            await reply_output(client, message, err_text, deps=deps)
-        else:
-            await message.reply_text(err_text)
+        await message.reply_text(err_text)
     except (
         pydantic_ai.exceptions.ModelHTTPError,
         pydantic_ai.exceptions.ModelAPIError,
@@ -534,12 +520,7 @@ async def _run_agent_impl(
             ]
         )
         status_code = getattr(e, "status_code", None)
-        if is_guest_mode:
-            base = i18n.t("bot.msg.agent.errors.interrupted", locale=lang).format(
-                error="Error"
-            )
-            await reply_output(client, message, base, deps=deps)
-        elif status_code == 400:
+        if status_code == 400:
             await message.reply_text(
                 i18n.t("bot.msg.agent.errors.model_http_400", locale=lang),
                 reply_markup=markup,
@@ -563,7 +544,4 @@ async def _run_agent_impl(
         err_text = i18n.t("bot.msg.agent.errors.interrupted", locale=lang).format(
             error="Error"
         )
-        if is_guest_mode:
-            await reply_output(client, message, err_text, deps=deps)
-        else:
-            await message.reply_text(err_text)
+        await message.reply_text(err_text)

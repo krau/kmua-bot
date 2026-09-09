@@ -61,7 +61,6 @@ class _FakeMessage:
         self.from_user = SimpleNamespace(id=777)
         self.text = "hi"
         self.caption = None
-        self.guest_query_id: str | None = None
         self.message_thread_id = None
         self.direct_messages_topic_id = None
         self.replies: list[dict] = []
