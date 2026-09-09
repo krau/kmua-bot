@@ -6,7 +6,11 @@ import pyrogram.errors
 from pyrogram.client import Client as PyrogramClient
 
 from kmua.common.memory_store import memttlcache
-from kmua.common.rich_message import rich_html_plain_text, send_rich_message
+from kmua.common.rich_message import (
+    message_plain_text,
+    rich_html_plain_text,
+    send_rich_message,
+)
 from kmua.config import app_config
 from kmua.logger import logger
 from kmua.plugins.agent import datatype, state
@@ -109,16 +113,14 @@ async def _send_rich_tail_plain(
 async def _send_plain_reply(
     message: pyrogram.types.Message,
     markdown: str,
-) -> tuple[pyrogram.types.Message | None, str]:
+) -> pyrogram.types.Message | None:
     """Send markdown as plain text + entities.
 
     Only splits when the converted text exceeds Telegram's per-message limit;
     a chunk that fails twice is skipped so later chunks still go out. Returns
-    (last delivered message, last delivered text) and raises when nothing
-    could be delivered.
+    the last delivered message, and raises when nothing could be delivered.
     """
     last_msg: pyrogram.types.Message | None = None
-    last_text = markdown
     last_error: Exception | None = None
     for plain, entities in convert_md_chunks(markdown):
         try:
@@ -132,13 +134,9 @@ async def _send_plain_reply(
             except Exception as e:
                 logger.error(f"Send failed: {e.__class__.__name__} - {e}")
                 last_error = e
-        if last_msg is not None and last_msg.text:
-            last_text = last_msg.text
-        else:
-            last_text = plain
     if last_msg is None and last_error is not None:
         raise last_error
-    return last_msg, last_text
+    return last_msg
 
 
 async def reply_output(
@@ -172,7 +170,8 @@ async def reply_output(
             if 0 < sent_count < len(payloads):
                 await _send_rich_tail_plain(message, payloads[sent_count:])
         if not last_reply_text:
-            last_reply_msg, last_reply_text = await _send_plain_reply(message, text)
+            last_reply_msg = await _send_plain_reply(message, text)
+            last_reply_text = text
         last_reply_message_id = last_reply_id or (
             last_reply_msg.id if last_reply_msg else None
         )
@@ -188,7 +187,7 @@ async def reply_output(
                 reply_to_user_id=user.id,
                 reply_to_message_id=message.id,
                 reply_text=last_reply_text,
-                original_user_message=message.text or message.caption or "",
+                original_user_message=message_plain_text(message),
                 timestamp=datetime.now().timestamp(),
             )
             _chat = message.chat
@@ -474,7 +473,7 @@ class StreamingOutput:
                 reply_to_user_id=self.user.id,
                 reply_to_message_id=self.message.id,
                 reply_text=self.current_text,
-                original_user_message=self.message.text or self.message.caption or "",
+                original_user_message=message_plain_text(self.message),
                 timestamp=datetime.now().timestamp(),
             )
             chat = self.message.chat

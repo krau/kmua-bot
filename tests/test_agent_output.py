@@ -281,6 +281,23 @@ def test_rich_html_plain_text_drops_formatting():
     assert rich_html_plain_text("") == ""
 
 
+async def test_reply_output_records_rich_original_message():
+    client = _FakeClient(send_result=_updates_with_message_id(555))
+    message = _FakeMessage()
+    message.text = ""
+    message.rich_message = pyrogram.types.RichMessage(  # type: ignore[attr-defined]
+        blocks=[  # type: ignore[arg-type]
+            pyrogram.types.RichBlockParagraph(text="用户的富文本消息")  # type: ignore[arg-type]
+        ]
+    )
+
+    await output.reply_output(cast(Client, client), cast(Message, message), "**回复**")
+
+    cached = await memttlcache.get(state.bot_last_reply_key(message.chat.id))
+    assert cached is not None
+    assert cached.original_user_message == "用户的富文本消息"
+
+
 async def test_reply_output_sends_plain_tail_when_rich_send_partially_fails():
     client = _FakeClient(
         send_result=_updates_with_message_id(555),
