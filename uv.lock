@@ -1880,7 +1880,7 @@ requires-dist = [
     { name = "sketchbook-py", specifier = "==0.2.1" },
     { name = "sqlalchemy", extras = ["asyncio"], specifier = ">=2.0.41" },
     { name = "sqlite-vec", specifier = ">=0.1.6" },
-    { name = "telegramify-markdown", specifier = ">=1.0.0" },
+    { name = "telegramify-markdown", specifier = ">=1.2.0" },
     { name = "tgcrypto", specifier = ">=1.2.5" },
     { name = "ujson", specifier = ">=5.13.0" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.40.0" },
@@ -1897,8 +1897,8 @@ dev = [
 
 [[package]]
 name = "kurigram"
-version = "2.2.24"
-source = { git = "https://github.com/KurimuzonAkuma/kurigram.git#f051c8e8ce82f6c70ff12424746425c688434ec3" }
+version = "2.2.25"
+source = { git = "https://github.com/KurimuzonAkuma/kurigram.git#c1e025fb7c0deca1624714aa7e839fb91113df4f" }
 dependencies = [
     { name = "pyaes" },
     { name = "python-socks" },
