@@ -1,6 +1,4 @@
 import asyncio
-import random
-import re
 from datetime import datetime
 
 import pyrogram
@@ -8,23 +6,80 @@ import pyrogram.errors
 from pyrogram.client import Client as PyrogramClient
 
 from kmua.common.memory_store import memttlcache
+from kmua.common.rich_message import send_rich_message
 from kmua.config import app_config
 from kmua.logger import logger
 from kmua.plugins.agent import datatype, state
 from kmua.plugins.agent.guest_mode import answer_guest_query
-from kmua.plugins.agent.styling import convert_md
-
-_MD_SEPARATOR_RE = re.compile(r"^(?:[-*_][ \t]*){3,}$")
-
-# Upper bound on the cumulative inter-chunk delay in reply_output. Without this
-# cap, a long reply split into many chunks could keep a dispatcher worker busy
-# (holding its handler lock) for tens of seconds purely on sleeps.
-_MAX_TOTAL_REPLY_DELAY = 12.0
+from kmua.plugins.agent.styling import (
+    convert_md,
+    convert_md_chunks,
+    convert_rich_md,
+)
 
 
-def _is_markdown_separator_only_chunk(chunk: str) -> bool:
-    lines = [line.strip() for line in chunk.splitlines() if line.strip()]
-    return bool(lines) and all(_MD_SEPARATOR_RE.fullmatch(line) for line in lines)
+async def _send_rich_payloads(
+    client: PyrogramClient,
+    message: pyrogram.types.Message,
+    payloads: list[pyrogram.types.InputRichMessage],
+) -> tuple[bool, int | None]:
+    """Send converted rich payloads as replies to ``message``.
+
+    Returns (sent, last message id); ``sent`` is False when nothing was
+    delivered, so the caller can fall back to the plain entity path.
+    """
+    chat = message.chat
+    if not payloads or chat is None or chat.id is None:
+        return False, None
+    chat_id = chat.id
+    last_id: int | None = None
+    for payload in payloads:
+        try:
+            last_id = await send_rich_message(
+                client,
+                chat_id,
+                payload.write(),
+                reply_parameters=pyrogram.types.ReplyParameters(message_id=message.id),
+                message_thread_id=message.message_thread_id,
+                direct_messages_topic_id=message.direct_messages_topic_id,
+            )
+        except Exception as e:
+            logger.warning(f"Rich message send failed: {e.__class__.__name__} - {e}")
+            return last_id is not None, last_id
+    return True, last_id
+
+
+async def _send_rich_reply(
+    client: PyrogramClient,
+    message: pyrogram.types.Message,
+    markdown: str,
+) -> tuple[bool, int | None]:
+    """Convert markdown to rich payloads and send them as replies."""
+    return await _send_rich_payloads(client, message, convert_rich_md(markdown))
+
+
+async def _send_plain_reply(
+    message: pyrogram.types.Message,
+    markdown: str,
+) -> tuple[pyrogram.types.Message | None, str]:
+    """Send markdown as plain text + entities.
+
+    Only splits when the converted text exceeds Telegram's per-message limit.
+    Returns (last message, last delivered text).
+    """
+    last_msg: pyrogram.types.Message | None = None
+    last_text = markdown
+    for plain, entities in convert_md_chunks(markdown):
+        try:
+            last_msg = await message.reply_text(plain, entities=entities)
+        except Exception as e:
+            logger.warning(f"Send failed: {e.__class__.__name__} - {e}")
+            last_msg = await message.reply_text(plain)
+        if last_msg is not None and last_msg.text:
+            last_text = last_msg.text
+        else:
+            last_text = plain
+    return last_msg, last_text
 
 
 async def reply_output(
@@ -42,78 +97,34 @@ async def reply_output(
         pyrogram.enums.ChatType.GROUP,
     )
     user = message.sender_chat or message.from_user
-    lines = [line for line in text.split("\n\n") if line.strip()]
-    if not lines:
+    if not text.strip():
         return
-    total_plain, total_entities = convert_md(text)
-    has_block = False
-    for e in total_entities:
-        if (
-            e.type == pyrogram.enums.MessageEntityType.BLOCKQUOTE
-            or e.type == pyrogram.enums.MessageEntityType.PRE
-        ):
-            has_block = True
-            break
-
-    max_messages = 7
-    total_sentences = len(lines)
-    num_messages = min(max_messages, total_sentences)
-
-    base = total_sentences // num_messages
-    remainder = total_sentences % num_messages
-
-    chunks: list[str] = []
-    index = 0
-    for i in range(num_messages):
-        size = base + (1 if i < remainder else 0)
-        part = lines[index : index + size]
-        index += size
-        chunks.append("\n".join(part))
     try:
+        last_reply_id: int | None = None
         last_reply_msg: pyrogram.types.Message | None = None
-        if has_block:
-            try:
-                last_reply_msg = await message.reply_text(
-                    total_plain, entities=total_entities
-                )
-            except Exception as e:
-                logger.warning(f"Send failed: {e.__class__.__name__} - {e}")
-                last_reply_msg = await message.reply_text(total_plain)
-        else:
-            total_delay = 0.0
-            for chunk in chunks:
-                # 如果只有分隔符, 则跳过
-                if _is_markdown_separator_only_chunk(chunk):
-                    continue
-                await message.reply_chat_action(pyrogram.enums.ChatAction.TYPING)
-                plain_chunk, entities = convert_md(chunk)
-                try:
-                    reply_msg = await message.reply_text(plain_chunk, entities=entities)
-                except Exception as e:
-                    logger.warning(f"Send failed: {e.__class__.__name__} - {e}")
-                    try:
-                        reply_msg = await message.reply_text(plain_chunk)
-                    except Exception as e:
-                        logger.error(f"Send failed: {e.__class__.__name__} - {e}")
-                        raise
-                last_reply_msg = reply_msg
-                if total_delay < _MAX_TOTAL_REPLY_DELAY:
-                    delay = random.uniform(0.721, 3.9) + len(chunk) / 600
-                    delay = min(delay, _MAX_TOTAL_REPLY_DELAY - total_delay)
-                    total_delay += delay
-                    await asyncio.sleep(delay)
+        last_reply_text = ""
+        sent = False
+        if app_config.agent_rich_output:
+            sent, last_reply_id = await _send_rich_reply(client, message, text)
+            if sent:
+                last_reply_text = text
+        if not sent:
+            last_reply_msg, last_reply_text = await _send_plain_reply(message, text)
+        last_reply_message_id = last_reply_id or (
+            last_reply_msg.id if last_reply_msg else None
+        )
         if (
-            last_reply_msg
-            and last_reply_msg.text
+            last_reply_message_id
+            and last_reply_text
             and is_group_chat
             and user
             and user.id
         ):
             bot_reply = datatype.BotLastReply(
-                message_id=last_reply_msg.id,
+                message_id=last_reply_message_id,
                 reply_to_user_id=user.id,
                 reply_to_message_id=message.id,
-                reply_text=last_reply_msg.text,
+                reply_text=last_reply_text,
                 original_user_message=message.text or message.caption or "",
                 timestamp=datetime.now().timestamp(),
             )
@@ -205,7 +216,8 @@ class StreamingOutput:
         self.deps = deps
         self.current_text = ""
         self._last_sent_text = ""
-        self.reply_message: pyrogram.types.Message | None = None
+        self.reply_message_id: int | None = None
+        self._rich = False
         self.last_edit_time = 0.0
         self.edit_count = 0
         self.start_time = 0.0
@@ -235,15 +247,29 @@ class StreamingOutput:
         return True
 
     async def _do_edit(self, text: str):
-        if not self.reply_message:
+        chat = self.message.chat
+        if self.reply_message_id is None or chat is None or chat.id is None:
             return
+        chat_id = chat.id
         try:
-            # During streaming, send plain text without entities to avoid
-            # rendering partially-formed markdown. Entities applied at finalize.
-            await self.reply_message.edit_text(
-                text[: self.MAX_MESSAGE_LENGTH],
-                parse_mode=pyrogram.enums.ParseMode.DISABLED,
-            )
+            if self._rich:
+                payloads = convert_rich_md(text)
+                if not payloads:
+                    return
+                await self.client.edit_message_text(
+                    chat_id,
+                    self.reply_message_id,
+                    rich_message=payloads[0],
+                )
+            else:
+                # During streaming, send plain text without entities to avoid
+                # rendering partially-formed markdown. Entities applied at finalize.
+                await self.client.edit_message_text(
+                    chat_id,
+                    self.reply_message_id,
+                    text[: self.MAX_MESSAGE_LENGTH],
+                    parse_mode=pyrogram.enums.ParseMode.DISABLED,
+                )
             self._last_sent_text = text
             self.last_edit_time = asyncio.get_event_loop().time()
             self.edit_count += 1
@@ -255,15 +281,28 @@ class StreamingOutput:
             logger.error(f"Error editing message: {e.__class__.__name__} - {e}")
 
     async def _send_new_message(self, text: str):
+        self._rich = bool(app_config.agent_rich_output)
+        if self._rich:
+            sent, message_id = await _send_rich_reply(self.client, self.message, text)
+            if sent:
+                self.reply_message_id = message_id
+                self._last_sent_text = text
+                self.last_edit_time = asyncio.get_event_loop().time()
+                self.edit_count += 1
+                return
+            self._rich = False
         plain, entities = convert_md(text)
         try:
-            self.reply_message = await self.message.reply_text(
+            reply_message = await self.message.reply_text(
                 plain[: self.MAX_MESSAGE_LENGTH],
                 entities=entities,
             )
         except Exception as e:
             logger.error(f"Send failed in streaming: {e}")
             raise
+        if reply_message is None or reply_message.id is None:
+            raise RuntimeError("Streaming reply message was not returned")
+        self.reply_message_id = reply_message.id
         self._last_sent_text = text
         self.last_edit_time = asyncio.get_event_loop().time()
         self.edit_count += 1
@@ -297,6 +336,31 @@ class StreamingOutput:
             self._stop = False
             self._start_task = asyncio.create_task(self._start())
 
+    async def _finalize_rich(self, text: str) -> None:
+        chat = self.message.chat
+        if chat is None or chat.id is None or self.reply_message_id is None:
+            return
+        chat_id = chat.id
+        payloads = convert_rich_md(text)
+        if not payloads:
+            return
+        try:
+            await self.client.edit_message_text(
+                chat_id,
+                self.reply_message_id,
+                rich_message=payloads[0],
+            )
+            self._last_sent_text = text
+        except pyrogram.errors.exceptions.bad_request_400.MessageNotModified:
+            pass
+        except Exception as e:
+            logger.error(f"Error editing final message: {e.__class__.__name__} - {e}")
+            return
+        # Long answers are split at Telegram's rich message limits; the
+        # overflow goes out as follow-up rich messages.
+        if len(payloads) > 1:
+            await _send_rich_payloads(self.client, self.message, payloads[1:])
+
     async def finalize(self):
         self._stop = True
         if self.is_guest:
@@ -315,25 +379,37 @@ class StreamingOutput:
                 await self._edit_task
             except asyncio.CancelledError:
                 pass
-        if self.reply_message and self.current_text:
+        chat = self.message.chat
+        if (
+            self.reply_message_id is not None
+            and chat is not None
+            and chat.id is not None
+            and self.current_text
+        ):
+            chat_id = chat.id
             text = self.current_text
-            plain, entities = convert_md(text)
-            if text != self._last_sent_text or entities:
-                try:
-                    await self.reply_message.edit_text(
-                        plain[: self.MAX_MESSAGE_LENGTH],
-                        entities=entities,
-                    )
-                    self._last_sent_text = text
-                except pyrogram.errors.exceptions.bad_request_400.MessageNotModified:
-                    pass
-                except Exception as e:
-                    logger.error(f"Error editing final message: {e}")
-            elif not self.reply_message:
-                await self._send_new_message(text)
-        if self.reply_message and self.is_group_chat and self.user and self.user.id:
+            if self._rich:
+                await self._finalize_rich(text)
+            else:
+                plain, entities = convert_md(text)
+                if text != self._last_sent_text or entities:
+                    try:
+                        await self.client.edit_message_text(
+                            chat_id,
+                            self.reply_message_id,
+                            plain[: self.MAX_MESSAGE_LENGTH],
+                            entities=entities,
+                        )
+                        self._last_sent_text = text
+                    except (
+                        pyrogram.errors.exceptions.bad_request_400.MessageNotModified
+                    ):
+                        pass
+                    except Exception as e:
+                        logger.error(f"Error editing final message: {e}")
+        if self.reply_message_id and self.is_group_chat and self.user and self.user.id:
             bot_reply = datatype.BotLastReply(
-                message_id=self.reply_message.id,
+                message_id=self.reply_message_id,
                 reply_to_user_id=self.user.id,
                 reply_to_message_id=self.message.id,
                 reply_text=self.current_text,

@@ -278,6 +278,10 @@ class _AppConfig(pydantic.BaseModel):
     # silently skipped instead of being commented without the media.
     agent_struct_model_multimodal: bool = False
     agent_streaming: bool = True
+    # Whether agent replies are sent as Bot API rich messages (headings,
+    # tables, formulas, task lists, details, inline media) instead of plain
+    # text with entities. Falls back to entities when a rich send fails.
+    agent_rich_output: bool = True
     # Multimodal handling mode: "route" switches the run (and, once media is
     # in history, every later run) to the multimodal model; "transcribe"
     # has the multimodal model describe the current message's media as text
