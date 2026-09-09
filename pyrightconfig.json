@@ -1,4 +1,6 @@
 {
   "include": ["kmua", "tests", "scripts", "alembic"],
-  "exclude": ["test.py", "test2.py"]
+  "exclude": ["test.py", "test2.py"],
+  "venvPath": ".",
+  "venv": ".venv"
 }
