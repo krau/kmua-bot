@@ -420,7 +420,7 @@ class _AppConfig(pydantic.BaseModel):
     # 0 (the default) disables an individual limit; set a value only when a
     # runaway task must be hard-cut. Note that the request limit binds before
     # the tool-call budget does.
-    agent_usage_request_limit: int = 0
+    agent_usage_request_limit: int | None = None
     agent_usage_tool_calls_limit: int = 0
     agent_usage_total_tokens_limit: int = 0
     ############################################################################
