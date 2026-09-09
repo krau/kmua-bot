@@ -241,25 +241,6 @@ def get_message_origin(
     return message.sender_chat or message.from_user
 
 
-async def get_chat_full(client: pyrogram.client.Client, chat_id: int) -> Chat:
-    """Get chat full info with cache
-
-    Arguments:
-        client -- pyrogram client
-        chat_id -- chat_id
-
-    Returns:
-        Chat
-    """
-    cache_key = f"chat_full:{chat_id}"
-    cached = await memttlcache.get(cache_key, None)
-    if cached and isinstance(cached, Chat):
-        return cached
-    chat = await client.get_chat(chat_id)
-    await memttlcache.set(cache_key, chat, ttl=3600)
-    return chat
-
-
 async def get_chat_member(
     client: pyrogram.client.Client, chat_id: int, user_id: int | str
 ) -> pyrogram.types.ChatMember:
