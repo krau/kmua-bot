@@ -112,6 +112,19 @@ def convert_md_chunks(
         return [(text, [])] if text.strip() else []
 
 
+def split_plain_text(text: str, max_utf16_len: int = 4096) -> list[str]:
+    """Split already-plain text to fit Telegram's per-message limit.
+
+    Returns [] when the text is empty or whitespace-only.
+    """
+    if not text.strip():
+        return []
+    return [
+        chunk
+        for chunk, _ in telegramify_markdown.split_entities(text, [], max_utf16_len)
+    ]
+
+
 def convert_rich_md(text: str) -> list[pyrogram.types.InputRichMessage]:
     """Convert Markdown to sendable Telegram rich message payloads.
 

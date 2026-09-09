@@ -12,6 +12,9 @@ reply chains and prompts keep working for rich messages.
 
 from __future__ import annotations
 
+import re
+from html import unescape
+
 import pyrogram
 from pyrogram import utils
 from pyrogram.client import Client
@@ -33,10 +36,34 @@ from pyrogram.raw.types.update_short_sent_message import (
 
 __all__ = [
     "message_plain_text",
+    "rich_html_plain_text",
     "rich_message_plain_text",
     "send_rich_message",
     "sent_message_id",
 ]
+
+# Tags telegramify-markdown emits in rich HTML mode.
+_RICH_BREAK_RE = re.compile(r"<br\s*/?>|<hr\s*/?>", re.IGNORECASE)
+_RICH_BLOCK_END_RE = re.compile(
+    r"</(?:p|h[1-6]|li|tr|blockquote|pre|details|summary|table|ul|ol)>", re.IGNORECASE
+)
+_RICH_TAG_RE = re.compile(r"<[^>]+>")
+_RICH_BLANK_LINES_RE = re.compile(r"\n{3,}")
+
+
+def rich_html_plain_text(html_text: str) -> str:
+    """Plain text of a rich HTML payload, formatting dropped.
+
+    Used to deliver content that could not be sent as a rich message; it
+    handles the tag set telegramify-markdown emits, not arbitrary HTML.
+    """
+    if not html_text:
+        return ""
+    text = _RICH_BREAK_RE.sub("\n", html_text)
+    text = _RICH_BLOCK_END_RE.sub("\n", text)
+    text = _RICH_TAG_RE.sub("", text)
+    text = unescape(text)
+    return _RICH_BLANK_LINES_RE.sub("\n\n", text).strip()
 
 
 def sent_message_id(result: object) -> int | None:

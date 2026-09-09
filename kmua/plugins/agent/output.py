@@ -6,29 +6,64 @@ import pyrogram.errors
 from pyrogram.client import Client as PyrogramClient
 
 from kmua.common.memory_store import memttlcache
-from kmua.common.rich_message import send_rich_message
+from kmua.common.rich_message import rich_html_plain_text, send_rich_message
 from kmua.config import app_config
 from kmua.logger import logger
 from kmua.plugins.agent import datatype, state
-from kmua.plugins.agent.styling import convert_md, convert_md_chunks, convert_rich_md
+from kmua.plugins.agent.styling import (
+    convert_md,
+    convert_md_chunks,
+    convert_rich_md,
+    split_plain_text,
+)
+
+# A rich send that keeps failing (unsupported client, server-side outage) is
+# paused for a while: every attempt otherwise costs a failed request before
+# the plain fallback.
+_RICH_FAILURE_LIMIT = 3
+_RICH_FAILURE_TTL = 300
+_RICH_FAILURE_KEY = "agent_rich_failures"
+_RICH_DISABLED_KEY = "agent_rich_disabled"
+
+
+async def _rich_output_enabled() -> bool:
+    if not app_config.agent_rich_output:
+        return False
+    return not await memttlcache.get(_RICH_DISABLED_KEY, False)
+
+
+async def _note_rich_result(sent: bool) -> None:
+    """Track consecutive rich send failures for the circuit breaker."""
+    if sent:
+        await memttlcache.delete(_RICH_FAILURE_KEY)
+        await memttlcache.delete(_RICH_DISABLED_KEY)
+        return
+    failures = int(await memttlcache.get(_RICH_FAILURE_KEY, 0) or 0) + 1
+    await memttlcache.set(_RICH_FAILURE_KEY, failures, ttl=_RICH_FAILURE_TTL)
+    if failures >= _RICH_FAILURE_LIMIT:
+        logger.warning(
+            f"Rich message output paused for {_RICH_FAILURE_TTL}s after "
+            f"{failures} consecutive send failures"
+        )
+        await memttlcache.set(_RICH_DISABLED_KEY, True, ttl=_RICH_FAILURE_TTL)
 
 
 async def _send_rich_payloads(
     client: PyrogramClient,
     message: pyrogram.types.Message,
     payloads: list[pyrogram.types.InputRichMessage],
-) -> tuple[bool, int | None]:
-    """Send converted rich payloads as replies to ``message``.
+) -> tuple[int, int | None]:
+    """Send rich payloads in order, stopping at the first failure.
 
-    Returns (sent, last message id); ``sent`` is False when nothing was
-    delivered, so the caller can fall back to the plain entity path.
+    Returns (delivered count, last delivered message id); callers deliver the
+    undelivered tail through the plain text path.
     """
     chat = message.chat
     if not payloads or chat is None or chat.id is None:
-        return False, None
+        return 0, None
     chat_id = chat.id
     last_id: int | None = None
-    for payload in payloads:
+    for index, payload in enumerate(payloads):
         try:
             last_id = await send_rich_message(
                 client,
@@ -40,17 +75,35 @@ async def _send_rich_payloads(
             )
         except Exception as e:
             logger.warning(f"Rich message send failed: {e.__class__.__name__} - {e}")
-            return last_id is not None, last_id
-    return True, last_id
+            await _note_rich_result(False)
+            return index, last_id
+    await _note_rich_result(True)
+    return len(payloads), last_id
 
 
-async def _send_rich_reply(
-    client: PyrogramClient,
+async def _send_rich_tail_plain(
     message: pyrogram.types.Message,
-    markdown: str,
-) -> tuple[bool, int | None]:
-    """Convert markdown to rich payloads and send them as replies."""
-    return await _send_rich_payloads(client, message, convert_rich_md(markdown))
+    payloads: list[pyrogram.types.InputRichMessage],
+) -> None:
+    """Deliver rich payloads that could not be sent as rich, as plain text."""
+    text = "\n\n".join(
+        part
+        for part in (
+            rich_html_plain_text(payload.html or payload.markdown or "")
+            for payload in payloads
+        )
+        if part
+    )
+    if not text:
+        return
+    for chunk in split_plain_text(text):
+        try:
+            await message.reply_text(chunk)
+        except Exception as e:
+            logger.error(
+                f"Failed to send rich fallback text: {e.__class__.__name__} - {e}"
+            )
+            return
 
 
 async def _send_plain_reply(
@@ -59,21 +112,32 @@ async def _send_plain_reply(
 ) -> tuple[pyrogram.types.Message | None, str]:
     """Send markdown as plain text + entities.
 
-    Only splits when the converted text exceeds Telegram's per-message limit.
-    Returns (last message, last delivered text).
+    Only splits when the converted text exceeds Telegram's per-message limit;
+    a chunk that fails twice is skipped so later chunks still go out. Returns
+    (last delivered message, last delivered text) and raises when nothing
+    could be delivered.
     """
     last_msg: pyrogram.types.Message | None = None
     last_text = markdown
+    last_error: Exception | None = None
     for plain, entities in convert_md_chunks(markdown):
         try:
             last_msg = await message.reply_text(plain, entities=entities)
+            last_error = None
         except Exception as e:
             logger.warning(f"Send failed: {e.__class__.__name__} - {e}")
-            last_msg = await message.reply_text(plain)
+            try:
+                last_msg = await message.reply_text(plain)
+                last_error = None
+            except Exception as e:
+                logger.error(f"Send failed: {e.__class__.__name__} - {e}")
+                last_error = e
         if last_msg is not None and last_msg.text:
             last_text = last_msg.text
         else:
             last_text = plain
+    if last_msg is None and last_error is not None:
+        raise last_error
     return last_msg, last_text
 
 
@@ -95,12 +159,19 @@ async def reply_output(
         last_reply_id: int | None = None
         last_reply_msg: pyrogram.types.Message | None = None
         last_reply_text = ""
-        sent = False
-        if app_config.agent_rich_output:
-            sent, last_reply_id = await _send_rich_reply(client, message, text)
-            if sent:
+        # One message per answer on purpose: the old paragraph chunking (up to
+        # 7 messages with random delays) is gone, only Telegram's per-message
+        # limits split the output now.
+        if await _rich_output_enabled():
+            payloads = convert_rich_md(text)
+            sent_count, last_reply_id = await _send_rich_payloads(
+                client, message, payloads
+            )
+            if sent_count:
                 last_reply_text = text
-        if not sent:
+            if 0 < sent_count < len(payloads):
+                await _send_rich_tail_plain(message, payloads[sent_count:])
+        if not last_reply_text:
             last_reply_msg, last_reply_text = await _send_plain_reply(message, text)
         last_reply_message_id = last_reply_id or (
             last_reply_msg.id if last_reply_msg else None
@@ -270,10 +341,19 @@ class StreamingOutput:
             logger.error(f"Error editing message: {e.__class__.__name__} - {e}")
 
     async def _send_new_message(self, text: str):
-        self._rich = bool(app_config.agent_rich_output)
+        self._rich = await _rich_output_enabled()
         if self._rich:
-            sent, message_id = await _send_rich_reply(self.client, self.message, text)
-            if sent:
+            # Only the first payload opens the stream; the overflow of a
+            # >32768-byte answer goes out once at finalize instead of being
+            # sent twice.
+            payloads = convert_rich_md(text)[:1]
+            sent_count, message_id = await _send_rich_payloads(
+                self.client, self.message, payloads
+            )
+            if sent_count:
+                if message_id is None:
+                    # Without the id the stream can neither edit nor finalize.
+                    raise RuntimeError("Rich streaming reply message was not returned")
                 self.reply_message_id = message_id
                 self._last_sent_text = text
                 self.last_edit_time = asyncio.get_event_loop().time()
@@ -340,11 +420,15 @@ class StreamingOutput:
             pass
         except Exception as e:
             logger.error(f"Error editing final message: {e.__class__.__name__} - {e}")
-            return
         # Long answers are split at Telegram's rich message limits; the
-        # overflow goes out as follow-up rich messages.
+        # overflow goes out even when the final edit failed, so no content is
+        # dropped.
         if len(payloads) > 1:
-            await _send_rich_payloads(self.client, self.message, payloads[1:])
+            sent_count, _ = await _send_rich_payloads(
+                self.client, self.message, payloads[1:]
+            )
+            if sent_count < len(payloads) - 1:
+                await _send_rich_tail_plain(self.message, payloads[1 + sent_count :])
 
     async def finalize(self):
         self._stop = True
