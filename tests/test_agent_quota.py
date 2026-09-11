@@ -635,9 +635,12 @@ async def _exploding_agent_run(**_kwargs: object):
 _FAKE_MODEL = SimpleNamespace(model_name="fake-model")
 
 
-def _stub_impl_environment(monkeypatch) -> None:
-    """Everything the non-streaming branch of the real `_run_agent_impl` touches."""
-    monkeypatch.setattr(app_config, "agent_streaming", False, raising=False)
+def _stub_impl_environment(monkeypatch, *, streaming: bool = False) -> None:
+    """Everything the real `_run_agent_impl` touches on its way to a success branch.
+
+    `streaming` picks which of the two success branches runs; they settle separately.
+    """
+    monkeypatch.setattr(app_config, "agent_streaming", streaming, raising=False)
     monkeypatch.setattr(runner.Agent, "is_end_node", staticmethod(lambda _node: True))
     monkeypatch.setattr(runner, "log_run_cache_stats", lambda *_args, **_kwargs: None)
     monkeypatch.setattr(
@@ -706,6 +709,59 @@ async def test_the_real_impl_settles_the_run_s_own_usage(monkeypatch):
         database.SCOPE_USER, PLAIN_ID, database.utc_day()
     )
     assert (free_used, input_tokens, output_tokens) == (1_000, 800, 200)
+
+
+async def test_the_streaming_default_path_also_settles(monkeypatch):
+    """`agent_streaming` defaults to True, so the streaming branch is the one a real
+    deployment takes. Delete its settle call and every other test stays green while
+    streamed runs become free."""
+    monkeypatch.setattr(
+        app_config, "agent_quota_free_daily_tokens", 100_000, raising=False
+    )
+    _stub_impl_environment(monkeypatch, streaming=True)
+    usage = RunUsage(input_tokens=1_200, output_tokens=300)
+    monkeypatch.setattr(
+        runner,
+        "_iter_with_spill_session",
+        lambda *_args, **_kw: _fake_agent_run(usage=usage),
+    )
+    subject = group_subject()
+
+    await _run_impl_with_stubbed_agent(_ReplyMessage(), subject)
+
+    _, free_used, input_tokens, output_tokens = await database.get_usage(
+        database.SCOPE_USER, PLAIN_ID, database.utc_day()
+    )
+    assert (free_used, input_tokens, output_tokens) == (1_500, 1_200, 300)
+
+
+async def test_a_run_is_charged_even_when_post_run_bookkeeping_fails(monkeypatch):
+    """The history cache, the coverage advance and the cache-stats log all run after the
+    answer was delivered and can raise. The tokens are already spent, so the charge must
+    not depend on them."""
+    monkeypatch.setattr(
+        app_config, "agent_quota_free_daily_tokens", 100_000, raising=False
+    )
+    _stub_impl_environment(monkeypatch)
+    usage = RunUsage(input_tokens=700, output_tokens=100)
+
+    def boom(*_args: object, **_kwargs: object) -> None:
+        raise AttributeError("'NoneType' object has no attribute 'model_name'")
+
+    monkeypatch.setattr(runner, "log_run_cache_stats", boom)
+    monkeypatch.setattr(
+        runner,
+        "_iter_with_spill_session",
+        lambda *_args, **_kw: _fake_agent_run(usage=usage),
+    )
+    subject = group_subject()
+
+    await _run_impl_with_stubbed_agent(_ReplyMessage(), subject)
+
+    _, free_used, input_tokens, output_tokens = await database.get_usage(
+        database.SCOPE_USER, PLAIN_ID, database.utc_day()
+    )
+    assert (free_used, input_tokens, output_tokens) == (800, 700, 100)
 
 
 async def test_a_run_that_raises_is_never_charged(monkeypatch):

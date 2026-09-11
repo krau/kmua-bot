@@ -170,8 +170,8 @@ async def run_agent(
     own, so deriving the subject from it would charge the bot.
     """
     timeout = app_config.agent_run_timeout
-    # 唯一的计费点: 所有会真正跑模型的路径都经过 run_agent。
-    # 预检不扣费 —— 这次要花多少 token 只有跑完才知道; 扣减在 impl 里按实际用量完成。
+    # 额度闸门: 所有会真正跑模型的路径都先经过 run_agent。这里只预检, 不扣费 ——
+    # 这次要花多少 token 只有跑完才知道, 扣减在 impl 里按实际用量完成。
     if not is_chat_allowed(chat_id):
         await _stop_typing_keepalive(typing_keepalive)
         return
@@ -389,6 +389,9 @@ async def _run_agent_impl(
                                 await streaming_output.finalize()
                             elif output:
                                 await reply_output(client, message, output)
+                        # 用量此刻已经定下; 下面的收尾动作(写历史缓存、推进覆盖、统计日志)
+                        # 任一失败都会跳出这个分支 —— 先结算, 免得答案已发出却不计费。
+                        await quota.settle(subject, agent_run.usage)
                         # Save full output for follow-up detection
                         full_output = ""
                         if streaming_output is not None:
@@ -427,8 +430,6 @@ async def _run_agent_impl(
                                 chat_id, user_id, coverage_meta
                             )
                         log_run_cache_stats(use_model.model_name, agent_run.usage)
-                        # 唯一的扣费点: 按本次 run 的实际 token 用量结算。
-                        await quota.settle(subject, agent_run.usage)
                 except Exception:
                     if streaming_output is not None:
                         await streaming_output.abort()
@@ -487,6 +488,8 @@ async def _run_agent_impl(
                     elif not replied and output:
                         await reply_output(client, message, output)
                         full_output_parts.append(output)
+                    # 同上: 结算要排在收尾动作之前。
+                    await quota.settle(subject, agent_run.usage)
                     # Save full output for follow-up detection
                     full_output = "\n".join(full_output_parts)
                     if (
@@ -516,8 +519,6 @@ async def _run_agent_impl(
                     if coverage_meta is not None:
                         await advance_prompt_coverage(chat_id, user_id, coverage_meta)
                     log_run_cache_stats(use_model.model_name, agent_run.usage)
-                    # 唯一的扣费点: 按本次 run 的实际 token 用量结算。
-                    await quota.settle(subject, agent_run.usage)
         finally:
             if ctx is not None and ctx_owned:
                 await ctx.__aexit__(None, None, None)
