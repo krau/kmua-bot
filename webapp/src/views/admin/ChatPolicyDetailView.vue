@@ -138,6 +138,13 @@ async function flushSave(): Promise<void> {
 
 onBeforeUnmount(() => {
   if (saveTimer !== null) clearTimeout(saveTimer);
+  saveTimer = null;
+  // 行已经被删掉了, 排队中的数字改动没有可写的地方; 丢掉它也就不会让 flushSave 卡在
+  // pending === "remove" 上把重试定时器一直挂下去。
+  if (pending.value === "remove") {
+    queued.clear();
+    return;
+  }
   void flushSave();
 });
 
