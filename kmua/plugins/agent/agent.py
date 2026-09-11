@@ -388,6 +388,9 @@ if app_config.agent and app_config.agent_model:
         chat = message.chat
         if not user or not user.id or not chat or not chat.id:
             return
+        # 白名单外的群里 agent 本该是隐形的, 这里也一样: 不回复, 也就不泄露群额度。
+        if not is_chat_allowed(chat.id):
+            return
         if chat.type == pyrogram.enums.ChatType.PRIVATE:
             lang = (await database.get_user_config(user.id)).lang
         else:

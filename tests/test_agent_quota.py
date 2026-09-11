@@ -12,7 +12,7 @@ from __future__ import annotations
 import asyncio
 from contextlib import asynccontextmanager
 from types import SimpleNamespace
-from typing import cast
+from typing import Any, cast
 
 import pyrogram.enums
 import pyrogram.types
@@ -809,6 +809,47 @@ async def test_whitelist_wins_over_quota(monkeypatch):
     assert called == []
     # 白名单先判: 没资格用 agent 的群不该收到额度提示(顺序反了这里就会多一条提示)。
     assert message.replies == []
+
+
+class _CommandMessage:
+    """A `/quota` message: the handler reads `from_user`, `chat` and replies."""
+
+    def __init__(self, chat_id: int = GROUP_ID, user_id: int = PLAIN_ID) -> None:
+        self.from_user = SimpleNamespace(id=user_id)
+        self.sender_chat = None
+        self.chat = SimpleNamespace(id=chat_id, type=pyrogram.enums.ChatType.SUPERGROUP)
+        self.replies: list[str] = []
+
+    async def reply_text(self, text: str, **_kwargs: object) -> None:
+        self.replies.append(text)
+
+
+async def test_quota_command_is_silent_outside_the_whitelist(monkeypatch):
+    """`/quota` follows the same rule as every other agent command: in a chat the agent
+    is not allowed in it does not answer, because that answer would disclose the chat's
+    pool and balance. The allowed case is asserted too, so a handler that never replied
+    would fail here rather than pass."""
+    from kmua.database import chat_policy as store
+    from kmua.plugins.agent import agent as agent_plugin
+    from tests.webapp_helpers import make_chat
+
+    monkeypatch.setattr(app_config, "agent_whitelist_mode", True, raising=False)
+    store._set_agent_cache(set())
+
+    # Both chats exist, so dropping the gate makes the handler answer the unlisted one
+    # and fail on the assertion below instead of on a missing row.
+    await make_chat(OTHER_GROUP_ID, title="Not whitelisted")
+    await make_chat(GROUP_ID, title="Whitelisted")
+
+    outside = _CommandMessage(chat_id=OTHER_GROUP_ID)
+    await agent_plugin.quota_command(cast(Any, SimpleNamespace()), cast(Any, outside))
+
+    store._set_agent_cache({GROUP_ID})
+    inside = _CommandMessage(chat_id=GROUP_ID)
+    await agent_plugin.quota_command(cast(Any, SimpleNamespace()), cast(Any, inside))
+
+    assert outside.replies == []
+    assert len(inside.replies) == 1
 
 
 async def test_an_absolute_set_survives_a_settlement_in_the_same_window(monkeypatch):
