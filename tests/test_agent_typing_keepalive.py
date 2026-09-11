@@ -6,10 +6,14 @@ import asyncio
 from types import SimpleNamespace
 
 import pyrogram.enums
+import pytest
 
 from kmua.config import app_config
-from kmua.plugins.agent import runner
+from kmua.plugins.agent import quota, runner
 from kmua.plugins.agent.output import TypingKeepAlive
+
+# `run_agent` touches the quota tables, so the schema must exist.
+pytestmark = pytest.mark.usefixtures("initialised_db")
 
 
 class _FakeClient:
@@ -56,6 +60,7 @@ async def test_run_agent_forwards_caller_keepalive(monkeypatch):
         multimodal_model=None,
         model=None,
         lang="zh",
+        subject=quota.Subject(user_id=1, chat_id=-100123, in_group=True),
         typing_keepalive=keepalive,  # type: ignore[arg-type]
     )
     assert captured["typing_keepalive"] is keepalive
@@ -93,6 +98,7 @@ async def test_run_agent_stops_typing_before_timeout_reply(monkeypatch):
         multimodal_model=None,
         model=None,
         lang="zh",
+        subject=quota.Subject(user_id=1, chat_id=-100123, in_group=True),
         typing_keepalive=keepalive,
     )
 

@@ -36,7 +36,7 @@ import { useNotice } from "@/composables/useNotice";
 import { t, tError } from "@/i18n";
 import { useSessionStore } from "@/stores/session";
 import { confirm, haptics } from "@/telegram";
-import { formatDateTime, formatNumber } from "@/utils/format";
+import { formatDateTime, formatNumber, formatTokens } from "@/utils/format";
 import { localeName } from "@/utils/locale";
 
 const props = defineProps<{ userId: number }>();
@@ -53,6 +53,7 @@ interface EditableUser extends Record<string, unknown> {
   waifu_mention: boolean;
   coins: number;
   affection: number;
+  agent_credits: number;
   is_bot_global_admin: boolean;
 }
 
@@ -63,6 +64,7 @@ const form = useDirtyState<EditableUser>({
   waifu_mention: false,
   coins: 0,
   affection: 0,
+  agent_credits: 0,
   is_bot_global_admin: false,
 });
 
@@ -75,6 +77,7 @@ const user = useAsyncData(async (signal) => {
     waifu_mention: data.waifu_mention,
     coins: data.coins,
     affection: data.affection,
+    agent_credits: data.agent_quota?.credits ?? 0,
     is_bot_global_admin: data.is_bot_global_admin,
   });
   return data;
@@ -112,6 +115,21 @@ const readonlyItems = computed<DefinitionItem[]>(() => {
       mono: true,
     });
   }
+  const quota = data.agent_quota;
+  if (quota) {
+    items.push({ label: t("admin.agentUsedToday"), value: formatNumber(quota.requests_today) });
+    items.push({
+      label: t("admin.agentFreeToday"),
+      value:
+        quota.free_limit_tokens === null
+          ? t("admin.agentUnlimited")
+          : `${formatTokens(quota.free_used_tokens_today)} / ${formatTokens(quota.free_limit_tokens)}`,
+    });
+    items.push({
+      label: t("admin.agentTokensToday"),
+      value: `${formatTokens(quota.input_tokens_today)} / ${formatTokens(quota.output_tokens_today)}`,
+    });
+  }
   return items;
 });
 
@@ -129,6 +147,7 @@ function buildPatch(): AdminUserPatch {
   if (changed("waifu_mention")) patch.waifu_mention = draft.waifu_mention;
   if (changed("coins")) patch.coins = draft.coins;
   if (changed("affection")) patch.affection = draft.affection;
+  if (changed("agent_credits")) patch.agent_credits = draft.agent_credits;
   if (changed("is_bot_global_admin")) patch.is_bot_global_admin = draft.is_bot_global_admin;
   return patch;
 }
@@ -164,6 +183,7 @@ async function save(): Promise<void> {
       waifu_mention: result.user.waifu_mention,
       coins: result.user.coins,
       affection: result.user.affection,
+      agent_credits: result.user.agent_quota?.credits ?? 0,
       is_bot_global_admin: result.user.is_bot_global_admin,
     });
 
@@ -282,6 +302,23 @@ useMainButton({
         v-else
         :label="t('me.affection')"
         :value="formatNumber(form.draft.value.affection)"
+      />
+    </SettingsSection>
+
+    <SettingsSection
+      :label="t('admin.agentQuota')"
+      :hint="canEditEconomy ? undefined : t('admin.ownerOnly')"
+    >
+      <NumberField
+        v-if="canEditEconomy"
+        v-model="form.draft.value.agent_credits"
+        :label="t('admin.agentCredits')"
+        :changed="changed('agent_credits')"
+      />
+      <SettingsRow
+        v-else
+        :label="t('admin.agentCredits')"
+        :value="formatNumber(form.draft.value.agent_credits)"
       />
     </SettingsSection>
 

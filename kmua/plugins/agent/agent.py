@@ -20,7 +20,7 @@ from kmua.config import app_config
 from kmua.logger import logger
 from kmua.services import link_parse, manyacg
 
-from . import datatype, myfilter, provider, runner, safety, state, tools, utils
+from . import datatype, myfilter, provider, quota, runner, safety, state, tools, utils
 from .history import compact_history
 from .model_log import ModelActivityLog
 from .output import TypingKeepAlive
@@ -314,6 +314,12 @@ if app_config.agent and app_config.agent_model:
             return
         user_config = await database.get_user_config(user_id)
         lang = user_config.lang
+        subject = quota.subject_for_chat(user_id, message.chat)
+        if not await quota.can_start(subject):
+            await quota.notify_exhausted(
+                message, subject, await quota.get_state(subject), lang
+            )
+            return
         history: list[ModelMessage] = await common.memttlcache.get(
             state.history_key(chat_id, user_id), []
         )
@@ -364,6 +370,7 @@ if app_config.agent and app_config.agent_model:
                     multimodal_model=multimodal_model,
                     model=model,
                     lang=lang,
+                    subject=subject,
                     coverage_meta=state.PromptCoverage(last_message_id=message.id),
                 ),
             )
@@ -371,6 +378,22 @@ if app_config.agent and app_config.agent_model:
             ask_lock.release()
 
     tools.set_run_callback(_run_agent_for_ask)
+
+    @PyrogramClient.on_message(pyrogram.filters.command("quota"), group=0)
+    async def quota_command(client: PyrogramClient, message: pyrogram.types.Message):
+        """汇报调用者自己今天的 agent 额度。"""
+        if not app_config.agent:
+            return
+        user = message.from_user
+        chat = message.chat
+        if not user or not user.id or not chat or not chat.id:
+            return
+        if chat.type == pyrogram.enums.ChatType.PRIVATE:
+            lang = (await database.get_user_config(user.id)).lang
+        else:
+            lang = (await database.get_chat_config(chat.id)).lang
+        quota_state = await quota.get_state(quota.subject_of(message))
+        await message.reply_text(quota.status_text(quota_state, lang))
 
     @PyrogramClient.on_message(pyrogram.filters.command("forget"), group=0)
     async def forget_history(client: PyrogramClient, message: pyrogram.types.Message):
@@ -956,6 +979,13 @@ async def wake_agent(client: PyrogramClient, message: pyrogram.types.Message):
         else:
             lang = (await database.get_chat_config(chat.id)).lang
 
+        subject = quota.subject_of(message)
+        if not await quota.can_start(subject):
+            await quota.notify_exhausted(
+                message, subject, await quota.get_state(subject), lang
+            )
+            return
+
         # agent run
         if is_bot_user:
             await asyncio.sleep(
@@ -1043,6 +1073,7 @@ async def wake_agent(client: PyrogramClient, message: pyrogram.types.Message):
                 multimodal_model=multimodal_model,
                 model=model,
                 lang=lang,
+                subject=subject,
                 typing_keepalive=typing_keepalive,
                 coverage_meta=state.PromptCoverage(
                     last_message_id=message.id, sent_media=prompt_media_meta

@@ -138,6 +138,11 @@ def user_blocked_key(user_id: int) -> str:
     return f"agent_user_blocked:{user_id}"
 
 
+def quota_notice_key(subject_key: str) -> str:
+    """额度用尽提示的节流键(群聊里避免刷屏)。"""
+    return f"agent_quota_notice:{subject_key}"
+
+
 def user_block_immune_key(user_id: int) -> str:
     """Whether the user is immune to being blocked by the agent."""
     return f"agent_user_block_immune:{user_id}"

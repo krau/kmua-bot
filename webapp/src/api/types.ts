@@ -250,6 +250,26 @@ export interface AdminChat {
   is_blocked: boolean;
 }
 
+/**
+ * One quota account's snapshot for today, in tokens (input + output).
+ *
+ * `scope` is "user" (the speaker) or "chat" (the conversation). `free_limit_tokens` is
+ * null when no limit applies, which is not the same as 0 left; a chat account with
+ * `free_limit_tokens` 0 has no shared allowance allocated. `credits` can go negative:
+ * a run's usage is only known once it finishes, so an overshoot is booked as debt.
+ */
+export interface AgentUsage {
+  scope: string;
+  scope_id: number;
+  requests_today: number;
+  free_used_tokens_today: number;
+  free_limit_tokens: number | null;
+  credits: number;
+  input_tokens_today: number;
+  output_tokens_today: number;
+  exempt: boolean;
+}
+
 export interface AdminUser {
   id: number;
   full_name: string;
@@ -269,6 +289,8 @@ export interface AdminUser {
   chats: ChatBrief[];
   quote_count: number;
   gift_count: number;
+  /** Only the detail endpoint reads this; the list leaves it null. */
+  agent_quota: AgentUsage | null;
 }
 
 export interface AdminUserPatch {
@@ -278,6 +300,7 @@ export interface AdminUserPatch {
   username?: string;
   coins?: number;
   affection?: number;
+  agent_credits?: number;
   is_bot_global_admin?: boolean;
   is_married?: false;
 }
@@ -315,6 +338,8 @@ export interface Job {
 export interface ChatPolicyFlags {
   agent_allowed: boolean;
   rss_allowed: boolean;
+  agent_quota_daily_tokens: number;
+  agent_quota_exempt: boolean;
 }
 
 export interface ChatPolicy {
@@ -340,6 +365,7 @@ export interface ChatPolicyDetail {
   agent_whitelist_mode: boolean;
   rss_whitelist_mode: boolean;
   item: ChatPolicy;
+  agent_quota: AgentUsage;
 }
 
 /** A policy write. Absent flags keep their current value. */
@@ -347,6 +373,9 @@ export interface ChatPolicyPatch {
   agent_allowed?: boolean | null;
   rss_allowed?: boolean | null;
   note?: string | null;
+  agent_quota_daily_tokens?: number | null;
+  agent_quota_exempt?: boolean | null;
+  agent_credits?: number | null;
 }
 
 export interface RssSubscription {

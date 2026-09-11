@@ -286,7 +286,13 @@
     "unblockUser": "解除用户拉黑",
     "unblockUserConfirm": "确定解除对该用户的拉黑吗?",
     "unblockUserDone": "已解除拉黑",
-    "blocked": "已拉黑"
+    "blocked": "已拉黑",
+    "agentQuota": "AI 额度",
+    "agentCredits": "额度余额 (tokens)",
+    "agentUsedToday": "今日调用",
+    "agentFreeToday": "今日免费额度",
+    "agentTokensToday": "今日 Tokens (入/出)",
+    "agentUnlimited": "不限制"
   },
   "errors": {
     "INIT_DATA_MISSING": "没有收到 Telegram 启动参数",
@@ -347,7 +353,16 @@
     "remove": "移除",
     "removeHint": "移除后该群的所有策略恢复默认值",
     "removeConfirm": "确定移除「{name}」的策略配置? 所有开关将恢复默认值。",
-    "removed": "已移除"
+    "removed": "已移除",
+    "quota": "群额度",
+    "quotaHint": "个人免费额度用尽后从本群额度扣; 匿名管理与频道身份只能用本群额度。按 token 用量计费",
+    "quotaExempt": "本群不受额度限制",
+    "quotaExemptHint": "开启后本群完全不计费也不限额",
+    "quotaDaily": "每日群额度 (tokens)",
+    "quotaDailyHint": "个人额度用尽后群内共享; 0 = 不分配",
+    "quotaDailyNone": "未分配",
+    "quotaCredits": "群额度余额 (tokens)",
+    "quotaUsage": "今日群用量"
   },
   "verify": {
     "method": {

@@ -286,7 +286,13 @@
     "unblockUser": "Unblock user",
     "unblockUserConfirm": "Unblock this user?",
     "unblockUserDone": "User unblocked",
-    "blocked": "Blocked"
+    "blocked": "Blocked",
+    "agentQuota": "AI quota",
+    "agentCredits": "Credit balance (tokens)",
+    "agentUsedToday": "Calls today",
+    "agentFreeToday": "Free allowance today",
+    "agentTokensToday": "Tokens today (in/out)",
+    "agentUnlimited": "Unlimited"
   },
   "errors": {
     "INIT_DATA_MISSING": "No Telegram launch parameters received",
@@ -347,7 +353,16 @@
     "remove": "Remove",
     "removeHint": "Removing a chat returns all its policies to their defaults",
     "removeConfirm": "Remove the policy for \"{name}\"? All flags return to their defaults.",
-    "removed": "Removed"
+    "removed": "Removed",
+    "quota": "Chat quota",
+    "quotaHint": "Used after a member's own free allowance; anonymous admins and channels can only use this chat's quota. Billed by token usage",
+    "quotaExempt": "No quota limit in this chat",
+    "quotaExemptHint": "Members and channel posts here are never charged or limited",
+    "quotaDaily": "Daily chat allowance (tokens)",
+    "quotaDailyHint": "Shared by members after their own allowance; 0 = none",
+    "quotaDailyNone": "Not allocated",
+    "quotaCredits": "Chat credit balance (tokens)",
+    "quotaUsage": "Usage today"
   },
   "verify": {
     "method": {

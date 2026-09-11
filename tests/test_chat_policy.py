@@ -214,7 +214,12 @@ async def test_admin_can_read_one_policy(monkeypatch):
     assert response.status_code == 200
     body = response.json()
     assert body["item"]["chat_id"] == -100900024
-    assert body["item"]["policy"] == {"agent_allowed": True, "rss_allowed": True}
+    assert body["item"]["policy"] == {
+        "agent_allowed": True,
+        "rss_allowed": True,
+        "agent_quota_daily_tokens": 0,
+        "agent_quota_exempt": False,
+    }
     assert body["item"]["note"] == "pinned"
     assert body["agent_whitelist_mode"] is app_config.agent_whitelist_mode
     assert body["rss_whitelist_mode"] is app_config.rss_whitelist_mode

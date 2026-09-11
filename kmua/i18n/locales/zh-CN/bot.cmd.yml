@@ -20,6 +20,7 @@ bot:
     panel: 在管理面板中配置本群
     greet: 设置群组欢迎语
     forget: 让 bot 忘记与你的对话记录
+    quota: 查看 AI 使用额度
     f5avatar: 刷新头像
     buygift: 购买礼物
     gift: 送礼物给 Bot

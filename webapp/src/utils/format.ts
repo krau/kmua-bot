@@ -43,3 +43,16 @@ export function truncate(text: string, length = 80): string {
   const collapsed = text.replace(/\s+/g, " ").trim();
   return collapsed.length > length ? `${collapsed.slice(0, length)}…` : collapsed;
 }
+
+/**
+ * Format a token count compactly.
+ *
+ * Token budgets run to six and seven figures, where the exact digits stop being
+ * readable and stop mattering. Below a thousand the number is exact, so a small
+ * allowance still shows what it really is.
+ */
+export function formatTokens(value: number): string {
+  if (Math.abs(value) >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`;
+  if (Math.abs(value) >= 1_000) return `${(value / 1_000).toFixed(1)}k`;
+  return formatNumber(value);
+}

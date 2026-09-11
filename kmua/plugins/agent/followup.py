@@ -10,7 +10,7 @@ from kmua.common.memory_store import memttlcache
 from kmua.common.utils import is_explicit_reply
 from kmua.config import app_config
 from kmua.logger import logger
-from kmua.plugins.agent import datatype, provider, state
+from kmua.plugins.agent import datatype, provider, quota, state
 from kmua.plugins.agent.prompt import build_ctx_info, get_input_prompt
 from kmua.plugins.agent.runner import (
     get_chat_model_override,
@@ -178,6 +178,10 @@ async def handle_follow_up_message(
     chat_config = await database.get_chat_config(chat.id)
     if not chat_config.ai_reply:
         return
+    subject = quota.subject_of(message)
+    if not await quota.can_start(subject):
+        # 额度没了就不做相关性判断: 那本身就是一次模型调用。
+        return
     user_data = await database.get_user_by_id(user.id)
     if not user_data:
         return
@@ -297,6 +301,7 @@ Bot回复: {bot_full_output}
                 multimodal_model=multimodal_model,
                 model=model,
                 lang=chat_config.lang,
+                subject=subject,
                 coverage_meta=state.PromptCoverage(last_message_id=message.id),
             ),
         )

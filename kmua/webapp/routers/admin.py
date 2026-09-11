@@ -29,6 +29,7 @@ from kmua.webapp.schemas import (
     AdminUserDetailOut,
     AdminUserPatch,
     AdminUserPatchOut,
+    AgentUsageOut,
     ChatBriefOut,
     ChatDetailOut,
     ChatPolicyDetailOut,
@@ -54,7 +55,9 @@ from kmua.webapp.serializers import (
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 
 # Fields whose blast radius goes beyond one user's own record.
-_OWNER_ONLY_FIELDS = frozenset({"coins", "affection", "is_bot_global_admin"})
+_OWNER_ONLY_FIELDS = frozenset(
+    {"coins", "affection", "is_bot_global_admin", "agent_credits"}
+)
 
 
 @router.get("/stats", response_model=StatsOut)
@@ -306,6 +309,33 @@ async def read_user(user: RequireAdmin, user_id: int) -> AdminUserDetailOut:
     return await _user_detail(target)
 
 
+async def _agent_usage_out(scope: str, scope_id: int, exempt: bool) -> AgentUsageOut:
+    """Serialize one quota account's snapshot for the panel.
+
+    The free limit is reported as None when it does not apply, so the UI can tell
+    "unlimited" apart from "0 left".
+    """
+    requests_today, free_used, input_tokens, output_tokens = await database.get_usage(
+        scope, scope_id, database.utc_day()
+    )
+    if scope == database.SCOPE_USER:
+        limit = app_config.agent_quota_free_daily_tokens
+        free_limit = None if limit <= 0 else limit
+    else:
+        free_limit = (await database.get_chat_policy(scope_id)).agent_quota_daily_tokens
+    return AgentUsageOut(
+        scope=scope,
+        scope_id=scope_id,
+        requests_today=requests_today,
+        free_used_tokens_today=free_used,
+        free_limit_tokens=free_limit,
+        credits=await database.get_credit(scope, scope_id),
+        input_tokens_today=input_tokens,
+        output_tokens_today=output_tokens,
+        exempt=exempt,
+    )
+
+
 async def _user_detail(target: UserData) -> AdminUserDetailOut:
     chats = await database.get_user_chats(target.id)
     return AdminUserDetailOut(
@@ -321,6 +351,11 @@ async def _user_detail(target: UserData) -> AdminUserDetailOut:
         ],
         quote_count=await database.get_user_quote_count(target.id),
         gift_count=await database.count_user_gifts(target.id),
+        agent_quota=await _agent_usage_out(
+            database.SCOPE_USER,
+            target.id,
+            target.is_bot_global_admin or target.id in app_config.owners,
+        ),
     )
 
 
@@ -441,6 +476,17 @@ async def _apply_user_field(
             await database.update_user_affection(target.id, int(value))  # type: ignore[arg-type]
             return audit.FieldChange(field=field, old=old, new=value)
 
+        case "agent_credits":
+            old = await database.get_credit(database.SCOPE_USER, target.id)
+            if old == value:
+                return None
+            await database.set_credit(
+                database.SCOPE_USER,
+                target.id,
+                int(value),  # type: ignore[arg-type]
+            )
+            return audit.FieldChange(field=field, old=old, new=value)
+
         case "waifu_mention":
             old_flag = await database.set_user_waifu_mention(target.id, bool(value))
             if old_flag == value:
@@ -523,6 +569,9 @@ async def read_chat_policy(
         agent_whitelist_mode=app_config.agent_whitelist_mode,
         rss_whitelist_mode=app_config.rss_whitelist_mode,
         item=_chat_policy_out(row, live_title),
+        agent_quota=await _agent_usage_out(
+            database.SCOPE_CHAT, chat_id, row.chat_policy.agent_quota_exempt
+        ),
     )
 
 
@@ -543,6 +592,9 @@ async def write_chat_policy(
 
     PUT with absent flags meaning "leave alone", so adding a second flag later does not
     require every client to send the full set.
+
+    `agent_credits` is a grant to this chat, not a flag: it sets the chat's credit
+    balance outright, so re-sending the same value is harmless.
     """
     write_limiter.check(client_key(request, user.id))
 
@@ -556,6 +608,16 @@ async def write_chat_policy(
         rss_allowed=(
             current.rss_allowed if payload.rss_allowed is None else payload.rss_allowed
         ),
+        agent_quota_daily_tokens=(
+            current.agent_quota_daily_tokens
+            if payload.agent_quota_daily_tokens is None
+            else payload.agent_quota_daily_tokens
+        ),
+        agent_quota_exempt=(
+            current.agent_quota_exempt
+            if payload.agent_quota_exempt is None
+            else payload.agent_quota_exempt
+        ),
     )
 
     old, new = await database.set_chat_policy(
@@ -567,6 +629,20 @@ async def write_chat_policy(
         for field in new.to_dict()
         if getattr(old, field) != getattr(new, field)
     ]
+
+    if payload.agent_credits is not None:
+        # set_credit 返回改动前的余额; 额度不在 policy 里, 所以必须自己补一条改动记录,
+        # 否则纯发放额度的请求会不留任何审计痕迹。
+        previous = await database.set_credit(
+            database.SCOPE_CHAT, chat_id, payload.agent_credits
+        )
+        if previous != payload.agent_credits:
+            changes.append(
+                audit.FieldChange(
+                    field="agent_credits", old=previous, new=payload.agent_credits
+                )
+            )
+
     if changes:
         audit.record(
             action="chat.policy.update",

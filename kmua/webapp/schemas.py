@@ -38,6 +38,9 @@ COINS_MIN = -144 * 16
 COINS_MAX = 10**9
 AFFECTION_MIN = -(10**6)
 AFFECTION_MAX = 10**6
+# Agent credit balances are granted by an operator in tokens, so the ceiling is a
+# trillion: a million calls at a million tokens each is comfortably out of reach.
+AGENT_CREDITS_MAX = 10**12
 
 
 def _valid_locale(value: str) -> str:
@@ -463,6 +466,24 @@ class AdminChatOut(ApiModel):
     is_blocked: bool
 
 
+class AgentUsageOut(ApiModel):
+    """一个额度账户的当日快照, 单位全部是 token (输入 + 输出)。账户用 `scope` +
+    `scope_id` 标识: "user" 是发言者(用户/频道), "chat" 是会话(群)。
+
+    `credits` 可以为负: 单次 run 的用量是跑完才知道的, 用超的部分记成欠费。
+    """
+
+    scope: str
+    scope_id: int
+    requests_today: int
+    free_used_tokens_today: int
+    free_limit_tokens: int | None  # None = 该账户免费部分不限额; 群账户 0 = 未分配
+    credits: int
+    input_tokens_today: int
+    output_tokens_today: int
+    exempt: bool
+
+
 class AdminUserOut(ApiModel):
     id: int
     full_name: str
@@ -485,13 +506,16 @@ class AdminUserDetailOut(AdminUserOut):
     chats: list[ChatBriefOut]
     quote_count: int
     gift_count: int
+    # 只有详情端点会填: 列表页没有读这些数据, 用 None 表示"未读", 而不是假装为 0。
+    agent_quota: AgentUsageOut | None = None
 
 
 class AdminUserPatch(ApiModel):
     """Partial user edit. Absent fields are left alone.
 
-    `coins`, `affection` and `is_bot_global_admin` require owner rights; the
-    router reports rejected fields in `skipped` rather than failing the request.
+    `coins`, `affection`, `agent_credits` and `is_bot_global_admin` require owner
+    rights; the router reports rejected fields in `skipped` rather than failing the
+    request.
     """
 
     lang: LocaleStr | None = None
@@ -500,6 +524,7 @@ class AdminUserPatch(ApiModel):
     username: str | None = Field(default=None, max_length=64)
     coins: int | None = Field(default=None, ge=COINS_MIN, le=COINS_MAX)
     affection: int | None = Field(default=None, ge=AFFECTION_MIN, le=AFFECTION_MAX)
+    agent_credits: int | None = Field(default=None, ge=0, le=AGENT_CREDITS_MAX)
     is_bot_global_admin: bool | None = None
     # Only unmarrying is supported: marriages are made in-chat.
     is_married: Literal[False] | None = None
@@ -546,6 +571,8 @@ class ChatPolicyFlagsOut(ApiModel):
 
     agent_allowed: bool
     rss_allowed: bool
+    agent_quota_daily_tokens: int
+    agent_quota_exempt: bool
 
 
 class ChatPolicyOut(ApiModel):
@@ -582,6 +609,7 @@ class ChatPolicyDetailOut(ApiModel):
     agent_whitelist_mode: bool
     rss_whitelist_mode: bool
     item: ChatPolicyOut
+    agent_quota: AgentUsageOut
 
 
 class ChatPolicyIn(ApiModel):
@@ -590,6 +618,10 @@ class ChatPolicyIn(ApiModel):
     agent_allowed: bool | None = None
     rss_allowed: bool | None = None
     note: str | None = Field(default=None, max_length=256)
+    # None = 保持原值。agent_quota_daily_tokens 的 0 表示"该群不分配额度", 与"保持原值"不冲突。
+    agent_quota_daily_tokens: int | None = Field(default=None, ge=0, le=10**12)
+    agent_quota_exempt: bool | None = None
+    agent_credits: int | None = Field(default=None, ge=0, le=AGENT_CREDITS_MAX)
 
 
 class PageOut[T](ApiModel):

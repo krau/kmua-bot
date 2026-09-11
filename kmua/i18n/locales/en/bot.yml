@@ -272,6 +272,17 @@ bot:
         model_http: Failed, meow~ Please try again later (HTTP {code})
         too_fast: Too fast! Not yet!
         interrupted: "Output was interrupted ({error})"
+      quota:
+        calls_today: "AI usage today: {used} calls / {tokens} tokens"
+        free_line: "Free allowance: {used}/{limit} tokens"
+        credits_line: "Credit balance: {credits} tokens"
+        chat_line: "This chat: {used} / {limit} tokens used today, credits {credits}"
+        status_unlimited: "AI usage today: {used} calls / {tokens} tokens; no usage limit applies"
+        status_none: This chat has no AI quota allocated. Please contact the bot admin.
+        exhausted: |
+          You've used up today's free AI tokens ({limit} tokens per day, shared across chats).
+          It resets tomorrow.
+        exhausted_group: This chat has no AI quota available right now. Please contact the bot admin.
     wordcloud:
       generating: Already generating, please wait a moment...
       generated: Word cloud of recent chat history.
@@ -468,6 +479,7 @@ bot:
     setu: Gimme lewds
     config: Change group settings
     greet: Set welcome message
+    quota: AI usage quota
     help: Help|More features
     infographic: Render infographic
     rss: Manage RSS subscriptions

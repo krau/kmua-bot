@@ -22,7 +22,7 @@ from kmua.common.memory_store import memttlcache
 from kmua.config import app_config
 from kmua.i18n import i18n
 from kmua.logger import logger
-from kmua.plugins.agent import datatype, provider, safety, state
+from kmua.plugins.agent import datatype, provider, quota, safety, state
 from kmua.plugins.agent.cache_stats import log_run_cache_stats
 from kmua.plugins.agent.datatype import AskUserOutput, EndTurn
 from kmua.plugins.agent.output import StreamingOutput, TypingKeepAlive, reply_output
@@ -154,6 +154,7 @@ async def run_agent(
     multimodal_model: Any,
     model: Any,
     lang: str,
+    subject: quota.Subject,
     additional_instructions: str | None = None,
     typing_keepalive: TypingKeepAlive | None = None,
     coverage_meta: state.PromptCoverage | None = None,
@@ -163,25 +164,41 @@ async def run_agent(
     ``typing_keepalive`` is normally started by the caller before context
     collection. The runner owns cleanup on every exit, including cancellation,
     timeout, and model errors, so an error reply cannot leave a live indicator.
+
+    ``subject`` names who pays for this call. It has no default because only the
+    caller knows who spoke: the message inside an ask-user callback is the bot's
+    own, so deriving the subject from it would charge the bot.
     """
     timeout = app_config.agent_run_timeout
-    coro = _run_agent_impl(
-        agi=agi,
-        client=client,
-        message=message,
-        user_id=user_id,
-        chat_id=chat_id,
-        user_prompt=user_prompt,
-        history=history,
-        deps=deps,
-        multimodal_model=multimodal_model,
-        model=model,
-        lang=lang,
-        additional_instructions=additional_instructions,
-        typing_keepalive=typing_keepalive,
-        coverage_meta=coverage_meta,
-    )
+    # 唯一的计费点: 所有会真正跑模型的路径都经过 run_agent。
+    # 预检不扣费 —— 这次要花多少 token 只有跑完才知道; 扣减在 impl 里按实际用量完成。
+    if not is_chat_allowed(chat_id):
+        await _stop_typing_keepalive(typing_keepalive)
+        return
+    if not await quota.can_start(subject):
+        await quota.notify_exhausted(
+            message, subject, await quota.get_state(subject), lang
+        )
+        await _stop_typing_keepalive(typing_keepalive)
+        return
     try:
+        coro = _run_agent_impl(
+            agi=agi,
+            client=client,
+            message=message,
+            user_id=user_id,
+            chat_id=chat_id,
+            user_prompt=user_prompt,
+            history=history,
+            deps=deps,
+            multimodal_model=multimodal_model,
+            model=model,
+            lang=lang,
+            additional_instructions=additional_instructions,
+            typing_keepalive=typing_keepalive,
+            coverage_meta=coverage_meta,
+            subject=subject,
+        )
         if not timeout or timeout <= 0:
             await coro
             return
@@ -217,6 +234,7 @@ async def _run_agent_impl(
     multimodal_model: Any,
     model: Any,
     lang: str,
+    subject: quota.Subject,
     additional_instructions: str | None = None,
     typing_keepalive: TypingKeepAlive | None = None,
     coverage_meta: state.PromptCoverage | None = None,
@@ -226,6 +244,10 @@ async def _run_agent_impl(
 
     This is the single source of truth for agent execution shared by both
     the normal wake flow and the follow-up flow.
+
+    Only a run that produced output is metered: the two success branches call
+    `quota.settle` with the run's own usage, and the error handlers below swallow the
+    exception (to reply to the user) without settling, so a failed run costs nothing.
     """
 
     if not is_chat_allowed(chat_id):
@@ -405,6 +427,8 @@ async def _run_agent_impl(
                                 chat_id, user_id, coverage_meta
                             )
                         log_run_cache_stats(use_model.model_name, agent_run.usage)
+                        # 唯一的扣费点: 按本次 run 的实际 token 用量结算。
+                        await quota.settle(subject, agent_run.usage)
                 except Exception:
                     if streaming_output is not None:
                         await streaming_output.abort()
@@ -492,6 +516,8 @@ async def _run_agent_impl(
                     if coverage_meta is not None:
                         await advance_prompt_coverage(chat_id, user_id, coverage_meta)
                     log_run_cache_stats(use_model.model_name, agent_run.usage)
+                    # 唯一的扣费点: 按本次 run 的实际 token 用量结算。
+                    await quota.settle(subject, agent_run.usage)
         finally:
             if ctx is not None and ctx_owned:
                 await ctx.__aexit__(None, None, None)
