@@ -227,6 +227,9 @@ Bot回复: {bot_full_output}
         else:
             relevance_result = await coro
 
+        # 相关性判断本身就是一次模型调用, 跑完即刻按它的用量结算; 判为不相关也记 ——
+        # token 已经花掉了, 不记的话这段开销在面板上就看不见。
+        await quota.settle(subject, relevance_result.usage)
         if not relevance_result.output.relevance:  # type: ignore[union-attr]
             return
     except Exception as e:

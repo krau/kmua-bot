@@ -883,3 +883,85 @@ async def test_an_absolute_set_survives_a_settlement_in_the_same_window(monkeypa
     # the pair becomes (old=500, new=1000) while the row lands on 700.
     assert previous == 200
     assert await database.get_credit(database.SCOPE_USER, PLAIN_ID) == 1_000
+
+
+class _FollowUpMessage:
+    """The minimum `handle_follow_up_message` reads before it decides relevance."""
+
+    def __init__(self) -> None:
+        self.id = 2
+        self.date = SimpleNamespace(timestamp=lambda: 1_100.0)
+        self.text = "然后呢?"
+        self.caption = None
+        self.sender_chat = None
+        self.from_user = SimpleNamespace(id=PLAIN_ID)
+        self.chat = SimpleNamespace(
+            id=GROUP_ID, type=pyrogram.enums.ChatType.SUPERGROUP
+        )
+        self.replies: list[str] = []
+
+    async def reply_text(self, text: str, **_kwargs: object) -> None:
+        self.replies.append(text)
+
+    async def reply_chat_action(self, *_args: object, **_kwargs: object) -> None:
+        return None
+
+
+async def test_the_follow_up_relevance_check_is_metered(monkeypatch):
+    """The relevance judgement is itself a model call. Left unmetered, a member with any
+    balance left could keep triggering it for free and the panel would never show the
+    group's real consumption."""
+    from kmua.plugins.agent import datatype, followup
+    from kmua.plugins.agent import state as agent_state
+    from tests.webapp_helpers import make_chat
+
+    monkeypatch.setattr(
+        app_config, "agent_quota_free_daily_tokens", 100_000, raising=False
+    )
+    monkeypatch.setattr(app_config, "agent_small_model_timeout", 0, raising=False)
+    monkeypatch.setattr(app_config, "agent_whitelist_mode", False, raising=False)
+    monkeypatch.setattr(followup, "agent", object(), raising=False)
+    monkeypatch.setattr(followup, "model", object(), raising=False)
+    await make_chat(GROUP_ID, title="Follow-up")
+    await make_user(PLAIN_ID)
+
+    class _StubRelevanceAgent:
+        async def run(self, **_kwargs: object) -> object:
+            return SimpleNamespace(
+                output=SimpleNamespace(relevance=False, reason="not related"),
+                usage=RunUsage(input_tokens=90, output_tokens=10),
+            )
+
+    monkeypatch.setattr(
+        followup, "_make_relevance_check_agent", lambda _override: _StubRelevanceAgent()
+    )
+
+    async def no_override(*_args: object, **_kwargs: object) -> None:
+        return None
+
+    monkeypatch.setattr(followup, "get_chat_model_override", no_override)
+
+    async def never_blocked(*_args: object, **_kwargs: object) -> bool:
+        return False
+
+    monkeypatch.setattr(followup.tools, "is_user_blocked", never_blocked)
+
+    reply = datatype.BotLastReply(
+        message_id=1,
+        timestamp=1_050.0,
+        reply_text="hi",
+        full_output="hi",
+        reply_to_user_id=PLAIN_ID,
+        reply_to_message_id=1,
+        original_user_message="hello",
+    )
+    await memttlcache.set(agent_state.bot_last_reply_key(GROUP_ID), reply, ttl=300)
+
+    await followup.handle_follow_up_message(
+        cast(Any, SimpleNamespace()), cast(Any, _FollowUpMessage())
+    )
+
+    _, free_used, input_tokens, output_tokens = await database.get_usage(
+        database.SCOPE_USER, PLAIN_ID, database.utc_day()
+    )
+    assert (free_used, input_tokens, output_tokens) == (100, 90, 10)
