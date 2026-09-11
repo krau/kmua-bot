@@ -259,13 +259,28 @@ async def notify_exhausted(
         logger.warning(f"Failed to send quota notice: {e.__class__.__name__} - {e}")
 
 
+_TOKEN_UNITS: tuple[tuple[int, str], ...] = (
+    (1_000, "k"),
+    (1_000_000, "M"),
+    (1_000_000_000, "B"),
+    (1_000_000_000_000, "T"),
+)
+
+
 def fmt_tokens(value: int) -> str:
-    """把 token 数压成人类可读的短形式; 面板和 bot 文案共用同一套口径。"""
-    if abs(value) >= 1_000_000:
-        return f"{value / 1_000_000:.1f}M"
-    if abs(value) >= 1_000:
-        return f"{value / 1_000:.1f}k"
-    return str(value)
+    """把 token 数压成人类可读的短形式; 面板和 bot 文案共用同一套口径。
+
+    取整到一位小数后再定单位, 所以临界值会进位到更大的单位。不到一千的数字原样
+    显示, 小额额度才看得出自己到底是多少。
+    """
+    if abs(value) < _TOKEN_UNITS[0][0]:
+        return str(value)
+    scale, suffix = _TOKEN_UNITS[-1]
+    for candidate, candidate_suffix in _TOKEN_UNITS:
+        if abs(float(f"{value / candidate:.1f}")) < 1_000:
+            scale, suffix = candidate, candidate_suffix
+            break
+    return f"{value / scale:.1f}{suffix}"
 
 
 def exhausted_text(state: QuotaState, lang: str) -> str:

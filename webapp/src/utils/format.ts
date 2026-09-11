@@ -44,15 +44,31 @@ export function truncate(text: string, length = 80): string {
   return collapsed.length > length ? `${collapsed.slice(0, length)}…` : collapsed;
 }
 
+const TOKEN_UNITS: ReadonlyArray<readonly [number, string]> = [
+  [1_000, "k"],
+  [1_000_000, "M"],
+  [1_000_000_000, "B"],
+  [1_000_000_000_000, "T"],
+];
+
 /**
  * Format a token count compactly.
  *
  * Token budgets run to six and seven figures, where the exact digits stop being
- * readable and stop mattering. Below a thousand the number is exact, so a small
- * allowance still shows what it really is.
+ * readable and stop mattering. The unit is chosen from the rounded value, so a count
+ * that rounds up to 1000.0 is promoted instead of printed as "1000.0k". Below a
+ * thousand the number is exact, so a small allowance still shows what it really is.
  */
 export function formatTokens(value: number): string {
-  if (Math.abs(value) >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`;
-  if (Math.abs(value) >= 1_000) return `${(value / 1_000).toFixed(1)}k`;
-  return formatNumber(value);
+  if (Math.abs(value) < 1_000) return formatNumber(value);
+  let scale = 1_000_000_000_000;
+  let suffix = "T";
+  for (const [candidate, candidateSuffix] of TOKEN_UNITS) {
+    if (Math.abs(Number((value / candidate).toFixed(1))) < 1_000) {
+      scale = candidate;
+      suffix = candidateSuffix;
+      break;
+    }
+  }
+  return `${(value / scale).toFixed(1)}${suffix}`;
 }

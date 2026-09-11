@@ -885,6 +885,21 @@ async def test_an_absolute_set_survives_a_settlement_in_the_same_window(monkeypa
     assert await database.get_credit(database.SCOPE_USER, PLAIN_ID) == 1_000
 
 
+def test_token_counts_are_rounded_before_their_unit_is_chosen():
+    """A count that rounds up to 1000.0 must be promoted, not printed as "1000.0k"."""
+    assert quota.fmt_tokens(0) == "0"
+    assert quota.fmt_tokens(999) == "999"
+    assert quota.fmt_tokens(1_000) == "1.0k"
+    assert quota.fmt_tokens(999_949) == "999.9k"
+    assert quota.fmt_tokens(999_950) == "1.0M"
+    assert quota.fmt_tokens(999_999) == "1.0M"
+    assert quota.fmt_tokens(1_000_000) == "1.0M"
+    assert quota.fmt_tokens(999_999_999) == "1.0B"
+    assert quota.fmt_tokens(10**12) == "1.0T"
+    assert quota.fmt_tokens(-1_500) == "-1.5k"
+    assert quota.fmt_tokens(-999_999) == "-1.0M"
+
+
 class _FollowUpMessage:
     """The minimum `handle_follow_up_message` reads before it decides relevance."""
 
