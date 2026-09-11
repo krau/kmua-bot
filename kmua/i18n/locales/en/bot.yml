@@ -71,6 +71,7 @@ bot:
       /syncmembers - Sync group members
       /f5avatar - Refresh your avatar
       /forget - Make the bot forget your conversation history
+      /quota - Check AI usage quota
       /rss - Manage RSS subscriptions
       </blockquote>
       Use "/" or "\" on another user to cast a spell on them.
