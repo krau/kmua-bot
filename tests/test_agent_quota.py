@@ -753,3 +753,36 @@ async def test_whitelist_wins_over_quota(monkeypatch):
     assert called == []
     # 白名单先判: 没资格用 agent 的群不该收到额度提示(顺序反了这里就会多一条提示)。
     assert message.replies == []
+
+
+async def test_an_absolute_set_survives_a_settlement_in_the_same_window(monkeypatch):
+    """The panel writes an absolute balance, and both the audit record and the operator's
+    intent say "this account now holds exactly N". A delta computed from a read taken
+    outside the writing transaction would leave the account at N - settled while the
+    audit still claims N.
+
+    The hook fires where `set_credit` secures the row, i.e. inside its transaction and
+    before it reads the balance; a read taken before that point gets the stale value.
+    """
+    from kmua.database import agent_quota as aq
+
+    await database.set_credit(database.SCOPE_USER, PLAIN_ID, 500)
+    original = aq._ensure_credit_row
+    fired: list[int] = []
+
+    async def ensure_then_settle(session, scope, scope_id):
+        await original(session, scope, scope_id)
+        if fired:
+            return
+        fired.append(1)
+        await database.spend_credit(database.SCOPE_USER, PLAIN_ID, 300)
+
+    monkeypatch.setattr(aq, "_ensure_credit_row", ensure_then_settle)
+
+    previous = await database.set_credit(database.SCOPE_USER, PLAIN_ID, 1_000)
+
+    # The settlement went first, so the balance really was 200 when the write happened:
+    # the audit pair (old=200, new=1000) matches reality. Read outside the transaction and
+    # the pair becomes (old=500, new=1000) while the row lands on 700.
+    assert previous == 200
+    assert await database.get_credit(database.SCOPE_USER, PLAIN_ID) == 1_000

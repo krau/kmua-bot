@@ -344,14 +344,31 @@ async def adjust_credits(
     return balance
 
 
+@with_tx
 async def set_credit(
-    scope: str, scope_id: int, balance: int, reason: str = CREDIT_REASON_ADMIN
+    scope: str,
+    scope_id: int,
+    balance: int,
+    reason: str = CREDIT_REASON_ADMIN,
+    session: AsyncSession | None = None,
 ) -> int:
-    """把余额设成绝对值, 返回改前的余额(面板数字字段用; 差额记进流水)。"""
-    current = await get_credit(scope, scope_id)
+    """把余额设成绝对值, 返回改前的余额(面板数字字段用; 差额记进流水)。
+
+    读与写同事务, 且读时锁住该行: 差额与写出的结果取自同一个余额状态, 所以返回的
+    "改前余额"与最终余额一定自洽, 审计记录不会声称一个没发生的值。
+    `with_for_update()` 在 SQLite 上是 no-op, 那里的保证来自"读与写同事务"本身。
+    """
+    assert session is not None
+    await _ensure_credit_row(session, scope, scope_id)
+    current = await session.scalar(
+        sqlalchemy.select(AgentCredit.balance)
+        .where(AgentCredit.scope == scope, AgentCredit.scope_id == scope_id)
+        .with_for_update()
+    )
+    assert current is not None
     if current == balance:
         return current
-    await adjust_credits(scope, scope_id, balance - current, reason)
+    await adjust_credits(scope, scope_id, balance - current, reason, session=session)
     return current
 
 
