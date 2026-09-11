@@ -52,11 +52,7 @@ def _looks_like_text(raw: bytes) -> bool:
         text = raw.decode("utf-8")
     except UnicodeDecodeError:
         return False
-    controls = sum(
-        1
-        for char in text
-        if ord(char) < 32 and char not in "\n\r\t\f"
-    )
+    controls = sum(1 for char in text if ord(char) < 32 and char not in "\n\r\t\f")
     return controls <= max(1, len(text) // 100)
 
 

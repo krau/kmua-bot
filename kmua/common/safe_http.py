@@ -118,9 +118,7 @@ async def safe_download_bytes(
     timeout: float = 30.0,
 ) -> bytes:
     """Download *url* safely, returning only the payload bytes."""
-    return (
-        await safe_download(url, max_bytes=max_bytes, timeout=timeout)
-    ).data
+    return (await safe_download(url, max_bytes=max_bytes, timeout=timeout)).data
 
 
 async def safe_fetch_text(
