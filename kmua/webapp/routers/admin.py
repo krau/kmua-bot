@@ -598,6 +598,18 @@ async def write_chat_policy(
     """
     write_limiter.check(client_key(request, user.id))
 
+    # 群额度账户只在群聊里存在(`Subject.accounts()` 仅在 in_group 时加上它), 正数 id 只能
+    # 是私聊, 给它配额度或发余额都是永远不会被消费的额度 —— 宁可当场拒绝。
+    if chat_id > 0 and (
+        payload.agent_quota_daily_tokens is not None
+        or payload.agent_quota_exempt is not None
+        or payload.agent_credits is not None
+    ):
+        raise ApiError(
+            ErrorCode.VALIDATION_FAILED,
+            "Quota fields apply to group chats only, not private chats",
+        )
+
     current = await database.get_chat_policy(chat_id)
     desired = ChatPolicy(
         agent_allowed=(

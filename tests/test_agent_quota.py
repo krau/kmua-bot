@@ -980,3 +980,34 @@ async def test_the_follow_up_relevance_check_is_metered(monkeypatch):
         database.SCOPE_USER, PLAIN_ID, database.utc_day()
     )
     assert (free_used, input_tokens, output_tokens) == (100, 90, 10)
+
+
+async def test_panel_refuses_quota_fields_for_a_private_chat_id(monkeypatch):
+    """A chat-scope quota account only exists for groups, so a positive id - which can
+    only be a private chat - would hold an allowance no run can ever draw on. The write
+    is refused instead of silently stranding the tokens; the flags still go through,
+    because the whitelist does apply to private chats."""
+    set_owners(monkeypatch, [OWNER_ID])
+    await make_user(OWNER_ID, full_name="Owner")
+
+    async with api_client() as client:
+        granted = await client.put(
+            f"/api/admin/chat-policies/{PLAIN_ID}",
+            headers=bearer(OWNER_ID),
+            json={"agent_credits": 500_000},
+        )
+        quota = await client.put(
+            f"/api/admin/chat-policies/{PLAIN_ID}",
+            headers=bearer(OWNER_ID),
+            json={"agent_quota_daily_tokens": 1_000},
+        )
+        flagged = await client.put(
+            f"/api/admin/chat-policies/{PLAIN_ID}",
+            headers=bearer(OWNER_ID),
+            json={"agent_allowed": True},
+        )
+
+    assert granted.status_code == 400
+    assert quota.status_code == 400
+    assert flagged.status_code == 200
+    assert await database.get_credit(database.SCOPE_CHAT, PLAIN_ID) == 0
