@@ -381,5 +381,107 @@
       "all": "入群时验证",
       "first_message": "首次发言时验证"
     }
+  },
+  "agentRuns": {
+    "title": "Agent 运行记录",
+    "subtitle": "共 {total} 条",
+    "empty": "没有符合条件的运行记录",
+    "openHint": "查看这次运行的每一步",
+    "filters": {
+      "all": "全部",
+      "chatId": "会话 ID",
+      "userId": "用户 ID",
+      "kind": "类型",
+      "status": "状态",
+      "since": "起始时间",
+      "until": "结束时间",
+      "search": "搜索",
+      "searchPlaceholder": "输出或错误信息",
+      "apply": "应用",
+      "reset": "重置"
+    },
+    "columns": {
+      "run": "运行",
+      "startedAt": "开始时间",
+      "kind": "类型",
+      "status": "状态",
+      "chat": "会话",
+      "user": "用户",
+      "model": "模型",
+      "durationMs": "耗时 / ms",
+      "tokens": "输入 / 输出 token",
+      "requests": "请求 / 工具",
+      "events": "事件",
+      "parent": "父运行",
+      "messageId": "消息 ID"
+    },
+    "kind": {
+      "chat": "对话",
+      "ask": "追问回答",
+      "followup": "跟进对话",
+      "followup_relevance": "相关性判断",
+      "channel_comment": "频道评论",
+      "rss_digest": "RSS 摘要",
+      "rss_broadcast": "RSS 播报",
+      "sticker_description": "贴纸描述",
+      "memory": "用户记忆",
+      "transcription": "转写",
+      "compaction": "历史压缩"
+    },
+    "status": {
+      "ok": "成功",
+      "error": "失败",
+      "timeout": "超时",
+      "cancelled": "已取消",
+      "rejected": "被拒绝"
+    },
+    "reject": {
+      "quota": "额度不足",
+      "whitelist": "不在白名单",
+      "label": "拒绝原因"
+    },
+    "eventKind": {
+      "model_request": "模型请求",
+      "model_response": "模型响应",
+      "tool_call": "工具调用",
+      "tool_result": "工具结果",
+      "steering": "插话",
+      "error": "错误"
+    },
+    "roles": {
+      "main": "主模型",
+      "multimodal": "多模态模型",
+      "small": "小模型",
+      "struct": "结构化模型",
+      "transcribe": "转写模型"
+    },
+    "detail": {
+      "title": "运行 {id}",
+      "summary": "运行概要",
+      "events": "事件时间线",
+      "emptyEvents": "这次运行没有记录到事件",
+      "eventHint": "点击查看这一步的完整内容",
+      "payload": "原始数据",
+      "truncated": "内容过长, 已截断",
+      "unreconstructable": "无法还原这次请求的完整消息: 数据超过了单次事件的上限",
+      "rawJson": "原始 JSON",
+      "conversation": "对话",
+      "instructions": "指令",
+      "settings": "模型参数",
+      "dropped": "另有 {count} 条事件超出上限未记录",
+      "outputKind": "输出类型",
+      "output": "最终输出",
+      "error": "错误",
+      "role": {
+        "user": "用户",
+        "assistant": "助手",
+        "tool": "工具",
+        "system": "系统"
+      },
+      "modelRole": "模型角色",
+      "streaming": "流式",
+      "cacheTokens": "缓存读 / 写 token",
+      "outputChars": "输出去截断字符数"
+    }
   }
 }

@@ -199,6 +199,12 @@ function go(name: string): void {
         navigable
         @click="go('admin-chat-policies')"
       />
+      <SettingsRow
+        :label="t('agentRuns.title')"
+        :hint="t('agentRuns.openHint')"
+        navigable
+        @click="go('admin-agent-runs')"
+      />
       <SettingsRow :label="t('admin.jobs')" navigable @click="go('admin-jobs')" />
     </SettingsSection>
 

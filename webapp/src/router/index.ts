@@ -146,6 +146,19 @@ const routes: RouteRecordRaw[] = [
     props: (route) => ({ chatId: Number(route.params.chatId) }),
     meta: { requiresBotAdmin: true },
   },
+  {
+    path: "/admin/agent-runs",
+    name: "admin-agent-runs",
+    component: () => import("@/views/admin/AgentRunsView.vue"),
+    meta: { requiresBotAdmin: true },
+  },
+  {
+    path: "/admin/agent-runs/:runId",
+    name: "admin-agent-run",
+    component: () => import("@/views/admin/AgentRunDetailView.vue"),
+    props: (route) => ({ runId: Number(route.params.runId) }),
+    meta: { requiresBotAdmin: true },
+  },
   // Unknown paths land on the home screen rather than a 404 page: inside a Mini
   // App there is no address bar to correct a typo with.
   { path: "/:pathMatch(.*)*", redirect: { name: "home" } },

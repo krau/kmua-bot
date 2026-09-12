@@ -381,5 +381,107 @@
       "all": "On join",
       "first_message": "On first message"
     }
+  },
+  "agentRuns": {
+    "title": "Agent runs",
+    "subtitle": "{total} recorded",
+    "empty": "No run matches these filters",
+    "openHint": "See every step of this run",
+    "filters": {
+      "all": "All",
+      "chatId": "Chat ID",
+      "userId": "User ID",
+      "kind": "Kind",
+      "status": "Status",
+      "since": "Since",
+      "until": "Until",
+      "search": "Search",
+      "searchPlaceholder": "Output or error text",
+      "apply": "Apply",
+      "reset": "Reset"
+    },
+    "columns": {
+      "run": "Run",
+      "startedAt": "Started",
+      "kind": "Kind",
+      "status": "Status",
+      "chat": "Chat",
+      "user": "User",
+      "model": "Model",
+      "durationMs": "Duration / ms",
+      "tokens": "Input / output tokens",
+      "requests": "Requests / tools",
+      "events": "Events",
+      "parent": "Parent run",
+      "messageId": "Message ID"
+    },
+    "kind": {
+      "chat": "Chat",
+      "ask": "Ask answer",
+      "followup": "Follow-up",
+      "followup_relevance": "Relevance check",
+      "channel_comment": "Channel comment",
+      "rss_digest": "RSS digest",
+      "rss_broadcast": "RSS broadcast",
+      "sticker_description": "Sticker description",
+      "memory": "User memory",
+      "transcription": "Transcription",
+      "compaction": "History compaction"
+    },
+    "status": {
+      "ok": "OK",
+      "error": "Error",
+      "timeout": "Timed out",
+      "cancelled": "Cancelled",
+      "rejected": "Refused"
+    },
+    "reject": {
+      "quota": "Out of quota",
+      "whitelist": "Not whitelisted",
+      "label": "Refusal"
+    },
+    "eventKind": {
+      "model_request": "Model request",
+      "model_response": "Model response",
+      "tool_call": "Tool call",
+      "tool_result": "Tool result",
+      "steering": "Interjection",
+      "error": "Error"
+    },
+    "roles": {
+      "main": "Main model",
+      "multimodal": "Multimodal model",
+      "small": "Small model",
+      "struct": "Structured model",
+      "transcribe": "Transcription model"
+    },
+    "detail": {
+      "title": "Run {id}",
+      "summary": "Summary",
+      "events": "Event timeline",
+      "emptyEvents": "This run recorded no events",
+      "eventHint": "Open to see this step in full",
+      "payload": "Payload",
+      "truncated": "Content was too long and was cut",
+      "unreconstructable": "This request's messages cannot be rebuilt: the data exceeded the per-event cap",
+      "rawJson": "Raw JSON",
+      "conversation": "Conversation",
+      "instructions": "Instructions",
+      "settings": "Model settings",
+      "dropped": "{count} more event(s) exceeded the limit and were not recorded",
+      "outputKind": "Output type",
+      "output": "Final output",
+      "error": "Error",
+      "role": {
+        "user": "User",
+        "assistant": "Assistant",
+        "tool": "Tool",
+        "system": "System"
+      },
+      "modelRole": "Model role",
+      "streaming": "Streaming",
+      "cacheTokens": "Cache read / write tokens",
+      "outputChars": "Output length before truncation"
+    }
   }
 }

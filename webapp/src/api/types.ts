@@ -397,3 +397,96 @@ export interface Page<T> {
   page: number;
   size: number;
 }
+
+/**
+ * What triggered a run. Mirrors `RUN_KINDS` in `kmua/database/agent_trace.py`.
+ */
+export type AgentRunKind =
+  | "chat"
+  | "ask"
+  | "followup"
+  | "followup_relevance"
+  | "channel_comment"
+  | "rss_digest"
+  | "rss_broadcast"
+  | "sticker_description"
+  | "memory"
+  | "transcription"
+  | "compaction";
+
+/** How a run ended. Mirrors `RUN_STATUSES`. */
+export type AgentRunStatus = "ok" | "error" | "timeout" | "cancelled" | "rejected";
+
+/** One recorded step. Mirrors `EVENT_KINDS`. */
+export type AgentRunEventKind =
+  "model_request" | "model_response" | "tool_call" | "tool_result" | "steering" | "error";
+
+/** A run without its heavy text fields; the list view uses this. */
+export interface AgentRunSummary {
+  id: number;
+  kind: AgentRunKind;
+  status: AgentRunStatus;
+  /** Only set for a rejected run: "quota" or "whitelist". */
+  reject_reason: string | null;
+  chat_id: number | null;
+  user_id: number | null;
+  message_id: number | null;
+  parent_run_id: number | null;
+  model_name: string | null;
+  model_role: string | null;
+  streaming: boolean;
+  started_at: string;
+  finished_at: string;
+  duration_ms: number;
+  requests: number;
+  tool_calls: number;
+  input_tokens: number;
+  output_tokens: number;
+  cache_read_tokens: number;
+  cache_write_tokens: number;
+  output_kind: string | null;
+  output_chars: number | null;
+  error_class: string | null;
+  event_count: number;
+  events_dropped: number;
+}
+
+/** One step of a run, without its payload. */
+export interface AgentRunEvent {
+  seq: number;
+  kind: AgentRunEventKind;
+  name: string | null;
+  status: string;
+  duration_ms: number | null;
+  payload_chars: number | null;
+  truncated: boolean;
+  created_at: string;
+}
+
+export interface AgentRunDetail extends AgentRunSummary {
+  output_text: string | null;
+  error_message: string | null;
+  events: AgentRunEvent[];
+}
+
+export interface AgentRunEventDetail extends AgentRunEvent {
+  payload: Record<string, unknown> | null;
+  /**
+   * The messages the model received, rebuilt from the run's prefix encoding.
+   * Only present for `model_request` steps, and null when it cannot be rebuilt.
+   */
+  messages: unknown[] | null;
+}
+
+/** Filters for the run list; empty values are dropped from the query string. */
+export interface AgentRunQuery {
+  page: number;
+  size: number;
+  chat_id?: number;
+  user_id?: number;
+  kind?: string;
+  status?: string;
+  q?: string;
+  since?: string;
+  until?: string;
+}
