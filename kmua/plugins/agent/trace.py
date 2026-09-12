@@ -673,9 +673,12 @@ def _first_response_model(events: Sequence[AgentRunEventDraft]) -> str | None:
     return None
 
 
-def _to_draft(session: TraceSession) -> AgentRunDraft:
+def _to_draft(session: TraceSession, budget: list[int] | None = None) -> AgentRunDraft:
     limit = app_config.agent_trace_max_field_chars
-    budget = [_MAX_RUN_PAYLOAD_CHARS]
+    # One allowance for the whole tree: a turn and everything it spawned go into the
+    # same transaction, so they have to share the cap.
+    if budget is None:
+        budget = [_MAX_RUN_PAYLOAD_CHARS]
     events: list[AgentRunEventDraft] = []
     for seq, event in enumerate(session.events, start=1):
         payload, payload_chars, truncated = _prepare_payload(
@@ -721,7 +724,7 @@ def _to_draft(session: TraceSession) -> AgentRunDraft:
         finished_at=finished,
         duration_ms=max(0, int((finished - started).total_seconds() * 1000)),
         events=tuple(events),
-        children=tuple(_to_draft(child) for child in session.children),
+        children=tuple(_to_draft(child, budget) for child in session.children),
         events_dropped=session.dropped,
         requests=session.requests,
         tool_calls=session.tool_calls,
