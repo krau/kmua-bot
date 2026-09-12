@@ -961,12 +961,6 @@ async def wake_agent(client: PyrogramClient, message: pyrogram.types.Message):
     typing_keepalive: TypingKeepAlive | None = None
     await conv_lock.acquire()
     try:
-        # Start typing as soon as the turn is committed so context collection
-        # (history, nearby messages, model overrides) runs behind a live
-        # typing indicator. The keepalive is caller-owned: entered here and
-        # handed to the runner, which reuses it instead of starting its own.
-        typing_keepalive = TypingKeepAlive(client, message)
-        await typing_keepalive.__aenter__()
         # Check if there's a pending ask — clear it and let the normal flow handle
         # the new message (the ask context is already in history).
         ask_state = await tools.get_ask_state(chat.id, user.id)
@@ -982,12 +976,21 @@ async def wake_agent(client: PyrogramClient, message: pyrogram.types.Message):
         else:
             lang = (await database.get_chat_config(chat.id)).lang
 
+        # 额度闸门排在 typing 之前: 额度用尽的回复只有一条文字提示, 先亮 typing 再回一条
+        # 提示, 看起来就像 bot 要开始干活了, 而它其实什么都不会做。
         subject = quota.subject_of(message)
         if not await quota.can_start(subject):
             await quota.notify_exhausted(
                 message, subject, await quota.get_state(subject), lang
             )
             return
+
+        # Start typing once the turn is committed to a real run, so context collection
+        # (history, nearby messages, model overrides) runs behind a live typing
+        # indicator. The keepalive is caller-owned: entered here and handed to the
+        # runner, which reuses it instead of starting its own.
+        typing_keepalive = TypingKeepAlive(client, message)
+        await typing_keepalive.__aenter__()
 
         # agent run
         if is_bot_user:
