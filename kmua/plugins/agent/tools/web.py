@@ -52,11 +52,7 @@ def _looks_like_text(raw: bytes) -> bool:
         text = raw.decode("utf-8")
     except UnicodeDecodeError:
         return False
-    controls = sum(
-        1
-        for char in text
-        if ord(char) < 32 and char not in "\n\r\t\f"
-    )
+    controls = sum(1 for char in text if ord(char) < 32 and char not in "\n\r\t\f")
     return controls <= max(1, len(text) // 100)
 
 
@@ -205,7 +201,6 @@ async def _fetch_crawl_api(url: str) -> WebFetchResult:
 
 
 def _is_telegram_url(url: str) -> bool:
-    """Check if URL is a Telegram domain link."""
     try:
         parsed = urlparse(url)
         return parsed.netloc.lower() in ("t.me", "telegram.me")
@@ -214,25 +209,17 @@ def _is_telegram_url(url: str) -> bool:
 
 
 def _parse_telegram_message_url(url: str) -> tuple[str | None, int | None, int | None]:
-    """Parse Telegram message URL and return (username_or_chat_id, message_id, comment_id).
+    """Parse a Telegram message URL into (username_or_chat_id, message_id, comment_id).
 
-    Returns:
-        Tuple of (username_or_chat_id, message_id, comment_id).
-        For private chats (t.me/c/xxx), username_or_chat_id is the chat_id as string (without -100 prefix).
-        For public chats (t.me/username), username_or_chat_id is the username.
-        comment_id is only present for comments section URLs.
+    For private chats (t.me/c/xxx), username_or_chat_id is the chat id as a
+    string without the -100 prefix; for public chats (t.me/username) it is the
+    username. comment_id is only present for comments section URLs.
     """
     if not _is_telegram_url(url):
         return (None, None, None)
 
-    # Match patterns:
-    # https://t.me/c/23333333/2252 (private chat)
-    # https://t.me/group_username/142727 (public chat)
-    # https://t.me/channel_username/14816?comment=142730 (comment)
     patterns = [
-        # Private chat: https://t.me/c/123456789/123
         r"https?://t\.me/c/(\d+)/(\d+)",
-        # Public chat or comment: https://t.me/username/123 or https://t.me/username/123?comment=456
         r"https?://t\.me/([a-zA-Z0-9_]{5,32})/(\d+)(?:\?comment=(\d+))?",
     ]
 
@@ -270,13 +257,10 @@ async def _fetch_telegram_message(
     current_chat_id = ctx.deps.chat_id
 
     try:
-        # Determine target chat
         if username_or_id.isdigit():
-            # Private chat (t.me/c/xxx)
-            # Convert to full chat_id format (-100xxxxxxxxx)
+            # t.me/c/...: convert to the full -100xxxxxxxxx chat id
             target_chat_id = int(f"-100{username_or_id}")
 
-            # Only allow if it's the current chat
             if target_chat_id != current_chat_id:
                 return WebFetchResult(
                     success=False,
@@ -284,8 +268,6 @@ async def _fetch_telegram_message(
                     error="This is a Telegram message link but you cannot access private group/channel messages from other chats for privacy reasons",
                 )
         else:
-            # Public chat with username
-            # Check if it's the current chat by looking up in database
             current_chat_data = await get_chat_by_id(current_chat_id)
             if (
                 current_chat_data
@@ -294,13 +276,11 @@ async def _fetch_telegram_message(
             ):
                 target_chat_id = current_chat_id
             else:
-                # It's a different public chat, allow it but we'll try to get it by username
                 target_chat_id = username_or_id
 
-        # Fetch the message
         if comment_id:
-            # It's a comment - fetch the comment message
-            # Comments are in a linked discussion group, we need to get the original post first
+            # The comment lives in the linked discussion group; fetch the
+            # original post first.
             try:
                 original_msg = await client.get_messages(target_chat_id, message_id)
                 if not original_msg:
@@ -310,10 +290,7 @@ async def _fetch_telegram_message(
                         error="Original message not found",
                     )
 
-                # The comment is in the linked chat (discussion group)
                 if original_msg.link:
-                    # Try to fetch the comment directly if possible
-                    # Comments are typically in the discussion group
                     comment_msg = await client.get_messages(target_chat_id, comment_id)
                     if comment_msg:
                         return _format_telegram_message(
@@ -324,7 +301,6 @@ async def _fetch_telegram_message(
                 # Fallback: try to fetch at least the original message
                 pass
 
-        # Fetch main message
         message = await client.get_messages(target_chat_id, message_id)
         if not message:
             return WebFetchResult(
@@ -355,14 +331,11 @@ async def _fetch_telegram_message(
 def _format_telegram_message(
     message: Message, url: str, is_comment: bool = False
 ) -> WebFetchResult:
-    """Format a Telegram message into WebFetchResult."""
     parts = []
 
-    # Add prefix for comments
     if is_comment:
         parts.append("[This is a comment/reply message]")
 
-    # Sender info
     sender_name = "Unknown"
     if message.from_user:
         sender_name = message.from_user.first_name or ""
@@ -375,11 +348,9 @@ def _format_telegram_message(
 
     parts.append(f"From: {sender_name}")
 
-    # Date
     if message.date:
         parts.append(f"Date: {message.date.isoformat()}")
 
-    # Message content
     content_parts: list[str] = []
 
     if message.text:
@@ -388,7 +359,6 @@ def _format_telegram_message(
     if message.caption:
         content_parts.append(f"[Caption]: {message.caption}")
 
-    # Handle media types
     if message.photo:
         content_parts.append("[Contains photo]")
     elif message.video:
@@ -406,7 +376,6 @@ def _format_telegram_message(
     elif message.poll:
         content_parts.append(f"[Contains poll: {message.poll.question}]")
 
-    # Forward info
     if message.forward_from or message.forward_from_chat:
         if message.forward_from_chat:
             fwd_name = message.forward_from_chat.title or "Unknown channel"
@@ -418,7 +387,6 @@ def _format_telegram_message(
             )
         parts.append(f"Forwarded from: {fwd_name}")
 
-    # Reply info
     if is_explicit_reply(message) and message.reply_to_message:
         parts.append(f"[This is a reply to message {message.reply_to_message.id}]")
 
@@ -435,20 +403,16 @@ async def fetch_web_page(
     """Fetch a web page and return its content as Markdown.
 
     Internal helper backing the http(s):// branch of the agent's read tool.
-    Args:
-        url: Full URL to fetch (http:// or https://).
     """
     if not url.startswith(("http://", "https://")):
         raise ModelRetry("URL must start with http:// or https://")
     if not is_safe_web_url(url):
         raise ModelRetry("URL is not a public internet address")
 
-    # Try to fetch Telegram messages directly if it's a Telegram link
     if _is_telegram_url(url):
         tg_result = await _fetch_telegram_message(ctx, url)
         if tg_result is not None:
             return tg_result
-        # If tg_result is None, fall through to normal web fetching
 
     try:
         if app_config.agent_crawl_api_url:

@@ -30,8 +30,7 @@ async def update_user_memory(
 ):
     lock = await _get_user_memory_lock(user_id)
     async with lock:
-        # 每个用户 300 秒内至多更新一次记忆
-        # 能超过这个限制的一般是 spammer 了...
+        # 防止 spammer 刷记忆
         throttle_key = f"user_memory_update_throttle:{user_id}"
         if await memttlcache.get(throttle_key):
             logger.debug(
@@ -83,7 +82,7 @@ async def update_user_memory(
             logger.exception(f"Error updating user affection: {e}")
         new_memory = result.get_memory()
         if old_memory:
-            # 合并记忆列表, 每个字段去重(?), 且限制长度为 3
+            # 合并记忆列表, 每个字段去重, 且限制长度为 3
             for field in datatype.ChatMemoryy.model_fields:
                 old_value = getattr(old_memory, field, [])
                 new_value = getattr(new_memory, field, [])

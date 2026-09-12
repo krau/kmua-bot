@@ -62,18 +62,15 @@ def get_conversation_lock(chat_id: int, user_id: int) -> asyncio.Lock:
 
 
 def is_running(chat_id: int, user_id: int) -> bool:
-    """Whether a turn is in flight for this conversation."""
     lock = _conversation_locks.get((chat_id, user_id))
     return lock is not None and lock.locked()
 
 
 def bot_last_reply_key(chat_id: int) -> str:
-    """存储bot在某个群组最后一条回复的信息"""
     return f"bot_last_reply:{chat_id}"
 
 
 def message_follow_up_lock_key(chat_id: int, message_id: int) -> str:
-    """防止对同一条消息重复处理follow-up"""
     return f"message_follow_up_lock:{chat_id}:{message_id}"
 
 
@@ -114,28 +111,31 @@ def last_user_image_key(chat_id: int, user_id: int) -> str:
 
 
 def chat_model_override_key(chat_id: int, role: str = "main") -> str:
-    """Per-chat model override key. role: 'main' | 'multimodal' | 'small' (or any future role)."""
+    """role: 'main' | 'multimodal' | 'small' (or any future role)."""
     return f"agent_chat_model_override:{role}:{chat_id}"
 
 
 def periodic_sticker_counter_key(chat_id: int, user_id: int) -> str:
-    """Conversation counter for periodic sticker forcing."""
     return f"agent_periodic_sticker_counter:{chat_id}:{user_id}"
 
 
 def periodic_reaction_counter_key(chat_id: int, user_id: int) -> str:
-    """Conversation counter for periodic reaction forcing."""
     return f"agent_periodic_reaction_counter:{chat_id}:{user_id}"
 
 
 def chat_prompt_override_key(chat_id: int) -> str:
-    """Per-chat system prompt override. Replaces the default prompt for this chat."""
+    """Replaces the default prompt for this chat."""
     return f"agent_chat_prompt_override:{chat_id}"
 
 
 def user_blocked_key(user_id: int) -> str:
     """Whether the user is blocked from triggering the agent."""
     return f"agent_user_blocked:{user_id}"
+
+
+def quota_notice_key(subject_key: str) -> str:
+    """额度用尽提示的节流键(群聊里避免刷屏)。"""
+    return f"agent_quota_notice:{subject_key}"
 
 
 def user_block_immune_key(user_id: int) -> str:
@@ -178,18 +178,15 @@ def queue_steering(chat_id: int, user_id: int, text: str) -> bool:
 
 
 def drain_steering(chat_id: int, user_id: int) -> list[str]:
-    """Take and clear the queued interjections for a conversation."""
     return _steering_messages.pop((chat_id, user_id), [])
 
 
 def peek_steering(chat_id: int, user_id: int) -> list[str]:
-    """Copy of the queued interjections without clearing them."""
     return list(_steering_messages.get((chat_id, user_id), []))
 
 
 def clear_steering(chat_id: int, user_id: int) -> None:
-    """Drop the queued interjections of one conversation (history cleared),
-    and its interjection budget so a fresh run starts with a full quota."""
+    """Also clears its interjection budget so a fresh run starts with a full quota."""
     _steering_messages.pop((chat_id, user_id), None)
     _interjection_budget.pop((chat_id, user_id), None)
 

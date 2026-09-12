@@ -23,7 +23,6 @@ _MAX_REPLY_CHAIN_HOPS = 200
 
 @dataclass
 class ChatMessage:
-    # chat_id: int
     user_id: int
     username: str | None = None
     text: str | None = None
@@ -182,25 +181,21 @@ async def _fetch_history_messages(
 
 
 async def _format_history(msgs: list[HistoryMessage]) -> str:
-    """Render fetched history rows as readable text."""
     lines = [f"Chat History ({len(msgs)} messages):\n"]
 
     for msg in msgs:
         if not msg.user_id:
             continue
 
-        # Get username
         user = await database.get_user_by_id(msg.user_id)
         username = user.full_name if user is not None else f"User_{msg.user_id}"
 
-        # Format time (full datetime)
         time_str = (
             msg.time.strftime("%Y-%m-%d %H:%M:%S")
             if msg.time
             else "????-??-?? ??:??:??"
         )
 
-        # Format message (no truncation)
         text = msg.text if msg.text else "[media/empty]"
 
         lines.append(f"[{time_str}]<{msg.message_id}> {username}: {text}")
@@ -217,7 +212,6 @@ async def search_messages(
     """Search messages by query in the current chat.
 
     Arguments:
-        query -- search query (required).
         user_id -- if specified, only search messages from this user.
         count -- maximum number of messages to return (default: 20).
 
@@ -244,7 +238,6 @@ async def search_messages(
     if not results.hits:
         return "No messages found matching the query."
 
-    # Format search results
     lines = [f"🔍 Search Results for '{query}' ({len(results.hits)} matches):\n"]
 
     for i, hit in enumerate(results.hits, 1):
@@ -255,21 +248,18 @@ async def search_messages(
         if not hit.message:
             continue
 
-        # Get user info
         user = await database.get_user_by_id(hit.user_id)
         username = user.full_name if user is not None else f"User_{hit.user_id}"
 
-        # Format time
         time_str = datetime.datetime.fromtimestamp(
             hit.timestamp, datetime.UTC
         ).strftime("%Y-%m-%d %H:%M:%S")
 
-        # Format message with match highlighting
         message_text = hit.message
 
         lines.append(f"Result {i}:")
         lines.append(f"  [{time_str}]<{hit.id}> {username}: {message_text}")
-        lines.append("")  # Empty line between results
+        lines.append("")
 
     if len(lines) == 1:  # Only header, no results
         return "No messages found matching the query."

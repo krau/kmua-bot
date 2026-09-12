@@ -16,7 +16,6 @@ from agentfs_sdk import AgentFS, AgentFSOptions
 from kmua.config import app_config
 from kmua.logger import logger
 
-# Project root directory
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent.parent.parent
 
 # Default excluded patterns (security-sensitive, always excluded)
@@ -68,23 +67,13 @@ DEFAULT_EXCLUDED_PATTERNS = [
     "*.lock",
 ]
 
-# Maximum file size to load (100KB)
 MAX_FILE_SIZE = 100 * 1024
 
-# AgentFS instance for code repository
 _code_agentfs: AgentFS | None = None
 
 
 def _is_excluded(rel_path: Path, extra_patterns: list[str] | None = None) -> bool:
-    """Check if a relative path matches any excluded pattern.
-
-    Args:
-        rel_path: Relative path to check
-        extra_patterns: Additional patterns to exclude (optional)
-
-    Returns:
-        True if path should be excluded
-    """
+    """Return True if rel_path matches a default or extra exclusion pattern."""
     rel_str = str(rel_path).replace("\\", "/")
 
     # Check default patterns (always excluded for security)
@@ -92,7 +81,6 @@ def _is_excluded(rel_path: Path, extra_patterns: list[str] | None = None) -> boo
         if _match_pattern(rel_str, pattern):
             return True
 
-    # Check extra custom patterns
     if extra_patterns:
         for pattern in extra_patterns:
             if _match_pattern(rel_str, pattern):
@@ -108,23 +96,18 @@ def _match_pattern(rel_str: str, pattern: str) -> bool:
     - Standard fnmatch patterns (*, ?, [seq])
     - /** or /**/* for matching directory and all its contents
     """
-    # Normalize pattern
     pattern = pattern.replace("\\", "/").rstrip("/")
 
     # Handle /** or /**/* suffix - match directory and all its contents
     if "/**" in pattern:
-        # Get the directory prefix before /**
         dir_prefix = pattern.split("/**")[0]
-        # Check if path is exactly the directory or inside it
         if rel_str == dir_prefix or rel_str.startswith(dir_prefix + "/"):
             return True
 
-    # Standard fnmatch
     if fnmatch.fnmatch(rel_str, pattern):
         return True
 
-    # Also check if pattern matches as a directory prefix
-    # For patterns like "kmua/plugins/extra", match "kmua/plugins/extra/file.py"
+    # "kmua/plugins/extra" also matches "kmua/plugins/extra/file.py"
     if not pattern.endswith("*") and "/" in pattern:
         if rel_str.startswith(pattern + "/"):
             return True
@@ -155,15 +138,12 @@ async def init_code_repository(
 
     logger.info("Initializing code repository in agentfs...")
 
-    # Get custom patterns from config
     config_patterns: list[str] = getattr(app_config, "agent_code_exclude_patterns", [])
 
-    # Combine all patterns: defaults + config + function argument
     all_extra_patterns = list(config_patterns) if config_patterns else []
     if extra_exclude_patterns:
         all_extra_patterns.extend(extra_exclude_patterns)
 
-    # Remove duplicates while preserving order
     seen = set()
     unique_patterns = []
     for p in all_extra_patterns:
@@ -172,10 +152,8 @@ async def init_code_repository(
             unique_patterns.append(p)
     all_extra_patterns = unique_patterns
 
-    # Open agentfs with a specific ID for the codebase
     agent = await AgentFS.open(AgentFSOptions(id="kmua-codebase"))
 
-    # Clear any existing data
     try:
         await agent.fs.unlink("/")
     except Exception:
@@ -191,18 +169,15 @@ async def init_code_repository(
         return agent
 
     for py_file in kmua_dir.rglob("*.py"):
-        # Get relative path from PROJECT_ROOT
         try:
             rel_path = py_file.relative_to(PROJECT_ROOT)
         except ValueError:
             continue
 
-        # Skip excluded files (default + custom patterns)
         if _is_excluded(rel_path, all_extra_patterns):
             skipped_count += 1
             continue
 
-        # Skip files that are too large
         try:
             if py_file.stat().st_size > MAX_FILE_SIZE:
                 logger.debug(f"Skipping large file: {rel_path}")
@@ -211,12 +186,10 @@ async def init_code_repository(
         except OSError:
             continue
 
-        # Read and store in agentfs
         try:
             content = py_file.read_text(encoding="utf-8")
             agentfs_path = f"/{rel_path}"
 
-            # Ensure parent directory exists
             parent = Path(agentfs_path).parent
             if str(parent) != "/":
                 try:
@@ -231,7 +204,6 @@ async def init_code_repository(
             logger.warning(f"Failed to load {rel_path}: {e}")
             skipped_count += 1
 
-    # Store metadata
     await agent.kv.set(
         "codebase:meta",
         {
@@ -251,11 +223,7 @@ async def init_code_repository(
 
 
 async def get_code_agentfs() -> AgentFS | None:
-    """Get the initialized code repository agentfs instance.
-
-    Returns:
-        AgentFS instance or None if not initialized.
-    """
+    """Return the initialized code repository agentfs, or None."""
     return _code_agentfs
 
 
@@ -268,21 +236,10 @@ async def close_code_repository() -> None:
         logger.info("Code repository closed")
 
 
-# Convenience functions for tool operations
-
-
 async def list_files(
     path: str = "/", include_dirs: bool = True
 ) -> list[dict[str, Any]]:
-    """List files in the virtual filesystem.
-
-    Args:
-        path: Directory path in agentfs (default "/").
-        include_dirs: Whether to include directories in results.
-
-    Returns:
-        List of file/directory info dicts.
-    """
+    """List files and directories in the virtual filesystem."""
     agent = await get_code_agentfs()
     if agent is None:
         raise RuntimeError("Code repository not initialized")
@@ -308,7 +265,6 @@ async def list_files(
                     "size": stats.size if not is_dir else None,
                 }
 
-                # Add line count for files
                 if not is_dir:
                     try:
                         content = await agent.fs.read_file(entry_path)
@@ -331,13 +287,7 @@ async def list_files(
 async def read_file(path: str, start_line: int = 1, max_lines: int = 200) -> str | None:
     """Read file contents from the virtual filesystem.
 
-    Args:
-        path: File path in agentfs.
-        start_line: Line to start from (1-indexed).
-        max_lines: Maximum lines to read.
-
-    Returns:
-        File contents or None if not found.
+    start_line is 1-indexed; returns None if not found.
     """
     agent = await get_code_agentfs()
     if agent is None:
@@ -354,7 +304,6 @@ async def read_file(path: str, start_line: int = 1, max_lines: int = 200) -> str
         end_idx = min(start_idx + max_lines, len(lines))
         selected_lines = lines[start_idx:end_idx]
 
-        # Format with line numbers
         result_lines = []
         if start_idx > 0:
             result_lines.append(f"... ({start_idx} lines above)")
@@ -380,16 +329,9 @@ async def search_in_files(
     use_regex: bool = False,
     case_sensitive: bool = True,
 ) -> list[dict[str, Any]]:
-    """Search for text or pattern in all files in the virtual filesystem.
+    """Search for text or a regex pattern across all files in the virtual filesystem.
 
-    Args:
-        query: Text or regex pattern to search for.
-        max_results: Maximum number of results.
-        use_regex: If True, treat query as a regex pattern (like grep).
-        case_sensitive: If False, perform case-insensitive search.
-
-    Returns:
-        List of search results with file paths and matching lines.
+    max_results caps the number of matching files returned.
     """
     import re
 
@@ -397,7 +339,6 @@ async def search_in_files(
     if agent is None:
         raise RuntimeError("Code repository not initialized")
 
-    # Compile regex pattern if use_regex is True
     pattern = None
     query_lower = None
     if use_regex:
@@ -407,12 +348,10 @@ async def search_in_files(
         except re.error as e:
             raise ValueError(f"Invalid regex pattern: {e}")
     elif not case_sensitive:
-        # For plain text case-insensitive search
         query_lower = query.lower()
 
     results = []
 
-    # Get all files recursively
     async def search_directory(dir_path: str) -> None:
         nonlocal results
 
@@ -434,7 +373,6 @@ async def search_in_files(
                     if stats.is_directory():
                         await search_directory(entry_path)
                     else:
-                        # Search in file
                         from typing import cast
 
                         content = cast(str, await agent.fs.read_file(entry_path))
@@ -452,7 +390,6 @@ async def search_in_files(
                                         }
                                     )
                             else:
-                                # Plain text search
                                 if case_sensitive:
                                     if query in line:
                                         file_matches.append(
@@ -491,18 +428,13 @@ async def search_in_files(
 
 
 async def get_repository_info() -> dict[str, Any]:
-    """Get information about the loaded code repository.
-
-    Returns:
-        Dict with repository metadata.
-    """
+    """Return metadata about the loaded code repository, with file and directory counts."""
     agent = await get_code_agentfs()
     if agent is None:
         return {"error": "Code repository not initialized"}
 
     meta = await agent.kv.get("codebase:meta") or {}
 
-    # Count files and directories
     file_count = 0
     dir_count = 0
 

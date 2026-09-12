@@ -378,10 +378,7 @@ async def delete(
     ctx: RunContext[datatype.ContextDeps],
     path: str,
 ) -> str:
-    """Delete a file from the workspace or the persisted set.
-
-    work:// removes the local file. persist:// delete the record.
-    """
+    """Delete a file from the workspace or the persisted set."""
     try:
         protocol, rest = _split_target(path)
     except ValueError as e:

@@ -146,7 +146,6 @@ async def _on_ask_answer(client: Client, callback_query: CallbackQuery) -> None:
         logger.error("ask_answer: callback_query.message is None")
         return
 
-    # Update keyboard to show selected option
     try:
         chat_id = msg.chat.id if msg.chat else None
         markup = msg.reply_markup
@@ -177,7 +176,6 @@ async def _on_ask_answer(client: Client, callback_query: CallbackQuery) -> None:
             f"ask_answer: failed to update keyboard: {e.__class__.__name__}: {e}"
         )
 
-    # Start a new agent run with the user's answer as the prompt.
     if _run_agent_for_ask is None:
         logger.error("ask_answer: run callback not set")
         return

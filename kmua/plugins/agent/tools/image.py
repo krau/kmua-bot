@@ -21,15 +21,9 @@ async def _download_with_timeout(
     file_id: str,
     timeout: int | None = None,
 ) -> BytesIO | None:
-    """Download media with optional timeout.
+    """Download media, returning None instead of raising on timeout or failure.
 
-    Args:
-        client: Pyrogram client
-        file_id: File ID to download
-        timeout: Timeout in seconds (None means use config default)
-
-    Returns:
-        BytesIO or None if failed/timed out
+    timeout=None uses app_config.agent_download_timeout.
     """
     timeout_val = timeout if timeout is not None else app_config.agent_download_timeout
 

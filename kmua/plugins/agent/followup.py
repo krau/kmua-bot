@@ -10,7 +10,7 @@ from kmua.common.memory_store import memttlcache
 from kmua.common.utils import is_explicit_reply
 from kmua.config import app_config
 from kmua.logger import logger
-from kmua.plugins.agent import datatype, provider, state
+from kmua.plugins.agent import datatype, provider, quota, state
 from kmua.plugins.agent.prompt import build_ctx_info, get_input_prompt
 from kmua.plugins.agent.runner import (
     get_chat_model_override,
@@ -52,8 +52,8 @@ else:
 def _make_relevance_check_agent(
     override_model_spec: str | None,
 ) -> Agent[None, RelevanceCheck] | None:
-    """Return a relevance-check agent using the per-chat small model override if set,
-    otherwise fall back to the module-level default (which uses the global small_model)."""
+    """Relevance-check agent using the per-chat small model override when set,
+    else the module-level default (which uses the global small_model)."""
     if override_model_spec:
         return Agent(
             model=provider.make_chat_model(override_model_spec),
@@ -178,13 +178,16 @@ async def handle_follow_up_message(
     chat_config = await database.get_chat_config(chat.id)
     if not chat_config.ai_reply:
         return
+    subject = quota.subject_of(message)
+    if not await quota.can_start(subject):
+        # 额度没了就不做相关性判断: 那本身就是一次模型调用。
+        return
     user_data = await database.get_user_by_id(user.id)
     if not user_data:
         return
     reply_to_user = await database.get_user_by_id(bot_reply.reply_to_user_id)
     if not reply_to_user:
         return
-    # 调用AI判断相关性
     message_text = message.text or message.caption
     # 使用 full_output（模型的完整输出）而不是 reply_text（可能只是最后一条消息）
     bot_full_output = (
@@ -223,6 +226,9 @@ Bot回复: {bot_full_output}
         else:
             relevance_result = await coro
 
+        # 相关性判断本身就是一次模型调用, 跑完即刻按它的用量结算; 判为不相关也记 ——
+        # token 已经花掉了, 不记的话这段开销在面板上就看不见。
+        await quota.settle(subject, relevance_result.usage)
         if not relevance_result.output.relevance:  # type: ignore[union-attr]
             return
     except Exception as e:
@@ -297,6 +303,7 @@ Bot回复: {bot_full_output}
                 multimodal_model=multimodal_model,
                 model=model,
                 lang=chat_config.lang,
+                subject=subject,
                 coverage_meta=state.PromptCoverage(last_message_id=message.id),
             ),
         )

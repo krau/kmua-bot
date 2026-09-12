@@ -32,17 +32,8 @@ async def search_group_memory(
         query, user_id=f"group_{ctx.deps.chat_id}", limit=10
     )
 
-    # - "results" (List[Dict]): List of memory search results, where each result contains:
-    #     - "memory" (str): The memory content
-    #     - "metadata" (Dict): Metadata associated with the memory
-    #     - "score" (float): Similarity score for the result
-    #     - "id" (int, optional): Memory ID
-    #     - "created_at" (datetime, optional): Creation timestamp
-    #     - "updated_at" (datetime, optional): Update timestamp
-    #     - "user_id" (str, optional): User ID
-    #     - "agent_id" (str, optional): Agent ID
-    #     - "run_id" (str, optional): Run ID
-    # - "relations" (List, optional): Graph relations if graph store is enabled
+    # powermem search response: entries under "results", each carrying "memory"
+    # (plus metadata/score/id fields this tool ignores).
     return [res.get("memory", "") for res in results.get("results", [])]
 
 

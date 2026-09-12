@@ -22,7 +22,7 @@ from kmua.common.memory_store import memttlcache
 from kmua.config import app_config
 from kmua.i18n import i18n
 from kmua.logger import logger
-from kmua.plugins.agent import datatype, provider, safety, state
+from kmua.plugins.agent import datatype, provider, quota, safety, state
 from kmua.plugins.agent.cache_stats import log_run_cache_stats
 from kmua.plugins.agent.datatype import AskUserOutput, EndTurn
 from kmua.plugins.agent.output import StreamingOutput, TypingKeepAlive, reply_output
@@ -35,14 +35,13 @@ from kmua.plugins.agent.whitelist import is_chat_allowed
 
 
 async def get_chat_model_override(chat_id: int, role: str = "main") -> str | None:
-    """Return the per-chat model override spec for the given role, or None if not set."""
     return await memttlcache.get(state.chat_model_override_key(chat_id, role))
 
 
 async def set_chat_model_override(
     chat_id: int, model_spec: str | None, role: str = "main"
 ) -> None:
-    """Set (or clear, when model_spec is None) the per-chat model override for the given role."""
+    """Set the per-chat model override for the given role; None clears it."""
     key = state.chat_model_override_key(chat_id, role)
     if model_spec is None:
         await memttlcache.delete(key)
@@ -51,12 +50,11 @@ async def set_chat_model_override(
 
 
 async def get_chat_prompt_override(chat_id: int) -> str | None:
-    """Return the per-chat system prompt override, or None if not set."""
     return await memttlcache.get(state.chat_prompt_override_key(chat_id))
 
 
 async def set_chat_prompt_override(chat_id: int, prompt: str | None) -> None:
-    """Set (or clear, when prompt is None) the per-chat system prompt override."""
+    """Set the per-chat system prompt override; None clears it."""
     key = state.chat_prompt_override_key(chat_id)
     if prompt is None:
         await memttlcache.delete(key)
@@ -154,6 +152,7 @@ async def run_agent(
     multimodal_model: Any,
     model: Any,
     lang: str,
+    subject: quota.Subject,
     additional_instructions: str | None = None,
     typing_keepalive: TypingKeepAlive | None = None,
     coverage_meta: state.PromptCoverage | None = None,
@@ -163,25 +162,40 @@ async def run_agent(
     ``typing_keepalive`` is normally started by the caller before context
     collection. The runner owns cleanup on every exit, including cancellation,
     timeout, and model errors, so an error reply cannot leave a live indicator.
+
+    ``subject`` names who pays for this call. It has no default because only the
+    caller knows who spoke: the message inside an ask-user callback is the bot's
+    own, so deriving the subject from it would charge the bot.
     """
     timeout = app_config.agent_run_timeout
-    coro = _run_agent_impl(
-        agi=agi,
-        client=client,
-        message=message,
-        user_id=user_id,
-        chat_id=chat_id,
-        user_prompt=user_prompt,
-        history=history,
-        deps=deps,
-        multimodal_model=multimodal_model,
-        model=model,
-        lang=lang,
-        additional_instructions=additional_instructions,
-        typing_keepalive=typing_keepalive,
-        coverage_meta=coverage_meta,
-    )
+    # 额度闸门: 只预检, 不扣费(用量跑完才知道), 扣减在 impl 里按实际用量完成。
+    if not is_chat_allowed(chat_id):
+        await _stop_typing_keepalive(typing_keepalive)
+        return
+    if not await quota.can_start(subject):
+        await quota.notify_exhausted(
+            message, subject, await quota.get_state(subject), lang
+        )
+        await _stop_typing_keepalive(typing_keepalive)
+        return
     try:
+        coro = _run_agent_impl(
+            agi=agi,
+            client=client,
+            message=message,
+            user_id=user_id,
+            chat_id=chat_id,
+            user_prompt=user_prompt,
+            history=history,
+            deps=deps,
+            multimodal_model=multimodal_model,
+            model=model,
+            lang=lang,
+            additional_instructions=additional_instructions,
+            typing_keepalive=typing_keepalive,
+            coverage_meta=coverage_meta,
+            subject=subject,
+        )
         if not timeout or timeout <= 0:
             await coro
             return
@@ -217,15 +231,16 @@ async def _run_agent_impl(
     multimodal_model: Any,
     model: Any,
     lang: str,
+    subject: quota.Subject,
     additional_instructions: str | None = None,
     typing_keepalive: TypingKeepAlive | None = None,
     coverage_meta: state.PromptCoverage | None = None,
 ) -> None:
-    """Run the agent with full streaming/non-streaming support, history saving,
-    TypingKeepAlive and unified error handling.
+    """Run the agent; single execution path shared by the wake and follow-up flows.
 
-    This is the single source of truth for agent execution shared by both
-    the normal wake flow and the follow-up flow.
+    Only a run that produced output is metered: the two success branches call
+    `quota.settle` with the run's own usage, and the error handlers below swallow the
+    exception (to reply to the user) without settling, so a failed run costs nothing.
     """
 
     if not is_chat_allowed(chat_id):
@@ -356,7 +371,6 @@ async def _run_agent_impl(
                             if streaming_output is not None:
                                 await streaming_output.abort()
                         else:
-                            # Check final_result first before sending anything
                             if isinstance(output, str) and "final_result" in output:
                                 if streaming_output is not None:
                                     await streaming_output.abort()
@@ -367,6 +381,8 @@ async def _run_agent_impl(
                                 await streaming_output.finalize()
                             elif output:
                                 await reply_output(client, message, output)
+                        # 下面的收尾动作可能失败并跳出, 所以先结算, 免得答案已发出却不计费。
+                        await quota.settle(subject, agent_run.usage)
                         # Save full output for follow-up detection
                         full_output = ""
                         if streaming_output is not None:
@@ -382,7 +398,6 @@ async def _run_agent_impl(
                                 pyrogram.enums.ChatType.GROUP,
                             )
                         ):
-                            # Get last reply info from existing BotLastReply if available
                             bot_reply = await memttlcache.get(
                                 state.bot_last_reply_key(chat_id)
                             )
@@ -430,7 +445,6 @@ async def _run_agent_impl(
                         if Agent.is_call_tools_node(node):
                             for part in node.model_response.parts:
                                 if part.part_kind == "text" and part.content:
-                                    # Check if content is final_result before sending
                                     if "final_result" in part.content:
                                         logger.warning(
                                             f"The stupid agent returned 'final_result' as text🤡 for user {user_id}"
@@ -463,6 +477,8 @@ async def _run_agent_impl(
                     elif not replied and output:
                         await reply_output(client, message, output)
                         full_output_parts.append(output)
+                    # 结算排在收尾动作之前: 收尾失败不该让这次调用免费。
+                    await quota.settle(subject, agent_run.usage)
                     # Save full output for follow-up detection
                     full_output = "\n".join(full_output_parts)
                     if (

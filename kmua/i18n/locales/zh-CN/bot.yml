@@ -79,6 +79,7 @@ bot:
       /syncmembers - 同步群组成员
       /f5avatar - 刷新你的头像
       /forget - 让 bot 忘记与你的对话记录
+      /quota - 查看 AI 使用额度
       /throwbottle - 扔一个漂流瓶
       /pickbottle - 捡一个漂流瓶
       /buygift - 购买礼物
@@ -146,6 +147,16 @@ bot:
         model_http: 失败了喵, 请稍后再试 (HTTP {code})
         too_fast: 太快了! 不行!
         interrupted: "*输出被中断了喵 ({error})"
+      quota:
+        calls_today: "今日 AI 用量: {used} 次 / {tokens} tokens"
+        free_line: "免费额度: {used}/{limit} tokens"
+        credits_line: "额度余额: {credits} tokens"
+        chat_line: "本群额度: 今日已用 {used} / {limit} tokens, 群余额 {credits}"
+        status_unlimited: "今日 AI 用量: {used} 次 / {tokens} tokens, 当前没有用量限制"
+        status_none: 本群暂未分配 AI 调用额度, 请联系 bot 管理员~
+        exhausted: |
+          今天的雌元用完啦! 明天再来吧~
+        exhausted_group: 本群暂时没有可用的 AI 调用额度, 请联系 bot 管理员~
     wordcloud:
       generating: 已经正在生成啦, 请稍等一会儿...
       generated: 最近聊天记录的词云图

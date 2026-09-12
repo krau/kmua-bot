@@ -17,7 +17,7 @@ from typing import Any
 from agentfs_sdk import AgentFS, AgentFSOptions
 
 WORKSPACE_AGENTFS_DIR = Path(".agentfs") / "workspace"
-MAX_WORKSPACE_FILE_SIZE = 5 * 1024 * 1024  # 5 MB
+MAX_WORKSPACE_FILE_SIZE = 5 * 1024 * 1024
 _SESSION_CACHE_MAX = 32
 
 _workspace_agentfs: OrderedDict[str, AgentFS] = OrderedDict()

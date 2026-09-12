@@ -39,10 +39,6 @@ from pydantic_ai_harness.compaction import (
 from kmua.config import app_config
 from kmua.logger import logger
 
-# ============================================================================
-# Deferred tool calls
-# ============================================================================
-
 
 def find_deferred_tool_call_index(
     messages: Sequence[ModelMessage],
@@ -50,7 +46,6 @@ def find_deferred_tool_call_index(
     """Find the index of the last message containing an unresolved (deferred) tool call.
 
     A tool call is deferred if it has no corresponding tool-return or retry-prompt.
-    Returns the message index, or None if all tool calls are resolved.
     """
     call_positions: dict[str, int] = {}
     resolved_call_ids: set[str] = set()
@@ -73,19 +68,11 @@ def find_deferred_tool_call_index(
     return max(deferred_indices)
 
 
-# ============================================================================
-# Multimodal trimming
-# ============================================================================
-
-
 def truncate_multimodal(
     messages: Sequence[ModelMessage],
     max_items: int,
 ) -> list[ModelMessage]:
-    """Limit multimodal content items across all messages.
-
-    Removes oldest multimodal items first while preserving text content.
-    """
+    """Remove oldest multimodal content items first, preserving text content."""
     if max_items <= 0:
         return list(messages)
 
@@ -153,11 +140,6 @@ def truncate_multimodal(
     return result
 
 
-# ============================================================================
-# Compaction (pydantic-ai-harness)
-# ============================================================================
-
-
 @dataclass
 class InPlaceSummarizingCompaction(SummarizingCompaction):
     """SummarizingCompaction whose summary runs through the main agent itself.
@@ -172,8 +154,6 @@ class InPlaceSummarizingCompaction(SummarizingCompaction):
     """
 
     agent: Any = None
-    """The main agent; its summary run reproduces the conversation's request
-    shape exactly."""
 
     async def _summarize(
         self,
@@ -212,9 +192,7 @@ class InPlaceSummarizingCompaction(SummarizingCompaction):
 
 
 def build_compaction_strategy(agent: Any | None = None) -> TieredCompaction | None:
-    """Build the conversation-compaction strategy from config.
-
-    Cheap zero-LLM tiers first (clear old tool results), LLM summarization
+    """Cheap zero-LLM tiers first (clear old tool results), LLM summarization
     last, escalating only while the history exceeds the compression threshold
     (``agent_context_window_tokens`` x ``agent_context_compress_ratio``).
     The summarize tier needs the main agent (its summary run reproduces the
@@ -279,7 +257,7 @@ async def compact_history(
     carries the run's instructions (the summary run reuses them as its system
     prompt), and ``agent`` is the main agent whose request shape the summary
     run reproduces for prompt-cache hits, and ``usage`` is the run's RunUsage
-    the summary call is billed to. Returns the (possibly unchanged) history.
+    the summary call is billed to.
     """
     if not messages:
         return []
