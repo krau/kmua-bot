@@ -49,22 +49,36 @@ def _quiet_logs() -> Iterator[None]:
     yield
 
 
-@pytest.fixture(autouse=True)
-async def _drain_spawned_writes() -> AsyncIterator[None]:
-    """Let background writes finish before the next test starts.
+async def drain_trace_writes(timeout: float = 10.0) -> None:
+    """Wait for the scheduled agent-run-trace writes to finish.
 
-    The bot schedules some writes (agent run traces) so they never delay a reply,
-    which in tests means a write can outlive the test that triggered it. On the
-    shared SQLite file the next test's writes then contend with it and fail with
-    "database is locked" - a race the product does not have, because there the
-    next write belongs to a different turn, seconds later.
+    The bot schedules them so they never delay a reply, which in tests means a write
+    can outlive the test that triggered it: on the shared SQLite file the next test's
+    writes then contend with it and fail with "database is locked" - a race the
+    product does not have, because there the next write belongs to a different turn,
+    seconds later.
+
+    Only the trace tasks are waited for. Other coroutines this repo spawns sleep for
+    minutes by design (auto-delete, the webapp server), so waiting for every
+    background task would hang a session instead of failing one test.
     """
-    yield
     from kmua.common import utils
 
-    pending = [task for task in utils._background_tasks if not task.done()]
+    pending = [
+        task
+        for task in utils._background_tasks
+        if not task.done() and task.get_name().startswith("agent-trace")
+    ]
     if pending:
-        await asyncio.gather(*pending, return_exceptions=True)
+        await asyncio.wait_for(
+            asyncio.gather(*pending, return_exceptions=True), timeout=timeout
+        )
+
+
+@pytest.fixture(autouse=True)
+async def _drain_spawned_writes() -> AsyncIterator[None]:
+    yield
+    await drain_trace_writes()
 
 
 @pytest.fixture(scope="session")
