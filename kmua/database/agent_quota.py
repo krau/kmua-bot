@@ -354,22 +354,45 @@ async def set_credit(
 ) -> int:
     """把余额设成绝对值, 返回改前的余额(面板数字字段用; 差额记进流水)。
 
-    读与写同事务, 且读时锁住该行: 差额与写出的结果取自同一个余额状态, 所以返回的
-    "改前余额"与最终余额一定自洽, 审计记录不会声称一个没发生的值。
-    `with_for_update()` 在 SQLite 上是 no-op, 那里的保证来自"读与写同事务"本身。
+    读到的余额兼作比较交换的条件: 并发改动会让这次重读, 所以返回的改前余额与最终余额自洽;
+    `with_for_update()` 在 SQLite 上是 no-op, 这条 CAS 才是各数据库通用的保证。
+    目标值相等时不写流水。
     """
     assert session is not None
     await _ensure_credit_row(session, scope, scope_id)
-    current = await session.scalar(
-        sqlalchemy.select(AgentCredit.balance)
-        .where(AgentCredit.scope == scope, AgentCredit.scope_id == scope_id)
-        .with_for_update()
+    for _ in range(_CREDIT_CAS_RETRIES):
+        observed = await session.scalar(
+            sqlalchemy.select(AgentCredit.balance).where(
+                AgentCredit.scope == scope, AgentCredit.scope_id == scope_id
+            )
+        )
+        assert observed is not None
+        if observed == balance:
+            return observed
+        result = await session.execute(
+            sqlalchemy.update(AgentCredit)
+            .where(
+                AgentCredit.scope == scope,
+                AgentCredit.scope_id == scope_id,
+                AgentCredit.balance == observed,
+            )
+            .values(balance=balance)
+            .execution_options(synchronize_session=False)
+        )
+        if result.rowcount == 1:  # type: ignore[attr-defined]
+            session.add(
+                AgentCreditLedger(
+                    scope=scope,
+                    scope_id=scope_id,
+                    delta=balance - observed,
+                    balance_after=balance,
+                    reason=reason,
+                )
+            )
+            return observed
+    raise RuntimeError(
+        f"set_credit lost {_CREDIT_CAS_RETRIES} races on {scope}:{scope_id}"
     )
-    assert current is not None
-    if current == balance:
-        return current
-    await adjust_credits(scope, scope_id, balance - current, reason, session=session)
-    return current
 
 
 __all__ = [
