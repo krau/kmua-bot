@@ -26,7 +26,6 @@ depends_on: str | Sequence[str] | None = None
 
 _RUN_INDEXES: tuple[tuple[str, list[str]], ...] = (
     ("ix_agent_runs_started_at", ["started_at"]),
-    ("ix_agent_runs_session_started", ["session_id", "started_at"]),
     ("ix_agent_runs_chat_started", ["chat_id", "started_at"]),
     ("ix_agent_runs_user_started", ["user_id", "started_at"]),
     ("ix_agent_runs_status_started", ["status", "started_at"]),

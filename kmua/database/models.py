@@ -916,7 +916,6 @@ class AgentRun(Base):
 
     __table_args__ = (
         sa.Index("ix_agent_runs_started_at", "started_at"),
-        sa.Index("ix_agent_runs_session_started", "session_id", "started_at"),
         sa.Index("ix_agent_runs_chat_started", "chat_id", "started_at"),
         sa.Index("ix_agent_runs_user_started", "user_id", "started_at"),
         sa.Index("ix_agent_runs_status_started", "status", "started_at"),
