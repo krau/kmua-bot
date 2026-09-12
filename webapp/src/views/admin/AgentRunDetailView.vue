@@ -40,7 +40,26 @@ const showRaw = ref(false);
 
 const events = computed(() => run.value?.events ?? []);
 
-const blocks = computed(() => traceBlocks(event.value?.messages ?? []));
+/** The response's own serialized messages, kept in the event payload. */
+const payloadMessages = computed(() => {
+  const value = event.value?.payload?.["messages"];
+  return Array.isArray(value) ? value : null;
+});
+
+/**
+ * What to render as a conversation.
+ *
+ * A request's transcript is rebuilt from the run's prefix encoding and arrives as
+ * `messages`; a response has nothing to rebuild, so its messages come straight from
+ * the payload. Reading `messages` for both is why a response used to claim its data
+ * had been dropped.
+ */
+const blocks = computed(() => {
+  const current = event.value;
+  if (!current) return [];
+  const source = current.kind === "model_request" ? current.messages : payloadMessages.value;
+  return traceBlocks(source ?? []);
+});
 
 const payloadJson = computed(() => JSON.stringify(event.value?.payload ?? null, null, 2));
 
@@ -267,7 +286,10 @@ function summaryItems(data: NonNullable<typeof run.value>): DefinitionItem[] {
                   </div>
                 </template>
 
-                <p v-if="event.messages === null && !showRaw" class="text-sub text-hint">
+                <p
+                  v-if="event.kind === 'model_request' && event.messages === null && !showRaw"
+                  class="text-sub text-hint"
+                >
                   {{ t("agentRuns.detail.unreconstructable") }}
                 </p>
 
