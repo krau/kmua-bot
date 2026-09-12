@@ -466,7 +466,7 @@
       "eventHint": "点击查看这一步的完整内容",
       "payload": "原始数据",
       "truncated": "内容过长, 已截断",
-      "unreconstructable": "无法还原这次请求的完整消息: 数据超过了单次事件的上限",
+      "unreconstructable": "这一步的完整消息无法还原: 数据超过了单次事件的上限",
       "rawJson": "原始 JSON",
       "conversation": "对话",
       "instructions": "指令",

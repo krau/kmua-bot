@@ -466,7 +466,7 @@
       "eventHint": "Open to see this step in full",
       "payload": "Payload",
       "truncated": "Content was too long and was cut",
-      "unreconstructable": "This request's messages cannot be rebuilt: the data exceeded the per-event cap",
+      "unreconstructable": "This step's messages cannot be rebuilt: the data exceeded the per-event cap",
       "rawJson": "Raw JSON",
       "conversation": "Conversation",
       "instructions": "Instructions",

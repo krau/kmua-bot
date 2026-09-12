@@ -52,14 +52,16 @@ const payloadMessages = computed(() => {
  * A request's transcript is rebuilt from the run's prefix encoding and arrives as
  * `messages`; a response has nothing to rebuild, so its messages come straight from
  * the payload. Reading `messages` for both is why a response used to claim its data
- * had been dropped.
+ * had been dropped. Null means this step has no transcript at all - a replay that
+ * failed, or a payload that was replaced by a size marker.
  */
-const blocks = computed(() => {
+const transcript = computed(() => {
   const current = event.value;
-  if (!current) return [];
-  const source = current.kind === "model_request" ? current.messages : payloadMessages.value;
-  return traceBlocks(source ?? []);
+  if (!current) return null;
+  return current.kind === "model_request" ? current.messages : payloadMessages.value;
 });
+
+const blocks = computed(() => traceBlocks(transcript.value ?? []));
 
 const payloadJson = computed(() => JSON.stringify(event.value?.payload ?? null, null, 2));
 
@@ -76,6 +78,9 @@ const settingsJson = computed(() => {
   return settings === undefined || settings === null ? null : JSON.stringify(settings, null, 2);
 });
 
+/** Identifies the newest fetch, so a superseded one cannot paint over its result. */
+let eventRequest = 0;
+
 async function toggle(seq: number): Promise<void> {
   if (openSeq.value === seq) {
     openSeq.value = null;
@@ -87,22 +92,17 @@ async function toggle(seq: number): Promise<void> {
   eventError.value = null;
   showRaw.value = false;
   eventLoading.value = true;
+  const request = (eventRequest += 1);
+  const current = () => openSeq.value === seq && request === eventRequest;
   try {
     const loaded = await fetchAgentRunEvent(props.runId, seq);
-    // A second tap while the first request was in flight wins; the stale answer
-    // must not overwrite the step the operator is now looking at.
-    if (openSeq.value === seq) {
-      event.value = loaded;
-      // A superseded attempt for this same step may have failed after this one
-      // started; its error must not outlive the answer that did arrive.
-      eventError.value = null;
-    }
+    if (current()) event.value = loaded;
   } catch (error) {
-    if (openSeq.value === seq) {
+    if (current()) {
       eventError.value = isApiError(error) ? tError(error.code) : t("app.loadFailed");
     }
   } finally {
-    if (openSeq.value === seq) eventLoading.value = false;
+    if (current()) eventLoading.value = false;
   }
 }
 
@@ -295,10 +295,7 @@ function summaryItems(data: NonNullable<typeof run.value>): DefinitionItem[] {
                   </div>
                 </template>
 
-                <p
-                  v-if="event.kind === 'model_request' && event.messages === null && !showRaw"
-                  class="text-sub text-hint"
-                >
+                <p v-if="transcript === null && !showRaw" class="text-sub text-hint">
                   {{ t("agentRuns.detail.unreconstructable") }}
                 </p>
 
