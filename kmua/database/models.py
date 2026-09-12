@@ -930,8 +930,8 @@ class AgentRunEvent(Base):
     `payload` holds the step's own data. For `model_request` it is an increment:
     only the messages past the longest common prefix with the previous request of
     the same run are stored, which is what keeps a long turn at roughly one copy of
-    its history instead of one per request. Every string in the payload was
-    redacted (when secret masking is on) and capped before storage.
+    its history instead of one per request. Over-long strings are cut to
+    `agent_trace_max_field_chars` before storage.
     """
 
     __tablename__ = "agent_run_events"
@@ -950,7 +950,7 @@ class AgentRunEvent(Base):
     )
     duration_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
     payload: Mapped[dict | None] = mapped_column(JSON, nullable=True)
-    # Character count of the payload before redaction and truncation.
+    # Character count of the payload before truncation.
     payload_chars: Mapped[int | None] = mapped_column(Integer, nullable=True)
     truncated: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=False, server_default=sa.text("false")

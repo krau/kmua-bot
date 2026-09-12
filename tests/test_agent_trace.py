@@ -235,23 +235,6 @@ async def test_the_run_payload_budget_is_spent_across_events(monkeypatch):
     assert second.truncated is True
 
 
-async def test_secrets_are_masked_before_storage(monkeypatch):
-    monkeypatch.setattr(app_config, "agent_secret_masking", True, raising=False)
-    secret = "sk-abcdefghijklmnopqrstuvwxyz1234567890"
-    session = trace.start_trace("chat")
-    assert session is not None
-    session.note_steering([f"token: {secret}"])
-    task = trace.finish_trace(session, output=f"leaked {secret}")
-    assert task is not None
-    await task
-
-    run = (await runs())[0]
-    events = await stored_events(run.id)
-    stored = str(events[0].payload) + str(run.output_text)
-    assert secret not in stored
-    assert "redacted" in stored
-
-
 # --------------------------------------------------------------- refusal rows
 
 

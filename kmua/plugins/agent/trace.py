@@ -114,31 +114,6 @@ def output_kind_of(output: Any) -> str:
     return _OUTPUT_KINDS.get(type(output).__name__, "none")
 
 
-def _redact_string(text: str) -> str:
-    """Rewrite credentials out of text, when masking is on."""
-    if not app_config.agent_secret_masking:
-        return text
-    # Deferred: the detectors module is only needed here, and importing it at
-    # module scope would tie this module to the guardrail stack.
-    from pydantic_ai_harness.guardrails.detectors import redact_secrets
-
-    result = redact_secrets(text)
-    replacement = result.replacement
-    if result.action == "replace" and isinstance(replacement, str):
-        return replacement
-    return text
-
-
-def _redact(value: Any) -> Any:
-    if isinstance(value, str):
-        return _redact_string(value)
-    if isinstance(value, dict):
-        return {key: _redact(item) for key, item in value.items()}
-    if isinstance(value, list):
-        return [_redact(item) for item in value]
-    return value
-
-
 def _truncate(value: Any, limit: int) -> tuple[Any, bool]:
     """Cut over-long strings, leaving the surrounding structure alone."""
     if isinstance(value, str):
@@ -626,7 +601,7 @@ def _resolve_status(session: TraceSession) -> None:
 def _prepare_payload(
     payload: dict[str, Any] | None, budget: list[int], limit: int
 ) -> tuple[dict[str, Any] | None, int | None, bool]:
-    """Redact, cap and measure one event payload.
+    """Cap and measure one event payload.
 
     `budget` is the run's remaining payload allowance, decremented in place: the
     per-event cap protects one giant step, the run cap protects a run made of many
@@ -643,7 +618,7 @@ def _prepare_payload(
         )
         return {"truncated": True, "reason": reason, "chars": chars}, chars, True
     budget[0] -= chars
-    value, cut = _truncate(_redact(payload), limit)
+    value, cut = _truncate(payload, limit)
     return value, chars, cut
 
 
@@ -685,10 +660,10 @@ def _to_draft(session: TraceSession) -> AgentRunDraft:
     finished = session.finished_at or started
     output_text = session.output_text
     if output_text is not None:
-        output_text, _cut = _truncate(_redact_string(output_text), limit)
+        output_text, _cut = _truncate(output_text, limit)
     error_message = session.error_message
     if error_message is not None:
-        error_message = _redact_string(error_message)[:_MAX_ERROR_CHARS]
+        error_message = error_message[:_MAX_ERROR_CHARS]
 
     return AgentRunDraft(
         kind=session.kind,
@@ -848,10 +823,8 @@ class AgentTraceCapability(AbstractCapability[Any]):
     is actually given (after history processing rewrote them), and every outer
     capability's `after_*` - the tool-output limit, the clamp - runs after this one,
     so a tool return is recorded as the tool produced it rather than as those
-    rewrote it. The secret-masking guard is innermost as well and sits inside this
-    capability, so a masked tool return is what arrives here; the payload is masked
-    again on the way in regardless, which is what keeps a credential out of the
-    database either way.
+    rewrote it. Whatever the chain hands this capability is what is stored: the trace
+    adds no filtering of its own.
 
     Holds no per-run state - every hook reads the session from the context - so one
     instance can be shared by any number of agents.
