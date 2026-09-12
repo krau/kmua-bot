@@ -35,9 +35,12 @@ def prompt_coverage_key(chat_id: int, user_id: int) -> str:
     return f"agent_prompt_coverage:{chat_id}:{user_id}"
 
 
+SESSION_KEY_PREFIX = "agent_conversation_session:"
+
+
 def session_key(chat_id: int, user_id: int) -> str:
     """Key of this conversation's current instance id."""
-    return f"agent_conversation_session:{chat_id}:{user_id}"
+    return f"{SESSION_KEY_PREFIX}{chat_id}:{user_id}"
 
 
 _uuid7_lock = Lock()
@@ -59,9 +62,12 @@ def new_session_id() -> str:
     global _uuid7_last_ms, _uuid7_counter
     with _uuid7_lock:
         millis = time_ns() // 1_000_000
-        if millis == _uuid7_last_ms:
+        if millis <= _uuid7_last_ms:
+            # Same millisecond, or a clock that stepped backwards: keep the last
+            # timestamp and advance the counter, so ids never go down.
             # Masked only against arithmetic gone wrong: 2**42 ids in one
             # millisecond is not reachable.
+            millis = _uuid7_last_ms
             _uuid7_counter = (_uuid7_counter + 1) & 0x3FFFFFFFFFF
         else:
             _uuid7_last_ms = millis
