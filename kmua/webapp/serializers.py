@@ -10,6 +10,8 @@ from datetime import datetime
 
 from kmua.config import app_config
 from kmua.database.models import (
+    AgentRun,
+    AgentRunEvent,
     ChatConfig,
     ChatData,
     Quote,
@@ -19,6 +21,10 @@ from kmua.database.models import (
 from kmua.webapp.schemas import (
     AdminChatOut,
     AdminUserOut,
+    AgentRunDetailOut,
+    AgentRunEventDetailOut,
+    AgentRunEventOut,
+    AgentRunOut,
     ChatConfigOut,
     QuoteOut,
     RssSubscriptionOut,
@@ -154,4 +160,70 @@ def rss_subscription_out(sub: RssSubscription) -> RssSubscriptionOut:
         last_error=sub.feed.last_error,
         last_fetched_at=timestamp(sub.feed.last_fetched_at),
         created_at=timestamp(sub.created_at),
+    )
+
+
+def agent_run_out(run: AgentRun) -> AgentRunOut:
+    return AgentRunOut(
+        id=run.id,
+        kind=run.kind,
+        status=run.status,
+        reject_reason=run.reject_reason,
+        chat_id=run.chat_id,
+        user_id=run.user_id,
+        message_id=run.message_id,
+        parent_run_id=run.parent_run_id,
+        model_name=run.model_name,
+        model_role=run.model_role,
+        streaming=run.streaming,
+        started_at=timestamp(run.started_at),
+        finished_at=timestamp(run.finished_at),
+        duration_ms=run.duration_ms,
+        requests=run.requests,
+        tool_calls=run.tool_calls,
+        input_tokens=run.input_tokens,
+        output_tokens=run.output_tokens,
+        cache_read_tokens=run.cache_read_tokens,
+        cache_write_tokens=run.cache_write_tokens,
+        output_kind=run.output_kind,
+        output_chars=run.output_chars,
+        error_class=run.error_class,
+        event_count=run.event_count,
+        events_dropped=run.events_dropped,
+    )
+
+
+def agent_run_detail_out(
+    run: AgentRun, events: list[AgentRunEvent]
+) -> AgentRunDetailOut:
+    return AgentRunDetailOut(
+        **agent_run_out(run).model_dump(),
+        output_text=run.output_text,
+        error_message=run.error_message,
+        events=[agent_run_event_out(event) for event in events],
+    )
+
+
+def agent_run_event_out(event: AgentRunEvent) -> AgentRunEventOut:
+    return AgentRunEventOut(
+        seq=event.seq,
+        kind=event.kind,
+        name=event.name,
+        status=event.status,
+        duration_ms=event.duration_ms,
+        payload_chars=event.payload_chars,
+        truncated=event.truncated,
+        created_at=timestamp(event.created_at),
+    )
+
+
+def agent_run_event_detail_out(
+    event: AgentRunEvent,
+    messages: list[dict] | None,
+) -> AgentRunEventDetailOut:
+    payload = event.payload if isinstance(event.payload, dict) else None
+    return AgentRunEventDetailOut(
+        **agent_run_event_out(event).model_dump(),
+        payload=payload,
+        messages=messages,
     )
