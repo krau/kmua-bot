@@ -71,6 +71,9 @@ async def update_user_memory(
             trace.mark_trace(
                 session, usage=memory_result.usage, output=str(memory_result.output)
             )
+        except Exception as e:
+            trace.mark_trace(session, status="error", error=e)
+            raise
         finally:
             trace.finish_trace(session)
 
