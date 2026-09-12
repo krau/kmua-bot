@@ -34,17 +34,10 @@ class SendResult:
         return msg
 
 
-# Module-level job functions for APScheduler persistence
-# These are defined at module level so they can be serialized by reference
+# Module-level so APScheduler can serialize jobs by reference.
 
 
 async def _scheduled_text_job(chat_id: int, text: str) -> None:
-    """Module-level function to send scheduled text message.
-
-    Args:
-        chat_id: Target chat ID
-        text: Message text to send
-    """
     try:
         await client.send_message(chat_id=chat_id, text=text)
         logger.info("Scheduled text message sent successfully")
@@ -58,14 +51,6 @@ async def _scheduled_media_job(
     media_url: str,
     caption: str,
 ) -> None:
-    """Module-level function to send scheduled media message.
-
-    Args:
-        chat_id: Target chat ID
-        media_type: Type of media
-        media_url: Media URL
-        caption: Media caption
-    """
     try:
         match media_type:
             case "photo":
@@ -106,15 +91,6 @@ async def _scheduled_poll_job(
     is_anonymous: bool,
     allows_multiple_answers: bool,
 ) -> None:
-    """Module-level function to send scheduled poll.
-
-    Args:
-        chat_id: Target chat ID
-        question: Poll question
-        options: Poll options
-        is_anonymous: Whether the poll is anonymous
-        allows_multiple_answers: Whether multiple answers are allowed
-    """
     try:
         from kmua.bot.client import client
 
@@ -162,9 +138,6 @@ async def schedule_message(
             "audio", "document". Required if media_url is provided.
         media_url: Direct URL for media types. Required if media_type is provided.
         caption: Optional caption for media messages.
-
-    Returns:
-        A SendResult indicating success or failure.
     """
     if ctx.deps.message is None or ctx.deps.chat_id is None:
         return SendResult(
@@ -173,7 +146,6 @@ async def schedule_message(
     if not send_immediately and not schedule_time:
         raise ModelRetry("Must provide either schedule_time or send_immediately=True")
 
-    # Validate schedule_time if not sending immediately
     schedule_datetime: datetime.datetime | None = None
     if not send_immediately and schedule_time:
         try:
@@ -185,7 +157,6 @@ async def schedule_message(
         if schedule_datetime < datetime.datetime.now(datetime.UTC):
             raise ModelRetry("schedule_time must be in the future.")
 
-    # Validate message content
     has_text = text is not None and text.strip()
     has_media = media_type is not None or media_url is not None
 
@@ -203,14 +174,12 @@ async def schedule_message(
     chat_id = ctx.deps.chat_id
 
     if send_immediately:
-        # Send immediately without scheduling
         try:
             if has_text:
                 assert text is not None
                 await ctx.deps.client.send_message(chat_id=chat_id, text=text)
                 return SendResult(success=True, message="Message sent.").text()
             else:
-                # Send media immediately
                 assert media_type is not None
                 assert media_url is not None
                 caption = caption if caption else ""
@@ -244,12 +213,9 @@ async def schedule_message(
             logger.error(f"Immediate send failed: {e.__class__.__name__}: {e}")
             return SendResult(success=False, message=f"Failed to send: {e}").text()
     else:
-        # Schedule for later delivery
-        # At this point schedule_datetime must be set (validated above)
         assert schedule_datetime is not None
 
         if has_text:
-            # Schedule text message using module-level function
             assert text is not None
             text_content = text
             job_key = (
@@ -265,7 +231,6 @@ async def schedule_message(
                 args=[chat_id, text_content],
             )
         else:
-            # Schedule media message using module-level function
             assert media_type is not None
             assert media_url is not None
             _caption = caption if caption else ""
@@ -306,9 +271,6 @@ async def send_poll(
         allows_multiple_answers: Whether users can select multiple answers.
         schedule_time: Optional ISO 8601 datetime string to schedule delivery,
             e.g. "2025-06-04T15:00:00+08:00". If omitted, sends immediately.
-
-    Returns:
-        A SendResult indicating success or failure.
     """
     if ctx.deps.message is None or ctx.deps.chat_id is None:
         return SendResult(
@@ -383,7 +345,6 @@ async def _schedule_poll(
         f":{md5(question.encode()).hexdigest()}"
     )
 
-    # Use module-level function for persistence
     common.jobqueue.add_onetime_job(
         job_key,
         run_date=schedule_datetime,
@@ -401,9 +362,6 @@ async def send_sticker(
     Args:
         query: Natural language description of the desired sticker, e.g. "happy excited",
                "sad crying", "thumbs up approval".
-
-    Returns:
-        A SendResult indicating success or failure.
     """
     if ctx.deps.chat_id is None or ctx.deps.message is None:
         return SendResult(
@@ -507,9 +465,6 @@ async def send_anime_photo(
     Args:
         keyword: Optional keyword to search for specific anime photos.
         count: How many photos to send, 1-10.
-
-    Returns:
-        An AnimePhotoResult dataclass containing the result of the operation.
     """
     if ctx.deps.message is None or ctx.deps.message.id is None:
         return AnimePhotoResult(
@@ -604,7 +559,6 @@ async def _send_anime_photo_single(
     artwork: dict,
     picture: dict,
 ) -> AnimePhotoResult:
-    """Send one artwork photo with its caption and source buttons."""
     user_config = await database.get_user_config(ctx.deps.user_id)
     lang = user_config.lang
     detail_link = (
@@ -657,7 +611,7 @@ async def _send_anime_photo_single(
 async def _send_sticker_checked(
     ctx: RunContext[datatype.ContextDeps], query: str
 ) -> str:
-    """Send a sticker, after the availability checks that used to gate the tool."""
+    """Send a sticker after the availability checks."""
     if not app_config.agent_sticker_memory or sticker_memory.embedder is None:
         return "Error: Sticker sending is not available (sticker memory is disabled)."
     if ctx.deps.chat_id is None or ctx.deps.chat_id >= -100:

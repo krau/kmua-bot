@@ -35,8 +35,7 @@ from kmua.plugins.agent import state as agent_state
 SCOPE_USER = database.SCOPE_USER
 SCOPE_CHAT = database.SCOPE_CHAT
 
-# 匿名管理/服务账号没有自己的账户; 它们的消息只记在群账上。
-# 见 kmua/enums.py::ChatID。
+# 匿名管理/服务账号没有自己的账户(见 kmua/enums.py::ChatID), 消息只记在群账上。
 PSEUDO_USER_IDS = frozenset(
     (int(ChatID.ANONYMOUS_ADMIN), int(ChatID.SERVICE_CHAT), int(ChatID.FAKE_CHANNEL))
 )
@@ -289,7 +288,6 @@ def fmt_tokens(value: int) -> str:
 
 
 def exhausted_text(state: QuotaState, lang: str) -> str:
-    """额度用尽的提示语: 文案按是否有个人账户二选一。"""
     user = state.user
     if user is None or user.free_limit_tokens is None:
         return i18n.t("bot.msg.agent.quota.exhausted_group", locale=lang)
@@ -297,10 +295,7 @@ def exhausted_text(state: QuotaState, lang: str) -> str:
 
 
 def status_text(state: QuotaState, lang: str) -> str:
-    """/quota 的输出: 个人账户必有, 群账户只在群里有额度时列出。
-
-    不限额也要列出群账户: 群里的用户只能从这里看到本群还剩多少。
-    """
+    """群账户不限额也要列出: 群里的用户只能从这里看到本群还剩多少。"""
     lines: list[str] = []
     user = state.user
     if user is not None:
@@ -338,7 +333,6 @@ def status_text(state: QuotaState, lang: str) -> str:
             )
         )
     if not lines:
-        # 没有个人账户(匿名管理)且群里也没额度时, 总得说点什么。
         return i18n.t("bot.msg.agent.quota.status_none", locale=lang)
     return "\n".join(lines)
 

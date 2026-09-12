@@ -71,7 +71,6 @@ async def _is_first_media_in_group(message: pyrogram.types.Message) -> bool:
     if not (message.caption or message.text):
         return False
 
-    # 同一个 media_group 只处理一次
     key = f"channel_comment_media_group:{chat.id}:{media_group_id}"
     if await memttlcache.get(key, False):
         return False
@@ -85,25 +84,6 @@ def _message_has_unsupported_media(message: pyrogram.types.Message) -> bool:
 
     This mirrors the media handling logic in get_input_prompt so that comments
     are skipped when the model would only see a caption without the actual media.
-
-    Supported media breakdown (matching get_input_prompt exactly):
-    - POLL: always converted to text (supported regardless of settings).
-    - WEB_PAGE: URL text is always visible (supported).
-    - All other media types require app_config.agent_multimodal == True.
-      - PHOTO: supported when "photo" is in agent_multimodal_inputs.
-      - LIVE_PHOTO: NOT handled in get_input_prompt (unsupported).
-      - VIDEO: supported when "video" in inputs, file_size <= 20 MiB.
-      - AUDIO: supported when "audio" in inputs, file_size <= 10 MiB.
-      - VOICE: supported when "audio" in inputs, file_size <= 10 MiB.
-      - DOCUMENT:
-        - text/* mime types are read as plain text (supported).
-        - image/* requires "photo" in inputs, file_size <= 10 MiB.
-        - Specific mime types listed in agent_multimodal_inputs,
-          file_size <= 10 MiB.
-        - Everything else is unsupported.
-      - STICKER:
-        - Animated stickers are unsupported.
-        - Video/static stickers require "photo" in inputs.
     """
     if not message.media:
         return False
@@ -115,7 +95,6 @@ def _message_has_unsupported_media(message: pyrogram.types.Message) -> bool:
     ):
         return False
 
-    # All remaining media types require agent_multimodal to be processed.
     if not app_config.agent_multimodal:
         return True
 
@@ -176,7 +155,6 @@ def _message_has_unsupported_media(message: pyrogram.types.Message) -> bool:
                 mime_type, _ = mimetypes.guess_type(document.file_name or "")
                 mime_type = mime_type or "application/octet-stream"
             mime_type = mime_type.split(";")[0]
-            # Plain text documents are readable as text.
             if mime_type.startswith("text/"):
                 return False
             if (
@@ -273,10 +251,8 @@ async def comment_channel_message(client: Client, message: pyrogram.types.Messag
     if channel is None or channel.id is None:
         return
 
-    # 对相册消息（media group）只在第一条媒体上触发评论
     if not await _is_first_media_in_group(message):
         return
-    # 构建 instructions：base prompt → per-chat override → ctx 信息
     instructions = (
         app_config.agent_group_prompt
         if app_config.agent_group_prompt

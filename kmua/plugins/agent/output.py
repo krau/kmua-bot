@@ -37,7 +37,6 @@ async def _rich_output_enabled() -> bool:
 
 
 async def _note_rich_result(sent: bool) -> None:
-    """Track consecutive rich send failures for the circuit breaker."""
     if sent:
         await memttlcache.delete(_RICH_FAILURE_KEY)
         await memttlcache.delete(_RICH_DISABLED_KEY)
@@ -89,7 +88,6 @@ async def _send_rich_tail_plain(
     message: pyrogram.types.Message,
     payloads: list[pyrogram.types.InputRichMessage],
 ) -> None:
-    """Deliver rich payloads that could not be sent as rich, as plain text."""
     text = "\n\n".join(
         part
         for part in (
@@ -157,9 +155,6 @@ async def reply_output(
         last_reply_id: int | None = None
         last_reply_msg: pyrogram.types.Message | None = None
         last_reply_text = ""
-        # One message per answer on purpose: the old paragraph chunking (up to
-        # 7 messages with random delays) is gone, only Telegram's per-message
-        # limits split the output now.
         if await _rich_output_enabled():
             payloads = convert_rich_md(text)
             sent_count, last_reply_id = await _send_rich_payloads(
@@ -203,9 +198,7 @@ async def reply_output(
 
 
 class TypingKeepAlive:
-    """Maintains a typing chat action for the duration of a long-running operation.
-
-    This is a standalone context manager that keeps sending TYPING status
+    """Standalone context manager that keeps the TYPING action going
     independently of StreamingOutput, so typing continues during tool calls too.
     """
 

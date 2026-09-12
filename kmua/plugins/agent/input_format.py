@@ -121,7 +121,6 @@ def is_deliverable(
 
 
 def deliverable_file_id(message: pyrogram.types.Message) -> str | None:
-    """The file_id to download when the message's media is deliverable."""
     if not is_deliverable(message):
         return None
     media = message.media
@@ -265,7 +264,6 @@ async def allocate_budget(
     for msg in newest_first:
         unique = file_unique_id_of(msg)
         if unique is not None and unique in seen_unique:
-            # same image already budgeted: mark for number reference only
             references.append(msg)
             continue
         if len(winners) >= limit:
@@ -334,7 +332,7 @@ async def _download(
     """Download the message's media with the correct media_type for its kind.
 
     Video stickers carry no raster image: their first frame is extracted with
-    ffmpeg and delivered as WebP, like the legacy path.
+    ffmpeg and delivered as WebP.
     """
     from .prompt import _download_media_with_timeout
 
@@ -593,9 +591,6 @@ async def build_group_prompt(
     tokens and re-download media.
     Only historical media from the current sender, except stickers, enters the
     media budget; the current message and its direct reply remain unrestricted.
-    The env header (chat name, current time) goes into every prompt; ContextInfo
-    extras (chat info, user profile, memory, affection prompt) only on the first
-    prompt (ctx present).
     """
     chat = message.chat
     chat_id = chat.id if chat is not None and chat.id is not None else 0

@@ -630,7 +630,7 @@ async def test_run_agent_refuses_when_exhausted_without_calling_the_model(
 
     assert calls == []
     assert len(message.replies) == 1
-    # 断言整条文案: 措辞改动不该让测试失效。
+    # 断言整条文案, 不依赖其中某个词。
     assert message.replies[0] == i18n.t("bot.msg.agent.quota.exhausted", locale="zh-CN")
 
 
@@ -745,8 +745,7 @@ async def _run_impl_with_stubbed_agent(
 
 async def test_the_real_impl_settles_the_run_s_own_usage(monkeypatch):
     """The metering call lives inside `_run_agent_impl`, so this drives the real
-    function: delete or misplace that `quota.settle(subject, agent_run.usage)` line
-    and this test fails."""
+    function."""
     monkeypatch.setattr(
         app_config, "agent_quota_free_daily_tokens", 100_000, raising=False
     )
@@ -770,8 +769,7 @@ async def test_the_real_impl_settles_the_run_s_own_usage(monkeypatch):
 
 async def test_the_streaming_default_path_also_settles(monkeypatch):
     """`agent_streaming` defaults to True, so the streaming branch is the one a real
-    deployment takes. Delete its settle call and every other test stays green while
-    streamed runs become free."""
+    deployment takes."""
     monkeypatch.setattr(
         app_config, "agent_quota_free_daily_tokens", 100_000, raising=False
     )
@@ -823,7 +821,7 @@ async def test_a_run_is_charged_even_when_post_run_bookkeeping_fails(monkeypatch
 
 async def test_a_run_that_raises_is_never_charged(monkeypatch):
     """An errored run reaches no success branch, so nothing is metered: there is no
-    charge to refund. The failure reply is the implementation's business."""
+    charge to refund."""
     monkeypatch.setattr(
         app_config, "agent_quota_free_daily_tokens", 100_000, raising=False
     )
@@ -864,7 +862,7 @@ async def test_whitelist_wins_over_quota(monkeypatch):
     await _run(message, subject)
 
     assert called == []
-    # 白名单先判: 没资格用 agent 的群不该收到额度提示(顺序反了这里就会多一条提示)。
+    # 白名单先判: 没资格用 agent 的群不该收到额度提示。
     assert message.replies == []
 
 
@@ -884,8 +882,7 @@ class _CommandMessage:
 async def test_quota_command_is_silent_outside_the_whitelist(monkeypatch):
     """`/quota` follows the same rule as every other agent command: in a chat the agent
     is not allowed in it does not answer, because that answer would disclose the chat's
-    pool and balance. The allowed case is asserted too, so a handler that never replied
-    would fail here rather than pass."""
+    pool and balance."""
     from kmua.database import chat_policy as store
     from kmua.plugins.agent import agent as agent_plugin
     from tests.webapp_helpers import make_chat
@@ -893,8 +890,7 @@ async def test_quota_command_is_silent_outside_the_whitelist(monkeypatch):
     monkeypatch.setattr(app_config, "agent_whitelist_mode", True, raising=False)
     store._set_agent_cache(set())
 
-    # Both chats exist, so dropping the gate makes the handler answer the unlisted one
-    # and fail on the assertion below instead of on a missing row.
+    # 两个群都建好, 去掉闸门时会在下面的断言失败, 而不是因缺行而失败。
     await make_chat(OTHER_GROUP_ID, title="Not whitelisted")
     await make_chat(GROUP_ID, title="Whitelisted")
 
@@ -983,9 +979,7 @@ async def test_an_absolute_set_survives_a_settlement_in_the_same_window(monkeypa
 
     previous = await database.set_credit(database.SCOPE_USER, PLAIN_ID, 1_000)
 
-    # The settlement went first, so the balance really was 200 when the write happened:
-    # the audit pair (old=200, new=1000) matches reality. Read outside the transaction and
-    # the pair becomes (old=500, new=1000) while the row lands on 700.
+    # 结算先落地: 写入时余额确实是 200, 返回的改前余额与落库值自洽。
     assert previous == 200
     assert await database.get_credit(database.SCOPE_USER, PLAIN_ID) == 1_000
 

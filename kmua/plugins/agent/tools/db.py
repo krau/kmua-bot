@@ -20,11 +20,10 @@ class ChatInfo(BaseModel):
 
 
 async def get_chat_info(ctx: RunContext[datatype.ContextDeps]) -> ChatInfo | None:
-    """Get chat(group) full infomation.
+    """Get full chat (group) information.
 
-    Returns:
-        ChatInfo object if session in a chat and chat exists in database,
-        None otherwise.
+    Returns a ChatInfo if the session is in a chat that exists in the
+    database, None otherwise.
     """
     chat_id = ctx.deps.chat_id
     chat_title = ""

@@ -61,7 +61,7 @@ class AffectionChangeAmplitude(StrEnum):
     LARGE = "large"
 
 
-# fuck pydantic-ai: https://github.com/pydantic/pydantic-ai/issues/607
+# nested models fail ollama validation: https://github.com/pydantic/pydantic-ai/issues/607
 
 
 class UserMemoryResult(BaseModel):
@@ -194,12 +194,10 @@ class ContextInfo:
 
 @dataclass
 class BotLastReply:
-    """记录bot最近的回复信息"""
-
     message_id: int
     reply_to_user_id: int
     reply_to_message_id: int
     reply_text: str
     timestamp: float
-    original_user_message: str = ""  # 原始用户消息文本
-    full_output: str = ""  # 模型的完整输出内容（可能分割成多条消息发送）
+    original_user_message: str = ""
+    full_output: str = ""  # 可能分割成多条消息发送

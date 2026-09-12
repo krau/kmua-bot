@@ -14,8 +14,7 @@ from kmua.logger import logger
 _DB_PATH: Path | None = None
 _INITIALIZED = False
 
-# 批量处理配置
-_EVICT_BATCH_SIZE = 100  # 每次清理的最大记录数
+_EVICT_BATCH_SIZE = 100
 
 
 def _db_path() -> Path:
@@ -84,12 +83,8 @@ def _pack(vector: list[float]) -> bytes:
 async def _lazy_evict(db: aiosqlite.Connection, chat_id: int | None = None) -> None:
     """清理过期贴纸记录，分批处理避免阻塞事件循环。
 
-    智能清理策略：当聊天室的贴纸数量少于配置的阈值时，保留所有贴纸不逐出。
-    这确保小群聊不会频繁丢失贴纸记忆。
-
-    Args:
-        db: 数据库连接
-        chat_id: 可选的聊天室ID，用于检查该聊天室的贴纸数量
+    当聊天室的贴纸数量少于配置的阈值时，保留所有贴纸不逐出，
+    确保小群聊不会频繁丢失贴纸记忆。
     """
     ttl = app_config.agent_sticker_ttl
     if ttl <= 0:
@@ -97,7 +92,6 @@ async def _lazy_evict(db: aiosqlite.Connection, chat_id: int | None = None) -> N
 
     min_keep = app_config.agent_sticker_min_keep_count
 
-    # 如果指定了 chat_id，检查该聊天室的贴纸总数
     if chat_id is not None and min_keep > 0:
         count_cursor = await db.execute(
             "SELECT COUNT(*) FROM stickers WHERE chat_id = ?", (chat_id,)
@@ -114,14 +108,12 @@ async def _lazy_evict(db: aiosqlite.Connection, chat_id: int | None = None) -> N
 
     cutoff = int(time.time()) - ttl
 
-    # 构建查询条件
     where_clause = "last_seen < ?"
     params: list = [cutoff, _EVICT_BATCH_SIZE]
     if chat_id is not None:
         where_clause = "last_seen < ? AND chat_id = ?"
         params = [cutoff, chat_id, _EVICT_BATCH_SIZE]
 
-    # 使用 LIMIT 分批查询，避免一次加载过多数据
     rows = await db.execute_fetchall(
         f"SELECT id FROM stickers WHERE {where_clause} LIMIT ?",
         params,
@@ -144,7 +136,6 @@ async def _lazy_evict(db: aiosqlite.Connection, chat_id: int | None = None) -> N
 
 async def exists(file_unique_id: str, chat_id: int) -> bool:
     async with _connect() as db:
-        # 使用 fetchone 更高效，避免不必要的列表转换
         cursor = await db.execute(
             "SELECT 1 FROM stickers WHERE file_unique_id = ? AND chat_id = ? LIMIT 1",
             (file_unique_id, chat_id),
@@ -163,7 +154,6 @@ async def upsert(
     async with _connect(write=True) as db:
         await _lazy_evict(db, chat_id)
         now = int(time.time())
-        # 使用 fetchone 替代 execute_fetchall + list，减少阻塞
         cursor = await db.execute(
             "SELECT id FROM stickers WHERE file_unique_id = ? AND chat_id = ? LIMIT 1",
             (file_unique_id, chat_id),

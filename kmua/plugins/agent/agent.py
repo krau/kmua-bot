@@ -164,7 +164,6 @@ async def _clear_conversation_session(chat_id: int, user_id: int) -> None:
 
 
 def _clear_memstore_prefix(prefix: str) -> int:
-    """Delete every memstore key starting with prefix; returns the count."""
     data = common.memstore._data
     keys = [key for key in data if key.startswith(prefix)]
     for key in keys:
@@ -184,7 +183,6 @@ async def history_processor(
         messages, ctx.model, deps=ctx.deps, agent=agent, usage=ctx.usage
     )
 
-    # Cache the compressed history
     await common.memttlcache.set(
         state.history_key(ctx.deps.chat_id, ctx.deps.user_id),
         compressed,
@@ -214,7 +212,6 @@ if app_config.agent and app_config.agent_model:
     agent = Agent(
         model=model,
         model_settings=provider.make_model_settings(app_config.agent_model_options),
-        # instructions=app_config.agent_prompt,
         output_type=[str, datatype.EndTurn, tools.ask_user],
         tools=[
             Tool(
@@ -235,7 +232,6 @@ if app_config.agent and app_config.agent_model:
                 prepare=tools.prepare_sticker_tools,
                 sequential=True,
             ),
-            # Time tools
             Tool(
                 tools.time_info
             ),  # Unified IO tools (protocol prefixes: kmua://, work://, telegram://, http(s)://)
@@ -381,14 +377,13 @@ if app_config.agent and app_config.agent_model:
 
     @PyrogramClient.on_message(pyrogram.filters.command("quota"), group=0)
     async def quota_command(client: PyrogramClient, message: pyrogram.types.Message):
-        """汇报调用者自己今天的 agent 额度。"""
         if not app_config.agent:
             return
         user = message.from_user
         chat = message.chat
         if not user or not user.id or not chat or not chat.id:
             return
-        # 白名单外的群里 agent 本该是隐形的, 这里也一样: 不回复, 也就不泄露群额度。
+        # 白名单外不回复: 免得泄露群额度。
         if not is_chat_allowed(chat.id):
             return
         if chat.type == pyrogram.enums.ChatType.PRIVATE:
@@ -533,21 +528,18 @@ if app_config.agent and app_config.agent_model:
         if not is_chat_allowed(current_chat_id):
             return
         raw_args = message.text.split() if message.text else []
-        # Remove the command itself ("/model")
         raw_args = raw_args[1:]
 
-        # --- Parse optional @<chat_id> target prefix ---
         # If the first argument starts with '@' followed by digits (possibly negative),
         # it specifies the target chat. Otherwise, the current chat is used.
         target_chat_id = current_chat_id
-        target_chat_label: str | None = None  # Human-readable label for the target chat
+        target_chat_label: str | None = None
         if raw_args and raw_args[0].startswith("@"):
-            maybe_id = raw_args[0][1:]  # strip the '@'
+            maybe_id = raw_args[0][1:]
             # Allow negative IDs (group/supergroup chats start with '-')
             if maybe_id.lstrip("-").isdigit() and maybe_id not in ("", "-"):
                 target_chat_id = int(maybe_id)
                 raw_args = raw_args[1:]
-                # Try to resolve a human-readable title for the target chat
                 try:
                     tg_chat = await client.get_chat(target_chat_id)
                     if tg_chat is not None:
@@ -582,21 +574,17 @@ if app_config.agent and app_config.agent_model:
         model_name: str | None = None
 
         if len(raw_args) == 0:
-            # /model  or  /model @chat_id  → show current overrides
             subcommand = None
             model_name = None
         elif len(raw_args) == 1:
             arg1 = raw_args[0].strip()
             if arg1 in SUBCOMMANDS:
-                # /model [main|multimodal|small]  → reset that model
                 subcommand = arg1
                 model_name = None
             else:
-                # /model <spec>  → set both main and multimodal
                 subcommand = "both"
                 model_name = arg1
         else:
-            # len >= 2
             arg1 = raw_args[0].strip()
             if arg1 in SUBCOMMANDS:
                 subcommand = arg1
@@ -606,7 +594,6 @@ if app_config.agent and app_config.agent_model:
                 subcommand = "both"
                 model_name = " ".join(raw_args).strip()
 
-        # --- No subcommand: show current state ---
         if subcommand is None:
             cur_main = await get_chat_model_override(target_chat_id, "main")
             cur_mm = await get_chat_model_override(target_chat_id, "multimodal")
@@ -627,7 +614,6 @@ if app_config.agent and app_config.agent_model:
             )
             return
 
-        # --- Handle both main+multimodal (no subcommand given) ---
         if subcommand == "both":
             prev_main = (
                 await get_chat_model_override(target_chat_id, "main")
@@ -648,7 +634,6 @@ if app_config.agent and app_config.agent_model:
                 f"main {prev_main!r} → {model_name!r}, multimodal {prev_mm!r} → {model_name!r}"
             )
 
-        # --- Handle main model only ---
         elif subcommand == "main":
             current = await get_chat_model_override(target_chat_id, "main")
             if model_name:
@@ -677,7 +662,6 @@ if app_config.agent and app_config.agent_model:
                     f"(was: {current!r})"
                 )
 
-        # --- Handle multimodal model only ---
         elif subcommand == "multimodal":
             current = await get_chat_model_override(target_chat_id, "multimodal")
             global_default = app_config.agent_model_multimodal or app_config.agent_model
@@ -707,7 +691,6 @@ if app_config.agent and app_config.agent_model:
                     f"(was: {current!r})"
                 )
 
-        # --- Handle small model only ---
         elif subcommand == "small":
             current = await get_chat_model_override(target_chat_id, "small")
             global_default = app_config.agent_model_small or app_config.agent_model
@@ -764,7 +747,6 @@ if app_config.agent and app_config.agent_model:
         current = await get_chat_prompt_override(chat_id)
 
         if prompt_text is None:
-            # /prompt — show status
             if current:
                 status = "Custom prompt is <b>active</b> for this chat."
             else:
@@ -776,7 +758,6 @@ if app_config.agent and app_config.agent_model:
                 parse_mode=pyrogram.enums.ParseMode.HTML,
             )
         elif prompt_text.lower() == "reset":
-            # /prompt reset — clear override
             await set_chat_prompt_override(chat_id, None)
             await message.reply_text(
                 "Prompt for this chat reset to default.",
@@ -787,7 +768,6 @@ if app_config.agent and app_config.agent_model:
                 f"(had custom: {current is not None})"
             )
         else:
-            # /prompt <text> — set override
             await set_chat_prompt_override(chat_id, prompt_text)
             await message.reply_text(
                 "Custom prompt set for this chat.",
@@ -898,7 +878,6 @@ async def _is_channel_member(
 
 @PyrogramClient.on_message(_filter | _chat_command_filter, group=0)
 async def wake_agent(client: PyrogramClient, message: pyrogram.types.Message):
-    # some check
     if not app_config.agent or not agent:
         return await word_reply(client, message)
     user = message.sender_chat or message.from_user
@@ -970,14 +949,12 @@ async def wake_agent(client: PyrogramClient, message: pyrogram.types.Message):
                 f"Cleared pending ask for user {user.id}, proceeding with normal agent run"
             )
 
-        # set language
         if chat.type == pyrogram.enums.ChatType.PRIVATE:
             lang = (await database.get_user_config(user.id)).lang
         else:
             lang = (await database.get_chat_config(chat.id)).lang
 
-        # 额度闸门排在 typing 之前: 额度用尽的回复只有一条文字提示, 先亮 typing 再回一条
-        # 提示, 看起来就像 bot 要开始干活了, 而它其实什么都不会做。
+        # 额度闸门排在 typing 之前: 用尽的回复只有一条文字, 不该先亮 typing。
         subject = quota.subject_of(message)
         if not await quota.can_start(subject):
             await quota.notify_exhausted(
@@ -992,7 +969,6 @@ async def wake_agent(client: PyrogramClient, message: pyrogram.types.Message):
         typing_keepalive = TypingKeepAlive(client, message)
         await typing_keepalive.__aenter__()
 
-        # agent run
         if is_bot_user:
             await asyncio.sleep(
                 random.uniform(
@@ -1086,7 +1062,6 @@ async def wake_agent(client: PyrogramClient, message: pyrogram.types.Message):
                 ),
             ),
         )
-        # Increment periodic counters after each completed conversation turn.
         if app_config.agent_periodic_sticker_interval > 0:
             sticker_ctr: int = await common.memstore.get(
                 state.periodic_sticker_counter_key(chat_id, user.id), 0

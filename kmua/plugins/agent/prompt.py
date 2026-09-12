@@ -56,23 +56,8 @@ def entities_to_markdown(
     text: str,
     entities: list[pyrogram.types.MessageEntity] | None,
 ) -> str:
-    """Flatten Telegram message entities into a Markdown-like string.
-
-    Supported conversions:
-    - TEXT_LINK      → [label](url)
-    - TEXT_MENTION   → [name](tg://user?id=...)
-    - BOLD           → **text**
-    - ITALIC         → _text_
-    - CODE           → `text`
-    - PRE            → ```lang\\ntext\\n```
-    - STRIKETHROUGH  → ~~text~~
-    - SPOILER        → ||text||
-    - BLOCKQUOTE     → > text  (per line)
-
-    All other entity types are left as plain text.
-    Overlapping/nested entities are handled by processing them in offset order
-    and tracking the current UTF-16 cursor.
-    """
+    """Flatten Telegram message entities into a Markdown-like string; entity
+    offsets are UTF-16 code units."""
     if not entities:
         return text
 
@@ -83,25 +68,21 @@ def entities_to_markdown(
     sorted_entities = sorted(entities, key=lambda e: (e.offset, -e.length))
 
     parts: list[str] = []
-    # UTF-16 cursor tracking
-    cursor: int = 0  # current position in UTF-16 code units
+    cursor: int = 0
     total_utf16 = _utf16_len(text)
 
     for entity in sorted_entities:
         e_start = entity.offset
         e_end = entity.offset + entity.length
 
-        # Clamp to valid range
         if e_start >= total_utf16:
             continue
         e_end = min(e_end, total_utf16)
 
-        # If this entity starts before our cursor it overlaps a previous one;
-        # skip to avoid corrupted markdown (overlapping is rare in practice).
+        # Overlaps a previous entity: skip to avoid corrupted markdown.
         if e_start < cursor:
             continue
 
-        # Append literal text between cursor and this entity
         if e_start > cursor:
             parts.append(_utf16_slice(text, cursor, e_start))
 
@@ -136,7 +117,6 @@ def entities_to_markdown(
 
         cursor = e_end
 
-    # Append any remaining text after the last entity
     if cursor < total_utf16:
         parts.append(_utf16_slice(text, cursor, total_utf16))
 
@@ -148,16 +128,8 @@ async def _download_media_with_timeout(
     file_id: str,
     timeout: int | None = None,
 ) -> BytesIO | None:
-    """Download media with optional timeout to prevent long blocking.
-
-    Args:
-        client: Pyrogram client
-        file_id: File ID to download
-        timeout: Timeout in seconds (None means use config default, 0 means no timeout)
-
-    Returns:
-        BytesIO object or None if download failed/timed out
-    """
+    """Download media with an optional timeout to prevent long blocking
+    (0 disables it, None uses the config default)."""
     timeout_val = timeout if timeout is not None else app_config.agent_download_timeout
 
     try:
@@ -264,21 +236,15 @@ async def get_input_prompt(
     ctx: datatype.ContextInfo | Any | None = None,
     coverage: state.PromptCoverage | None = None,
 ) -> tuple[list[UserContent], bool, dict[str, int]]:
-    """Build the user prompt list and return whether the current message itself
-    contains media that requires multimodal understanding.
+    """Build the user prompt list; the second element is True only when the
+    current message (or its direct reply) contributed media, so nearby context
+    and deep reply-chain media cannot swap in the multimodal model.
 
-    Group chats use the markdown assembly (input_format.build_group_prompt) when
-    nearby history is requested; private chats and other callers keep the
-    legacy inline format below.
-
-    The second element is True only when the *current* message (or its direct
-    reply_to_message) contributed a BinaryContent item — nearby group context
-    messages and deep reply-chain entries are intentionally excluded so that the
-    smart text model is not swapped out just because unrelated media exists nearby.
-
-    The third element is the file_unique_id -> image_number map of media this
-    turn actually delivered (empty when the legacy path ran); it feeds the
-    conversation coverage cursor so repeated media is referenced, not resent.
+    Group chats with nearby history use input_format.build_group_prompt; other
+    callers keep the legacy inline format. The third element maps
+    file_unique_id -> image_number for media this turn delivered (empty on the
+    legacy path), feeding the coverage cursor so repeated media is referenced,
+    not resent.
     """
     is_group = message.chat is not None and message.chat.type in (
         pyrogram.enums.ChatType.SUPERGROUP,
@@ -296,9 +262,7 @@ async def get_input_prompt(
         return prompt, needs_multimodal, media_meta
 
     def sender_label(sender: Any) -> str:
-        """Label a message sender as 'name(id)' so history recall can tell
-        speakers apart in shared group conversations. Users fall back to
-        '未知用户', channels/groups to '未知频道'."""
+        """Label a sender as 'name(id)' so history recall can tell speakers apart."""
         if sender is None:
             return "未知用户"
         name = getattr(sender, "first_name", None) or getattr(sender, "title", None)
@@ -311,7 +275,7 @@ async def get_input_prompt(
             return "未知用户"
         return "未知频道"
 
-    # 公共的单条消息提取逻辑：只获取当前消息本身的媒体，不获取回复消息的媒体
+    # 只取当前消息自身的媒体，不含被回复消息的媒体
     def get_media_and_message(
         m: pyrogram.types.Message,
     ) -> tuple[pyrogram.enums.MessageMediaType | None, pyrogram.types.Message | None]:
@@ -573,12 +537,10 @@ async def get_input_prompt(
     user_prompt: list[UserContent] = []
     seen_msg_ids: set[int] = set()
 
-    # 处理回复消息链：从当前消息向上追溯
-    # 注意：在话题群组中，需要检查是否是真正的用户回复
+    # 处理回复消息链；话题群组里的自动回复不算用户回复
     reply_chain: list[pyrogram.types.Message] = []
     current = message
     while len(reply_chain) < 10:
-        # 检查是否是明确的用户回复（非话题自动回复）
         if not is_explicit_reply(current):
             break
         if not current.reply_to_message:
@@ -590,20 +552,14 @@ async def get_input_prompt(
         current = reply
     reply_chain.reverse()
 
-    # 检测回复链是否是 bot 与用户交替对话的历史记录（已存在于 message history 中）。
-    # 判定规则：链上奇数位置（bot 发送，回复用户）和偶数位置（用户发送，回复 bot）
-    # 交替出现，遍历完整链（短链）或连续满足条件达到深度 6（长链）即判定成立。
-    # 判定成立时截断为只保留最后一条（用户直接回复的那条 bot 消息），避免与
-    # message history 重复。
+    # 检测回复链是否是 bot 与用户交替对话的历史记录（已存在于 message history 中）：
+    # 奇数位置为 bot、偶数位置为用户的成对交替，短链遍历完、长链连续满足 6 层即成立；
+    # 成立时只保留最后一条（用户直接回复的 bot 消息），避免与 message history 重复。
     _HISTORY_CHAIN_CHECK_DEPTH = 6
     bot_id = client.me.id if client.me else None
     if bot_id is not None and len(reply_chain) >= 2:
-        # reply_chain 已是从旧到新排列。
-        # 从新到旧遍历更直观：reply_chain[-1] 是用户直接回复的消息（应为 bot 发的），
-        # reply_chain[-2] 是再上一条（应为用户发的），以此类推。
         is_history_chain = True
         check_depth = 0
-        # 从链尾（最新）往前，成对检查 [bot消息, 用户消息]
         for i in range(len(reply_chain) - 1, 0, -2):
             bot_msg = reply_chain[i]  # 较新，应为 bot 发送
             user_msg = reply_chain[i - 1]  # 较旧，应为用户发送
@@ -618,14 +574,12 @@ async def get_input_prompt(
                 break
             check_depth += 1
             if check_depth >= _HISTORY_CHAIN_CHECK_DEPTH:
-                break  # 连续满足 6 层，视为判定成立
+                break
         if is_history_chain:
-            # 只保留最后一条（用户直接回复的 bot 消息）
             reply_chain = reply_chain[-1:]
 
     has_reply = bool(reply_chain)
 
-    # include_nearby > 0 时，先追加前面 N 条消息（从旧到新）
     if include_nearby and include_nearby > 0 and message.chat and message.chat.id:
         message_ids = []
         base_id = message.id
@@ -666,7 +620,7 @@ async def get_input_prompt(
                     )
                 )
 
-    # 处理回复消息链，只在最后一条（当前消息直接回复的）中包含媒体
+    # 回复链只在最后一条（当前消息直接回复的）中包含媒体
     if reply_chain:
         last_idx = len(reply_chain) - 1
         for idx, reply_msg in enumerate(reply_chain):
@@ -682,7 +636,6 @@ async def get_input_prompt(
                 )
             )
 
-    # 最后追加当前消息（带 ctx），并检测是否含有需要多模态理解的媒体
     sender = message.sender_chat or message.from_user
     sender_name = sender_label(sender)
     current_msg_label = f"[当前消息|发送者:{sender_name}|消息ID:{message.id}]"
@@ -715,10 +668,8 @@ async def build_ctx_info(
     history: list[ModelMessage],
     is_group_chat: bool,
 ) -> datatype.ContextInfo | None:
-    """Build ContextInfo for the current message.
-
-    Returns None if history is non-empty (ctx_info is only sent at the start
-    of a conversation).
+    """Build ContextInfo for the current message; None once history is
+    non-empty (ctx_info is only sent at the start of a conversation).
     """
     if len(history) != 0:
         return None
@@ -797,7 +748,6 @@ def check_needs_multimodal(
     user_prompt: list[UserContent],
     history: list[ModelMessage],
 ) -> bool:
-    """Return True if the prompt or history contains media content."""
     if _contains_multimodal_content(user_prompt):
         return True
     for msg in history:

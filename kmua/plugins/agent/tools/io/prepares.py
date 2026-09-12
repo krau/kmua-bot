@@ -49,7 +49,6 @@ def _trim_unavailable_protocols(
 async def prepare_read(
     ctx: RunContext[datatype.ContextDeps], tool_def: ToolDefinition
 ) -> ToolDefinition | None:
-    """Show read with the protocols currently readable."""
     return _trim_unavailable_protocols(
         tool_def,
         {
@@ -65,7 +64,6 @@ async def prepare_read(
 async def prepare_write(
     ctx: RunContext[datatype.ContextDeps], tool_def: ToolDefinition
 ) -> ToolDefinition | None:
-    """Show write with the protocols currently writable."""
     return _trim_unavailable_protocols(
         tool_def,
         {
@@ -88,7 +86,6 @@ async def prepare_edit(
 async def prepare_list(
     ctx: RunContext[datatype.ContextDeps], tool_def: ToolDefinition
 ) -> ToolDefinition | None:
-    """Show list with the protocols currently listable."""
     return _trim_unavailable_protocols(
         tool_def,
         {
@@ -103,7 +100,6 @@ async def prepare_list(
 async def prepare_search(
     ctx: RunContext[datatype.ContextDeps], tool_def: ToolDefinition
 ) -> ToolDefinition | None:
-    """Show search with the protocols currently searchable."""
     return _trim_unavailable_protocols(
         tool_def,
         {
@@ -119,7 +115,6 @@ async def prepare_search(
 async def prepare_delete(
     ctx: RunContext[datatype.ContextDeps], tool_def: ToolDefinition
 ) -> ToolDefinition | None:
-    """Show delete with the protocols currently deletable."""
     return _trim_unavailable_protocols(
         tool_def,
         {

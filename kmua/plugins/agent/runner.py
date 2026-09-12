@@ -35,14 +35,13 @@ from kmua.plugins.agent.whitelist import is_chat_allowed
 
 
 async def get_chat_model_override(chat_id: int, role: str = "main") -> str | None:
-    """Return the per-chat model override spec for the given role, or None if not set."""
     return await memttlcache.get(state.chat_model_override_key(chat_id, role))
 
 
 async def set_chat_model_override(
     chat_id: int, model_spec: str | None, role: str = "main"
 ) -> None:
-    """Set (or clear, when model_spec is None) the per-chat model override for the given role."""
+    """Set the per-chat model override for the given role; None clears it."""
     key = state.chat_model_override_key(chat_id, role)
     if model_spec is None:
         await memttlcache.delete(key)
@@ -51,12 +50,11 @@ async def set_chat_model_override(
 
 
 async def get_chat_prompt_override(chat_id: int) -> str | None:
-    """Return the per-chat system prompt override, or None if not set."""
     return await memttlcache.get(state.chat_prompt_override_key(chat_id))
 
 
 async def set_chat_prompt_override(chat_id: int, prompt: str | None) -> None:
-    """Set (or clear, when prompt is None) the per-chat system prompt override."""
+    """Set the per-chat system prompt override; None clears it."""
     key = state.chat_prompt_override_key(chat_id)
     if prompt is None:
         await memttlcache.delete(key)
@@ -238,11 +236,7 @@ async def _run_agent_impl(
     typing_keepalive: TypingKeepAlive | None = None,
     coverage_meta: state.PromptCoverage | None = None,
 ) -> None:
-    """Run the agent with full streaming/non-streaming support, history saving,
-    TypingKeepAlive and unified error handling.
-
-    This is the single source of truth for agent execution shared by both
-    the normal wake flow and the follow-up flow.
+    """Run the agent; single execution path shared by the wake and follow-up flows.
 
     Only a run that produced output is metered: the two success branches call
     `quota.settle` with the run's own usage, and the error handlers below swallow the
@@ -377,7 +371,6 @@ async def _run_agent_impl(
                             if streaming_output is not None:
                                 await streaming_output.abort()
                         else:
-                            # Check final_result first before sending anything
                             if isinstance(output, str) and "final_result" in output:
                                 if streaming_output is not None:
                                     await streaming_output.abort()
@@ -388,8 +381,7 @@ async def _run_agent_impl(
                                 await streaming_output.finalize()
                             elif output:
                                 await reply_output(client, message, output)
-                        # 用量此刻已经定下; 下面的收尾动作(写历史缓存、推进覆盖、统计日志)
-                        # 任一失败都会跳出这个分支 —— 先结算, 免得答案已发出却不计费。
+                        # 下面的收尾动作可能失败并跳出, 所以先结算, 免得答案已发出却不计费。
                         await quota.settle(subject, agent_run.usage)
                         # Save full output for follow-up detection
                         full_output = ""
@@ -406,7 +398,6 @@ async def _run_agent_impl(
                                 pyrogram.enums.ChatType.GROUP,
                             )
                         ):
-                            # Get last reply info from existing BotLastReply if available
                             bot_reply = await memttlcache.get(
                                 state.bot_last_reply_key(chat_id)
                             )
@@ -454,7 +445,6 @@ async def _run_agent_impl(
                         if Agent.is_call_tools_node(node):
                             for part in node.model_response.parts:
                                 if part.part_kind == "text" and part.content:
-                                    # Check if content is final_result before sending
                                     if "final_result" in part.content:
                                         logger.warning(
                                             f"The stupid agent returned 'final_result' as text🤡 for user {user_id}"
@@ -487,7 +477,7 @@ async def _run_agent_impl(
                     elif not replied and output:
                         await reply_output(client, message, output)
                         full_output_parts.append(output)
-                    # 同上: 结算要排在收尾动作之前。
+                    # 结算排在收尾动作之前: 收尾失败不该让这次调用免费。
                     await quota.settle(subject, agent_run.usage)
                     # Save full output for follow-up detection
                     full_output = "\n".join(full_output_parts)

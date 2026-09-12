@@ -20,7 +20,6 @@ from pydantic_ai.usage import RequestUsage
 
 from kmua.config import ProviderConfig, app_config
 
-# Import video-capable model
 from .video_model import VideoCapableOpenAIChatModel
 
 _EMBED_TIMEOUT = httpx.Timeout(60.0, connect=10.0)
@@ -37,9 +36,7 @@ def _get_http_client_for_provider(provider_name: str):  # type: ignore[no-untype
 def make_model_settings(
     options: dict[str, Any] | None,
 ) -> ModelSettings | None:
-    """Build pydantic-ai ModelSettings from a config options dict.
-
-    Returns None for an empty/absent dict so callers can skip the argument
+    """None for an empty/absent dict, so callers can skip the argument
     entirely and keep model defaults.
     """
     if not options:
@@ -48,10 +45,7 @@ def make_model_settings(
 
 
 def _parse_spec(spec: str) -> tuple[str, str]:
-    """Split 'provider/model' into (provider_name, model_name).
-
-    A bare 'model_name' (no slash) returns ("default", "model_name").
-    """
+    """A bare 'model_name' (no slash) returns ("default", "model_name")."""
     if "/" in spec:
         provider, _, model = spec.partition("/")
         return provider.strip(), model.strip()
@@ -108,7 +102,7 @@ def make_chat_model(
 ) -> VideoCapableOpenAIChatModel | OpenAIResponsesModel:
     """Build a chat model from a 'provider/model' spec.
 
-    The model type is determined by the provider's api_type field:
+    The model type is determined by the provider's type field:
     - "chat_completions" (default): returns VideoCapableOpenAIChatModel
     - "responses": returns OpenAIResponsesModel
     """
@@ -253,8 +247,6 @@ def make_openai_client_args(spec: str) -> dict:
 
     Useful for services (image gen/edit) that use the raw OpenAI client rather
     than pydantic-ai model objects.
-
-    Returns: {"api_key": ..., "base_url": ..., "model": ...}
     """
     provider_name, model_name = _parse_spec(spec)
     cfg = _get_provider(provider_name)

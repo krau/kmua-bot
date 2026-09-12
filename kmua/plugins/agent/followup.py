@@ -52,8 +52,8 @@ else:
 def _make_relevance_check_agent(
     override_model_spec: str | None,
 ) -> Agent[None, RelevanceCheck] | None:
-    """Return a relevance-check agent using the per-chat small model override if set,
-    otherwise fall back to the module-level default (which uses the global small_model)."""
+    """Relevance-check agent using the per-chat small model override when set,
+    else the module-level default (which uses the global small_model)."""
     if override_model_spec:
         return Agent(
             model=provider.make_chat_model(override_model_spec),
@@ -188,7 +188,6 @@ async def handle_follow_up_message(
     reply_to_user = await database.get_user_by_id(bot_reply.reply_to_user_id)
     if not reply_to_user:
         return
-    # 调用AI判断相关性
     message_text = message.text or message.caption
     # 使用 full_output（模型的完整输出）而不是 reply_text（可能只是最后一条消息）
     bot_full_output = (
