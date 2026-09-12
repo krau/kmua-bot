@@ -91,7 +91,12 @@ async function toggle(seq: number): Promise<void> {
     const loaded = await fetchAgentRunEvent(props.runId, seq);
     // A second tap while the first request was in flight wins; the stale answer
     // must not overwrite the step the operator is now looking at.
-    if (openSeq.value === seq) event.value = loaded;
+    if (openSeq.value === seq) {
+      event.value = loaded;
+      // A superseded attempt for this same step may have failed after this one
+      // started; its error must not outlive the answer that did arrive.
+      eventError.value = null;
+    }
   } catch (error) {
     if (openSeq.value === seq) {
       eventError.value = isApiError(error) ? tError(error.code) : t("app.loadFailed");
