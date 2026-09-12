@@ -50,7 +50,10 @@ def upgrade() -> None:
             sa.Column("model_name", sa.String(length=128), nullable=True),
             sa.Column("model_role", sa.String(length=16), nullable=True),
             sa.Column(
-                "streaming", sa.Boolean(), nullable=False, server_default=sa.text("0")
+                "streaming",
+                sa.Boolean(),
+                nullable=False,
+                server_default=sa.text("false"),
             ),
             sa.Column("started_at", sa.DateTime(timezone=True), nullable=False),
             sa.Column("finished_at", sa.DateTime(timezone=True), nullable=False),
@@ -131,7 +134,10 @@ def upgrade() -> None:
             sa.Column("payload", sa.JSON(), nullable=True),
             sa.Column("payload_chars", sa.Integer(), nullable=True),
             sa.Column(
-                "truncated", sa.Boolean(), nullable=False, server_default=sa.text("0")
+                "truncated",
+                sa.Boolean(),
+                nullable=False,
+                server_default=sa.text("false"),
             ),
             sa.Column(
                 "created_at",

@@ -863,7 +863,7 @@ class AgentRun(Base):
     # One of "main" / "multimodal" / "small" / "struct" / "transcribe".
     model_role: Mapped[str | None] = mapped_column(String(16), nullable=True)
     streaming: Mapped[bool] = mapped_column(
-        Boolean, nullable=False, default=False, server_default=sa.text("0")
+        Boolean, nullable=False, default=False, server_default=sa.text("false")
     )
     started_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False
@@ -953,7 +953,7 @@ class AgentRunEvent(Base):
     # Character count of the payload before redaction and truncation.
     payload_chars: Mapped[int | None] = mapped_column(Integer, nullable=True)
     truncated: Mapped[bool] = mapped_column(
-        Boolean, nullable=False, default=False, server_default=sa.text("0")
+        Boolean, nullable=False, default=False, server_default=sa.text("false")
     )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
