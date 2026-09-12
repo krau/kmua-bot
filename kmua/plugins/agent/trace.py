@@ -91,13 +91,15 @@ def safe_value(value: Any) -> Any:
         return marker
     if isinstance(value, (bytes, bytearray, memoryview)):
         return {"kind": "binary", "size": len(value)}
+    if isinstance(value, str):
+        return _data_uri_marker(value)
     if isinstance(value, dict):
         return {str(key): safe_value(item) for key, item in value.items()}
     if isinstance(value, (list, tuple, set, frozenset)):
         return [safe_value(item) for item in value]
     if isinstance(value, datetime):
         return value.isoformat()
-    if isinstance(value, (str, int, float, bool)) or value is None:
+    if isinstance(value, (int, float, bool)) or value is None:
         return value
     if dataclasses.is_dataclass(value) and not isinstance(value, type):
         return {
@@ -166,6 +168,21 @@ def _binary_marker(value: dict[str, Any]) -> dict[str, Any]:
     return marker
 
 
+def _data_uri_marker(value: str) -> str:
+    """Reduce an inline `data:` URL to its type and size; the body is not recorded.
+
+    Any string can carry one - a URL part, a tool's argument, pasted text - so this
+    applies to every string rather than to a field named `url`.
+    """
+    if not value.startswith("data:"):
+        return value
+    header, separator, body = value.partition(",")
+    if not separator:
+        return value
+    media_type = header[5:].split(";", 1)[0] or "application/octet-stream"
+    return f"data:{media_type};<{len(body)} characters omitted>"
+
+
 def _json_safe_message(value: Any) -> Any:
     """Reduce one dumped message value to something JSON can hold safely.
 
@@ -186,7 +203,9 @@ def _json_safe_message(value: Any) -> Any:
         return {"kind": _BINARY_KIND, "size": len(value)}
     if isinstance(value, datetime):
         return value.isoformat()
-    if isinstance(value, (str, int, float, bool)) or value is None:
+    if isinstance(value, str):
+        return _data_uri_marker(value)
+    if isinstance(value, (int, float, bool)) or value is None:
         return value
     return f"<{type(value).__name__}>"
 
