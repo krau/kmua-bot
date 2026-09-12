@@ -1,4 +1,7 @@
-"""Agent call quota: the per-account gate in front of every model run.
+"""Agent call quota: the per-account gate in front of every conversational run.
+
+Metered runs are the ones a member starts by talking to the bot: wake, ask callback and
+follow-up. Auxiliary agents the bot runs on its own have no member to bill.
 
 Two things are worth pinning here. First, the charge order - a member's own free
 allowance, then the chat's shared pool, then either balance - because it decides who

@@ -170,8 +170,7 @@ async def run_agent(
     own, so deriving the subject from it would charge the bot.
     """
     timeout = app_config.agent_run_timeout
-    # 额度闸门: 所有会真正跑模型的路径都先经过 run_agent。这里只预检, 不扣费 ——
-    # 这次要花多少 token 只有跑完才知道, 扣减在 impl 里按实际用量完成。
+    # 额度闸门: 只预检, 不扣费(用量跑完才知道), 扣减在 impl 里按实际用量完成。
     if not is_chat_allowed(chat_id):
         await _stop_typing_keepalive(typing_keepalive)
         return
