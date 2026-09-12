@@ -156,9 +156,6 @@ async def init_bot(client: Client = client):
         common_commands.append(
             BotCommand("forget", i18n.t("bot.cmd.forget", locale=app_config.lang))
         )
-        common_commands.append(
-            BotCommand("quota", i18n.t("bot.cmd.quota", locale=app_config.lang))
-        )
     group_common_commands = [
         BotCommand("waifu", i18n.t("bot.cmd.waifu", locale=app_config.lang)),
         BotCommand(
