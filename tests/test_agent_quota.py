@@ -30,6 +30,7 @@ from kmua.database.models import (
     AgentUsageDaily,
     ChatPolicy,
 )
+from kmua.i18n import i18n
 from kmua.plugins.agent import quota, runner
 from kmua.webapp.ratelimit import write_limiter
 from tests.webapp_helpers import api_client, bearer, make_user, set_owners
@@ -600,7 +601,8 @@ async def test_run_agent_refuses_when_exhausted_without_calling_the_model(
 
     assert calls == []
     assert len(message.replies) == 1
-    assert "额度" in message.replies[0]
+    # 断言整条文案: 措辞改动不该让测试失效。
+    assert message.replies[0] == i18n.t("bot.msg.agent.quota.exhausted", locale="zh-CN")
 
 
 @asynccontextmanager
