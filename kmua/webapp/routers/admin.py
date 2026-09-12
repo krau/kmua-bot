@@ -477,15 +477,15 @@ async def _apply_user_field(
             return audit.FieldChange(field=field, old=old, new=value)
 
         case "agent_credits":
-            old = await database.get_credit(database.SCOPE_USER, target.id)
-            if old == value:
-                return None
-            await database.set_credit(
+            # 改前余额只能取 set_credit 事务内的读, 否则审计会记错或漏写。
+            previous = await database.set_credit(
                 database.SCOPE_USER,
                 target.id,
                 int(value),  # type: ignore[arg-type]
             )
-            return audit.FieldChange(field=field, old=old, new=value)
+            if previous == value:
+                return None
+            return audit.FieldChange(field=field, old=previous, new=value)
 
         case "waifu_mention":
             old_flag = await database.set_user_waifu_mention(target.id, bool(value))
