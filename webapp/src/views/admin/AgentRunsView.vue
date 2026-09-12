@@ -11,7 +11,7 @@ import { computed, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 
 import { fetchAgentRuns } from "@/api/endpoints/admin";
-import type { AgentRunKind, AgentRunStatus } from "@/api/types";
+import type { AgentRunKind, AgentRunQuery, AgentRunStatus } from "@/api/types";
 import PageHeader from "@/components/PageHeader.vue";
 import PagerBar from "@/components/PagerBar.vue";
 import SelectField from "@/components/SelectField.vue";
@@ -53,17 +53,14 @@ const since = ref("");
 const until = ref("");
 const search = ref("");
 
-interface Applied {
-  chatId?: number;
-  userId?: number;
-  kind?: string;
-  status?: string;
-  since?: string;
-  until?: string;
-  q?: string;
-}
-
-const applied = ref<Applied>({});
+/**
+ * The committed filters, typed by the API's own query shape.
+ *
+ * `buildUrl` writes each key verbatim and FastAPI ignores what it does not know,
+ * so a stray key would silently filter nothing; typing this as the query minus the
+ * paging fields makes the next such typo a compile error.
+ */
+const applied = ref<Omit<AgentRunQuery, "page" | "size">>({});
 
 const kindOptions = computed(() => [
   { value: "", text: t("agentRuns.filters.all") },
@@ -101,8 +98,8 @@ function parseId(raw: string): number | undefined {
 
 function applyFilters(): void {
   applied.value = {
-    chatId: parseId(chatId.value),
-    userId: parseId(userId.value),
+    chat_id: parseId(chatId.value),
+    user_id: parseId(userId.value),
     kind: kind.value || undefined,
     status: status.value || undefined,
     since: parseMoment(since.value, false),
