@@ -70,9 +70,10 @@ const instructionsJson = computed(() => {
 });
 
 const settingsJson = computed(() => {
-  const payload = event.value?.payload;
-  const settings = payload?.["model_settings"];
-  return settings === undefined ? null : JSON.stringify(settings, null, 2);
+  const settings = event.value?.payload?.["model_settings"];
+  // Absent and null are the same thing here: a request with no configured options
+  // carries null, and rendering that as the literal text "null" says nothing.
+  return settings === undefined || settings === null ? null : JSON.stringify(settings, null, 2);
 });
 
 async function toggle(seq: number): Promise<void> {
