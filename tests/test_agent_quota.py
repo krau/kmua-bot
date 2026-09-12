@@ -218,6 +218,32 @@ async def test_group_pool_covers_members_after_their_own_allowance(monkeypatch):
     assert await quota.can_start(subject) is True
 
 
+async def test_one_settle_spills_across_all_four_payers(monkeypatch):
+    """单笔结算走完四道闸门: 说话者免费 → 群免费 → 说话者余额 → 群余额。"""
+    monkeypatch.setattr(app_config, "agent_quota_free_daily_tokens", 100, raising=False)
+    await database.set_chat_policy(GROUP_ID, ChatPolicy(agent_quota_daily_tokens=50))
+    await database.adjust_credits(
+        database.SCOPE_USER, PLAIN_ID, 200, database.CREDIT_REASON_ADMIN
+    )
+    await database.adjust_credits(
+        database.SCOPE_CHAT, GROUP_ID, 300, database.CREDIT_REASON_ADMIN
+    )
+
+    await quota.settle(group_subject(), RunUsage(input_tokens=400, output_tokens=0))
+
+    _, user_free, user_input, _ = await database.get_usage(
+        database.SCOPE_USER, PLAIN_ID, database.utc_day()
+    )
+    _, chat_free, _, _ = await database.get_usage(
+        database.SCOPE_CHAT, GROUP_ID, database.utc_day()
+    )
+    # 100 + 50 的免费额度全部用满, 余下 250 由余额按顺序付: 个人 200, 群 50。
+    assert (user_free, chat_free) == (100, 50)
+    assert user_input == 400  # 名下的真实用量, 与这笔钱最后由谁付无关
+    assert await database.get_credit(database.SCOPE_USER, PLAIN_ID) == 0
+    assert await database.get_credit(database.SCOPE_CHAT, GROUP_ID) == 250
+
+
 async def test_anonymous_sender_uses_the_chat_pool_and_is_refused_without_one():
     anonymous = group_subject(user_id=None)
 
@@ -605,6 +631,32 @@ async def test_run_agent_refuses_when_exhausted_without_calling_the_model(
     assert message.replies[0] == i18n.t("bot.msg.agent.quota.exhausted", locale="zh-CN")
 
 
+async def test_group_notice_is_throttled_and_private_is_not(monkeypatch):
+    """群里的额度提示 60 秒内只发一条, 私聊每次都发; 节流按 (群, 说话者) 分桶。"""
+    monkeypatch.setattr(app_config, "agent_quota_free_daily_tokens", 1, raising=False)
+
+    async def notify(subject: quota.Subject) -> list[str]:
+        message = _ReplyMessage()
+        await quota.notify_exhausted(
+            message, subject, await quota.get_state(subject), "zh-CN"
+        )
+        return message.replies
+
+    subject = group_subject()
+    first = await notify(subject)
+    second = await notify(subject)
+    other = await notify(group_subject(user_id=OTHER_ID))
+    private = quota.Subject(user_id=PLAIN_ID, chat_id=PLAIN_ID, in_group=False)
+    private_first = await notify(private)
+    private_second = await notify(private)
+
+    assert len(first) == 1
+    assert second == [], "同一个说话者 60 秒内只该收到一条"
+    assert len(other) == 1, "同群另一个说话者被误伤"
+    assert len(private_first) == 1
+    assert len(private_second) == 1, "私聊不节流"
+
+
 @asynccontextmanager
 async def _fake_agent_run(
     usage: RunUsage | None = None, error: Exception | None = None
@@ -852,6 +904,54 @@ async def test_quota_command_is_silent_outside_the_whitelist(monkeypatch):
 
     assert outside.replies == []
     assert len(inside.replies) == 1
+
+
+async def test_wake_agent_gates_quota_before_the_typing_indicator(monkeypatch):
+    """额度预检排在 TypingKeepAlive 之前: 用尽的回复只有一条文字。"""
+    from kmua.plugins.agent import agent as agent_plugin
+
+    monkeypatch.setattr(app_config, "agent_quota_free_daily_tokens", 10, raising=False)
+    monkeypatch.setattr(agent_plugin, "is_chat_allowed", lambda _chat_id: True)
+
+    async def no_ask(*_args: object, **_kwargs: object) -> None:
+        return None
+
+    async def never_blocked(*_args: object, **_kwargs: object) -> bool:
+        return False
+
+    monkeypatch.setattr(agent_plugin.tools, "get_ask_state", no_ask)
+    monkeypatch.setattr(agent_plugin.tools, "is_user_blocked", never_blocked)
+
+    entered: list[int] = []
+
+    class _RecordingTyping:
+        def __init__(self, *_args: object, **_kwargs: object) -> None:
+            pass
+
+        async def __aenter__(self) -> _RecordingTyping:
+            entered.append(1)
+            return self
+
+        async def __aexit__(self, *_exc: object) -> bool:
+            return False
+
+    monkeypatch.setattr(agent_plugin, "TypingKeepAlive", _RecordingTyping)
+
+    await make_user(PLAIN_ID)
+
+    message = _CommandMessage()
+    # get_chat_config 认真实的 Chat 对象, 不能用 SimpleNamespace 顶替。
+    message.chat = pyrogram.types.Chat(
+        id=GROUP_ID, title="Gated chat", type=pyrogram.enums.ChatType.SUPERGROUP
+    )
+    subject = quota.subject_of(cast(Any, message))
+    await quota.settle(subject, RunUsage(input_tokens=100, output_tokens=0))
+    assert await quota.can_start(subject) is False
+
+    await agent_plugin.wake_agent(cast(Any, SimpleNamespace()), cast(Any, message))
+
+    assert entered == []
+    assert len(message.replies) == 1
 
 
 async def test_an_absolute_set_survives_a_settlement_in_the_same_window(monkeypatch):
