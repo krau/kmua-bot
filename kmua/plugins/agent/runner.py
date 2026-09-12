@@ -22,7 +22,7 @@ from kmua.common.memory_store import memttlcache
 from kmua.config import app_config
 from kmua.i18n import i18n
 from kmua.logger import logger
-from kmua.plugins.agent import datatype, provider, quota, safety, state
+from kmua.plugins.agent import datatype, provider, quota, safety, state, trace
 from kmua.plugins.agent.cache_stats import log_run_cache_stats
 from kmua.plugins.agent.datatype import AskUserOutput, EndTurn
 from kmua.plugins.agent.output import StreamingOutput, TypingKeepAlive, reply_output
@@ -153,6 +153,7 @@ async def run_agent(
     model: Any,
     lang: str,
     subject: quota.Subject,
+    trace_kind: str,
     additional_instructions: str | None = None,
     typing_keepalive: TypingKeepAlive | None = None,
     coverage_meta: state.PromptCoverage | None = None,
@@ -166,13 +167,25 @@ async def run_agent(
     ``subject`` names who pays for this call. It has no default because only the
     caller knows who spoke: the message inside an ask-user callback is the bot's
     own, so deriving the subject from it would charge the bot.
+
+    ``trace_kind`` names this run in the recorded trace (they are not all
+    conversations), and has no default for the same reason as ``subject``.
     """
     timeout = app_config.agent_run_timeout
+    session = await trace.start_trace(
+        trace_kind,
+        chat_id=chat_id,
+        user_id=user_id,
+        message_id=message.id,
+        streaming=app_config.agent_streaming,
+    )
     # 额度闸门: 只预检, 不扣费(用量跑完才知道), 扣减在 impl 里按实际用量完成。
     if not is_chat_allowed(chat_id):
+        trace.finish_trace(session, status="rejected", reject_reason="whitelist")
         await _stop_typing_keepalive(typing_keepalive)
         return
     if not await quota.can_start(subject):
+        trace.finish_trace(session, status="rejected", reject_reason="quota")
         await quota.notify_exhausted(
             message, subject, await quota.get_state(subject), lang
         )
@@ -195,13 +208,15 @@ async def run_agent(
             typing_keepalive=typing_keepalive,
             coverage_meta=coverage_meta,
             subject=subject,
+            session=session,
         )
         if not timeout or timeout <= 0:
             await coro
             return
         try:
             await asyncio.wait_for(coro, timeout=timeout)
-        except TimeoutError:
+        except TimeoutError as e:
+            trace.mark_trace(session, status="timeout", error=e)
             await _stop_typing_keepalive(typing_keepalive)
             logger.warning(
                 f"Agent run timed out after {timeout}s for user {user_id} in chat {chat_id}"
@@ -215,8 +230,12 @@ async def run_agent(
                 logger.error(
                     f"Failed to send timeout notice: {e.__class__.__name__} - {e}"
                 )
+    except asyncio.CancelledError:
+        trace.mark_trace(session, status="cancelled")
+        raise
     finally:
         await _stop_typing_keepalive(typing_keepalive)
+        trace.finish_trace(session)
 
 
 async def _run_agent_impl(
@@ -235,6 +254,7 @@ async def _run_agent_impl(
     additional_instructions: str | None = None,
     typing_keepalive: TypingKeepAlive | None = None,
     coverage_meta: state.PromptCoverage | None = None,
+    session: trace.TraceSession | None = None,
 ) -> None:
     """Run the agent; single execution path shared by the wake and follow-up flows.
 
@@ -244,6 +264,7 @@ async def _run_agent_impl(
     """
 
     if not is_chat_allowed(chat_id):
+        trace.mark_trace(session, status="rejected", reject_reason="whitelist")
         return
 
     needs_multimodal = check_needs_multimodal(user_prompt, history)
@@ -383,6 +404,17 @@ async def _run_agent_impl(
                                 await reply_output(client, message, output)
                         # 下面的收尾动作可能失败并跳出, 所以先结算, 免得答案已发出却不计费。
                         await quota.settle(subject, agent_run.usage)
+                        trace.mark_trace(
+                            session,
+                            usage=agent_run.usage,
+                            output=output,
+                            model_name=use_model.model_name,
+                            model_role=(
+                                "multimodal"
+                                if use_model is effective_multimodal
+                                else "main"
+                            ),
+                        )
                         # Save full output for follow-up detection
                         full_output = ""
                         if streaming_output is not None:
@@ -479,6 +511,17 @@ async def _run_agent_impl(
                         full_output_parts.append(output)
                     # 结算排在收尾动作之前: 收尾失败不该让这次调用免费。
                     await quota.settle(subject, agent_run.usage)
+                    trace.mark_trace(
+                        session,
+                        usage=agent_run.usage,
+                        output=output,
+                        model_name=use_model.model_name,
+                        model_role=(
+                            "multimodal"
+                            if use_model is effective_multimodal
+                            else "main"
+                        ),
+                    )
                     # Save full output for follow-up detection
                     full_output = "\n".join(full_output_parts)
                     if (
@@ -512,6 +555,7 @@ async def _run_agent_impl(
             if ctx is not None and ctx_owned:
                 await ctx.__aexit__(None, None, None)
     except TypeError as e:
+        trace.mark_trace(session, status="error", error=e)
         await _stop_typing_keepalive(typing_keepalive)
         # https://github.com/pydantic/pydantic-ai/issues/527
         # https://github.com/pydantic/pydantic-ai/issues/1813
@@ -523,6 +567,7 @@ async def _run_agent_impl(
         pydantic_ai.exceptions.ModelHTTPError,
         pydantic_ai.exceptions.ModelAPIError,
     ) as e:
+        trace.mark_trace(session, status="error", error=e)
         await _stop_typing_keepalive(typing_keepalive)
         logger.error(f"Agent HTTP error: {e.__class__.__name__}: {e}")
         markup = InlineKeyboardMarkup(
@@ -555,6 +600,7 @@ async def _run_agent_impl(
                 reply_markup=markup,
             )
     except Exception as e:
+        trace.mark_trace(session, status="error", error=e)
         await _stop_typing_keepalive(typing_keepalive)
         logger.error(f"Agent run error: {e.__class__.__name__} - {e}")
         err_text = i18n.t("bot.msg.agent.errors.interrupted", locale=lang).format(

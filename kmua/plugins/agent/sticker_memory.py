@@ -12,7 +12,7 @@ from kmua import common, database
 from kmua.config import app_config
 from kmua.logger import logger
 
-from . import provider, sticker_vec
+from . import provider, sticker_vec, trace
 from .whitelist import is_chat_allowed
 
 embedder: Embedder | None = None
@@ -38,6 +38,7 @@ if app_config.agent_sticker_memory:
         _description_agent = Agent(
             model=provider.make_chat_model(_desc_spec),
             output_type=str,
+            capabilities=[trace.AgentTraceCapability()],
             retries=2,
         )
 
@@ -101,21 +102,31 @@ async def _get_description(image_bytes: bytes, mime_type: str) -> str | None:
             content_part = BinaryContent(data=image_bytes, media_type=mime_type)  # type: ignore
 
         # 使用超时控制防止模型调用阻塞事件循环（贴纸描述使用小模型超时）
-        timeout = app_config.agent_small_model_timeout
-        coro = _description_agent.run(
-            [content_part, app_config.agent_sticker_description_prompt]
-        )
+        session = await trace.start_trace("sticker_description", model_role="small")
+        try:
+            timeout = app_config.agent_small_model_timeout
+            coro = _description_agent.run(
+                [content_part, app_config.agent_sticker_description_prompt]
+            )
 
-        if timeout > 0:
-            try:
-                result = await asyncio.wait_for(coro, timeout=timeout)
-            except TimeoutError:
-                logger.warning(f"sticker description timed out after {timeout}s")
-                return None
-        else:
-            result = await coro
+            if timeout > 0:
+                try:
+                    result = await asyncio.wait_for(coro, timeout=timeout)
+                except TimeoutError as e:
+                    trace.mark_trace(session, status="timeout", error=e)
+                    logger.warning(f"sticker description timed out after {timeout}s")
+                    return None
+            else:
+                result = await coro
 
-        return result.output
+            trace.mark_trace(session, usage=result.usage, output=result.output)
+            return result.output
+        except Exception as e:
+            trace.mark_trace(session, status="error", error=e)
+            logger.error(f"sticker description error: {e.__class__.__name__}: {e}")
+            return None
+        finally:
+            trace.finish_trace(session)
     except Exception as e:
         logger.error(f"sticker description error: {e.__class__.__name__}: {e}")
         return None

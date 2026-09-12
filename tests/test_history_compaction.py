@@ -12,6 +12,7 @@ from contextlib import asynccontextmanager
 from types import SimpleNamespace
 from typing import cast
 
+import pytest
 from pydantic_ai import ModelMessage
 from pydantic_ai.messages import (
     BinaryContent,
@@ -173,6 +174,8 @@ class _FakeModel:
 class _FakeRun:
     def __init__(self, output: str) -> None:
         self.result = SimpleNamespace(output=output)
+        # The real AgentRun exposes the run's (shared) usage; the trace reads it.
+        self.usage = RunUsage()
 
     async def __aiter__(self):
         yield End(data=None)
@@ -320,7 +323,10 @@ async def test_clear_prefix_helpers():
     assert await cache.get("message_history_with_agent:1:1") is None
     assert await cache.get("other:key") == b"c"
 
-    assert agent_mod._clear_memstore_prefix("agent_") == 1
+    # The store is process-wide, so the count is compared against what was there
+    # rather than against a number that only holds when this test runs first.
+    matching = [key for key in store._data if key.startswith("agent_")]
+    assert agent_mod._clear_memstore_prefix("agent_") == len(matching)
     assert "agent_ask_state:1:1" not in store._data
     assert "unrelated" in store._data
 
@@ -633,3 +639,65 @@ async def test_follow_up_interjection_keeps_nickname_text_when_unset(monkeypatch
     msg = _running_user_message("kmua 继续说")
     assert await followup._follow_up_filter_func(None, None, msg) is False
     assert enqueued == [(-100, 1, "kmua 继续说")]
+
+
+@pytest.mark.usefixtures("initialised_db")
+async def test_the_compaction_run_is_recorded_under_the_turn_that_asked_for_it(
+    monkeypatch,
+):
+    """The summary call is a run of its own, nested in the turn that triggered it."""
+    from kmua.database.db import AsyncSessionFactory
+    from kmua.plugins.agent import trace
+    from tests.conftest import drain_trace_writes
+
+    monkeypatch.setattr(app_config, "agent_context_window_tokens", 5)
+    monkeypatch.setattr(app_config, "agent_compaction_clear_tool_results", False)
+    monkeypatch.setattr(app_config, "agent_compaction_summarize", True)
+    monkeypatch.setattr(app_config, "agent_compaction_keep_messages", 1)
+    monkeypatch.setattr(app_config, "agent_multimodal_max_items", 0)
+
+    messages = [
+        ModelRequest(parts=[UserPromptPart(content="do the thing")]),
+        ModelRequest(parts=[UserPromptPart(content="then that")]),
+        ModelRequest(parts=[UserPromptPart(content="and this")]),
+    ]
+
+    # The trace tables are shared by the whole test session; start from empty so the
+    # kind set asserted below is this test's own.
+    import sqlalchemy
+
+    from kmua.database.models import AgentRun, AgentRunEvent
+
+    async with AsyncSessionFactory() as session:
+        async with session.begin():
+            await session.execute(sqlalchemy.delete(AgentRunEvent))
+            await session.execute(sqlalchemy.delete(AgentRun))
+
+    parent = await trace.start_trace("chat", chat_id=-100, user_id=7)
+    assert parent is not None
+    result = await history.compact_history(
+        messages,
+        cast(Model, _FakeModel()),
+        deps=SimpleNamespace(instructions="SYS INSTR"),
+        agent=_FakeMainAgent(),  # type: ignore[arg-type]
+        usage=RunUsage(),
+    )
+    assert result != messages, "the summary run must have happened"
+
+    flush = trace.finish_trace(parent, output="answer")
+    assert flush is not None
+    await flush
+    await drain_trace_writes()
+
+    import sqlalchemy
+
+    from kmua.database.models import AgentRun
+
+    async with AsyncSessionFactory() as session:
+        rows = list(await session.scalars(sqlalchemy.select(AgentRun)))
+
+    by_kind = {row.kind: row for row in rows}
+    assert set(by_kind) == {"chat", "compaction"}
+    assert by_kind["compaction"].parent_run_id == by_kind["chat"].id
+    assert by_kind["compaction"].status == "ok"
+    assert by_kind["compaction"].output_text == "the summary"

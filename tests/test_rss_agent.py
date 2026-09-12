@@ -14,6 +14,7 @@ from types import SimpleNamespace
 from typing import cast
 
 import pytest
+from pydantic_ai.usage import RunUsage
 
 from kmua import common, database
 from kmua.bot import jobs
@@ -140,7 +141,8 @@ class _FakeAgent:
         self.calls += 1
         if isinstance(self._result, Exception):
             raise self._result
-        return SimpleNamespace(output=self._result)
+        # An AgentRunResult carries its own usage, which the run trace records.
+        return SimpleNamespace(output=self._result, usage=RunUsage())
 
 
 @pytest.mark.parametrize("raise_exc", [RuntimeError("boom"), TimeoutError("t/o")])
@@ -388,3 +390,37 @@ async def test_rss_agent_toggle_persists_for_group_chat(
     cfg = await database.get_chat_config(chat_id)
     assert cfg.rss_agent_summary is False
     assert replies[-1] and "已关闭" in replies[-1]
+
+
+async def test_a_generated_digest_is_recorded_as_its_own_run(monkeypatch):
+    """The rss digest is a bot-initiated run, so it is on record like any other."""
+    from kmua.database import agent_trace as trace_store
+    from tests.conftest import drain_trace_writes
+
+    fake = _FakeAgent('{"summaries": [{"entry_id": "e1", "summary": "点评"}]}')
+    monkeypatch.setattr(rss_digest, "_make_digest_agent", lambda: fake)
+
+    out = await rss_digest.generate_rss_digest([make_entry("e1")], "feed")
+    assert out == {"e1": "点评"}
+
+    await drain_trace_writes()
+    run = (await trace_store.get_runs_page(1, 10)).items[0]
+    assert (run.kind, run.status) == ("rss_digest", "ok")
+    assert run.model_role is None
+    assert run.output_text == '{"e1": "点评"}'
+
+
+async def test_a_generated_broadcast_is_recorded_as_its_own_run(monkeypatch):
+    from kmua.database import agent_trace as trace_store
+    from tests.conftest import drain_trace_writes
+
+    fake = _FakeAgent("群聊播报内容")
+    monkeypatch.setattr(rss_digest, "_make_broadcast_agent", lambda: fake)
+
+    out = await rss_digest.generate_rss_broadcast([make_entry("e1")], "feed")
+    assert out == "群聊播报内容"
+
+    await drain_trace_writes()
+    run = (await trace_store.get_runs_page(1, 10)).items[0]
+    assert (run.kind, run.status) == ("rss_broadcast", "ok")
+    assert run.output_text == "群聊播报内容"

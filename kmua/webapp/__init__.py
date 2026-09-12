@@ -95,12 +95,13 @@ def create_app(*, panel_enabled: bool | None = None) -> FastAPI:
             allow_headers=["Authorization", "Content-Type"],
         )
 
-    from kmua.webapp.routers import admin, auth, chats, me
+    from kmua.webapp.routers import admin, agent_runs, auth, chats, me
 
     app.include_router(auth.router)
     app.include_router(me.router)
     app.include_router(chats.router)
     app.include_router(admin.router)
+    app.include_router(agent_runs.router)
 
     # Mounted last: this catch-all must not shadow the API routes.
     mount_static(app)

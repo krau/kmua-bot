@@ -1,6 +1,12 @@
 import asyncio
 from dataclasses import dataclass, field
+from secrets import randbits
+from threading import Lock
+from time import time_ns
 from typing import Any
+from uuid import UUID
+
+from kmua.common.memory_store import memstore
 
 
 def history_key(chat_id: int, user_id: int) -> str:
@@ -27,6 +33,83 @@ class PromptCoverage:
 
 def prompt_coverage_key(chat_id: int, user_id: int) -> str:
     return f"agent_prompt_coverage:{chat_id}:{user_id}"
+
+
+SESSION_KEY_PREFIX = "agent_conversation_session:"
+
+
+def session_key(chat_id: int, user_id: int) -> str:
+    """Key of this conversation's current instance id."""
+    return f"{SESSION_KEY_PREFIX}{chat_id}:{user_id}"
+
+
+_uuid7_lock = Lock()
+_uuid7_last_ms = 0
+_uuid7_counter = 0
+
+
+def new_session_id() -> str:
+    """A UUIDv7, as 32 hex characters (RFC 9562).
+
+    Version 7 leads with a millisecond timestamp, so ids sort by when they were
+    minted and one thread's instances read in order. Within a millisecond a counter
+    keeps that order strict (RFC 9562 section 6.2, method 1), which is the same
+    thing the standard library's own `uuid.uuid7` will do. Written here rather than
+    borrowed from a dependency: the polyfill reachable from this project
+    (`pydantic_ai._uuid`) is a private module that goes away once the interpreter
+    provides one, and the implementation is a dozen lines.
+    """
+    global _uuid7_last_ms, _uuid7_counter
+    with _uuid7_lock:
+        millis = time_ns() // 1_000_000
+        if millis <= _uuid7_last_ms:
+            # Same millisecond, or a clock that stepped backwards: keep the last
+            # timestamp and advance the counter, so ids never go down.
+            # Masked only against arithmetic gone wrong: 2**42 ids in one
+            # millisecond is not reachable.
+            millis = _uuid7_last_ms
+            _uuid7_counter = (_uuid7_counter + 1) & 0x3FFFFFFFFFF
+        else:
+            _uuid7_last_ms = millis
+            _uuid7_counter = randbits(42)
+        counter = _uuid7_counter
+        tail = randbits(32)
+    value = (
+        ((millis & 0xFFFFFFFFFFFF) << 80)
+        | (0x7 << 76)
+        | ((counter >> 30) << 64)
+        | (0b10 << 62)
+        | ((counter & 0x3FFFFFFF) << 32)
+        | tail
+    )
+    return UUID(int=value).hex
+
+
+async def conversation_session(chat_id: int, user_id: int) -> str:
+    """This conversation's instance id, created on first use.
+
+    One conversation is one (chat, user) thread, and its id names one *instance* of
+    it: a thread that starts over - the user runs /forget, or the bot restarts -
+    gets a new id, so recorded runs can be grouped per instance rather than per
+    participant pair.
+
+    Kept in the process-local store rather than the TTL cache, so the read-write
+    pair cannot interleave with another task's and hand one thread two ids; the
+    trade is that a restart also opens a new instance, which is what "the bot
+    forgot" means anyway.
+    """
+    key = session_key(chat_id, user_id)
+    current = await memstore.get(key)
+    if isinstance(current, str) and current:
+        return current
+    created = new_session_id()
+    await memstore.set(key, created)
+    return created
+
+
+async def clear_conversation_session(chat_id: int, user_id: int) -> None:
+    """Forget the instance id so the next run of this thread opens a new one."""
+    await memstore.delete(session_key(chat_id, user_id))
 
 
 def waiting_key(user_id: int) -> str:

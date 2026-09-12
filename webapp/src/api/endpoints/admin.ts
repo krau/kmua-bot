@@ -4,6 +4,10 @@ import type {
   AdminUser,
   AdminUserPatch,
   AdminUserPatchResult,
+  AgentRunDetail,
+  AgentRunEventDetail,
+  AgentRunQuery,
+  AgentRunSummary,
   ChatDetail,
   ChatPolicyDetail,
   ChatPolicyList,
@@ -81,6 +85,24 @@ export function updateUser(userId: number, patch: AdminUserPatch) {
 
 export function fetchJobs(signal?: AbortSignal) {
   return api.get<Job[]>("/api/admin/jobs", signal ? { signal } : {});
+}
+
+export function fetchAgentRuns(query: AgentRunQuery, signal?: AbortSignal) {
+  return api.get<Page<AgentRunSummary>>("/api/admin/agent-runs", {
+    query: { ...query },
+    ...(signal ? { signal } : {}),
+  });
+}
+
+export function fetchAgentRun(runId: number, signal?: AbortSignal) {
+  return api.get<AgentRunDetail>(`/api/admin/agent-runs/${runId}`, signal ? { signal } : {});
+}
+
+export function fetchAgentRunEvent(runId: number, seq: number, signal?: AbortSignal) {
+  return api.get<AgentRunEventDetail>(
+    `/api/admin/agent-runs/${runId}/events/${seq}`,
+    signal ? { signal } : {},
+  );
 }
 
 export function fetchChatPolicies(signal?: AbortSignal) {
