@@ -9,8 +9,10 @@ import pyrogram.enums
 import pytest
 
 from kmua.config import app_config
+from kmua.database import agent_trace as trace_store
 from kmua.plugins.agent import quota, runner
 from kmua.plugins.agent.output import TypingKeepAlive
+from tests.conftest import drain_trace_writes
 
 # `run_agent` touches the quota tables, so the schema must exist.
 pytestmark = pytest.mark.usefixtures("initialised_db")
@@ -108,3 +110,9 @@ async def test_run_agent_stops_typing_before_timeout_reply(monkeypatch):
     assert len(message.replies) == 1
     assert "Timeout" in message.replies[0]
     assert keepalive._task is not None and keepalive._task.done()
+
+    # The timed-out turn is on record as a timeout, not as a missing row.
+    await drain_trace_writes()
+    run = (await trace_store.get_runs_page(1, 10)).items[0]
+    assert (run.kind, run.status) == ("chat", "timeout")
+    assert run.error_class == "TimeoutError"
