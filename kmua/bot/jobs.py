@@ -23,7 +23,9 @@ async def cleanup():
         # common.cleanup_avatar_cache()
         if app_config.agent:
             await _cleanup_agent_workspaces()
-            await _cleanup_agent_traces()
+        # Outside the agent switch: recorded runs must still expire after the agent
+        # is turned off, or the last transcripts stay forever.
+        await _cleanup_agent_traces()
     finally:
         logger.info("clean data done")
         await common.memstore.delete(enums.GLockKey.CLEANING)
