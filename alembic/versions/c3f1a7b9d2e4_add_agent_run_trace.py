@@ -9,6 +9,8 @@ the response it got back, every tool call and its result, and how the run ended.
 Append-only, written once at run end, so a run that never finished leaves nothing
 behind. `parent_run_id` links a nested run (compaction, transcription) to the turn
 that spawned it; it is a plain column with no foreign key, like the quota tables.
+`session_id` groups the runs of one conversation instance - one random value per
+(chat, user) thread, replaced when that thread starts over.
 """
 
 from collections.abc import Sequence
@@ -24,6 +26,7 @@ depends_on: str | Sequence[str] | None = None
 
 _RUN_INDEXES: tuple[tuple[str, list[str]], ...] = (
     ("ix_agent_runs_started_at", ["started_at"]),
+    ("ix_agent_runs_session_started", ["session_id", "started_at"]),
     ("ix_agent_runs_chat_started", ["chat_id", "started_at"]),
     ("ix_agent_runs_user_started", ["user_id", "started_at"]),
     ("ix_agent_runs_status_started", ["status", "started_at"]),
@@ -43,6 +46,7 @@ def upgrade() -> None:
             sa.Column("kind", sa.String(length=32), nullable=False),
             sa.Column("status", sa.String(length=16), nullable=False),
             sa.Column("reject_reason", sa.String(length=16), nullable=True),
+            sa.Column("session_id", sa.String(length=32), nullable=True),
             sa.Column("chat_id", sa.BigInteger(), nullable=True),
             sa.Column("user_id", sa.BigInteger(), nullable=True),
             sa.Column("message_id", sa.BigInteger(), nullable=True),

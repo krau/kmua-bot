@@ -172,7 +172,7 @@ async def run_agent(
     conversations), and has no default for the same reason as ``subject``.
     """
     timeout = app_config.agent_run_timeout
-    session = trace.start_trace(
+    session = await trace.start_trace(
         trace_kind,
         chat_id=chat_id,
         user_id=user_id,

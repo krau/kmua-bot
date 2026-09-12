@@ -84,7 +84,7 @@ async def wait_for_runs(count: int, timeout: float = 5.0) -> list[AgentRun]:
 
 
 async def test_a_finished_run_lands_with_its_events_in_order():
-    session = trace.start_trace("chat", chat_id=-100, user_id=7, message_id=42)
+    session = await trace.start_trace("chat", chat_id=-100, user_id=7, message_id=42)
     assert session is not None
     session.note_steering(["wait", "actually"])
     session.note_tool_call(
@@ -126,7 +126,7 @@ async def test_a_finished_run_lands_with_its_events_in_order():
 
 
 async def test_a_run_without_a_result_is_recorded_as_incomplete():
-    session = trace.start_trace("chat")
+    session = await trace.start_trace("chat")
     assert session is not None
     task = trace.finish_trace(session)
     assert task is not None
@@ -138,7 +138,7 @@ async def test_a_run_without_a_result_is_recorded_as_incomplete():
 
 
 async def test_an_explicit_status_wins_over_the_inferred_one():
-    session = trace.start_trace("chat")
+    session = await trace.start_trace("chat")
     assert session is not None
     task = trace.finish_trace(session, status="cancelled", output=None)
     assert task is not None
@@ -147,8 +147,8 @@ async def test_an_explicit_status_wins_over_the_inferred_one():
 
 
 async def test_a_nested_run_is_written_under_its_parent():
-    parent = trace.start_trace("chat", chat_id=-100)
-    child = trace.start_trace("compaction")
+    parent = await trace.start_trace("chat", chat_id=-100)
+    child = await trace.start_trace("compaction")
     assert child is not None and child.parent is parent
     child_task = trace.finish_trace(child, output="summary")
     # The child does not write on its own: the parent's flush carries both.
@@ -167,7 +167,7 @@ async def test_a_nested_run_is_written_under_its_parent():
 
 async def test_long_strings_are_cut_and_the_event_records_it(monkeypatch):
     monkeypatch.setattr(app_config, "agent_trace_max_field_chars", 10, raising=False)
-    session = trace.start_trace("chat")
+    session = await trace.start_trace("chat")
     assert session is not None
     session.note_steering(["x" * 50])
     task = trace.finish_trace(session, output="ok")
@@ -182,7 +182,7 @@ async def test_long_strings_are_cut_and_the_event_records_it(monkeypatch):
 
 
 async def test_event_count_is_capped_and_the_overflow_is_counted():
-    session = trace.start_trace("chat")
+    session = await trace.start_trace("chat")
     assert session is not None
     for index in range(205):
         session.note_steering([f"message {index}"])
@@ -200,7 +200,7 @@ async def test_event_count_is_capped_and_the_overflow_is_counted():
 
 async def test_an_oversized_payload_becomes_a_marker(monkeypatch):
     monkeypatch.setattr(trace, "_MAX_EVENT_PAYLOAD_CHARS", 100, raising=False)
-    session = trace.start_trace("chat")
+    session = await trace.start_trace("chat")
     assert session is not None
     session.note_steering(["y" * 500])
     task = trace.finish_trace(session, output="ok")
@@ -216,7 +216,7 @@ async def test_an_oversized_payload_becomes_a_marker(monkeypatch):
 
 
 async def test_the_run_payload_budget_is_spent_across_events(monkeypatch):
-    session = trace.start_trace("chat")
+    session = await trace.start_trace("chat")
     assert session is not None
     session.note_steering(["z" * 200])
     session.note_steering(["z" * 200])
@@ -427,7 +427,7 @@ async def test_a_real_run_records_requests_responses_and_tool_results():
         capabilities=[_RewritesHistory(), trace.AgentTraceCapability()],
     )
 
-    session = trace.start_trace("chat", chat_id=-100, user_id=7, message_id=42)
+    session = await trace.start_trace("chat", chat_id=-100, user_id=7, message_id=42)
     assert session is not None
     result = await provider.run("hello")
     task = trace.finish_trace(session, usage=result.usage, output=result.output)
@@ -495,7 +495,7 @@ async def test_a_failing_model_call_is_recorded_as_an_event_and_a_status():
         model=FunctionModel(explode),
         capabilities=[trace.AgentTraceCapability()],
     )
-    session = trace.start_trace("chat", chat_id=-100, user_id=7)
+    session = await trace.start_trace("chat", chat_id=-100, user_id=7)
     assert session is not None
     with pytest.raises(Exception):
         await provider.run("hello")
@@ -565,7 +565,7 @@ async def test_run_agent_records_a_quota_refusal(monkeypatch):
 
 async def test_the_run_record_context_is_cleared_after_the_run():
     """A finished run must not leave itself installed for the next call."""
-    session = trace.start_trace("chat")
+    session = await trace.start_trace("chat")
     assert session is not None
     task = trace.finish_trace(session, output="ok")
     assert task is not None
@@ -575,7 +575,7 @@ async def test_the_run_record_context_is_cleared_after_the_run():
 
 async def test_a_disabled_trace_starts_no_session(monkeypatch):
     monkeypatch.setattr(app_config, "agent_trace_enabled", False, raising=False)
-    session = trace.start_trace("chat", chat_id=-1)
+    session = await trace.start_trace("chat", chat_id=-1)
     assert session is None
     # Every marker is a no-op, so callers need no guard of their own.
     trace.mark_trace(session, output="ignored")
@@ -743,6 +743,8 @@ async def test_a_whole_runner_turn_records_the_run_the_ledger_was_billed_for(
     assert run.kind == "chat"
     assert (run.requests, run.tool_calls) == (3, 2)
     assert run.output_text == "finished"
+    # And it is filed under the conversation it belongs to.
+    assert run.session_id == await trace.conversation_session(-100902, 9201)
 
     _, _, input_tokens, output_tokens = await database.get_usage(
         database.SCOPE_USER, 9201, database.utc_day()
@@ -862,3 +864,85 @@ async def test_run_agent_records_a_cancelled_turn(monkeypatch):
     assert run.status == "cancelled"
     assert run.error_class is None
     assert run.output_kind is None
+
+
+# ------------------------------------------------------------------ sessions
+
+
+async def write_run(kind: str, *, chat_id: int, user_id: int) -> str | None:
+    """One whole run of that conversation, then its id - the way a caller does it."""
+    session = await trace.start_trace(kind, chat_id=chat_id, user_id=user_id)
+    assert session is not None
+    task = trace.finish_trace(session, output="x")
+    assert task is not None
+    await task
+    return session.session_id
+
+
+async def test_runs_of_one_conversation_share_a_session_id():
+    first = await write_run("chat", chat_id=-100, user_id=7)
+    second = await write_run("chat", chat_id=-100, user_id=7)
+    assert first is not None
+    assert first == second
+
+    # Another participant, or another chat, is another conversation.
+    other_user = await write_run("chat", chat_id=-100, user_id=8)
+    other_chat = await write_run("chat", chat_id=-200, user_id=7)
+    assert other_user != first
+    assert other_chat != first
+
+    by_session = {row.session_id for row in await runs()}
+    assert None not in by_session
+    assert len(by_session) == 3
+
+
+async def test_a_nested_run_inherits_its_parent_session():
+    parent = await trace.start_trace("chat", chat_id=-100, user_id=7)
+    child = await trace.start_trace("compaction")
+    assert parent is not None and child is not None
+    assert child.session_id == parent.session_id
+    trace.finish_trace(child, output="summary")
+    task = trace.finish_trace(parent, output="answer")
+    assert task is not None
+    await task
+
+    rows = {row.kind: row for row in await runs()}
+    assert rows["compaction"].session_id == rows["chat"].session_id
+    assert rows["compaction"].parent_run_id == rows["chat"].id
+
+
+async def test_a_run_without_a_conversation_has_no_session():
+    """RSS work and sticker descriptions belong to no thread, so they group with none."""
+    session = await trace.start_trace("rss_digest")
+    assert session is not None
+    assert session.session_id is None
+    task = trace.finish_trace(session, output="digest")
+    assert task is not None
+    await task
+
+    assert (await runs())[0].session_id is None
+
+
+async def test_clearing_a_conversation_opens_a_new_session():
+    """What /forget does: the next run of that thread is a new instance."""
+    from kmua.plugins.agent import state as agent_state
+
+    before = await agent_state.conversation_session(-100, 7)
+    assert await agent_state.conversation_session(-100, 7) == before, (
+        "stable while it lasts"
+    )
+
+    await agent_state.clear_conversation_session(-100, 7)
+
+    after = await agent_state.conversation_session(-100, 7)
+    assert after != before
+    assert len(after) == 32
+
+
+async def test_a_refusal_carries_the_conversation_session():
+    await trace.note_rejection(
+        "chat", chat_id=-555, user_id=7, message_id=1, reason="quota"
+    )
+    rows = await wait_for_runs(1)
+    assert rows[0].session_id is not None
+    assert rows[0].session_id == await trace.conversation_session(-555, 7)

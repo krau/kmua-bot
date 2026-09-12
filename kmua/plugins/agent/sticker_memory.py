@@ -102,7 +102,7 @@ async def _get_description(image_bytes: bytes, mime_type: str) -> str | None:
             content_part = BinaryContent(data=image_bytes, media_type=mime_type)  # type: ignore
 
         # 使用超时控制防止模型调用阻塞事件循环（贴纸描述使用小模型超时）
-        session = trace.start_trace("sticker_description", model_role="small")
+        session = await trace.start_trace("sticker_description", model_role="small")
         try:
             timeout = app_config.agent_small_model_timeout
             coro = _description_agent.run(

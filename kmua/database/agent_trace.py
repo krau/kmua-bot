@@ -4,6 +4,10 @@ One `agent_runs` row per run plus one `agent_run_events` row per step. Both are
 append-only and written once, when the run ends: a run that never finished leaves
 no row, so a trace can never describe a half-executed turn.
 
+Runs carry the conversation instance they belong to in `session_id` - the id
+`kmua.plugins.agent.state` hands out per (chat, user) thread. Nested runs inherit
+their parent's, and the bot's own work (RSS, sticker descriptions) has none.
+
 The enumerated string values live here as module constants because the write side
 (`kmua.plugins.agent.trace`) and the read side (`kmua.webapp.routers.agent_runs`)
 both validate against them; the tables themselves carry no enum constraint, like
@@ -95,6 +99,7 @@ class AgentRunDraft:
     children: tuple[AgentRunDraft, ...] = ()
     events_dropped: int = 0
     reject_reason: str | None = None
+    session_id: str | None = None
     chat_id: int | None = None
     user_id: int | None = None
     message_id: int | None = None
@@ -120,6 +125,7 @@ def _run_values(draft: AgentRunDraft, parent_run_id: int | None) -> dict[str, An
         "kind": draft.kind,
         "status": draft.status,
         "reject_reason": draft.reject_reason,
+        "session_id": draft.session_id,
         "chat_id": draft.chat_id,
         "user_id": draft.user_id,
         "message_id": draft.message_id,
@@ -203,6 +209,7 @@ async def get_runs_page(
     page: int = 1,
     size: int = pagination.DEFAULT_PAGE_SIZE,
     *,
+    session_id: str | None = None,
     chat_id: int | None = None,
     user_id: int | None = None,
     kind: str | None = None,
@@ -217,6 +224,10 @@ async def get_runs_page(
 
     page, size = pagination.normalize_page(page, size)
     conditions = []
+    if session_id:
+        # Substring, like the text search: an operator reads the first characters of
+        # an id off the list and pastes those back.
+        conditions.append(pagination.text_match(AgentRun.session_id, session_id))
     if chat_id is not None:
         conditions.append(AgentRun.chat_id == chat_id)
     if user_id is not None:

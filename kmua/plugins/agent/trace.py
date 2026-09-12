@@ -52,6 +52,8 @@ from kmua.database.agent_trace import (
 )
 from kmua.logger import logger
 
+from .state import conversation_session
+
 # Per-run ceilings, not configuration: they exist so one pathological run cannot
 # fill the database, and a deployment that hits them has a bug worth seeing.
 _MAX_EVENTS_PER_RUN = 200
@@ -254,6 +256,7 @@ class TraceSession:
         self,
         kind: str,
         *,
+        session_id: str | None = None,
         chat_id: int | None = None,
         user_id: int | None = None,
         message_id: int | None = None,
@@ -261,6 +264,7 @@ class TraceSession:
         streaming: bool = False,
     ) -> None:
         self.kind = kind
+        self.session_id = session_id
         self.chat_id = chat_id
         self.user_id = user_id
         self.message_id = message_id
@@ -426,7 +430,7 @@ def current_session() -> TraceSession | None:
     return _current.get()
 
 
-def start_trace(
+async def start_trace(
     kind: str,
     *,
     chat_id: int | None = None,
@@ -437,20 +441,32 @@ def start_trace(
 ) -> TraceSession | None:
     """Open a run buffer, nested in the enclosing one when there is one.
 
+    A run that belongs to a conversation is stamped with that conversation's
+    instance id; a nested run takes its parent's, because it is part of the same
+    turn, and work with no conversation of its own (RSS, sticker descriptions) has
+    none.
+
     Returns None when tracing is off, so every caller can treat the return value
     as "maybe a session" and the whole capture path disappears with the switch.
     """
     if not app_config.agent_trace_enabled:
         return None
+    parent = _current.get()
+    if parent is not None:
+        session_id = parent.session_id
+    elif chat_id is not None and user_id is not None:
+        session_id = await conversation_session(chat_id, user_id)
+    else:
+        session_id = None
     session = TraceSession(
         kind,
+        session_id=session_id,
         chat_id=chat_id,
         user_id=user_id,
         message_id=message_id,
         model_role=model_role,
         streaming=streaming,
     )
-    parent = _current.get()
     if parent is not None:
         parent.children.append(session)
         session.parent = parent
@@ -555,7 +571,7 @@ async def trace_scope(
     The body is expected to `mark_trace` its own result; an exception that escapes
     it is recorded and re-raised, so the block's error handling is untouched.
     """
-    session = start_trace(
+    session = await start_trace(
         kind,
         chat_id=chat_id,
         user_id=user_id,
@@ -669,6 +685,7 @@ def _to_draft(session: TraceSession) -> AgentRunDraft:
         kind=session.kind,
         status=session.status,
         reject_reason=session.reject_reason,
+        session_id=session.session_id,
         chat_id=session.chat_id,
         user_id=session.user_id,
         message_id=session.message_id,
@@ -698,6 +715,7 @@ def _to_draft(session: TraceSession) -> AgentRunDraft:
 def _rejection_draft(
     *,
     kind: str,
+    session_id: str | None,
     chat_id: int | None,
     user_id: int | None,
     message_id: int | None,
@@ -710,6 +728,7 @@ def _rejection_draft(
         kind=kind,
         status="rejected",
         reject_reason=reason,
+        session_id=session_id,
         chat_id=chat_id,
         user_id=user_id,
         message_id=message_id,
@@ -747,6 +766,7 @@ async def _write_root(session: TraceSession) -> None:
                 await record_rejection(
                     _rejection_draft(
                         kind=kind,
+                        session_id=session.session_id,
                         chat_id=session.chat_id,
                         user_id=session.user_id,
                         message_id=session.message_id,
@@ -791,8 +811,14 @@ async def note_rejection(
             f"{e.__class__.__name__} - {e}"
         )
         return
+    session_id = (
+        await conversation_session(chat_id, user_id)
+        if chat_id is not None and user_id is not None
+        else None
+    )
     draft = _rejection_draft(
         kind=kind,
+        session_id=session_id,
         chat_id=chat_id,
         user_id=user_id,
         message_id=message_id,

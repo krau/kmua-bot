@@ -158,10 +158,12 @@ async def _clear_memttlcache_prefix(prefix: str) -> int:
 
 
 async def _clear_conversation_session(chat_id: int, user_id: int) -> None:
-    """Clear one conversation's agent session: history, ask state, spills,
-    and (private chats only) the session workspace files. Group sandboxes
-    are shared by the whole chat and stay untouched."""
+    """Clear one conversation's agent session: history, ask state, spills, the
+    recorded session id (so the next run opens a new instance), and (private
+    chats only) the session workspace files. Group sandboxes are shared by the
+    whole chat and stay untouched."""
     await common.memttlcache.delete(state.history_key(chat_id, user_id))
+    await state.clear_conversation_session(chat_id, user_id)
     await common.memttlcache.delete(state.prompt_coverage_key(chat_id, user_id))
     await tools.clear_ask_state(chat_id, user_id)
     await safety.delete_spill_session(f"{chat_id}_{user_id}")

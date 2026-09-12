@@ -573,6 +573,7 @@ class AgentRunOut(ApiModel):
     kind: str
     status: str
     reject_reason: str | None = None
+    session_id: str | None = None
     chat_id: int | None = None
     user_id: int | None = None
     message_id: int | None = None

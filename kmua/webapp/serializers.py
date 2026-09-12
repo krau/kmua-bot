@@ -169,6 +169,7 @@ def agent_run_out(run: AgentRun) -> AgentRunOut:
         kind=run.kind,
         status=run.status,
         reject_reason=run.reject_reason,
+        session_id=run.session_id,
         chat_id=run.chat_id,
         user_id=run.user_id,
         message_id=run.message_id,

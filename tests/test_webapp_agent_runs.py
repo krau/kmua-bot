@@ -295,3 +295,45 @@ async def test_the_trace_is_admin_only():
     assert anonymous.json()["code"] == "TOKEN_MISSING"
     assert refused.status_code == 403
     assert refused.json()["code"] == "ADMIN_REQUIRED"
+
+
+async def test_runs_are_grouped_by_session_and_filterable_by_it():
+    await make_user(ADMIN_ID, full_name="Trace Admin", global_admin=True)
+    from kmua.plugins.agent import state as agent_state
+
+    session = await agent_state.conversation_session(CHAT_ID, USER_ID)
+    in_session = await seed_run()
+    await seed_run()  # same chat, but the fixture seeds no session: a different thread
+
+    import sqlalchemy
+
+    from kmua.database.db import AsyncSessionFactory
+    from kmua.database.models import AgentRun
+
+    async with AsyncSessionFactory() as db_session:
+        async with db_session.begin():
+            await db_session.execute(
+                sqlalchemy.update(AgentRun)
+                .where(AgentRun.id == in_session)
+                .values(session_id=session)
+            )
+
+    async with api_client() as client:
+        headers = bearer(ADMIN_ID)
+        listed = await client.get("/api/admin/agent-runs", headers=headers)
+        detail = await client.get(
+            f"/api/admin/agent-runs/{in_session}", headers=headers
+        )
+        by_session = await client.get(
+            "/api/admin/agent-runs", params={"session_id": session}, headers=headers
+        )
+        # The list shows an id the operator can paste in whole or in part.
+        by_prefix = await client.get(
+            "/api/admin/agent-runs", params={"session_id": session[:8]}, headers=headers
+        )
+
+    assert detail.json()["session_id"] == session
+    assert any(run["session_id"] == session for run in listed.json()["items"])
+    assert by_session.json()["total"] == 1
+    assert by_session.json()["items"][0]["id"] == in_session
+    assert by_prefix.json()["total"] == 1

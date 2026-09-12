@@ -428,6 +428,11 @@ export interface AgentRunSummary {
   status: AgentRunStatus;
   /** Only set for a rejected run: "quota" or "whitelist". */
   reject_reason: string | null;
+  /**
+   * The conversation instance this run belongs to (random, one per chat+user thread).
+   * Null for runs with no conversation of their own, such as RSS work.
+   */
+  session_id: string | null;
   chat_id: number | null;
   user_id: number | null;
   message_id: number | null;
@@ -482,6 +487,7 @@ export interface AgentRunEventDetail extends AgentRunEvent {
 export interface AgentRunQuery {
   page: number;
   size: number;
+  session_id?: string;
   chat_id?: number;
   user_id?: number;
   kind?: string;

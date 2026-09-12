@@ -45,6 +45,7 @@ const router = useRouter();
 const page = ref(1);
 
 /** Edited filter values; copied into `applied` when the operator commits. */
+const sessionId = ref("");
 const chatId = ref("");
 const userId = ref("");
 const kind = ref("");
@@ -98,6 +99,7 @@ function parseId(raw: string): number | undefined {
 
 function applyFilters(): void {
   applied.value = {
+    session_id: sessionId.value.trim() || undefined,
     chat_id: parseId(chatId.value),
     user_id: parseId(userId.value),
     kind: kind.value || undefined,
@@ -114,6 +116,7 @@ function applyFilters(): void {
 }
 
 function resetFilters(): void {
+  sessionId.value = "";
   chatId.value = "";
   userId.value = "";
   kind.value = "";
@@ -153,6 +156,7 @@ function statusText(run: (typeof items.value)[number]): string {
 
 function hint(run: (typeof items.value)[number]): string {
   const parts = [formatDateTime(run.started_at), statusText(run)];
+  if (run.session_id) parts.push(`${t("agentRuns.session")} ${run.session_id.slice(0, 8)}`);
   if (run.chat_id !== null || run.user_id !== null) {
     parts.push(`${run.chat_id ?? "-"} / ${run.user_id ?? "-"}`);
   }
@@ -169,6 +173,12 @@ function open(runId: number): void {
   <PageHeader :title="t('agentRuns.title')" :subtitle="t('agentRuns.subtitle', { total })" />
 
   <SettingsSection>
+    <TextField
+      v-model="sessionId"
+      :label="t('agentRuns.filters.sessionId')"
+      :placeholder="t('agentRuns.filters.sessionIdPlaceholder')"
+      :maxlength="32"
+    />
     <TextField
       v-model="chatId"
       :label="t('agentRuns.filters.chatId')"

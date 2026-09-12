@@ -855,6 +855,11 @@ class AgentRun(Base):
     status: Mapped[str] = mapped_column(String(16), nullable=False)
     # Only set when status is "rejected": one of REJECT_REASONS.
     reject_reason: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    # This conversation's instance id: one random value per (chat, user) thread,
+    # replaced when that thread starts over (/forget) or the process restarts. Runs
+    # with no conversation of their own (RSS work, sticker descriptions) leave it
+    # null; nested runs (compaction, transcription) inherit their parent's.
+    session_id: Mapped[str | None] = mapped_column(String(32), nullable=True)
     chat_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
     user_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
     message_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
@@ -911,6 +916,7 @@ class AgentRun(Base):
 
     __table_args__ = (
         sa.Index("ix_agent_runs_started_at", "started_at"),
+        sa.Index("ix_agent_runs_session_started", "session_id", "started_at"),
         sa.Index("ix_agent_runs_chat_started", "chat_id", "started_at"),
         sa.Index("ix_agent_runs_user_started", "user_id", "started_at"),
         sa.Index("ix_agent_runs_status_started", "status", "started_at"),

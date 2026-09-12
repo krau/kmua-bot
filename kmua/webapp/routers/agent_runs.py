@@ -85,6 +85,9 @@ async def list_agent_runs(
     user: RequireAdmin,
     page: int = Query(1, ge=1),
     size: int = Query(20, ge=1, le=100),
+    session_id: str | None = Query(
+        None, max_length=32, description="Session id, or part of it"
+    ),
     chat_id: int | None = Query(None),
     user_id: int | None = Query(None),
     kind: KindQuery = None,
@@ -93,10 +96,11 @@ async def list_agent_runs(
     since: datetime | None = Query(None),
     until: datetime | None = Query(None),
 ) -> PageOut[AgentRunOut]:
-    """Runs, newest first, filtered by identity, category, outcome or time."""
+    """Runs, newest first, filtered by session, identity, category, outcome or time."""
     result = await store.get_runs_page(
         page=page,
         size=size,
+        session_id=session_id,
         chat_id=chat_id,
         user_id=user_id,
         kind=kind,

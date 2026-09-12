@@ -1,6 +1,9 @@
 import asyncio
 from dataclasses import dataclass, field
 from typing import Any
+from uuid import uuid4
+
+from kmua.common.memory_store import memstore
 
 
 def history_key(chat_id: int, user_id: int) -> str:
@@ -27,6 +30,38 @@ class PromptCoverage:
 
 def prompt_coverage_key(chat_id: int, user_id: int) -> str:
     return f"agent_prompt_coverage:{chat_id}:{user_id}"
+
+
+def session_key(chat_id: int, user_id: int) -> str:
+    """Key of this conversation's current instance id."""
+    return f"agent_conversation_session:{chat_id}:{user_id}"
+
+
+async def conversation_session(chat_id: int, user_id: int) -> str:
+    """This conversation's instance id, created on first use.
+
+    One conversation is one (chat, user) thread, and its id names one *instance* of
+    it: a thread that starts over - the user runs /forget, or the bot restarts -
+    gets a new id, so recorded runs can be grouped per instance rather than per
+    participant pair.
+
+    Kept in the process-local store rather than the TTL cache, so the read-write
+    pair cannot interleave with another task's and hand one thread two ids; the
+    trade is that a restart also opens a new instance, which is what "the bot
+    forgot" means anyway.
+    """
+    key = session_key(chat_id, user_id)
+    current = await memstore.get(key)
+    if isinstance(current, str) and current:
+        return current
+    created = uuid4().hex
+    await memstore.set(key, created)
+    return created
+
+
+async def clear_conversation_session(chat_id: int, user_id: int) -> None:
+    """Forget the instance id so the next run of this thread opens a new one."""
+    await memstore.delete(session_key(chat_id, user_id))
 
 
 def waiting_key(user_id: int) -> str:

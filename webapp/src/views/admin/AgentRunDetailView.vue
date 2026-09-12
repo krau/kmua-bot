@@ -123,6 +123,9 @@ function summaryItems(data: NonNullable<typeof run.value>): DefinitionItem[] {
   if (data.reject_reason) {
     rows.push({ label: t("agentRuns.reject.label"), value: data.reject_reason, mono: true });
   }
+  if (data.session_id) {
+    rows.push({ label: t("agentRuns.columns.sessionId"), value: data.session_id, mono: true });
+  }
   rows.push(
     { label: t("agentRuns.columns.startedAt"), value: formatDateTime(data.started_at) },
     { label: t("agentRuns.columns.durationMs"), value: formatNumber(data.duration_ms), mono: true },

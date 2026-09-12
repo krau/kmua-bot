@@ -221,7 +221,7 @@ Bot回复: {bot_full_output}
         if not relevance_check_agent:
             return
 
-        session = trace.start_trace(
+        session = await trace.start_trace(
             "followup_relevance",
             chat_id=chat.id,
             user_id=user.id,

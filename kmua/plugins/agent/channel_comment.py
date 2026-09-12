@@ -279,7 +279,7 @@ async def comment_channel_message(client: Client, message: pyrogram.types.Messag
         f"{channel.id} ({channel.title or '?'}), msg {message.id}: "
         f"{message.caption or message.text}"
     )
-    session = trace.start_trace(
+    session = await trace.start_trace(
         "channel_comment",
         chat_id=chat.id,
         user_id=channel.id,

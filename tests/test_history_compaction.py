@@ -323,7 +323,10 @@ async def test_clear_prefix_helpers():
     assert await cache.get("message_history_with_agent:1:1") is None
     assert await cache.get("other:key") == b"c"
 
-    assert agent_mod._clear_memstore_prefix("agent_") == 1
+    # The store is process-wide, so the count is compared against what was there
+    # rather than against a number that only holds when this test runs first.
+    matching = [key for key in store._data if key.startswith("agent_")]
+    assert agent_mod._clear_memstore_prefix("agent_") == len(matching)
     assert "agent_ask_state:1:1" not in store._data
     assert "unrelated" in store._data
 
@@ -659,7 +662,7 @@ async def test_the_compaction_run_is_recorded_under_the_turn_that_asked_for_it(
         ModelRequest(parts=[UserPromptPart(content="and this")]),
     ]
 
-    parent = trace.start_trace("chat", chat_id=-100, user_id=7)
+    parent = await trace.start_trace("chat", chat_id=-100, user_id=7)
     assert parent is not None
     result = await history.compact_history(
         messages,

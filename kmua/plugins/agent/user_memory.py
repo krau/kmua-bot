@@ -45,7 +45,7 @@ async def update_user_memory(
             message_text = f"根据已有的记忆和新的聊天消息, 更新对用户的记忆, 并决定对用户的好感变化.\n旧的记忆: {old_memory}\n新的聊天消息: {message_text}"
 
         # 使用超时控制防止模型调用阻塞事件循环
-        session = trace.start_trace("memory", user_id=user_id)
+        session = await trace.start_trace("memory", user_id=user_id)
         try:
             timeout = app_config.agent_model_timeout
             coro = agent.run(

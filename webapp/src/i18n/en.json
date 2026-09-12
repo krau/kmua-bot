@@ -398,7 +398,9 @@
       "search": "Search",
       "searchPlaceholder": "Output or error text",
       "apply": "Apply",
-      "reset": "Reset"
+      "reset": "Reset",
+      "sessionId": "session_id",
+      "sessionIdPlaceholder": "id or part of it"
     },
     "columns": {
       "run": "Run",
@@ -413,7 +415,8 @@
       "requests": "Requests / tools",
       "events": "Events",
       "parent": "Parent run",
-      "messageId": "Message ID"
+      "messageId": "Message ID",
+      "sessionId": "session_id"
     },
     "kind": {
       "chat": "Chat",
@@ -482,6 +485,7 @@
       "streaming": "Streaming",
       "cacheTokens": "Cache read / write tokens",
       "outputChars": "Output length before truncation"
-    }
+    },
+    "session": "sid"
   }
 }

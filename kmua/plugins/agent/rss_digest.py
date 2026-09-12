@@ -171,7 +171,7 @@ async def generate_rss_digest(
     global _digest_agent
     if not entries or not (app_config.agent and app_config.agent_model):
         return {}
-    session = trace.start_trace("rss_digest")
+    session = await trace.start_trace("rss_digest")
     try:
         if _digest_agent is None:
             _digest_agent = _make_digest_agent()
@@ -210,7 +210,7 @@ async def generate_rss_broadcast(
     global _broadcast_agent
     if not entries or not (app_config.agent and app_config.agent_model):
         return None
-    session = trace.start_trace("rss_broadcast")
+    session = await trace.start_trace("rss_broadcast")
     try:
         if _broadcast_agent is None:
             _broadcast_agent = _make_broadcast_agent()
