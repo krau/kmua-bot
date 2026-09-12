@@ -21,7 +21,6 @@ replaying the run in order, which `reconstruct_request_messages` does.
 from __future__ import annotations
 
 import asyncio
-import base64
 import dataclasses
 import json
 import time
@@ -171,43 +170,59 @@ def _json_chars(payload: Any) -> int:
         return len(str(payload))
 
 
-def _strip_binary(value: Any) -> Any:
-    """Replace serialized binary content with its metadata.
+def _binary_marker(value: dict[str, Any]) -> dict[str, Any]:
+    """Metadata for one serialized binary content value, without its body."""
+    data = value.get("data")
+    if isinstance(data, (bytes, bytearray, memoryview)):
+        size = len(data)
+    elif isinstance(data, str):
+        size = len(data)
+    else:
+        size = 0
+    marker: dict[str, Any] = {
+        "kind": _BINARY_KIND,
+        "media_type": value.get("media_type"),
+        "size": size,
+    }
+    if value.get("identifier"):
+        marker["identifier"] = value["identifier"]
+    return marker
 
-    The native message serialization carries media as base64, which is exactly
-    what must not reach the database.
+
+def _json_safe_message(value: Any) -> Any:
+    """Reduce one dumped message value to something JSON can hold safely.
+
+    The message dump is walked in python mode, which hands back raw `bytes`
+    (inside a tool's own return value as much as inside a media part) and
+    `datetime` objects, so this is where both are normalised: bytes and binary
+    content become metadata and nothing else, and timestamps become ISO strings.
+    A single implementation, because a binary body that slips through here lands
+    in the database.
     """
     if isinstance(value, dict):
         if value.get("kind") == _BINARY_KIND and "data" in value:
-            data = value.get("data")
-            if isinstance(data, str):
-                try:
-                    size = len(base64.b64decode(data))
-                except (ValueError, TypeError):
-                    size = len(data)
-            else:
-                size = 0
-            marker: dict[str, Any] = {
-                "kind": _BINARY_KIND,
-                "media_type": value.get("media_type"),
-                "size": size,
-            }
-            if value.get("identifier"):
-                marker["identifier"] = value["identifier"]
-            return marker
-        return {key: _strip_binary(item) for key, item in value.items()}
-    if isinstance(value, list):
-        return [_strip_binary(item) for item in value]
-    return value
+            return _binary_marker(value)
+        return {str(key): _json_safe_message(item) for key, item in value.items()}
+    if isinstance(value, (list, tuple, set, frozenset)):
+        return [_json_safe_message(item) for item in value]
+    if isinstance(value, (bytes, bytearray, memoryview)):
+        return {"kind": _BINARY_KIND, "size": len(value)}
+    if isinstance(value, datetime):
+        return value.isoformat()
+    if isinstance(value, (str, int, float, bool)) or value is None:
+        return value
+    return f"<{type(value).__name__}>"
 
 
 def _serialize_messages(messages: Sequence[Any]) -> list[dict[str, Any]]:
-    """Serialize messages in the same shape history is persisted in.
+    """Serialize messages to the shape the panel renders and replays.
 
-    Round-trippable through `ModelMessagesTypeAdapter`, minus binary bodies.
+    Python-mode dump followed by `_json_safe_message`: the pair is total over what
+    pydantic-ai puts in a message, which is what keeps a binary body out of the
+    database even when a tool returned one inside its own value.
     """
-    docs = ModelMessagesTypeAdapter.dump_python(list(messages), mode="json")
-    return [_strip_binary(doc) for doc in docs]
+    docs = ModelMessagesTypeAdapter.dump_python(list(messages), mode="python")
+    return [_json_safe_message(doc) for doc in docs]
 
 
 def _common_prefix_len(left: list[dict[str, Any]], right: list[dict[str, Any]]) -> int:
