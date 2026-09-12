@@ -143,8 +143,14 @@ def _truncate(value: Any, limit: int) -> tuple[Any, bool]:
 
 
 def _json_chars(payload: Any) -> int:
+    """Size of the payload as the JSON column will hold it.
+
+    Default `json.dumps`, because that is what the ORM's JSON type writes: non-ASCII
+    becomes escapes there, so measuring the unescaped form would let a payload of CJK
+    text be several times larger on disk than the cap that admitted it.
+    """
     try:
-        return len(json.dumps(payload, ensure_ascii=False))
+        return len(json.dumps(payload))
     except (TypeError, ValueError):
         return len(str(payload))
 
