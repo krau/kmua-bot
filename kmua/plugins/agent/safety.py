@@ -47,6 +47,7 @@ from kmua.logger import logger
 
 from .model_log import ModelActivityLog
 from .state import drain_steering
+from .trace import AgentTraceCapability, note_steering
 
 _scrub_text_output = for_text(redact_secrets, on_other="allow")
 
@@ -229,6 +230,7 @@ class SteeringInjection(AbstractCapability[Any]):
             return request_context
         for text in pending:
             ctx.enqueue(text, priority="asap")
+        note_steering(pending)
         logger.info(
             f"Queued {len(pending)} steering message(s) into the run for "
             f"user {ctx.deps.user_id} in chat {ctx.deps.chat_id}"
@@ -246,6 +248,7 @@ def build_agent_capabilities(history_processor: Any) -> list[Any]:
     caps: list[Any] = [
         ProcessHistory(history_processor),
         ModelActivityLog(),
+        AgentTraceCapability(),
         SteeringInjection(),
     ]
     if app_config.agent_secret_masking:

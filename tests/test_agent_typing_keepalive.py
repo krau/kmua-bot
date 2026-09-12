@@ -25,7 +25,7 @@ class _FakeClient:
 
 
 def _message(chat_id: int = -100123) -> SimpleNamespace:
-    return SimpleNamespace(chat=SimpleNamespace(id=chat_id))
+    return SimpleNamespace(chat=SimpleNamespace(id=chat_id), id=99)
 
 
 async def test_typing_keepalive_sends_immediately_on_start():
@@ -61,6 +61,7 @@ async def test_run_agent_forwards_caller_keepalive(monkeypatch):
         model=None,
         lang="zh",
         subject=quota.Subject(user_id=1, chat_id=-100123, in_group=True),
+        trace_kind="chat",
         typing_keepalive=keepalive,  # type: ignore[arg-type]
     )
     assert captured["typing_keepalive"] is keepalive
@@ -72,6 +73,7 @@ async def test_run_agent_stops_typing_before_timeout_reply(monkeypatch):
 
     class _ReplyMessage:
         chat = SimpleNamespace(id=-100123)
+        id = 77
 
         def __init__(self):
             self.replies: list[str] = []
@@ -99,6 +101,7 @@ async def test_run_agent_stops_typing_before_timeout_reply(monkeypatch):
         model=None,
         lang="zh",
         subject=quota.Subject(user_id=1, chat_id=-100123, in_group=True),
+        trace_kind="chat",
         typing_keepalive=keepalive,
     )
 

@@ -8,6 +8,7 @@ only place the switch can happen.
 
 from __future__ import annotations
 
+import asyncio
 import os
 import tempfile
 from collections.abc import AsyncIterator, Iterator
@@ -46,6 +47,24 @@ def _quiet_logs() -> Iterator[None]:
 
     logger.remove()
     yield
+
+
+@pytest.fixture(autouse=True)
+async def _drain_spawned_writes() -> AsyncIterator[None]:
+    """Let background writes finish before the next test starts.
+
+    The bot schedules some writes (agent run traces) so they never delay a reply,
+    which in tests means a write can outlive the test that triggered it. On the
+    shared SQLite file the next test's writes then contend with it and fail with
+    "database is locked" - a race the product does not have, because there the
+    next write belongs to a different turn, seconds later.
+    """
+    yield
+    from kmua.common import utils
+
+    pending = [task for task in utils._background_tasks if not task.done()]
+    if pending:
+        await asyncio.gather(*pending, return_exceptions=True)
 
 
 @pytest.fixture(scope="session")

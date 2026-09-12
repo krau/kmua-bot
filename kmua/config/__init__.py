@@ -428,6 +428,16 @@ class _AppConfig(pydantic.BaseModel):
     # 免费额度用尽后从该用户的额度余额(credits, 由面板发放)扣; 仍不够时这次调用照常跑完并
     # 如实记成负余额, 由下一次调用的预检拒绝。
     agent_quota_free_daily_tokens: int = 100_000
+    # Record every agent run and its steps (model requests and responses, tool
+    # calls and results) and expose them read-only in the panel. Off means no
+    # session is created and no row is written; the switch is read per run.
+    agent_trace_enabled: bool = True
+    # Days a recorded run is kept; the daily cleanup job deletes older ones.
+    # 0 or less keeps everything.
+    agent_trace_retention_days: int = 30
+    # Hard cap on one stored string (a message text, a tool result, the final
+    # output). Longer values are cut and the event is marked as truncated.
+    agent_trace_max_field_chars: int = 64_000
     ############################################################################
     agent_prompt: str = """"""
     agent_group_prompt: str = """"""

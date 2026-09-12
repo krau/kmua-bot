@@ -14,6 +14,7 @@ from types import SimpleNamespace
 from typing import cast
 
 import pytest
+from pydantic_ai.usage import RunUsage
 
 from kmua import common, database
 from kmua.bot import jobs
@@ -140,7 +141,8 @@ class _FakeAgent:
         self.calls += 1
         if isinstance(self._result, Exception):
             raise self._result
-        return SimpleNamespace(output=self._result)
+        # An AgentRunResult carries its own usage, which the run trace records.
+        return SimpleNamespace(output=self._result, usage=RunUsage())
 
 
 @pytest.mark.parametrize("raise_exc", [RuntimeError("boom"), TimeoutError("t/o")])

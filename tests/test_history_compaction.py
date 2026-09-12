@@ -173,6 +173,8 @@ class _FakeModel:
 class _FakeRun:
     def __init__(self, output: str) -> None:
         self.result = SimpleNamespace(output=output)
+        # The real AgentRun exposes the run's (shared) usage; the trace reads it.
+        self.usage = RunUsage()
 
     async def __aiter__(self):
         yield End(data=None)

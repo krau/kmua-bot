@@ -17,7 +17,7 @@ from pydantic_ai import Agent, PromptedOutput
 
 from kmua.config import app_config
 from kmua.logger import logger
-from kmua.plugins.agent import provider
+from kmua.plugins.agent import provider, trace
 from kmua.services.rss import FeedEntry
 
 _DIGEST_TIMEOUT = 30.0
@@ -52,6 +52,7 @@ def _make_digest_agent() -> Agent[Any, RssDigestSummaries]:
             RssDigestSummaries,
             description="返回条目点评列表: summaries 为数组, 每项含 entry_id 与 summary",
         ),
+        capabilities=[trace.AgentTraceCapability()],
         retries=2,
     )
 
@@ -61,6 +62,7 @@ def _make_broadcast_agent() -> Agent[Any, str]:
     return Agent(
         model=provider.make_chat_model(app_config.agent_model),
         output_type=str,
+        capabilities=[trace.AgentTraceCapability()],
         retries=2,
     )
 
@@ -169,22 +171,36 @@ async def generate_rss_digest(
     global _digest_agent
     if not entries or not (app_config.agent and app_config.agent_model):
         return {}
+    session = trace.start_trace("rss_digest")
     try:
         if _digest_agent is None:
             _digest_agent = _make_digest_agent()
-        result = await asyncio.wait_for(
-            _digest_agent.run(
-                user_prompt=build_digest_prompt(entries, feed_title, lang),
-            ),
-            timeout=_DIGEST_TIMEOUT,
+        try:
+            result = await asyncio.wait_for(
+                _digest_agent.run(
+                    user_prompt=build_digest_prompt(entries, feed_title, lang),
+                ),
+                timeout=_DIGEST_TIMEOUT,
+            )
+        except TimeoutError as e:
+            trace.mark_trace(session, status="timeout", error=e)
+            raise
+        summaries = parse_digest_output(result.output, {e.entry_id for e in entries})
+        trace.mark_trace(
+            session,
+            usage=result.usage,
+            output=json.dumps(summaries, ensure_ascii=False),
         )
-        return parse_digest_output(result.output, {e.entry_id for e in entries})
+        return summaries
     except Exception as e:
+        trace.mark_trace(session, status="error", error=e)
         logger.warning(
             f"rss_digest: summary generation failed for {feed_title!r}: "
             f"{e.__class__.__name__}: {e}"
         )
         return {}
+    finally:
+        trace.finish_trace(session)
 
 
 async def generate_rss_broadcast(
@@ -194,23 +210,32 @@ async def generate_rss_broadcast(
     global _broadcast_agent
     if not entries or not (app_config.agent and app_config.agent_model):
         return None
+    session = trace.start_trace("rss_broadcast")
     try:
         if _broadcast_agent is None:
             _broadcast_agent = _make_broadcast_agent()
-        result = await asyncio.wait_for(
-            _broadcast_agent.run(
-                user_prompt=build_broadcast_prompt(entries, feed_title, lang),
-            ),
-            timeout=_DIGEST_TIMEOUT,
-        )
+        try:
+            result = await asyncio.wait_for(
+                _broadcast_agent.run(
+                    user_prompt=build_broadcast_prompt(entries, feed_title, lang),
+                ),
+                timeout=_DIGEST_TIMEOUT,
+            )
+        except TimeoutError as e:
+            trace.mark_trace(session, status="timeout", error=e)
+            raise
         text = (result.output or "").strip()
+        trace.mark_trace(session, usage=result.usage, output=text or None)
         return text or None
     except Exception as e:
+        trace.mark_trace(session, status="error", error=e)
         logger.warning(
             f"rss_digest: broadcast generation failed for {feed_title!r}: "
             f"{e.__class__.__name__}: {e}"
         )
         return None
+    finally:
+        trace.finish_trace(session)
 
 
 __all__ = [

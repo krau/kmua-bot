@@ -20,7 +20,18 @@ from kmua.config import app_config
 from kmua.logger import logger
 from kmua.services import link_parse, manyacg
 
-from . import datatype, myfilter, provider, quota, runner, safety, state, tools, utils
+from . import (
+    datatype,
+    myfilter,
+    provider,
+    quota,
+    runner,
+    safety,
+    state,
+    tools,
+    trace,
+    utils,
+)
 from .history import compact_history
 from .model_log import ModelActivityLog
 from .output import TypingKeepAlive
@@ -281,7 +292,7 @@ if app_config.agent and app_config.agent_model:
         ),
         output_type=datatype.UserMemoryResult,
         instructions=app_config.agent_memory_prompt,
-        capabilities=[ModelActivityLog()],
+        capabilities=[ModelActivityLog(), trace.AgentTraceCapability()],
         retries=5,
     )
 
@@ -312,6 +323,13 @@ if app_config.agent and app_config.agent_model:
         lang = user_config.lang
         subject = quota.subject_for_chat(user_id, message.chat)
         if not await quota.can_start(subject):
+            await trace.note_rejection(
+                "ask",
+                chat_id=chat_id,
+                user_id=user_id,
+                message_id=message.id,
+                reason="quota",
+            )
             await quota.notify_exhausted(
                 message, subject, await quota.get_state(subject), lang
             )
@@ -367,6 +385,7 @@ if app_config.agent and app_config.agent_model:
                     model=model,
                     lang=lang,
                     subject=subject,
+                    trace_kind="ask",
                     coverage_meta=state.PromptCoverage(last_message_id=message.id),
                 ),
             )
@@ -957,6 +976,13 @@ async def wake_agent(client: PyrogramClient, message: pyrogram.types.Message):
         # 额度闸门排在 typing 之前: 用尽的回复只有一条文字, 不该先亮 typing。
         subject = quota.subject_of(message)
         if not await quota.can_start(subject):
+            await trace.note_rejection(
+                "chat",
+                chat_id=chat.id,
+                user_id=user.id,
+                message_id=message.id,
+                reason="quota",
+            )
             await quota.notify_exhausted(
                 message, subject, await quota.get_state(subject), lang
             )
@@ -1056,6 +1082,7 @@ async def wake_agent(client: PyrogramClient, message: pyrogram.types.Message):
                 model=model,
                 lang=lang,
                 subject=subject,
+                trace_kind="chat",
                 typing_keepalive=typing_keepalive,
                 coverage_meta=state.PromptCoverage(
                     last_message_id=message.id, sent_media=prompt_media_meta

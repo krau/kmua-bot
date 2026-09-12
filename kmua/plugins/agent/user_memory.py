@@ -8,7 +8,7 @@ from kmua import affection
 from kmua.common.memory_store import memttlcache
 from kmua.config import app_config
 from kmua.logger import logger
-from kmua.plugins.agent import datatype, state
+from kmua.plugins.agent import datatype, state, trace
 
 _user_memory_locks: WeakValueDictionary[int, asyncio.Lock] = WeakValueDictionary()
 _user_memory_locks_lock = asyncio.Lock()
@@ -45,24 +45,34 @@ async def update_user_memory(
             message_text = f"根据已有的记忆和新的聊天消息, 更新对用户的记忆, 并决定对用户的好感变化.\n旧的记忆: {old_memory}\n新的聊天消息: {message_text}"
 
         # 使用超时控制防止模型调用阻塞事件循环
-        timeout = app_config.agent_model_timeout
-        coro = agent.run(
-            output_type=datatype.UserMemoryResult,
-            user_prompt=(
-                "根据以下聊天记录, 总结出关于用户的重要信息, 并决定对用户的好感变化. "
-                "记录已按聊天分组并标注时间, 注意区分用户在不同聊天中的表现:\n"
-                f" {message_text}"
-            ),
-        )
+        session = trace.start_trace("memory", user_id=user_id)
+        try:
+            timeout = app_config.agent_model_timeout
+            coro = agent.run(
+                output_type=datatype.UserMemoryResult,
+                user_prompt=(
+                    "根据以下聊天记录, 总结出关于用户的重要信息, 并决定对用户的好感变化. "
+                    "记录已按聊天分组并标注时间, 注意区分用户在不同聊天中的表现:\n"
+                    f" {message_text}"
+                ),
+            )
 
-        if timeout > 0:
-            try:
-                memory_result = await asyncio.wait_for(coro, timeout=timeout)
-            except TimeoutError:
-                logger.warning(f"update_user_memory timed out for user {user_id}")
-                return  # 超时后静默返回，不影响主流程
-        else:
-            memory_result = await coro
+            if timeout > 0:
+                try:
+                    memory_result = await asyncio.wait_for(coro, timeout=timeout)
+                except TimeoutError as e:
+                    trace.mark_trace(session, status="timeout", error=e)
+                    logger.warning(f"update_user_memory timed out for user {user_id}")
+                    return  # 超时后静默返回，不影响主流程
+            else:
+                memory_result = await coro
+
+            # 记录只覆盖这次模型调用: 之后的记忆合并与好感度更新都不是它的一部分。
+            trace.mark_trace(
+                session, usage=memory_result.usage, output=str(memory_result.output)
+            )
+        finally:
+            trace.finish_trace(session)
 
         logger.debug(f"Agent memory history: {memory_result.output}")
         result = memory_result.output

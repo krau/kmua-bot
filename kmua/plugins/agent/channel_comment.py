@@ -14,7 +14,7 @@ from kmua.plugins.agent.output import TypingKeepAlive, reply_output
 from kmua.plugins.agent.prompt import get_input_prompt
 from kmua.plugins.agent.runner import get_chat_prompt_override
 
-from . import provider
+from . import provider, trace
 from .agent import struct_model
 from .whitelist import is_chat_allowed
 
@@ -36,6 +36,7 @@ _comment_model_options.setdefault("thinking", False)
 comment_agent = Agent(
     model=struct_model,
     output_type=CommentResult,
+    capabilities=[trace.AgentTraceCapability()],
     retries=5,
     model_settings=provider.make_model_settings(_comment_model_options),
 )
@@ -278,6 +279,12 @@ async def comment_channel_message(client: Client, message: pyrogram.types.Messag
         f"{channel.id} ({channel.title or '?'}), msg {message.id}: "
         f"{message.caption or message.text}"
     )
+    session = trace.start_trace(
+        "channel_comment",
+        chat_id=chat.id,
+        user_id=channel.id,
+        message_id=message.id,
+    )
     try:
         async with TypingKeepAlive(client, message):
             result = await comment_agent.run(
@@ -286,6 +293,12 @@ async def comment_channel_message(client: Client, message: pyrogram.types.Messag
                 user_prompt=prompts,
             )
             output = result.output
+            # 记录与后续动作(评论/投票发送)无关: 那一步失败不代表这次模型调用失败。
+            trace.mark_trace(
+                session,
+                usage=result.usage,
+                output=output.comment,
+            )
             if output.comment:
                 try:
                     await reply_output(client, message, output.comment)
@@ -319,7 +332,10 @@ async def comment_channel_message(client: Client, message: pyrogram.types.Messag
             f"poll={output.poll_question!r}"
         )
     except Exception as e:
+        trace.mark_trace(session, status="error", error=e)
         logger.error(
             f"Channel comment error in chat {chat.id} from channel "
             f"{channel.id}: {e.__class__.__name__} - {e}"
         )
+    finally:
+        trace.finish_trace(session)
