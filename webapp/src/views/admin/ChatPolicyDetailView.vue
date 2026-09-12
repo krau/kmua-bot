@@ -235,7 +235,12 @@ async function remove(): Promise<void> {
       </SettingsRow>
     </SettingsSection>
 
-    <SettingsSection :label="t('chatPolicy.quota')" :hint="t('chatPolicy.quotaHint')">
+    <!-- 私聊没有群账户, 额度字段后端一律拒绝。 -->
+    <SettingsSection
+      v-if="props.chatId < 0"
+      :label="t('chatPolicy.quota')"
+      :hint="t('chatPolicy.quotaHint')"
+    >
       <SettingsRow
         :label="t('chatPolicy.quotaExempt')"
         :hint="t('chatPolicy.quotaExemptHint')"
@@ -266,7 +271,10 @@ async function remove(): Promise<void> {
       />
     </SettingsSection>
 
-    <SettingsSection v-if="detail.data.value?.agent_quota" :label="t('chatPolicy.quotaUsage')">
+    <SettingsSection
+      v-if="props.chatId < 0 && detail.data.value?.agent_quota"
+      :label="t('chatPolicy.quotaUsage')"
+    >
       <DefinitionList :items="usageItems" />
     </SettingsSection>
 
