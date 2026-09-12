@@ -51,6 +51,8 @@ async def _ensure_usage_row(
 
     已存在是常态, 先查一次直接返回。不存在时插入, 并用 SAVEPOINT 兜住并发插入:
     Postgres 上一次唯一约束冲突会作废整个事务, 靠外层 except 是救不回来的。
+
+    SQLite 上 SAVEPOINT 不随外层事务回滚, 可能留下一行零值: 只多一行, 不影响账目。
     """
     existing = await session.get(
         AgentUsageDaily, {"scope": scope, "scope_id": scope_id, "day": day}
