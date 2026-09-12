@@ -5,6 +5,10 @@ model request - the exact messages the model was given. Writes only ever happen 
 the bot's side (`kmua.plugins.agent.trace`), so nothing here mutates a trace: a
 record read by an operator must stay what the bot actually did.
 
+Owner-only, unlike the rest of the panel: every other endpoint at the admin tier
+returns records and counters, while these return conversation content - private
+chats included, and the transcript the model was given.
+
 The kind and status vocabularies are spelled out as `Literal`s so FastAPI and the
 OpenAPI schema enforce them and an unknown value is a 422 rather than an empty
 page; the trailing check keeps them honest against the storage module, which owns
@@ -19,7 +23,7 @@ from typing import Annotated, Literal, get_args
 from fastapi import APIRouter, Path, Query
 
 from kmua.database import agent_trace as store
-from kmua.webapp.deps import RequireAdmin
+from kmua.webapp.deps import RequireOwner
 from kmua.webapp.errors import ErrorCode, not_found
 from kmua.webapp.schemas import (
     AgentRunDetailOut,
@@ -82,7 +86,7 @@ def _as_utc(value: datetime | None) -> datetime | None:
 
 @router.get("", response_model=PageOut[AgentRunOut])
 async def list_agent_runs(
-    user: RequireAdmin,
+    user: RequireOwner,
     page: int = Query(1, ge=1),
     size: int = Query(20, ge=1, le=100),
     session_id: str | None = Query(
@@ -118,7 +122,7 @@ async def list_agent_runs(
 
 
 @router.get("/{run_id}", response_model=AgentRunDetailOut)
-async def read_agent_run(user: RequireAdmin, run_id: int) -> AgentRunDetailOut:
+async def read_agent_run(user: RequireOwner, run_id: int) -> AgentRunDetailOut:
     run = await store.get_run(run_id)
     if run is None:
         raise not_found(ErrorCode.NOT_FOUND, "Agent run not found")
@@ -128,7 +132,7 @@ async def read_agent_run(user: RequireAdmin, run_id: int) -> AgentRunDetailOut:
 
 @router.get("/{run_id}/events/{seq}", response_model=AgentRunEventDetailOut)
 async def read_agent_run_event(
-    user: RequireAdmin,
+    user: RequireOwner,
     run_id: int,
     seq: int = Path(ge=1, description="Step number within the run"),
 ) -> AgentRunEventDetailOut:

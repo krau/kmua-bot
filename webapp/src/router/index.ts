@@ -146,18 +146,20 @@ const routes: RouteRecordRaw[] = [
     props: (route) => ({ chatId: Number(route.params.chatId) }),
     meta: { requiresBotAdmin: true },
   },
+  // The run trace returns conversation content, so it is owner-only on both sides
+  // (see kmua.webapp.routers.agent_runs).
   {
     path: "/admin/agent-runs",
     name: "admin-agent-runs",
     component: () => import("@/views/admin/AgentRunsView.vue"),
-    meta: { requiresBotAdmin: true },
+    meta: { requiresBotAdmin: true, requiresOwner: true },
   },
   {
     path: "/admin/agent-runs/:runId",
     name: "admin-agent-run",
     component: () => import("@/views/admin/AgentRunDetailView.vue"),
     props: (route) => ({ runId: Number(route.params.runId) }),
-    meta: { requiresBotAdmin: true },
+    meta: { requiresBotAdmin: true, requiresOwner: true },
   },
   // Unknown paths land on the home screen rather than a 404 page: inside a Mini
   // App there is no address bar to correct a typo with.
@@ -173,5 +175,7 @@ export const router = createRouter({
 router.beforeEach((to) => {
   if (!to.meta.requiresBotAdmin) return true;
   const session = useSessionStore();
-  return session.isBotAdmin ? true : { name: "home" };
+  if (!session.isBotAdmin) return { name: "home" };
+  if (to.meta.requiresOwner && !session.isOwner) return { name: "home" };
+  return true;
 });

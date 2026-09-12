@@ -7,20 +7,28 @@ single request step comes back with the messages the model actually saw.
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta, timezone
 
 import pytest
 
 from kmua.database import agent_trace as store
-from tests.webapp_helpers import api_client, bearer, make_user
+from tests.webapp_helpers import api_client, bearer, make_user, set_owners
 
 pytestmark = pytest.mark.usefixtures("initialised_db")
 
-ADMIN_ID = 940_100
+# The trace returns conversation content, so its endpoints are owner-only, unlike
+# the rest of the admin panel.
+OWNER_ID = 940_100
 PLAIN_ID = 940_101
+GLOBAL_ADMIN_ID = 940_103
 
 CHAT_ID = -1009401001
 USER_ID = 940_102
+
+
+@pytest.fixture(autouse=True)
+def trace_owner(monkeypatch):
+    set_owners(monkeypatch, [OWNER_ID])
 
 
 @pytest.fixture(autouse=True)
@@ -127,7 +135,7 @@ async def seed_run(
 
 
 async def test_the_list_filters_and_omits_the_heavy_fields():
-    await make_user(ADMIN_ID, full_name="Trace Admin", global_admin=True)
+    await make_user(OWNER_ID, full_name="Trace Owner")
     first = await seed_run()
     await seed_run(
         kind="followup_relevance", status="timeout", output_text="a relevance story"
@@ -135,7 +143,7 @@ async def test_the_list_filters_and_omits_the_heavy_fields():
     await seed_run(kind="memory", status="rejected", output_text="")
 
     async with api_client() as client:
-        headers = bearer(ADMIN_ID)
+        headers = bearer(OWNER_ID)
         page = await client.get("/api/admin/agent-runs", headers=headers)
         assert page.status_code == 200
         body = page.json()
@@ -187,23 +195,39 @@ async def test_the_list_filters_and_omits_the_heavy_fields():
         )
         assert missing.json()["total"] == 0
 
+        # An instant carrying an offset is an instant, not a wall clock: this
+        # boundary is a second after the rows were written, but reading its +08:00
+        # fields as UTC would place it eight hours earlier and drop them all.
+        boundary = (datetime.now(UTC) + timedelta(seconds=1)).astimezone(
+            timezone(timedelta(hours=8))
+        )
+        offset_window = await client.get(
+            "/api/admin/agent-runs",
+            params={"until": boundary.isoformat()},
+            headers=headers,
+        )
+        everything = await client.get("/api/admin/agent-runs", headers=headers)
+        assert everything.json()["total"] > 0
+        assert offset_window.json()["total"] == everything.json()["total"]
+
         future = await client.get(
             "/api/admin/agent-runs",
             params={"since": "2999-01-01T00:00:00Z"},
             headers=headers,
         )
         assert future.json()["total"] == 0
+        # (the window checks above run before the extra error row is seeded below)
 
     assert first > 0
 
 
 async def test_the_detail_lists_steps_without_their_payloads():
-    await make_user(ADMIN_ID, full_name="Trace Admin", global_admin=True)
+    await make_user(OWNER_ID, full_name="Trace Owner")
     run_id = await seed_run(output_text="hello there", error_message="boom")
 
     async with api_client() as client:
         response = await client.get(
-            f"/api/admin/agent-runs/{run_id}", headers=bearer(ADMIN_ID)
+            f"/api/admin/agent-runs/{run_id}", headers=bearer(OWNER_ID)
         )
 
     assert response.status_code == 200
@@ -223,11 +247,11 @@ async def test_the_detail_lists_steps_without_their_payloads():
 
 
 async def test_a_request_step_returns_the_replayed_messages():
-    await make_user(ADMIN_ID, full_name="Trace Admin", global_admin=True)
+    await make_user(OWNER_ID, full_name="Trace Owner")
     run_id = await seed_run()
 
     async with api_client() as client:
-        headers = bearer(ADMIN_ID)
+        headers = bearer(OWNER_ID)
         request_event = await client.get(
             f"/api/admin/agent-runs/{run_id}/events/1", headers=headers
         )
@@ -250,10 +274,10 @@ async def test_a_request_step_returns_the_replayed_messages():
 
 
 async def test_unknown_ids_are_not_found():
-    await make_user(ADMIN_ID, full_name="Trace Admin", global_admin=True)
+    await make_user(OWNER_ID, full_name="Trace Owner")
 
     async with api_client() as client:
-        headers = bearer(ADMIN_ID)
+        headers = bearer(OWNER_ID)
         missing_run = await client.get("/api/admin/agent-runs/999999", headers=headers)
         run_id = await seed_run()
         missing_event = await client.get(
@@ -267,10 +291,10 @@ async def test_unknown_ids_are_not_found():
 
 
 async def test_an_unknown_vocabulary_value_is_rejected():
-    await make_user(ADMIN_ID, full_name="Trace Admin", global_admin=True)
+    await make_user(OWNER_ID, full_name="Trace Owner")
 
     async with api_client() as client:
-        headers = bearer(ADMIN_ID)
+        headers = bearer(OWNER_ID)
         bad_kind = await client.get(
             "/api/admin/agent-runs", params={"kind": "nonsense"}, headers=headers
         )
@@ -284,21 +308,37 @@ async def test_an_unknown_vocabulary_value_is_rejected():
     assert bad_status.json()["code"] == "VALIDATION_FAILED"
 
 
-async def test_the_trace_is_admin_only():
+async def test_the_trace_is_owner_only():
+    """A global admin reads records elsewhere in the panel, not conversations here."""
     await make_user(PLAIN_ID, full_name="Plain User")
+    await make_user(GLOBAL_ADMIN_ID, full_name="Global Admin", global_admin=True)
 
     async with api_client() as client:
         anonymous = await client.get("/api/admin/agent-runs")
-        refused = await client.get("/api/admin/agent-runs", headers=bearer(PLAIN_ID))
+        plain = await client.get("/api/admin/agent-runs", headers=bearer(PLAIN_ID))
+        admin = await client.get(
+            "/api/admin/agent-runs", headers=bearer(GLOBAL_ADMIN_ID)
+        )
 
     assert anonymous.status_code == 401
     assert anonymous.json()["code"] == "TOKEN_MISSING"
-    assert refused.status_code == 403
-    assert refused.json()["code"] == "ADMIN_REQUIRED"
+    assert plain.status_code == 403
+    assert plain.json()["code"] == "OWNER_REQUIRED"
+    assert admin.status_code == 403
+    assert admin.json()["code"] == "OWNER_REQUIRED"
+
+
+async def test_the_owner_can_read_the_trace():
+    await make_user(OWNER_ID, full_name="Trace Owner")
+
+    async with api_client() as client:
+        listed = await client.get("/api/admin/agent-runs", headers=bearer(OWNER_ID))
+
+    assert listed.status_code == 200
 
 
 async def test_runs_are_grouped_by_session_and_filterable_by_it():
-    await make_user(ADMIN_ID, full_name="Trace Admin", global_admin=True)
+    await make_user(OWNER_ID, full_name="Trace Owner")
     from kmua.plugins.agent import state as agent_state
 
     session = await agent_state.conversation_session(CHAT_ID, USER_ID)
@@ -319,7 +359,7 @@ async def test_runs_are_grouped_by_session_and_filterable_by_it():
             )
 
     async with api_client() as client:
-        headers = bearer(ADMIN_ID)
+        headers = bearer(OWNER_ID)
         listed = await client.get("/api/admin/agent-runs", headers=headers)
         detail = await client.get(
             f"/api/admin/agent-runs/{in_session}", headers=headers

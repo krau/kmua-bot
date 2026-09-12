@@ -200,6 +200,7 @@ function go(name: string): void {
         @click="go('admin-chat-policies')"
       />
       <SettingsRow
+        v-if="session.isOwner"
         :label="t('agentRuns.title')"
         :hint="t('agentRuns.openHint')"
         navigable
