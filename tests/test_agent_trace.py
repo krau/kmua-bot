@@ -8,6 +8,8 @@ encoding of request messages can be replayed into exactly what the model receive
 from __future__ import annotations
 
 import asyncio
+import dataclasses
+import json
 from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 from typing import Any
@@ -15,13 +17,15 @@ from typing import Any
 import pyrogram.enums
 import pytest
 import sqlalchemy
-from pydantic_ai import Agent
+from pydantic_ai import Agent, RunContext
+from pydantic_ai.capabilities import AbstractCapability
 from pydantic_ai.messages import (
-    ModelMessagesTypeAdapter,
+    ModelRequest,
     ModelResponse,
     TextPart,
     ToolCallPart,
 )
+from pydantic_ai.models import ModelRequestContext
 from pydantic_ai.models.function import FunctionModel
 from pydantic_ai.usage import RunUsage
 
@@ -211,19 +215,24 @@ async def test_an_oversized_payload_becomes_a_marker(monkeypatch):
     assert event.truncated is True
 
 
-async def test_the_run_payload_budget_caps_later_events(monkeypatch):
+async def test_the_run_payload_budget_is_spent_across_events(monkeypatch):
     session = trace.start_trace("chat")
     assert session is not None
     session.note_steering(["z" * 200])
+    session.note_steering(["z" * 200])
     task = trace.finish_trace(session, output="ok")
     assert task is not None
-    # Shrunk after the first event was buffered: only the flush applies the run cap.
-    monkeypatch.setattr(trace, "_MAX_RUN_PAYLOAD_CHARS", 10, raising=False)
+    # Shrunk after both events were buffered: only the flush applies the run cap, and
+    # it must admit the first payload while refusing the one that no longer fits.
+    monkeypatch.setattr(trace, "_MAX_RUN_PAYLOAD_CHARS", 300, raising=False)
     await task
 
-    event = (await stored_events((await runs())[0].id))[0]
-    assert isinstance(event.payload, dict)
-    assert event.payload["reason"] == "run_payload_cap"
+    first, second = await stored_events((await runs())[0].id)
+    assert first.payload == {"texts": ["z" * 200]}
+    assert first.truncated is False
+    assert isinstance(second.payload, dict)
+    assert second.payload["reason"] == "run_payload_cap"
+    assert second.truncated is True
 
 
 async def test_secrets_are_masked_before_storage(monkeypatch):
@@ -378,6 +387,53 @@ def echo(text: str) -> str:
     return f"echo:{text}"
 
 
+_HISTORY_MARK = "the rewritten history"
+
+
+def _mark_user_prompts(message: Any) -> Any:
+    """Prefix every unmarked user prompt in one message, preserving its shape.
+
+    Idempotent on purpose: a rewritten message can come back as history, and marking
+    it twice would rewrite the same conversation differently on every request.
+    """
+    if not isinstance(message, ModelRequest):
+        return message
+    marked = f"{_HISTORY_MARK}: "
+    parts = [
+        dataclasses.replace(part, content=f"{marked}{part.content}")
+        if getattr(part, "part_kind", "") == "user-prompt"
+        and isinstance(part.content, str)
+        and not part.content.startswith(marked)
+        else part
+        for part in message.parts
+    ]
+    return dataclasses.replace(message, parts=parts)
+
+
+class _RewritesHistory(AbstractCapability[Any]):
+    """Stands in for `ProcessHistory`: rewrites the messages before the model runs.
+
+    The trace has to sit inside this capability for a recorded request to be the
+    request the model was given, so this marks every user prompt: the mark can only
+    reach the database through a trace that saw the rewritten list.
+    """
+
+    async def before_model_request(
+        self, ctx: RunContext[Any], request_context: ModelRequestContext
+    ) -> ModelRequestContext:
+        request_context.messages = [
+            _mark_user_prompts(message) for message in request_context.messages
+        ]
+        return request_context
+
+
+def test_the_capability_sits_innermost():
+    """The ordering is what makes `model_request` the model's request, not the raw one."""
+    ordering = trace.AgentTraceCapability().get_ordering()
+    assert ordering is not None
+    assert ordering.position == "innermost"
+
+
 async def test_a_real_run_records_requests_responses_and_tool_results():
     """The capability, the buffer and the database, driven by a real agent run."""
     seen: list[list[Any]] = []
@@ -385,7 +441,7 @@ async def test_a_real_run_records_requests_responses_and_tool_results():
         model=FunctionModel(_two_tool_rounds(seen)),
         tools=[echo],
         instructions="be brief",
-        capabilities=[trace.AgentTraceCapability()],
+        capabilities=[_RewritesHistory(), trace.AgentTraceCapability()],
     )
 
     session = trace.start_trace("chat", chat_id=-100, user_id=7, message_id=42)
@@ -415,22 +471,24 @@ async def test_a_real_run_records_requests_responses_and_tool_results():
     assert len(seen) == 3
     for index, event in enumerate(requests):
         replay = await dao.reconstruct_request_messages(run.id, event.seq)
-        assert replay == ModelMessagesTypeAdapter.dump_python(seen[index], mode="json")
-        # Every event stores a slice plus the full length, never the whole thing.
+        # The stored transcript is the one the model was handed - including the
+        # history rewrite a capability outside the trace applied.
+        assert replay == trace._serialize_messages(seen[index])
+        assert _HISTORY_MARK in json.dumps(replay, ensure_ascii=False), (
+            "the stored request must be the rewritten one the model was given"
+        )
         payload = event.payload
         assert isinstance(payload, dict)
+        # Every event stores a slice plus the full length, never the whole thing.
         assert (
             payload["messages_prefix_len"] + len(payload["messages"])
             == payload["messages_total"]
         )
-        assert len(replay or []) == payload["messages_total"]
-
-    # Incremental encoding: the later requests share a prefix with their predecessor.
-    prefixes: list[int] = []
-    for event in requests:
-        assert isinstance(event.payload, dict)
-        prefixes.append(event.payload["messages_prefix_len"])
-    assert prefixes[1:] != [0, 0]
+        if index:
+            # A later request must reuse its predecessor's prefix, otherwise the
+            # turn stores one full copy of the history per request.
+            assert payload["messages_prefix_len"] > 0
+            assert len(payload["messages"]) < payload["messages_total"]
 
     tool_results = [event for event in events if event.kind == "tool_result"]
     assert [
@@ -585,6 +643,7 @@ async def test_cleanup_removes_only_old_runs_and_their_events():
         recent.replace(tzinfo=None)
     ]
     assert len(await stored_events(rows[1].id)) == 1
+    assert await stored_events(rows[0].id) == [], "its events must not be orphaned"
     assert await dao.get_run(rows[0].id) is None
 
 
@@ -715,8 +774,8 @@ async def test_a_whole_runner_turn_records_the_run_the_ledger_was_billed_for(
     last_request = requests[-1]
     assert isinstance(last_request.payload, dict)
     replay = await dao.reconstruct_request_messages(run.id, last_request.seq)
-    assert replay is not None
-    assert [len(seen), len(replay)] == [3, last_request.payload["messages_total"]]
+    assert len(seen) == 3
+    assert replay == trace._serialize_messages(seen[-1])
 
     await memttlcache.delete(state.history_key(-100902, 9201))
     await memttlcache.delete(state.prompt_coverage_key(-100902, 9201))
@@ -753,3 +812,70 @@ async def test_the_daily_cleanup_honours_the_retention_window(monkeypatch):
     assert len(remaining) == 1
     assert remaining[0].started_at.replace(tzinfo=None) == recent.replace(tzinfo=None)
     assert await stored_events(remaining[0].id)
+    async with AsyncSessionFactory() as session:
+        rows = await session.scalars(sqlalchemy.select(AgentRunEvent))
+    assert len(list(rows)) == 1, "the expired run's events must be deleted too"
+
+
+async def test_run_agent_records_a_whitelist_refusal(monkeypatch):
+    """The other documented refusal reason reaches the row it belongs to."""
+    monkeypatch.setattr(runner, "is_chat_allowed", lambda _chat_id: False)
+
+    message = _RefusalMessage()
+    await runner.run_agent(  # type: ignore[arg-type]
+        agi=object(),  # type: ignore[arg-type]
+        client=SimpleNamespace(),  # type: ignore[arg-type]
+        message=message,  # type: ignore[arg-type]
+        user_id=9202,
+        chat_id=-100902,
+        user_prompt=[],
+        history=[],
+        deps=SimpleNamespace(),  # type: ignore[arg-type]
+        multimodal_model=None,
+        model=None,
+        lang="zh-CN",
+        subject=quota.Subject(user_id=9202, chat_id=-100902, in_group=True),
+        trace_kind="chat",
+    )
+
+    run = (await wait_for_runs(1))[0]
+    assert (run.status, run.reject_reason) == ("rejected", "whitelist")
+    assert message.replies == [], "a whitelisted-out chat is refused silently"
+
+
+async def test_run_agent_records_a_cancelled_turn(monkeypatch):
+    """Cancellation is a run outcome too: the row must say so, not 'incomplete'."""
+    monkeypatch.setattr(app_config, "agent_run_timeout", 0, raising=False)
+
+    async def stalled(**_kwargs: object) -> None:
+        await asyncio.sleep(30)
+
+    monkeypatch.setattr(runner, "_run_agent_impl", stalled)
+
+    message = _RefusalMessage()
+    task = asyncio.create_task(
+        runner.run_agent(  # type: ignore[arg-type]
+            agi=object(),  # type: ignore[arg-type]
+            client=SimpleNamespace(),  # type: ignore[arg-type]
+            message=message,  # type: ignore[arg-type]
+            user_id=9203,
+            chat_id=-100902,
+            user_prompt=[],
+            history=[],
+            deps=SimpleNamespace(),  # type: ignore[arg-type]
+            multimodal_model=None,
+            model=None,
+            lang="zh-CN",
+            subject=quota.Subject(user_id=9203, chat_id=-100902, in_group=True),
+            trace_kind="chat",
+        )
+    )
+    await asyncio.sleep(0.05)
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+
+    run = (await wait_for_runs(1))[0]
+    assert run.status == "cancelled"
+    assert run.error_class is None
+    assert run.output_kind is None
