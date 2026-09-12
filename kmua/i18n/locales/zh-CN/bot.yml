@@ -155,8 +155,7 @@ bot:
         status_unlimited: "今日 AI 用量: {used} 次 / {tokens} tokens, 当前没有用量限制"
         status_none: 本群暂未分配 AI 调用额度, 请联系 bot 管理员~
         exhausted: |
-          今天的 AI 免费额度用完啦 (免费额度 {limit} tokens/天, 所有群共享)
-          明天会恢复哦~
+          今天的雌元用完啦! 明天再来吧~
         exhausted_group: 本群暂时没有可用的 AI 调用额度, 请联系 bot 管理员~
     wordcloud:
       generating: 已经正在生成啦, 请稍等一会儿...

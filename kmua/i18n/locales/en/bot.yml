@@ -281,7 +281,7 @@ bot:
         status_unlimited: "AI usage today: {used} calls / {tokens} tokens; no usage limit applies"
         status_none: This chat has no AI quota allocated. Please contact the bot admin.
         exhausted: |
-          You've used up today's free AI tokens ({limit} tokens per day, shared across chats).
+          You've used up today's free AI tokens.
           It resets tomorrow.
         exhausted_group: This chat has no AI quota available right now. Please contact the bot admin.
     wordcloud:

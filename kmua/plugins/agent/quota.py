@@ -288,9 +288,7 @@ def exhausted_text(state: QuotaState, lang: str) -> str:
     user = state.user
     if user is None or user.free_limit_tokens is None:
         return i18n.t("bot.msg.agent.quota.exhausted_group", locale=lang)
-    return i18n.t("bot.msg.agent.quota.exhausted", locale=lang).format(
-        limit=fmt_tokens(user.free_limit_tokens)
-    )
+    return i18n.t("bot.msg.agent.quota.exhausted", locale=lang)
 
 
 def status_text(state: QuotaState, lang: str) -> str:
