@@ -156,7 +156,13 @@ function statusText(run: (typeof items.value)[number]): string {
 
 function hint(run: (typeof items.value)[number]): string {
   const parts = [formatDateTime(run.started_at), statusText(run)];
-  if (run.session_id) parts.push(`${t("agentRuns.session")} ${run.session_id.slice(0, 8)}`);
+  if (run.session_id) {
+    // Head and tail: the leading characters are the id's timestamp, so a whole
+    // minute of sessions shares them, while the tail tells them apart. Either end
+    // works as a filter, which matches on any part of the id.
+    const session = run.session_id;
+    parts.push(`${t("agentRuns.session")} ${session.slice(0, 8)}…${session.slice(-8)}`);
+  }
   if (run.chat_id !== null || run.user_id !== null) {
     parts.push(`${run.chat_id ?? "-"} / ${run.user_id ?? "-"}`);
   }

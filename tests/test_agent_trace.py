@@ -10,6 +10,7 @@ from __future__ import annotations
 import asyncio
 import dataclasses
 import json
+import uuid
 from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 from typing import Any
@@ -923,19 +924,40 @@ async def test_a_run_without_a_conversation_has_no_session():
     assert (await runs())[0].session_id is None
 
 
-async def test_clearing_a_conversation_opens_a_new_session():
-    """What /forget does: the next run of that thread is a new instance."""
+def test_a_session_id_is_a_time_ordered_uuidv7():
+    from time import time
+
     from kmua.plugins.agent import state as agent_state
 
-    before = await agent_state.conversation_session(-100, 7)
-    assert await agent_state.conversation_session(-100, 7) == before, (
+    first = agent_state.new_session_id()
+    second = agent_state.new_session_id()
+
+    assert len(first) == 32 and len(second) == 32
+    assert first != second
+    # Version 7 with the RFC variant, stamped by the current clock: an id whose
+    # fields were assembled wrong fails all three.
+    parsed = uuid.UUID(hex=first)
+    assert parsed.version == 7
+    assert parsed.variant == uuid.RFC_4122
+    assert abs((parsed.int >> 80) - int(time() * 1000)) < 60_000
+    # What version 7 buys over a random id: they sort by when they were minted.
+    assert first < second
+
+
+async def test_forget_opens_a_new_session():
+    """/forget clears the conversation, so the next run of it is a new instance."""
+    from kmua.plugins.agent import agent as agent_plugin
+    from kmua.plugins.agent import state as agent_state
+
+    opened = await agent_state.conversation_session(-100, 7)
+    assert await agent_state.conversation_session(-100, 7) == opened, (
         "stable while it lasts"
     )
 
-    await agent_state.clear_conversation_session(-100, 7)
+    await agent_plugin._clear_conversation_session(-100, 7)
 
     after = await agent_state.conversation_session(-100, 7)
-    assert after != before
+    assert after != opened
     assert len(after) == 32
 
 

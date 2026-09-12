@@ -1,7 +1,10 @@
 import asyncio
 from dataclasses import dataclass, field
+from secrets import randbits
+from threading import Lock
+from time import time_ns
 from typing import Any
-from uuid import uuid4
+from uuid import UUID
 
 from kmua.common.memory_store import memstore
 
@@ -37,6 +40,45 @@ def session_key(chat_id: int, user_id: int) -> str:
     return f"agent_conversation_session:{chat_id}:{user_id}"
 
 
+_uuid7_lock = Lock()
+_uuid7_last_ms = 0
+_uuid7_counter = 0
+
+
+def new_session_id() -> str:
+    """A UUIDv7, as 32 hex characters (RFC 9562).
+
+    Version 7 leads with a millisecond timestamp, so ids sort by when they were
+    minted and one thread's instances read in order. Within a millisecond a counter
+    keeps that order strict (RFC 9562 section 6.2, method 1), which is the same
+    thing the standard library's own `uuid.uuid7` will do. Written here rather than
+    borrowed from a dependency: the polyfill reachable from this project
+    (`pydantic_ai._uuid`) is a private module that goes away once the interpreter
+    provides one, and the implementation is a dozen lines.
+    """
+    global _uuid7_last_ms, _uuid7_counter
+    with _uuid7_lock:
+        millis = time_ns() // 1_000_000
+        if millis == _uuid7_last_ms:
+            # Masked only against arithmetic gone wrong: 2**42 ids in one
+            # millisecond is not reachable.
+            _uuid7_counter = (_uuid7_counter + 1) & 0x3FFFFFFFFFF
+        else:
+            _uuid7_last_ms = millis
+            _uuid7_counter = randbits(42)
+        counter = _uuid7_counter
+        tail = randbits(32)
+    value = (
+        ((millis & 0xFFFFFFFFFFFF) << 80)
+        | (0x7 << 76)
+        | ((counter >> 30) << 64)
+        | (0b10 << 62)
+        | ((counter & 0x3FFFFFFF) << 32)
+        | tail
+    )
+    return UUID(int=value).hex
+
+
 async def conversation_session(chat_id: int, user_id: int) -> str:
     """This conversation's instance id, created on first use.
 
@@ -54,7 +96,7 @@ async def conversation_session(chat_id: int, user_id: int) -> str:
     current = await memstore.get(key)
     if isinstance(current, str) and current:
         return current
-    created = uuid4().hex
+    created = new_session_id()
     await memstore.set(key, created)
     return created
 
