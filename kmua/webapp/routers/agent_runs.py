@@ -13,7 +13,7 @@ the authoritative tuples.
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Annotated, Literal, get_args
 
 from fastapi import APIRouter, Path, Query
@@ -64,6 +64,22 @@ KindQuery = Annotated[AgentRunKind | None, Query(description="Run category")]
 StatusQuery = Annotated[AgentRunStatus | None, Query(description="How the run ended")]
 
 
+def _as_utc(value: datetime | None) -> datetime | None:
+    """Read a caller-supplied instant as UTC, whatever offset it carries.
+
+    Rows are stamped with UTC instants, but the two backends would read a naive
+    value differently (SQLite binds wall-clock fields, Postgres starts from the
+    host's zone), so a hand-made request would filter a different window per
+    deployment. The panel always sends an absolute instant; this makes that the
+    rule rather than the caller's habit.
+    """
+    if value is None:
+        return None
+    if value.tzinfo is None:
+        return value.replace(tzinfo=UTC)
+    return value.astimezone(UTC)
+
+
 @router.get("", response_model=PageOut[AgentRunOut])
 async def list_agent_runs(
     user: RequireAdmin,
@@ -86,8 +102,8 @@ async def list_agent_runs(
         kind=kind,
         status=status,
         query=q,
-        since=since,
-        until=until,
+        since=_as_utc(since),
+        until=_as_utc(until),
     )
     return PageOut(
         items=[agent_run_out(run) for run in result.items],
