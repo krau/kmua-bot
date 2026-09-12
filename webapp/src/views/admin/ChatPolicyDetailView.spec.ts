@@ -13,6 +13,7 @@ import { createPinia, setActivePinia } from "pinia";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { useSessionStore } from "@/stores/session";
+import { t } from "@/i18n";
 
 import ChatPolicyDetailView from "./ChatPolicyDetailView.vue";
 
@@ -109,5 +110,34 @@ describe("ChatPolicyDetailView unmount", () => {
     await vi.advanceTimersByTimeAsync(0);
 
     expect(setChatPolicy).toHaveBeenCalledWith(-1001, { agent_quota_daily_tokens: 7 });
+  });
+});
+
+describe("ChatPolicyDetailView quota scope", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    setActivePinia(createPinia());
+    useSessionStore().roles = ["owner"];
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("offers the quota form for a group id", async () => {
+    const wrapper = mount(ChatPolicyDetailView, { props: { chatId: -1001 } });
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(wrapper.text()).toContain(t("chatPolicy.quota"));
+  });
+
+  it("hides the quota form for a private chat id", async () => {
+    // 群账户只在群里存在, 后端对私聊行的额度字段一律拒绝: 这里连入口都不该出现, 否则
+    // 每一次改动都注定失败。
+    const wrapper = mount(ChatPolicyDetailView, { props: { chatId: 12345 } });
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(wrapper.text()).not.toContain(t("chatPolicy.quota"));
+    expect(wrapper.text()).not.toContain(t("chatPolicy.quotaUsage"));
   });
 });
