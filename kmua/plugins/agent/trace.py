@@ -423,11 +423,12 @@ class TraceSession:
         )
 
     def note_tool_error(self, call: ToolCallPart, error: Exception) -> None:
-        self._tool_started.pop(call.tool_call_id, None)
+        duration_ms = _elapsed_ms(self._tool_started.pop(call.tool_call_id, None))
         self._append(
             "tool_result",
             name=call.tool_name,
             status="error",
+            duration_ms=duration_ms,
             payload={
                 "tool_call_id": call.tool_call_id,
                 "error_class": error.__class__.__name__,
