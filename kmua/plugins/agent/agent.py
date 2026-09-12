@@ -441,8 +441,8 @@ if app_config.agent and app_config.agent_model:
     async def clear_sessions_command(
         client: PyrogramClient, message: pyrogram.types.Message
     ):
-        """Owner-only: wipe every agent conversation session (history,
-        pending asks, waiting flags, spilled payloads) for post-upgrade
+        """Owner-only: wipe every agent conversation session (history, pending
+        asks, waiting flags, spilled payloads, session ids) for post-upgrade
         resets. Requires an explicit `confirm` argument."""
         if not app_config.agent:
             return
@@ -470,6 +470,7 @@ if app_config.agent and app_config.agent_model:
         histories = await _clear_memttlcache_prefix("message_history_with_agent:")
         coverages = await _clear_memttlcache_prefix("agent_prompt_coverage:")
         asks = _clear_memstore_prefix("agent_ask_state:")
+        sessions = _clear_memstore_prefix(state.SESSION_KEY_PREFIX)
         steered = state.clear_all_steering()
         state.clear_all_locks()
         spills = await safety.clear_all_spills()
@@ -484,13 +485,14 @@ if app_config.agent and app_config.agent_model:
         logger.info(
             f"All agent sessions cleared by {user.id}: "
             f"histories={histories} coverages={coverages} asks={asks} "
-            f"spills={spills} steered={steered} shells={shells} "
+            f"sessions={sessions} spills={spills} steered={steered} shells={shells} "
             f"workspaces={workspaces} persisted={persisted}"
         )
         await message.reply_text(
             f"Cleared {histories} conversation histories, {coverages} prompt "
-            f"cursors, {asks} pending questions, {spills} stored overflow "
-            f"entries, {steered} queued messages, {shells} shell workspaces, "
+            f"cursors, {asks} pending questions, {sessions} session ids, "
+            f"{spills} stored overflow entries, {steered} queued messages, "
+            f"{shells} shell workspaces, "
             f"{workspaces} workspace databases, {persisted} persisted files "
             f"(chat messages stay)."
         )
