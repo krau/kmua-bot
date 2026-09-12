@@ -400,7 +400,7 @@
       "apply": "应用",
       "reset": "重置",
       "sessionId": "session_id",
-      "sessionIdPlaceholder": "ID 或其前几位"
+      "sessionIdPlaceholder": "ID 或其任意片段"
     },
     "columns": {
       "run": "运行",

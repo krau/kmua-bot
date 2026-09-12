@@ -400,7 +400,7 @@
       "apply": "Apply",
       "reset": "Reset",
       "sessionId": "session_id",
-      "sessionIdPlaceholder": "id or part of it"
+      "sessionIdPlaceholder": "id or any part of it"
     },
     "columns": {
       "run": "Run",
