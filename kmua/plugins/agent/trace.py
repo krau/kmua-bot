@@ -720,30 +720,7 @@ def _to_draft(session: TraceSession) -> AgentRunDraft:
     )
 
 
-async def _write_root(session: TraceSession) -> None:
-    kind = session.kind
-    runs = 1 + len(session.children)
-    try:
-        if session.status == "rejected":
-            await _write_rejection(
-                kind=kind,
-                chat_id=session.chat_id,
-                user_id=session.user_id,
-                message_id=session.message_id,
-                reason=session.reject_reason or "quota",
-                model_role=session.model_role,
-                streaming=session.streaming,
-            )
-            return
-        await record_trace([_to_draft(session)])
-    except Exception as e:
-        logger.warning(
-            f"agent trace not recorded ({kind}, {runs} run(s)): "
-            f"{e.__class__.__name__} - {e}"
-        )
-
-
-async def _write_rejection(
+def _rejection_draft(
     *,
     kind: str,
     chat_id: int | None,
@@ -752,13 +729,9 @@ async def _write_rejection(
     reason: str,
     model_role: str | None,
     streaming: bool,
-) -> None:
-    key = f"agent_trace_reject:{kind}:{chat_id}:{user_id}:{reason}"
-    if await memttlcache.get(key):
-        return
-    await memttlcache.set(key, True, ttl=_REJECT_TTL_SECONDS)
+) -> AgentRunDraft:
     now = datetime.now(UTC)
-    draft = AgentRunDraft(
+    return AgentRunDraft(
         kind=kind,
         status="rejected",
         reject_reason=reason,
@@ -771,7 +744,49 @@ async def _write_rejection(
         finished_at=now,
         duration_ms=0,
     )
-    await record_rejection(draft)
+
+
+async def _claim_rejection(
+    kind: str, chat_id: int | None, user_id: int | None, reason: str
+) -> bool:
+    """Take the throttle slot for one refusal; False when it was already taken.
+
+    Separated from the write so a caller on the bot's reply path pays for a cache
+    lookup only: the row itself is written off that path, like every other trace
+    write.
+    """
+    key = f"agent_trace_reject:{kind}:{chat_id}:{user_id}:{reason}"
+    if await memttlcache.get(key):
+        return False
+    await memttlcache.set(key, True, ttl=_REJECT_TTL_SECONDS)
+    return True
+
+
+async def _write_root(session: TraceSession) -> None:
+    kind = session.kind
+    runs = 1 + len(session.children)
+    try:
+        if session.status == "rejected":
+            reason = session.reject_reason or "quota"
+            if await _claim_rejection(kind, session.chat_id, session.user_id, reason):
+                await record_rejection(
+                    _rejection_draft(
+                        kind=kind,
+                        chat_id=session.chat_id,
+                        user_id=session.user_id,
+                        message_id=session.message_id,
+                        reason=reason,
+                        model_role=session.model_role,
+                        streaming=session.streaming,
+                    )
+                )
+            return
+        await record_trace([_to_draft(session)])
+    except Exception as e:
+        logger.warning(
+            f"agent trace not recorded ({kind}, {runs} run(s)): "
+            f"{e.__class__.__name__} - {e}"
+        )
 
 
 async def note_rejection(
@@ -786,22 +801,36 @@ async def note_rejection(
 ) -> None:
     """Record a run refused before it started, at most once per minute per identity.
 
-    Only the quota and whitelist gates call this. Refusals that are not a decision
-    about a run - a chat where `ai_reply` is off, a blocked user, a message that
-    arrived mid-turn - are not runs and are not recorded.
+    Only the quota and whitelist gates call this, and only the throttle is decided
+    here: the row is written by a spawned task, so a gate on the reply path never
+    waits on the database to tell the user why they were refused.
     """
     if not app_config.agent_trace_enabled:
         return
     try:
-        await _write_rejection(
-            kind=kind,
-            chat_id=chat_id,
-            user_id=user_id,
-            message_id=message_id,
-            reason=reason,
-            model_role=model_role,
-            streaming=streaming,
+        if not await _claim_rejection(kind, chat_id, user_id, reason):
+            return
+    except Exception as e:
+        logger.warning(
+            f"agent trace rejection not recorded ({kind}, {reason}): "
+            f"{e.__class__.__name__} - {e}"
         )
+        return
+    draft = _rejection_draft(
+        kind=kind,
+        chat_id=chat_id,
+        user_id=user_id,
+        message_id=message_id,
+        reason=reason,
+        model_role=model_role,
+        streaming=streaming,
+    )
+    spawn(_write_rejection(draft, kind, reason), name="agent-trace-reject")
+
+
+async def _write_rejection(draft: AgentRunDraft, kind: str, reason: str) -> None:
+    try:
+        await record_rejection(draft)
     except Exception as e:
         logger.warning(
             f"agent trace rejection not recorded ({kind}, {reason}): "
