@@ -291,6 +291,23 @@ async def charge_tokens(
         )
 
 
+@with_tx
+async def record_and_charge(
+    accounts: Sequence[Account],
+    charge_accounts: Sequence[ChargeAccount],
+    day: date,
+    input_tokens: int,
+    output_tokens: int,
+    session: AsyncSession | None = None,
+) -> None:
+    """记一次 run 的用量并按用量扣费, 同一事务完成。"""
+    assert session is not None
+    await record_usage(accounts, day, input_tokens, output_tokens, session=session)
+    await charge_tokens(
+        charge_accounts, day, input_tokens + output_tokens, session=session
+    )
+
+
 @with_session
 async def get_credit(
     scope: str, scope_id: int, session: AsyncSession | None = None
@@ -405,6 +422,7 @@ __all__ = [
     "charge_tokens",
     "get_credit",
     "get_usage",
+    "record_and_charge",
     "record_usage",
     "set_credit",
     "spend_credit",
