@@ -845,9 +845,13 @@ class AgentTraceCapability(AbstractCapability[Any]):
     """Feeds the current run's session from the agent lifecycle.
 
     Innermost on purpose: `before_model_request` then sees the messages the model
-    is actually given (after history processing rewrote them), and the `after_*`
-    hooks, which run inside-out, see tool returns before the outer guardrails and
-    output limits replaced them.
+    is actually given (after history processing rewrote them), and every outer
+    capability's `after_*` - the tool-output limit, the clamp - runs after this one,
+    so a tool return is recorded as the tool produced it rather than as those
+    rewrote it. The secret-masking guard is innermost as well and sits inside this
+    capability, so a masked tool return is what arrives here; the payload is masked
+    again on the way in regardless, which is what keeps a credential out of the
+    database either way.
 
     Holds no per-run state - every hook reads the session from the context - so one
     instance can be shared by any number of agents.
