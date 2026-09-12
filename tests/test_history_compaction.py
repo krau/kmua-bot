@@ -662,6 +662,17 @@ async def test_the_compaction_run_is_recorded_under_the_turn_that_asked_for_it(
         ModelRequest(parts=[UserPromptPart(content="and this")]),
     ]
 
+    # The trace tables are shared by the whole test session; start from empty so the
+    # kind set asserted below is this test's own.
+    import sqlalchemy
+
+    from kmua.database.models import AgentRun, AgentRunEvent
+
+    async with AsyncSessionFactory() as session:
+        async with session.begin():
+            await session.execute(sqlalchemy.delete(AgentRunEvent))
+            await session.execute(sqlalchemy.delete(AgentRun))
+
     parent = await trace.start_trace("chat", chat_id=-100, user_id=7)
     assert parent is not None
     result = await history.compact_history(

@@ -82,10 +82,9 @@ async def _drain_spawned_writes() -> AsyncIterator[None]:
     # Conversation session ids are process-wide as well; dropping them keeps every
     # test's grouping independent of which tests ran before it.
     from kmua.common.memory_store import memstore
+    from kmua.plugins.agent.state import SESSION_KEY_PREFIX
 
-    for key in [
-        key for key in memstore._data if key.startswith("agent_conversation_session:")
-    ]:
+    for key in [key for key in memstore._data if key.startswith(SESSION_KEY_PREFIX)]:
         del memstore._data[key]
 
 

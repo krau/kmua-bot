@@ -8,6 +8,7 @@ encoding of request messages can be replayed into exactly what the model receive
 from __future__ import annotations
 
 import asyncio
+import base64
 import dataclasses
 import json
 import uuid
@@ -21,10 +22,12 @@ import sqlalchemy
 from pydantic_ai import Agent, RunContext
 from pydantic_ai.capabilities import AbstractCapability
 from pydantic_ai.messages import (
+    ImageUrl,
     ModelRequest,
     ModelResponse,
     TextPart,
     ToolCallPart,
+    UserPromptPart,
 )
 from pydantic_ai.models import ModelRequestContext
 from pydantic_ai.models.function import FunctionModel
@@ -371,6 +374,11 @@ def echo(text: str) -> str:
     return f"echo:{text}"
 
 
+def boom() -> str:
+    """Always fails, to put a tool error on the record."""
+    raise RuntimeError("boom")
+
+
 _HISTORY_MARK = "the rewritten history"
 
 
@@ -458,9 +466,14 @@ async def test_a_real_run_records_requests_responses_and_tool_results():
         # The stored transcript is the one the model was handed - including the
         # history rewrite a capability outside the trace applied.
         assert replay == trace._serialize_messages(seen[index])
-        assert _HISTORY_MARK in json.dumps(replay, ensure_ascii=False), (
-            "the stored request must be the rewritten one the model was given"
-        )
+        # Anchored on content this test controls, so a serializer that silently drops
+        # parts fails here rather than agreeing with itself. Request n carries the
+        # tool round the model answered after request n-1, and the last one its reply.
+        stored = json.dumps(replay, ensure_ascii=False)
+        assert _HISTORY_MARK in stored, "the stored request must be the rewritten one"
+        if index:
+            assert f"echo:t{index}" in stored, "the tool return must be stored"
+            assert f'"text": "t{index}"' in stored, "the tool arguments must be stored"
         payload = event.payload
         assert isinstance(payload, dict)
         # Every event stores a slice plus the full length, never the whole thing.
@@ -473,6 +486,14 @@ async def test_a_real_run_records_requests_responses_and_tool_results():
             # turn stores one full copy of the history per request.
             assert payload["messages_prefix_len"] > 0
             assert len(payload["messages"]) < payload["messages_total"]
+
+    # The reply itself lives in the response events, not in a later request.
+    responses = [event.payload for event in events if event.kind == "model_response"]
+    assert any(
+        "finished" in json.dumps(payload, ensure_ascii=False)
+        for payload in responses
+        if isinstance(payload, dict)
+    ), "the assistant text must be stored"
 
     tool_results = [event for event in events if event.kind == "tool_result"]
     assert [
@@ -833,7 +854,10 @@ async def test_run_agent_records_a_cancelled_turn(monkeypatch):
     """Cancellation is a run outcome too: the row must say so, not 'incomplete'."""
     monkeypatch.setattr(app_config, "agent_run_timeout", 0, raising=False)
 
+    entered = asyncio.Event()
+
     async def stalled(**_kwargs: object) -> None:
+        entered.set()
         await asyncio.sleep(30)
 
     monkeypatch.setattr(runner, "_run_agent_impl", stalled)
@@ -856,7 +880,8 @@ async def test_run_agent_records_a_cancelled_turn(monkeypatch):
             trace_kind="chat",
         )
     )
-    await asyncio.sleep(0.05)
+    # Cancel inside the run, not while the gate is still in flight.
+    await asyncio.wait_for(entered.wait(), 5)
     task.cancel()
     with pytest.raises(asyncio.CancelledError):
         await task
@@ -902,6 +927,8 @@ async def test_a_nested_run_inherits_its_parent_session():
     child = await trace.start_trace("compaction")
     assert parent is not None and child is not None
     assert child.session_id == parent.session_id
+    child.note_steering(["child event"])
+    assert parent.events == [], "a child event must not land on the parent"
     trace.finish_trace(child, output="summary")
     task = trace.finish_trace(parent, output="answer")
     assert task is not None
@@ -910,6 +937,12 @@ async def test_a_nested_run_inherits_its_parent_session():
     rows = {row.kind: row for row in await runs()}
     assert rows["compaction"].session_id == rows["chat"].session_id
     assert rows["compaction"].parent_run_id == rows["chat"].id
+    # Each run stores its own steps, and only its own.
+    child_events = await stored_events(rows["compaction"].id)
+    assert [(event.kind, event.payload) for event in child_events] == [
+        ("steering", {"texts": ["child event"]})
+    ]
+    assert [event.kind for event in await stored_events(rows["chat"].id)] == []
 
 
 async def test_a_run_without_a_conversation_has_no_session():
@@ -940,8 +973,11 @@ def test_a_session_id_is_a_time_ordered_uuidv7():
     assert parsed.version == 7
     assert parsed.variant == uuid.RFC_4122
     assert abs((parsed.int >> 80) - int(time() * 1000)) < 60_000
-    # What version 7 buys over a random id: they sort by when they were minted.
-    assert first < second
+    # What version 7 buys over a random id: they sort by when they were minted, and
+    # a batch keeps that property across the millisecond boundary.
+    ids = [agent_state.new_session_id() for _ in range(1000)]
+    assert ids == sorted(ids)
+    assert len(set(ids)) == len(ids)
 
 
 async def test_forget_opens_a_new_session():
@@ -961,6 +997,68 @@ async def test_forget_opens_a_new_session():
     assert len(after) == 32
 
 
+async def test_the_global_wipe_rotates_every_session():
+    """What /clear_sessions does: every thread starts over, ids included."""
+    from kmua.plugins.agent import agent as agent_plugin
+    from kmua.plugins.agent import state as agent_state
+
+    opened = {
+        (chat, user): await agent_state.conversation_session(chat, user)
+        for chat, user in ((-100, 7), (-100, 8), (-200, 7))
+    }
+
+    cleared = agent_plugin._clear_memstore_prefix(agent_state.SESSION_KEY_PREFIX)
+    assert cleared == len(opened)
+
+    for (chat, user), before_id in opened.items():
+        assert await agent_state.conversation_session(chat, user) != before_id
+
+
+def test_a_data_uri_part_is_reduced_to_metadata():
+    """A URL part can carry a body inline; only the type and size may be stored."""
+    from kmua.plugins.agent.trace import _serialize_messages
+
+    body = base64.b64encode(b"\x89PNG-binary-body").decode()
+    messages = [
+        ModelResponse(
+            parts=[
+                ToolCallPart(
+                    tool_name="view",
+                    args={"image_url": f"data:image/png;base64,{body}"},
+                    tool_call_id="c1",
+                )
+            ]
+        ),
+        ModelRequest(
+            parts=[
+                UserPromptPart(content=[ImageUrl(url=f"data:image/png;base64,{body}")])
+            ]
+        ),
+    ]
+
+    stored = json.dumps(_serialize_messages(messages), ensure_ascii=False)
+    assert body not in stored, "the inline body must not be stored"
+    assert "data:image/png" in stored, "the media type must survive"
+    assert "omitted" in stored
+
+
+def test_a_backwards_clock_does_not_mint_a_lower_id(monkeypatch):
+    """Ids stay ordered even if the wall clock steps back (NTP, suspend, an operator)."""
+    from kmua.plugins.agent import state as agent_state
+
+    ticks = iter([1_800_000_000_000, 1_800_000_000_000, 1_799_999_999_000])
+
+    monkeypatch.setattr(agent_state, "time_ns", lambda: next(ticks) * 1_000_000)
+    ids = [agent_state.new_session_id() for _ in range(3)]
+
+    assert ids == sorted(ids)
+    assert [uuid.UUID(hex=value).int >> 80 for value in ids] == [
+        1_800_000_000_000,
+        1_800_000_000_000,
+        1_800_000_000_000,
+    ]
+
+
 async def test_a_refusal_carries_the_conversation_session():
     await trace.note_rejection(
         "chat", chat_id=-555, user_id=7, message_id=1, reason="quota"
@@ -968,3 +1066,85 @@ async def test_a_refusal_carries_the_conversation_session():
     rows = await wait_for_runs(1)
     assert rows[0].session_id is not None
     assert rows[0].session_id == await trace.conversation_session(-555, 7)
+
+
+async def test_a_failing_tool_call_is_recorded_with_its_error(monkeypatch):
+    """A tool that raises is a step of the run too, and its cost is measurable."""
+    seen: list[list[Any]] = []
+
+    def respond(messages: list[Any], _info: Any) -> ModelResponse:
+        seen.append(list(messages))
+        if len(seen) == 1:
+            return ModelResponse(
+                parts=[ToolCallPart(tool_name="boom", args={}, tool_call_id="c1")]
+            )
+        return ModelResponse(parts=[TextPart(content="I could not do that")])
+
+    provider = Agent(
+        model=FunctionModel(respond),
+        tools=[boom],
+        capabilities=[trace.AgentTraceCapability()],
+    )
+
+    session = await trace.start_trace("chat", chat_id=-100, user_id=7)
+    assert session is not None
+    with pytest.raises(RuntimeError):
+        await provider.run("try it")
+    task = trace.finish_trace(session, status="error", error=RuntimeError("boom"))
+    assert task is not None
+    await task
+
+    run = (await runs())[0]
+    assert run.status == "error"
+    events = await stored_events(run.id)
+    errors = [event for event in events if event.kind == "tool_result"]
+    assert len(errors) == 1
+    failed = errors[0]
+    assert (failed.status, failed.name) == ("error", "boom")
+    assert failed.duration_ms is not None
+    assert isinstance(failed.payload, dict)
+    assert failed.payload["error_class"] == "RuntimeError"
+    assert "boom" in str(failed.payload["message"])
+
+
+async def test_a_tool_returning_binary_metadata_stores_no_body():
+    """A tool's own return value is a message part, so the body rule covers it."""
+    seen: list[list[Any]] = []
+    body = b"\x89PNG" + b"\x00" * 64
+
+    def snapshot() -> bytes:
+        """Return a raw binary payload."""
+        return body
+
+    def respond(messages: list[Any], _info: Any) -> ModelResponse:
+        seen.append(list(messages))
+        if len(seen) == 1:
+            return ModelResponse(
+                parts=[ToolCallPart(tool_name="snapshot", args={}, tool_call_id="c1")]
+            )
+        return ModelResponse(parts=[TextPart(content="got it")])
+
+    provider = Agent(
+        model=FunctionModel(respond),
+        tools=[snapshot],
+        capabilities=[trace.AgentTraceCapability()],
+    )
+
+    session = await trace.start_trace("chat", chat_id=-100, user_id=7)
+    assert session is not None
+    result = await provider.run("grab a snapshot")
+    task = trace.finish_trace(session, usage=result.usage, output=result.output)
+    assert task is not None
+    await task
+
+    run = (await runs())[0]
+    events = await stored_events(run.id)
+    stored = json.dumps([event.payload for event in events], ensure_ascii=False)
+    assert '"kind": "binary"' in stored, "the return must be reduced to metadata"
+    assert base64.b64encode(body).decode() not in stored, "no base64 body"
+    assert "\\u0089PNG" not in stored, "no escaped body"
+    # The same reduction applies to the messages the model was given.
+    request = next(event for event in events if event.kind == "model_request")
+    assert isinstance(request.payload, dict)
+    assert request.payload["messages"], "the tool round must be in the increment"
+    assert base64.b64encode(body).decode() not in json.dumps(request.payload)
