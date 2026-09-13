@@ -280,7 +280,7 @@ async def _run_agent_impl(
     if app_config.agent_multimodal_mode == "transcribe":
         if needs_multimodal:
             sanitized_history = await transcribe_multimodal_history(
-                effective_multimodal, history
+                effective_multimodal, history, subject
             )
             if sanitized_history is not history:
                 history = sanitized_history
@@ -299,7 +299,7 @@ async def _run_agent_impl(
                         f"{e.__class__.__name__} - {e}"
                     )
             user_prompt = await transcribe_multimodal_content(
-                effective_multimodal, user_prompt
+                effective_multimodal, user_prompt, subject
             )
         # A text-model run must never receive historical or current media,
         # including when the transcription provider is unavailable.

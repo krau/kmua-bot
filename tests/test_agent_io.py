@@ -5,6 +5,7 @@ from __future__ import annotations
 from types import SimpleNamespace
 from typing import cast
 
+import pyrogram.enums
 import pytest
 from pydantic_ai import BinaryContent, RunContext, RunUsage, ToolReturn
 from pydantic_ai.models.test import TestModel
@@ -14,6 +15,9 @@ from pyrogram.types import Message
 from kmua.config import app_config
 from kmua.plugins.agent import datatype
 from kmua.plugins.agent.tools import code_repo, io, workspace
+
+# 转写按付款方记账, 于是这几条路径也要一个已建表的主库。
+pytestmark = pytest.mark.usefixtures("initialised_db")
 
 
 @pytest.fixture
@@ -59,7 +63,14 @@ def _ctx(
                 client=client,
                 chat_id=-100_123,
                 user_id=1001,
-                message=SimpleNamespace(id=7),
+                message=SimpleNamespace(
+                    id=7,
+                    chat=SimpleNamespace(
+                        id=-100_123, type=pyrogram.enums.ChatType.SUPERGROUP
+                    ),
+                    sender_chat=None,
+                    from_user=SimpleNamespace(id=1001),
+                ),
                 powermemory=SimpleNamespace(),
             ),
             model=SimpleNamespace(model_name=model_name) if model_name else None,

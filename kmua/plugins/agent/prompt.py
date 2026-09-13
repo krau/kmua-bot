@@ -30,7 +30,7 @@ from kmua.common.rich_message import message_plain_text
 from kmua.common.utils import is_explicit_reply
 from kmua.config import app_config
 from kmua.logger import logger
-from kmua.plugins.agent import datatype, input_format, provider, state, trace
+from kmua.plugins.agent import datatype, input_format, provider, quota, state, trace
 
 
 def _utf16_len(s: str) -> int:
@@ -777,7 +777,9 @@ def _make_transcribe_agent(model: Any) -> Agent[Any, Any] | None:
     )
 
 
-async def _run_transcription(agent: Agent[Any, Any], prompt: list[Any]) -> Any:
+async def _run_transcription(
+    agent: Agent[Any, Any], prompt: list[Any], subject: quota.Subject
+) -> Any:
     """Describe one media item; recorded as a `transcription` run of its own."""
     async with trace.trace_scope("transcription", model_role="transcribe") as session:
         coro = agent.run(prompt)
@@ -786,6 +788,8 @@ async def _run_transcription(agent: Agent[Any, Any], prompt: list[Any]) -> Any:
             result = await asyncio.wait_for(coro, timeout=float(timeout))
         else:
             result = await coro
+        # 转写是为主回合服务的独立模型调用, 不计入主回合的 usage: 按同一位付款方结算。
+        await quota.settle(subject, result.usage)
         trace.mark_trace(session, usage=result.usage, output=str(result.output))
         return result
 
@@ -795,10 +799,12 @@ def _transcription_request_text(item: Any) -> str:
     return f"请描述这份多媒体内容（类型: {media_type}），转述其中的关键信息。"
 
 
-async def _transcribe_one_media(agent: Agent[Any, Any], item: Any) -> str | None:
+async def _transcribe_one_media(
+    agent: Agent[Any, Any], item: Any, subject: quota.Subject
+) -> str | None:
     try:
         result = await _run_transcription(
-            agent, [_transcription_request_text(item), item]
+            agent, [_transcription_request_text(item), item], subject
         )
         text = str(result.output).strip()
     except Exception as e:
@@ -808,20 +814,21 @@ async def _transcribe_one_media(agent: Agent[Any, Any], item: Any) -> str | None
 
 
 async def transcribe_binary_content(
-    model: Any, data: bytes, media_type: str
+    model: Any, data: bytes, media_type: str, subject: quota.Subject
 ) -> str | None:
     """Describe one raw binary payload for a text-only agent run."""
     agent = _make_transcribe_agent(model)
     if agent is None:
         return None
     return await _transcribe_one_media(
-        agent, BinaryContent(data=data, media_type=media_type)
+        agent, BinaryContent(data=data, media_type=media_type), subject
     )
 
 
 async def _transcribe_media_items(
     model: Any,
     media_items: list[Any],
+    subject: quota.Subject,
     *,
     failure_text: str,
 ) -> list[str]:
@@ -832,13 +839,13 @@ async def _transcribe_media_items(
 
     transcriptions: list[str] = []
     for item in media_items:
-        text = await _transcribe_one_media(transcribe_agent, item)
+        text = await _transcribe_one_media(transcribe_agent, item, subject)
         transcriptions.append(text or failure_text)
     return transcriptions
 
 
 async def transcribe_multimodal_history(
-    model: Any, history: list[ModelMessage]
+    model: Any, history: list[ModelMessage], subject: quota.Subject
 ) -> list[ModelMessage]:
     """Replace media in cached requests so text models never receive old media.
 
@@ -861,6 +868,7 @@ async def transcribe_multimodal_history(
     replacements = await _transcribe_media_items(
         model,
         media_items,
+        subject,
         failure_text="[历史多媒体内容转述失败, 已省略]",
     )
     replacement_iter = iter(replacements)
@@ -897,7 +905,7 @@ async def transcribe_multimodal_history(
 
 
 async def transcribe_multimodal_content(
-    model: Any, user_prompt: list[UserContent]
+    model: Any, user_prompt: list[UserContent], subject: quota.Subject
 ) -> list[UserContent]:
     """Describe current media and remove every binary before the main run."""
     media_items = list(_iter_multimodal_content(user_prompt))
@@ -912,6 +920,7 @@ async def transcribe_multimodal_content(
         transcriptions = await _transcribe_media_items(
             model,
             media_items,
+            subject,
             failure_text="[用户发送了多媒体内容, 但转述失败, 已省略]",
         )
         folded = input_format.apply_transcriptions(user_prompt, transcriptions)
@@ -929,7 +938,7 @@ async def transcribe_multimodal_content(
     if not text_items:
         request_items.insert(0, _transcription_request_text(media_items[0]))
     try:
-        result = await _run_transcription(transcribe_agent, request_items)
+        result = await _run_transcription(transcribe_agent, request_items, subject)
     except Exception as e:
         logger.error(f"multimodal transcription failed: {e.__class__.__name__} - {e}")
         return [

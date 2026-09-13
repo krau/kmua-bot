@@ -8,6 +8,8 @@ from types import SimpleNamespace
 
 import pytest
 
+pytestmark = pytest.mark.usefixtures("initialised_db")
+
 
 @pytest.fixture
 async def memory_format():
@@ -253,3 +255,57 @@ async def test_group_memory_update_is_single_flight_per_chat(monkeypatch):
     finally:
         await memory.memttlcache.delete(group_key)
         await memory.memttlcache.delete(update_key)
+
+
+async def test_a_memory_update_is_billed_to_the_message_that_triggered_it(monkeypatch):
+    """记忆抽取是独立的一次模型调用, 不在任何主回合的 usage 里。
+
+    它由某条消息触发, 于是按那条消息的身份结算 —— 不记的话这段开销在 /quota 和面板
+    上都看不到。
+    """
+    from pydantic_ai.usage import RunUsage
+
+    from kmua import database
+    from kmua.config import app_config
+    from kmua.plugins.agent import datatype, quota, user_memory
+
+    class _MemoryAgent:
+        async def run(self, **_kwargs):
+            return SimpleNamespace(
+                output=datatype.UserMemoryResult(
+                    **dict.fromkeys(
+                        (
+                            "disposition",
+                            "interests",
+                            "doings",
+                            "works",
+                            "wishes",
+                            "worries",
+                            "skills",
+                            "attitudes_to_model",
+                            "experiences_with_model",
+                            "extra_info",
+                            "affection_change_amplitude",
+                        ),
+                        None,
+                    ),
+                    affection_option="no_change",
+                ),
+                usage=RunUsage(input_tokens=640, output_tokens=160),
+            )
+
+    monkeypatch.setattr(app_config, "agent_model_timeout", 0, raising=False)
+    subject = quota.Subject(user_id=9311, chat_id=-1009311000, in_group=True)
+    day = database.utc_day()
+    before = await database.get_usage(database.SCOPE_CHAT, subject.chat_id, day)
+
+    await user_memory.update_user_memory(
+        _MemoryAgent(), "聊天记录", subject.user_id, subject
+    )
+
+    after = await database.get_usage(database.SCOPE_CHAT, subject.chat_id, day)
+    assert after[0] == before[0] + 1
+    assert (after[2] - before[2], after[3] - before[3]) == (640, 160)
+    assert (await database.get_usage(database.SCOPE_USER, subject.user_id, day))[
+        2
+    ] == 640

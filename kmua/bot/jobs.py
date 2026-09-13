@@ -249,8 +249,17 @@ async def rss_push():
             # the feed has no title (same redaction the fetch path uses).
             feed_label = result.feed_title or redact_url(feed.url)
             for lang in summary_langs:
+                # One generation serves every chat in this language that asked for
+                # summaries, so the bill is split across exactly those chats.
+                served = [
+                    chat_id
+                    for chat_id in chat_ids
+                    if lang_by_chat[chat_id] == lang
+                    and chat_configs.get(chat_id) is not None
+                    and chat_configs[chat_id].rss_agent_summary
+                ]
                 digest_by_lang[lang] = await generate_rss_digest(
-                    new_entries, feed_label, lang
+                    new_entries, feed_label, lang, served
                 )
             # Skip broadcasts while the per-chat rate-limit lock is held:
             # generating first would burn get_chat + LLM calls every poll.
@@ -261,8 +270,13 @@ async def rss_push():
                     continue
                 broadcast_targets[chat_id] = lang
             for lang in set(broadcast_targets.values()):
+                broadcast_served = [
+                    chat_id
+                    for chat_id, chat_lang in broadcast_targets.items()
+                    if chat_lang == lang
+                ]
                 broadcast_by_lang[lang] = await generate_rss_broadcast(
-                    new_entries, feed_label, lang
+                    new_entries, feed_label, lang, broadcast_served
                 )
 
         for chat_id in chat_ids:

@@ -8,7 +8,7 @@ from kmua import affection
 from kmua.common.memory_store import memttlcache
 from kmua.config import app_config
 from kmua.logger import logger
-from kmua.plugins.agent import datatype, state, trace
+from kmua.plugins.agent import datatype, quota, state, trace
 
 _user_memory_locks: WeakValueDictionary[int, asyncio.Lock] = WeakValueDictionary()
 _user_memory_locks_lock = asyncio.Lock()
@@ -27,6 +27,7 @@ async def update_user_memory(
     agent: Agent[None, datatype.UserMemoryResult],
     message_text: str,
     user_id: int,
+    subject: quota.Subject,
 ):
     lock = await _get_user_memory_lock(user_id)
     async with lock:
@@ -67,6 +68,9 @@ async def update_user_memory(
             else:
                 memory_result = await coro
 
+            # 这一次模型调用照常花 token, 按触发它的那条消息结算 —— 记忆是这次调用
+            # 的产物, 不记的话这段开销在任何地方都看不见。
+            await quota.settle(subject, memory_result.usage)
             # 记录只覆盖这次模型调用: 之后的记忆合并与好感度更新都不是它的一部分。
             trace.mark_trace(
                 session, usage=memory_result.usage, output=str(memory_result.output)

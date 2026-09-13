@@ -10,14 +10,16 @@ back to the raw rendered entry.
 
 import asyncio
 import json
+from collections.abc import Sequence
 from typing import Any
 
 from pydantic import BaseModel, Field
 from pydantic_ai import Agent, PromptedOutput
+from pydantic_ai.usage import RunUsage
 
 from kmua.config import app_config
 from kmua.logger import logger
-from kmua.plugins.agent import provider, trace
+from kmua.plugins.agent import provider, quota, trace
 from kmua.services.rss import FeedEntry
 
 _DIGEST_TIMEOUT = 30.0
@@ -164,10 +166,42 @@ def build_broadcast_prompt(
     return "\n".join(lines)
 
 
+async def _settle_shared(recipients: Sequence[int], usage: RunUsage | None) -> None:
+    """Charge one generated batch to the chats it was generated for, split evenly.
+
+    A feed fans out to every subscribed chat, but the summary is generated once per
+    language and then reused, so the recipients have to share the bill: each pays its
+    share of the same tokens and the sum still equals what the call really cost.
+    The remainder goes to the first recipient so rounding never loses a token.
+    """
+    if not recipients or usage is None:
+        return
+    total_input = int(getattr(usage, "input_tokens", 0) or 0)
+    total_output = int(getattr(usage, "output_tokens", 0) or 0)
+    if total_input == 0 and total_output == 0:
+        return
+    count = len(recipients)
+    for index, chat_id in enumerate(recipients):
+        share_input = total_input // count + (total_input % count if index == 0 else 0)
+        share_output = total_output // count + (
+            total_output % count if index == 0 else 0
+        )
+        await quota.settle(
+            quota.Subject(user_id=None, chat_id=chat_id, in_group=True),
+            RunUsage(input_tokens=share_input, output_tokens=share_output),
+        )
+
+
 async def generate_rss_digest(
-    entries: list[FeedEntry], feed_title: str, lang: str = "zh-CN"
+    entries: list[FeedEntry],
+    feed_title: str,
+    lang: str = "zh-CN",
+    recipients: Sequence[int] = (),
 ) -> dict[str, str]:
-    """Summarize one push batch; {} means "no agent output, use raw push"."""
+    """Summarize one push batch; {} means "no agent output, use raw push".
+
+    `recipients` are the subscribed chats this batch is generated for; empty means
+    nobody is charged (the caller did not name them)."""
     global _digest_agent
     if not entries or not (app_config.agent and app_config.agent_model):
         return {}
@@ -186,6 +220,7 @@ async def generate_rss_digest(
             trace.mark_trace(session, status="timeout", error=e)
             raise
         summaries = parse_digest_output(result.output, {e.entry_id for e in entries})
+        await _settle_shared(recipients, result.usage)
         trace.mark_trace(
             session,
             usage=result.usage,
@@ -204,9 +239,14 @@ async def generate_rss_digest(
 
 
 async def generate_rss_broadcast(
-    entries: list[FeedEntry], feed_title: str, lang: str = "zh-CN"
+    entries: list[FeedEntry],
+    feed_title: str,
+    lang: str = "zh-CN",
+    recipients: Sequence[int] = (),
 ) -> str | None:
-    """Write one broadcast message for the batch; None means "skip broadcast"."""
+    """Write one broadcast message for the batch; None means "skip broadcast".
+
+    `recipients` are the group chats that will receive it; see `_settle_shared`."""
     global _broadcast_agent
     if not entries or not (app_config.agent and app_config.agent_model):
         return None
@@ -225,6 +265,7 @@ async def generate_rss_broadcast(
             trace.mark_trace(session, status="timeout", error=e)
             raise
         text = (result.output or "").strip()
+        await _settle_shared(recipients, result.usage)
         trace.mark_trace(session, usage=result.usage, output=text or None)
         return text or None
     except Exception as e:

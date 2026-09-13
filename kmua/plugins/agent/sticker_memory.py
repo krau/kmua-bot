@@ -12,7 +12,7 @@ from kmua import common, database
 from kmua.config import app_config
 from kmua.logger import logger
 
-from . import provider, sticker_vec, trace
+from . import provider, quota, sticker_vec, trace
 from .whitelist import is_chat_allowed
 
 embedder: Embedder | None = None
@@ -86,7 +86,9 @@ async def ensure_embed_dimensions() -> int:
     return _embed_dimensions or app_config.agent_sticker_embed_dimensions
 
 
-async def _get_description(image_bytes: bytes, mime_type: str) -> str | None:
+async def _get_description(
+    image_bytes: bytes, mime_type: str, subject: quota.Subject
+) -> str | None:
     if _description_agent is None:
         return None
     try:
@@ -119,6 +121,8 @@ async def _get_description(image_bytes: bytes, mime_type: str) -> str | None:
             else:
                 result = await coro
 
+            # 贴纸描述也是一次模型调用: 按发送贴纸的那条消息结算。
+            await quota.settle(subject, result.usage)
             trace.mark_trace(session, usage=result.usage, output=result.output)
             return result.output
         except Exception as e:
@@ -145,6 +149,7 @@ async def _process_sticker(
     client: PyrogramClient,
     sticker: pyrogram.types.Sticker,
     chat_id: int,
+    subject: quota.Subject,
 ) -> None:
     file_unique_id = sticker.file_unique_id
     file_id = sticker.file_id
@@ -179,7 +184,7 @@ async def _process_sticker(
         return
 
     mime_type = "video/webm" if sticker.is_video else "image/webp"
-    description = await _get_description(image_bytes, mime_type)
+    description = await _get_description(image_bytes, mime_type, subject)
     if not description:
         logger.warning(f"sticker {file_unique_id}: no description generated, skipping")
         return
@@ -340,6 +345,6 @@ async def on_sticker(client: PyrogramClient, message: pyrogram.types.Message) ->
     if not common.random_chance(sample_rate_for(count)):
         return
     common.spawn(
-        _process_sticker(client, sticker, chat.id),
+        _process_sticker(client, sticker, chat.id, quota.subject_of(message)),
         name=f"sticker-memory-{chat.id}",
     )

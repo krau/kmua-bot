@@ -15,7 +15,7 @@ from pydantic_ai import BinaryContent, RunContext, ToolReturn
 from kmua.config import app_config
 from kmua.logger import logger
 
-from ... import provider
+from ... import provider, quota
 from .. import datatype
 from .protocols import _split_target
 
@@ -382,7 +382,9 @@ async def _transcribe_media_tool_return(
     from ...prompt import transcribe_binary_content
 
     try:
-        description = await transcribe_binary_content(model, data, media_type)
+        # 转写是这次工具调用额外发起的一次模型调用: 记在本次 run 的付款方账上。
+        subject = quota.subject_of(ctx.deps.message)
+        description = await transcribe_binary_content(model, data, media_type, subject)
     except Exception as e:
         logger.error(f"read media transcription failed: {e.__class__.__name__} - {e}")
         description = None

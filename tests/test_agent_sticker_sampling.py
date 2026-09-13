@@ -5,6 +5,7 @@ from __future__ import annotations
 from types import SimpleNamespace
 from typing import cast
 
+import pyrogram.enums
 import pyrogram.types
 import pytest
 from pydantic_ai import RunContext, RunUsage
@@ -12,8 +13,11 @@ from pydantic_ai.models.test import TestModel
 from pydantic_ai.tools import ToolDefinition
 from pyrogram.client import Client as PyrogramClient
 
+from kmua import database
 from kmua.config import app_config
-from kmua.plugins.agent import datatype, sticker_memory, sticker_vec
+from kmua.plugins.agent import datatype, quota, sticker_memory, sticker_vec
+
+pytestmark = pytest.mark.usefixtures("initialised_db")
 
 
 def _rate(count: int, base: float, target: int) -> float:
@@ -104,7 +108,7 @@ async def test_on_sticker_warmup_always_samples(monkeypatch):
 
     processed = []
 
-    async def fake_process(client, sticker, chat_id):
+    async def fake_process(client, sticker, chat_id, subject):
         processed.append(chat_id)
 
     monkeypatch.setattr(sm, "_process_sticker", fake_process)
@@ -119,7 +123,9 @@ async def test_on_sticker_warmup_always_samples(monkeypatch):
     message = cast(
         "object",
         SimpleNamespace(
-            chat=SimpleNamespace(id=-100123),
+            chat=SimpleNamespace(id=-100123, type=pyrogram.enums.ChatType.SUPERGROUP),
+            sender_chat=None,
+            from_user=SimpleNamespace(id=9201),
             sticker=SimpleNamespace(
                 file_unique_id="uid", file_id="fid", is_animated=False
             ),
@@ -205,3 +211,27 @@ async def test_prepare_sticker_gate_uses_warmup_config(monkeypatch):
 
     monkeypatch.setattr(sticker_vec, "count", count_five)
     assert await prepare.prepare_sticker_tools(ctx, td) is not None
+
+
+async def test_sticker_description_is_billed_to_the_sender(monkeypatch):
+    """贴纸描述也是一次真金白银的模型调用, 记到发贴纸的那个群/用户上。"""
+
+    class _Describer:
+        async def run(self, _prompt):
+            return SimpleNamespace(
+                output="一只猫",
+                usage=RunUsage(input_tokens=800, output_tokens=200),
+            )
+
+    monkeypatch.setattr(app_config, "agent_small_model_timeout", 0, raising=False)
+    monkeypatch.setattr(sticker_memory, "_description_agent", _Describer())
+    subject = quota.Subject(user_id=9321, chat_id=-1007770001, in_group=True)
+
+    day = database.utc_day()
+    before = await database.get_usage(database.SCOPE_CHAT, subject.chat_id, day)
+    description = await sticker_memory._get_description(b"png", "image/png", subject)
+    after = await database.get_usage(database.SCOPE_CHAT, subject.chat_id, day)
+
+    assert description == "一只猫"
+    assert after[0] == before[0] + 1
+    assert (after[2] - before[2], after[3] - before[3]) == (800, 200)

@@ -14,7 +14,7 @@ from kmua.plugins.agent.output import TypingKeepAlive, reply_output
 from kmua.plugins.agent.prompt import get_input_prompt
 from kmua.plugins.agent.runner import get_chat_prompt_override
 
-from . import provider, trace
+from . import provider, quota, trace
 from .agent import struct_model
 from .whitelist import is_chat_allowed
 
@@ -293,6 +293,9 @@ async def comment_channel_message(client: Client, message: pyrogram.types.Messag
                 user_prompt=prompts,
             )
             output = result.output
+            # 这次模型调用和普通回合一样花 token, 按发言身份结算: 频道身份没有个人账户,
+            # 于是记在群账上(与匿名管理、频道消息同一条规则)。
+            await quota.settle(quota.subject_of(message), result.usage)
             # 记录与后续动作(评论/投票发送)无关: 那一步失败不代表这次模型调用失败。
             trace.mark_trace(
                 session,

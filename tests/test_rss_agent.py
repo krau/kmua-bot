@@ -133,8 +133,9 @@ def test_build_broadcast_prompt_contains_titles_and_links():
 
 
 class _FakeAgent:
-    def __init__(self, result):
+    def __init__(self, result, usage: RunUsage | None = None):
         self._result = result
+        self._usage = usage or RunUsage()
         self.calls = 0
 
     async def run(self, **kwargs):
@@ -142,7 +143,7 @@ class _FakeAgent:
         if isinstance(self._result, Exception):
             raise self._result
         # An AgentRunResult carries its own usage, which the run trace records.
-        return SimpleNamespace(output=self._result, usage=RunUsage())
+        return SimpleNamespace(output=self._result, usage=self._usage)
 
 
 @pytest.mark.parametrize("raise_exc", [RuntimeError("boom"), TimeoutError("t/o")])
@@ -158,6 +159,54 @@ async def test_generate_digest_parses_agent_output(monkeypatch):
     monkeypatch.setattr(rss_digest, "_make_digest_agent", lambda: fake)
     out = await rss_digest.generate_rss_digest([make_entry("e1")], "feed")
     assert out == {"e1": "点评"}
+
+
+async def test_a_digest_is_billed_to_every_chat_it_serves(monkeypatch):
+    """One generation, several subscribers: each pays a share, the sum is exact.
+
+    The summary is generated once per language and reused for every chat that asked
+    for it, so charging one chat would hide the cost from the others - and charging
+    each of them the whole amount would invent tokens nobody spent.
+    """
+    chats = (-1009300011, -1009300012, -1009300013)
+    fake = _FakeAgent(
+        '{"summaries": [{"entry_id": "e1", "summary": "点评"}]}',
+        usage=RunUsage(input_tokens=1_001, output_tokens=101),
+    )
+    monkeypatch.setattr(rss_digest, "_make_digest_agent", lambda: fake)
+
+    out = await rss_digest.generate_rss_digest(
+        [make_entry("e1")], "feed", "zh-CN", chats
+    )
+
+    assert out == {"e1": "点评"}
+    day = database.utc_day()
+    rows = [
+        await database.get_usage(database.SCOPE_CHAT, chat_id, day) for chat_id in chats
+    ]
+    assert [row[2] for row in rows] == [335, 333, 333]
+    assert [row[3] for row in rows] == [35, 33, 33]
+    assert [row[0] for row in rows] == [1, 1, 1], "每位订阅群各记一次"
+    # 分账不等于重复收费: 三段之和就是这次调用的真实用量。
+    assert sum(row[2] for row in rows) == 1_001
+    assert sum(row[3] for row in rows) == 101
+
+
+async def test_a_broadcast_is_billed_to_its_recipients(monkeypatch):
+    fake = _FakeAgent("播报文本", usage=RunUsage(input_tokens=500, output_tokens=20))
+    monkeypatch.setattr(rss_digest, "_make_broadcast_agent", lambda: fake)
+
+    await rss_digest.generate_rss_broadcast(
+        [make_entry("e1")], "feed", "zh-CN", [-1009300021]
+    )
+
+    day = database.utc_day()
+    assert await database.get_usage(database.SCOPE_CHAT, -1009300021, day) == (
+        1,
+        0,
+        500,
+        20,
+    )
 
 
 async def test_generate_broadcast_returns_none_on_failure(monkeypatch):
@@ -248,7 +297,7 @@ async def test_push_with_summary_prepends_digest(
 
     monkeypatch.setattr(database, "get_chat_config", fake_get_chat_config)
 
-    async def fake_digest(entries, feed_title, lang):
+    async def fake_digest(entries, feed_title, lang, recipients=()):
         return {"e1": "点评一"}
 
     monkeypatch.setattr(rss_digest, "generate_rss_digest", fake_digest)
@@ -289,7 +338,7 @@ async def test_broadcast_sent_with_plain_text_and_rate_limited(
 
     calls = []
 
-    async def fake_broadcast(entries, feed_title, lang):
+    async def fake_broadcast(entries, feed_title, lang, recipients=()):
         calls.append(lang)
         return "播报文本"
 

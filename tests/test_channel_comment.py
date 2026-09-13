@@ -4,7 +4,10 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
+import pyrogram.enums
 import pytest
+
+pytestmark = pytest.mark.usefixtures("initialised_db")
 
 
 @pytest.fixture
@@ -93,3 +96,69 @@ async def test_comment_filter_media_follows_struct_model_capability(monkeypatch)
             ),
         )
     )
+
+
+async def test_the_comment_run_is_billed_to_the_group(monkeypatch):
+    """频道身份没有个人账户, 于是这次模型调用记在群账上 —— 和匿名管理同一条规则。"""
+    from contextlib import asynccontextmanager
+
+    from pydantic_ai.usage import RunUsage
+
+    from kmua import database
+    from kmua.config import app_config
+    from kmua.plugins.agent import channel_comment
+
+    monkeypatch.setattr(app_config, "agent", True, raising=False)
+    monkeypatch.setattr(app_config, "agent_group_prompt", "", raising=False)
+    monkeypatch.setattr(channel_comment, "is_chat_allowed", lambda _chat_id: True)
+
+    async def first_media(_message):
+        return True
+
+    async def no_override(_chat_id):
+        return None
+
+    async def input_prompt(*_args, **_kwargs):
+        return ["提问"], None, None
+
+    async def reply(*_args, **_kwargs):
+        return None
+
+    @asynccontextmanager
+    async def typing(_client, _message):
+        yield
+
+    class _CommentAgent:
+        async def run(self, **_kwargs):
+            return SimpleNamespace(
+                output=channel_comment.CommentResult(comment="说两句"),
+                usage=RunUsage(input_tokens=900, output_tokens=100),
+            )
+
+    monkeypatch.setattr(channel_comment, "_is_first_media_in_group", first_media)
+    monkeypatch.setattr(channel_comment, "get_chat_prompt_override", no_override)
+    monkeypatch.setattr(channel_comment, "get_input_prompt", input_prompt)
+    monkeypatch.setattr(channel_comment, "TypingKeepAlive", typing)
+    monkeypatch.setattr(channel_comment, "reply_output", reply)
+    monkeypatch.setattr(channel_comment, "comment_agent", _CommentAgent())
+
+    message = SimpleNamespace(
+        chat=SimpleNamespace(id=-1009400001, type=pyrogram.enums.ChatType.SUPERGROUP),
+        sender_chat=SimpleNamespace(
+            id=-1009400002, title="频道", bio=None, description=None
+        ),
+        from_user=None,
+        id=555,
+        caption="看看这个",
+        text=None,
+        reply_text=None,
+    )
+
+    day = database.utc_day()
+    before = await database.get_usage(database.SCOPE_CHAT, message.chat.id, day)
+    await channel_comment.comment_channel_message(SimpleNamespace(), message)
+    after = await database.get_usage(database.SCOPE_CHAT, message.chat.id, day)
+
+    assert after[0] == before[0] + 1
+    assert (after[2] - before[2], after[3] - before[3]) == (900, 100)
+    assert (await database.get_usage(database.SCOPE_USER, -1009400002, day))[0] == 0

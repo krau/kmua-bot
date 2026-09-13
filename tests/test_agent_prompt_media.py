@@ -7,11 +7,18 @@ from io import BytesIO
 from types import SimpleNamespace
 from typing import cast
 
+import pytest
 from pydantic_ai import Agent
 from pyrogram.enums import ChatType, MessageMediaType
 
+from kmua import database
 from kmua.config import app_config
-from kmua.plugins.agent import prompt
+from kmua.plugins.agent import prompt, quota
+
+pytestmark = pytest.mark.usefixtures("initialised_db")
+
+# 转写要按付款方记账, 测试里给一个固定的群内用户。
+SUBJECT = quota.Subject(user_id=1, chat_id=-100, in_group=True)
 
 
 def _media_msg(media, payload=None, text="", file_name=None, chat_id=-100):
@@ -153,6 +160,7 @@ async def test_transcribe_replaces_media_with_description(monkeypatch):
         result = await prompt_mod.transcribe_multimodal_content(
             object(),
             ["看这张图", BinaryContent(data=b"img", media_type="image/jpeg")],
+            SUBJECT,
         )
     finally:
         import pydantic_ai
@@ -168,7 +176,9 @@ async def test_transcribe_replaces_media_with_description(monkeypatch):
 async def test_transcribe_no_media_returns_unchanged():
     from kmua.plugins.agent import prompt as prompt_mod
 
-    result = await prompt_mod.transcribe_multimodal_content(object(), ["plain"])
+    result = await prompt_mod.transcribe_multimodal_content(
+        object(), ["plain"], SUBJECT
+    )
     assert result == ["plain"]
 
 
@@ -190,6 +200,7 @@ async def test_transcribe_failure_falls_back_to_placeholder(monkeypatch):
         result = await prompt_mod.transcribe_multimodal_content(
             object(),
             ["x", BinaryContent(data=b"i", media_type="image/jpeg")],
+            SUBJECT,
         )
     finally:
         import pydantic_ai
@@ -229,6 +240,7 @@ async def test_transcribe_uses_configured_instructions(monkeypatch):
         await prompt_mod.transcribe_multimodal_content(
             object(),
             ["x", BinaryContent(data=b"i", media_type="image/jpeg")],
+            SUBJECT,
         )
     finally:
         import pydantic_ai
@@ -289,7 +301,7 @@ async def test_transcribe_history_replaces_user_and_tool_media():
     ]
 
     sanitized = await prompt_mod.transcribe_multimodal_history(
-        _DescriptionModel(), history
+        _DescriptionModel(), history, SUBJECT
     )
 
     assert prompt_mod.check_needs_multimodal([], sanitized) is False
@@ -315,7 +327,9 @@ async def test_transcribe_group_removes_media_after_failure():
         BinaryContent(data=b"synthetic-image", media_type="image/jpeg"),
     ]
 
-    result = await prompt_mod.transcribe_multimodal_content(_BrokenModel(), prompt)
+    result = await prompt_mod.transcribe_multimodal_content(
+        _BrokenModel(), prompt, SUBJECT
+    )
     assert all(not isinstance(item, BinaryContent) for item in result)
     assert "转述失败" in str(result[0])
 
@@ -328,7 +342,7 @@ async def test_transcribe_media_request_includes_text_part(monkeypatch):
 
     captured: list[list] = []
 
-    async def fake_run(agent, request):
+    async def fake_run(agent, request, subject):
         captured.append(request)
         return SimpleNamespace(output="合成图片描述")
 
@@ -338,7 +352,9 @@ async def test_transcribe_media_request_includes_text_part(monkeypatch):
         BinaryContent(data=b"synthetic-image", media_type="image/jpeg"),
     ]
 
-    result = await prompt_mod.transcribe_multimodal_content(TestModel(), prompt)
+    result = await prompt_mod.transcribe_multimodal_content(
+        TestModel(), prompt, SUBJECT
+    )
 
     assert (
         result[0]
@@ -348,3 +364,39 @@ async def test_transcribe_media_request_includes_text_part(monkeypatch):
     assert isinstance(captured[0][0], str)
     assert "请描述这份多媒体内容" in captured[0][0]
     assert isinstance(captured[0][1], BinaryContent)
+
+
+async def test_transcription_is_billed_to_the_conversation(monkeypatch):
+    """转写是另起一次模型调用: 它花掉的 token 必须记到发起它的那次对话上。
+
+    不记的话这块开销既不在主回合里(它是独立的一次调用), 也不在任何账单上。
+    """
+    from pydantic_ai import BinaryContent
+    from pydantic_ai.usage import RunUsage
+
+    class _Transcriber:
+        async def run(self, _prompt):
+            return SimpleNamespace(
+                output="图里有一只猫",
+                usage=RunUsage(input_tokens=1_200, output_tokens=300),
+            )
+
+    monkeypatch.setattr(app_config, "agent_model_timeout", 0, raising=False)
+    monkeypatch.setattr(prompt, "_make_transcribe_agent", lambda _model: _Transcriber())
+
+    day = database.utc_day()
+    before = await database.get_usage(database.SCOPE_USER, SUBJECT.user_id, day)
+    await prompt.transcribe_multimodal_content(
+        object(),
+        [
+            '## 当前消息\n<msg image_number=1 media_type="photo" text="">',
+            BinaryContent(data=b"img", media_type="image/jpeg"),
+        ],
+        SUBJECT,
+    )
+    after = await database.get_usage(database.SCOPE_USER, SUBJECT.user_id, day)
+
+    assert after[0] == before[0] + 1
+    assert (after[2] - before[2], after[3] - before[3]) == (1_200, 300)
+    # 记账之外还要真的扣费: 免费额度被这次调用吃掉。
+    assert after[1] - before[1] == 1_500

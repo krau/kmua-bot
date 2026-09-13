@@ -9,7 +9,7 @@ from kmua import database, enums
 from kmua.common.memory_store import memttlcache
 from kmua.config import app_config
 from kmua.logger import logger
-from kmua.plugins.agent import state
+from kmua.plugins.agent import quota, state
 from kmua.plugins.agent.user_memory import update_user_memory
 
 from .agent import memory_agent, powermemory
@@ -208,7 +208,9 @@ async def record_memory(client: Client, message: pyrogram.types.Message):
             await memttlcache.set(last_update_key, True, ttl=3600)
             texts = "\n".join([um.text for um in user_messages])
             if memory_agent is not None:
-                await update_user_memory(memory_agent, texts, user.id)
+                await update_user_memory(
+                    memory_agent, texts, user.id, quota.subject_of(message)
+                )
         user_messages = []
     await memttlcache.set(
         state.user_messages_global_key(user.id), user_messages, ttl=86400 * 7
@@ -264,7 +266,10 @@ async def record_agent_memory(client: Client, message: pyrogram.types.Message):
             await memttlcache.set(last_update_key, True, ttl=3600)
             if memory_agent is not None:
                 await update_user_memory(
-                    memory_agent, format_user_messages(agent_messages), user.id
+                    memory_agent,
+                    format_user_messages(agent_messages),
+                    user.id,
+                    quota.subject_of(message),
                 )
             agent_messages = []
         # 小时额度已用完: 保留最近 100 条, 下次触发时再提交, 不丢弃已记录内容
