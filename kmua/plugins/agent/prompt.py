@@ -30,7 +30,7 @@ from kmua.common.rich_message import message_plain_text
 from kmua.common.utils import is_explicit_reply
 from kmua.config import app_config
 from kmua.logger import logger
-from kmua.plugins.agent import datatype, input_format, provider, state
+from kmua.plugins.agent import datatype, input_format, provider, state, trace
 
 
 def _utf16_len(s: str) -> int:
@@ -773,15 +773,21 @@ def _make_transcribe_agent(model: Any) -> Agent[Any, Any] | None:
             app_config.agent_model_multimodal_options
         ),
         instructions=app_config.agent_multimodal_transcribe_prompt,
+        capabilities=[trace.AgentTraceCapability()],
     )
 
 
 async def _run_transcription(agent: Agent[Any, Any], prompt: list[Any]) -> Any:
-    coro = agent.run(prompt)
-    timeout = app_config.agent_model_timeout
-    if timeout and timeout > 0:
-        return await asyncio.wait_for(coro, timeout=float(timeout))
-    return await coro
+    """Describe one media item; recorded as a `transcription` run of its own."""
+    async with trace.trace_scope("transcription", model_role="transcribe") as session:
+        coro = agent.run(prompt)
+        timeout = app_config.agent_model_timeout
+        if timeout and timeout > 0:
+            result = await asyncio.wait_for(coro, timeout=float(timeout))
+        else:
+            result = await coro
+        trace.mark_trace(session, usage=result.usage, output=str(result.output))
+        return result
 
 
 def _transcription_request_text(item: Any) -> str:

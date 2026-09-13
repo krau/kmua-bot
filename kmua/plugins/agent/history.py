@@ -38,6 +38,7 @@ from pydantic_ai_harness.compaction import (
 
 from kmua.config import app_config
 from kmua.logger import logger
+from kmua.plugins.agent import trace
 
 
 def find_deferred_tool_call_index(
@@ -140,6 +141,37 @@ def truncate_multimodal(
     return result
 
 
+_USAGE_FIELDS: tuple[str, ...] = (
+    "input_tokens",
+    "output_tokens",
+    "cache_read_tokens",
+    "cache_write_tokens",
+    "requests",
+    "tool_calls",
+)
+
+
+def _usage_snapshot(usage: Any) -> dict[str, int]:
+    return {field: int(getattr(usage, field, 0) or 0) for field in _USAGE_FIELDS}
+
+
+def _usage_delta(before: dict[str, int], usage: Any) -> RunUsage:
+    """Token usage added since the snapshot, as its own RunUsage object."""
+    after = {field: int(getattr(usage, field, 0) or 0) for field in _USAGE_FIELDS}
+    return RunUsage(
+        input_tokens=max(0, after["input_tokens"] - before["input_tokens"]),
+        output_tokens=max(0, after["output_tokens"] - before["output_tokens"]),
+        cache_read_tokens=max(
+            0, after["cache_read_tokens"] - before["cache_read_tokens"]
+        ),
+        cache_write_tokens=max(
+            0, after["cache_write_tokens"] - before["cache_write_tokens"]
+        ),
+        requests=max(0, after["requests"] - before["requests"]),
+        tool_calls=max(0, after["tool_calls"] - before["tool_calls"]),
+    )
+
+
 @dataclass
 class InPlaceSummarizingCompaction(SummarizingCompaction):
     """SummarizingCompaction whose summary runs through the main agent itself.
@@ -176,18 +208,28 @@ class InPlaceSummarizingCompaction(SummarizingCompaction):
                 "Keep the same section format.\n\n"
                 f"<previous-summary>\n{previous_summary}\n</previous-summary>"
             )
-        async with self.agent.iter(
-            user_prompt=instruction,
-            message_history=list(messages),
-            deps=ctx.deps,
-            model=ctx.model,
-            model_settings=ModelSettings(tool_choice="none"),
-            usage=ctx.usage,
-        ) as agent_run:
-            async for node in agent_run:
-                if Agent.is_end_node(node):
-                    output = agent_run.result.output
-                    return output.strip() if isinstance(output, str) else ""
+        # The summary run shares the conversation's usage object (`iter(usage=...)`
+        # accumulates into it), so its own tokens are the difference around the call.
+        usage_before = _usage_snapshot(ctx.usage)
+        async with trace.trace_scope("compaction") as session:
+            async with self.agent.iter(
+                user_prompt=instruction,
+                message_history=list(messages),
+                deps=ctx.deps,
+                model=ctx.model,
+                model_settings=ModelSettings(tool_choice="none"),
+                usage=ctx.usage,
+            ) as agent_run:
+                async for node in agent_run:
+                    if Agent.is_end_node(node):
+                        output = agent_run.result.output
+                        text = output.strip() if isinstance(output, str) else ""
+                        trace.mark_trace(
+                            session,
+                            usage=_usage_delta(usage_before, agent_run.usage),
+                            output=text,
+                        )
+                        return text
         return ""
 
 

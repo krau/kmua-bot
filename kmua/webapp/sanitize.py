@@ -94,6 +94,9 @@ _PUBLIC_FIELDS: dict[str, tuple[str, ...]] = {
         "agent_periodic_sticker_interval",
         "agent_periodic_reaction_interval",
         "agent_quota_free_daily_tokens",
+        "agent_trace_enabled",
+        "agent_trace_retention_days",
+        "agent_trace_max_field_chars",
     ),
     "services": (
         "redis",

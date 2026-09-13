@@ -584,6 +584,7 @@ async def test_a_chat_credit_grant_is_audited_on_its_own(monkeypatch):
 
 class _ReplyMessage:
     chat = SimpleNamespace(id=GROUP_ID, type=pyrogram.enums.ChatType.SUPERGROUP)
+    id = 4242
 
     def __init__(self) -> None:
         self.replies: list[str] = []
@@ -606,6 +607,7 @@ async def _run(message: _ReplyMessage, subject: quota.Subject) -> None:
         model=None,
         lang="zh-CN",
         subject=subject,
+        trace_kind="chat",
     )
 
 
@@ -873,6 +875,7 @@ class _CommandMessage:
         self.from_user = SimpleNamespace(id=user_id)
         self.sender_chat = None
         self.chat = SimpleNamespace(id=chat_id, type=pyrogram.enums.ChatType.SUPERGROUP)
+        self.id = 5001
         self.replies: list[str] = []
 
     async def reply_text(self, text: str, **_kwargs: object) -> None:

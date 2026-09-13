@@ -10,7 +10,7 @@ from kmua.common.memory_store import memttlcache
 from kmua.common.utils import is_explicit_reply
 from kmua.config import app_config
 from kmua.logger import logger
-from kmua.plugins.agent import datatype, provider, quota, state
+from kmua.plugins.agent import datatype, provider, quota, state, trace
 from kmua.plugins.agent.prompt import build_ctx_info, get_input_prompt
 from kmua.plugins.agent.runner import (
     get_chat_model_override,
@@ -43,6 +43,7 @@ if small_model:
         ),
         output_type=RelevanceCheck,
         system_prompt="你是一个对话相关性判断助手。判断用户的新消息是否是对之前对话的延续。",
+        capabilities=[trace.AgentTraceCapability()],
         retries=2,
     )
 else:
@@ -62,6 +63,7 @@ def _make_relevance_check_agent(
             ),
             output_type=RelevanceCheck,
             system_prompt="你是一个对话相关性判断助手。判断用户的新消息是否是对之前对话的延续。",
+            capabilities=[trace.AgentTraceCapability()],
             retries=2,
         )
     return _default_relevance_check_agent
@@ -181,6 +183,13 @@ async def handle_follow_up_message(
     subject = quota.subject_of(message)
     if not await quota.can_start(subject):
         # 额度没了就不做相关性判断: 那本身就是一次模型调用。
+        await trace.note_rejection(
+            "followup",
+            chat_id=chat.id,
+            user_id=user.id,
+            message_id=message.id,
+            reason="quota",
+        )
         return
     user_data = await database.get_user_by_id(user.id)
     if not user_data:
@@ -205,12 +214,20 @@ Bot回复: {bot_full_output}
 - 即使是不同用户发送的消息也可能相关
 - 新消息与原先话题必须存在明显的关联性才算相关, 如果不能确定, 一律判定为不相关
 """
+    session: trace.TraceSession | None = None
     try:
         small_model_override = await get_chat_model_override(chat.id, "small")
         relevance_check_agent = _make_relevance_check_agent(small_model_override)
         if not relevance_check_agent:
             return
 
+        session = await trace.start_trace(
+            "followup_relevance",
+            chat_id=chat.id,
+            user_id=user.id,
+            message_id=message.id,
+            model_role="small",
+        )
         # 使用小模型超时控制防止相关性检查阻塞事件循环
         timeout = app_config.agent_small_model_timeout
         coro = relevance_check_agent.run(
@@ -220,7 +237,8 @@ Bot回复: {bot_full_output}
         if timeout > 0:
             try:
                 relevance_result = await asyncio.wait_for(coro, timeout=timeout)
-            except TimeoutError:
+            except TimeoutError as e:
+                trace.mark_trace(session, status="timeout", error=e)
                 logger.warning(f"Follow-up relevance check timed out after {timeout}s")
                 return
         else:
@@ -229,13 +247,24 @@ Bot回复: {bot_full_output}
         # 相关性判断本身就是一次模型调用, 跑完即刻按它的用量结算; 判为不相关也记 ——
         # token 已经花掉了, 不记的话这段开销在面板上就看不见。
         await quota.settle(subject, relevance_result.usage)
+        trace.mark_trace(
+            session,
+            usage=relevance_result.usage,
+            output=(
+                f"relevance={relevance_result.output.relevance} "  # type: ignore[union-attr]
+                f"reason={relevance_result.output.reason}"  # type: ignore[union-attr]
+            ),
+        )
         if not relevance_result.output.relevance:  # type: ignore[union-attr]
             return
     except Exception as e:
+        trace.mark_trace(session, status="error", error=e)
         logger.error(
             f"Error checking follow-up relevance: {e.__class__.__name__} - {e}"
         )
         return
+    finally:
+        trace.finish_trace(session)
     logger.info(
         f"Detected follow-up message {message.id} (reason: {relevance_result.output.reason})"  # type: ignore[union-attr]
     )
@@ -304,6 +333,7 @@ Bot回复: {bot_full_output}
                 model=model,
                 lang=chat_config.lang,
                 subject=subject,
+                trace_kind="followup",
                 coverage_meta=state.PromptCoverage(last_message_id=message.id),
             ),
         )

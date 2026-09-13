@@ -23,6 +23,9 @@ async def cleanup():
         # common.cleanup_avatar_cache()
         if app_config.agent:
             await _cleanup_agent_workspaces()
+        # Outside the agent switch: recorded runs must still expire after the agent
+        # is turned off, or the last transcripts stay forever.
+        await _cleanup_agent_traces()
     finally:
         logger.info("clean data done")
         await common.memstore.delete(enums.GLockKey.CLEANING)
@@ -48,6 +51,25 @@ async def _cleanup_agent_workspaces() -> None:
             )
     except Exception as e:
         logger.warning(f"agent workspace cleanup failed: {e.__class__.__name__} - {e}")
+
+
+async def _cleanup_agent_traces() -> None:
+    """Drop recorded agent runs older than the retention window.
+
+    Runs are the bot's own diagnostics, so they are the first thing to go when the
+    window is shortened: the retention is read from config on every pass, and a
+    non-positive value means "keep everything".
+    """
+    retention = app_config.agent_trace_retention_days
+    if retention <= 0:
+        return
+    try:
+        cutoff = datetime.now(UTC) - timedelta(days=retention)
+        removed = await database.delete_runs_before(cutoff)
+        if removed:
+            logger.info(f"cleaned agent run traces: {removed} run(s)")
+    except Exception as e:
+        logger.warning(f"agent trace cleanup failed: {e.__class__.__name__} - {e}")
 
 
 async def change_bot_avatar():

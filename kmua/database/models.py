@@ -11,6 +11,7 @@ from sqlalchemy import (
     ForeignKey,
     Integer,
     String,
+    Text,
     UniqueConstraint,
     func,
 )
@@ -832,3 +833,143 @@ class AgentCreditLedger(Base):
         ),
         sa.Index("ix_agent_credit_ledger_account", "scope", "scope_id"),
     )
+
+
+class AgentRun(Base):
+    """One agent run: one conversation turn or one bot-initiated auxiliary call.
+
+    Written once when the run ends - there is no "running" row - so a crash leaves
+    no trace. Run-level counters come from the run's own usage, while
+    `parent_run_id` links a nested run (compaction, transcription) to the turn that
+    spawned it. No foreign key: the id is a plain column, like the quota tables.
+    """
+
+    __tablename__ = "agent_runs"
+
+    id: Mapped[int] = mapped_column(
+        Integer, primary_key=True, autoincrement=True, index=True
+    )
+    # One of kmua.database.agent_trace.RUN_KINDS.
+    kind: Mapped[str] = mapped_column(String(32), nullable=False)
+    # One of RUN_STATUSES.
+    status: Mapped[str] = mapped_column(String(16), nullable=False)
+    # Only set when status is "rejected": one of REJECT_REASONS.
+    reject_reason: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    # This conversation's instance id: one random value per (chat, user) thread,
+    # replaced when that thread starts over (/forget) or the process restarts. Runs
+    # with no conversation of their own (RSS work, sticker descriptions) leave it
+    # null; nested runs (compaction, transcription) inherit their parent's.
+    session_id: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    chat_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    user_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    message_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    parent_run_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    model_name: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    # One of "main" / "multimodal" / "small" / "struct" / "transcribe".
+    model_role: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    streaming: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=sa.text("false")
+    )
+    started_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    finished_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    duration_ms: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default=sa.text("0")
+    )
+    requests: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default=sa.text("0")
+    )
+    tool_calls: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default=sa.text("0")
+    )
+    input_tokens: Mapped[int] = mapped_column(
+        BigInteger, nullable=False, default=0, server_default=sa.text("0")
+    )
+    output_tokens: Mapped[int] = mapped_column(
+        BigInteger, nullable=False, default=0, server_default=sa.text("0")
+    )
+    cache_read_tokens: Mapped[int] = mapped_column(
+        BigInteger, nullable=False, default=0, server_default=sa.text("0")
+    )
+    cache_write_tokens: Mapped[int] = mapped_column(
+        BigInteger, nullable=False, default=0, server_default=sa.text("0")
+    )
+    # One of "str" / "end_turn" / "ask_user" / "none".
+    output_kind: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    output_text: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Length of the untruncated output, so a shortened row is still measurable.
+    output_chars: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    error_class: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    event_count: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default=sa.text("0")
+    )
+    events_dropped: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default=sa.text("0")
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+    __table_args__ = (
+        sa.Index("ix_agent_runs_started_at", "started_at"),
+        sa.Index("ix_agent_runs_chat_started", "chat_id", "started_at"),
+        sa.Index("ix_agent_runs_user_started", "user_id", "started_at"),
+        sa.Index("ix_agent_runs_status_started", "status", "started_at"),
+        sa.Index("ix_agent_runs_kind_started", "kind", "started_at"),
+    )
+
+    def __repr__(self) -> str:
+        return (
+            f"<AgentRun(id={self.id}, kind={self.kind!r}, status={self.status!r}, "
+            f"chat_id={self.chat_id}, user_id={self.user_id})>"
+        )
+
+
+class AgentRunEvent(Base):
+    """One step of a run: a model request/response, a tool call/result, and so on.
+
+    `payload` holds the step's own data. For `model_request` it is an increment:
+    only the messages past the longest common prefix with the previous request of
+    the same run are stored, which is what keeps a long turn at roughly one copy of
+    its history instead of one per request. Over-long strings are cut to
+    `agent_trace_max_field_chars` before storage.
+    """
+
+    __tablename__ = "agent_run_events"
+
+    id: Mapped[int] = mapped_column(
+        Integer, primary_key=True, autoincrement=True, index=True
+    )
+    run_id: Mapped[int] = mapped_column(Integer, nullable=False)
+    # 1-based, monotonic within the run; a call and its return take one seq each.
+    seq: Mapped[int] = mapped_column(Integer, nullable=False)
+    # One of EVENT_KINDS.
+    kind: Mapped[str] = mapped_column(String(24), nullable=False)
+    name: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    status: Mapped[str] = mapped_column(
+        String(16), nullable=False, default="ok", server_default=sa.text("'ok'")
+    )
+    duration_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    payload: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    # Character count of the payload before truncation.
+    payload_chars: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    truncated: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=sa.text("false")
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+    __table_args__ = (
+        sa.UniqueConstraint("run_id", "seq", name="uq_agent_run_events_run_seq"),
+    )
+
+    def __repr__(self) -> str:
+        return (
+            f"<AgentRunEvent(run_id={self.run_id}, seq={self.seq}, "
+            f"kind={self.kind!r}, name={self.name!r})>"
+        )

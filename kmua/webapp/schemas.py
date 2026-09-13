@@ -559,6 +559,73 @@ class JobOut(ApiModel):
     next_run_time: str | None
 
 
+# ----------------------------------------------------------------- agent runs
+
+
+class AgentRunOut(ApiModel):
+    """One recorded run, without the heavy text fields.
+
+    The list view never needs the final output or the error text, and either can be
+    tens of kilobytes, so they are only on the detail model.
+    """
+
+    id: int
+    kind: str
+    status: str
+    reject_reason: str | None = None
+    session_id: str | None = None
+    chat_id: int | None = None
+    user_id: int | None = None
+    message_id: int | None = None
+    parent_run_id: int | None = None
+    model_name: str | None = None
+    model_role: str | None = None
+    streaming: bool
+    started_at: str
+    finished_at: str
+    duration_ms: int
+    requests: int
+    tool_calls: int
+    input_tokens: int
+    output_tokens: int
+    cache_read_tokens: int
+    cache_write_tokens: int
+    output_kind: str | None = None
+    output_chars: int | None = None
+    error_class: str | None = None
+    event_count: int
+    events_dropped: int
+
+
+class AgentRunEventOut(ApiModel):
+    """One step of a run, without its payload: the timeline only needs the shape."""
+
+    seq: int
+    kind: str
+    name: str | None = None
+    status: str
+    duration_ms: int | None = None
+    payload_chars: int | None = None
+    truncated: bool
+    created_at: str
+
+
+class AgentRunDetailOut(AgentRunOut):
+    output_text: str | None = None
+    error_message: str | None = None
+    events: list[AgentRunEventOut]
+
+
+class AgentRunEventDetailOut(AgentRunEventOut):
+    payload: dict[str, Any] | None = None
+    messages: list[dict[str, Any]] | None = None
+    """The request's full messages, rebuilt from the run's prefix encoding.
+
+    Only set for `model_request` events, and None when the encoding cannot be
+    replayed - the panel then says so instead of showing a truncated transcript.
+    """
+
+
 # ----------------------------------------------------------------- chat policy
 
 

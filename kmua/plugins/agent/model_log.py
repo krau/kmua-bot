@@ -1,13 +1,14 @@
-import dataclasses
 import json
 from typing import Any
 
 from pydantic_ai import ModelResponse, RunContext
 from pydantic_ai.capabilities import AbstractCapability
-from pydantic_ai.messages import BinaryContent, TextPart, ToolCallPart
+from pydantic_ai.messages import TextPart, ToolCallPart
 from pydantic_ai.models import ModelRequestContext
 
 from kmua.logger import logger
+
+from .trace import safe_value
 
 
 def _label(deps: Any) -> str:
@@ -24,40 +25,12 @@ def _label(deps: Any) -> str:
     return " in ".join(parts)
 
 
-def _safe_log_value(value: Any) -> Any:
-    """Replace binary values with metadata before rendering log text."""
-    if isinstance(value, BinaryContent):
-        marker: dict[str, Any] = {
-            "kind": "binary",
-            "media_type": str(value.media_type),
-            "size": len(value.data),
-        }
-        identifier = getattr(value, "identifier", None)
-        if identifier:
-            marker["identifier"] = identifier
-        return marker
-    if isinstance(value, (bytes, bytearray, memoryview)):
-        return {"kind": "binary", "size": len(value)}
-    if isinstance(value, dict):
-        return {str(key): _safe_log_value(item) for key, item in value.items()}
-    if isinstance(value, (list, tuple, set, frozenset)):
-        return [_safe_log_value(item) for item in value]
-    if dataclasses.is_dataclass(value) and not isinstance(value, type):
-        return {
-            field.name: _safe_log_value(getattr(value, field.name))
-            for field in dataclasses.fields(value)
-        }
-    if value is None or isinstance(value, (str, int, float, bool)):
-        return value
-    return f"<{type(value).__name__}>"
-
-
 def _format_log_value(value: Any) -> str:
-    safe_value = _safe_log_value(value)
-    if isinstance(safe_value, str):
-        return safe_value
+    rendered = safe_value(value)
+    if isinstance(rendered, str):
+        return rendered
     try:
-        return json.dumps(safe_value, ensure_ascii=False)
+        return json.dumps(rendered, ensure_ascii=False)
     except (TypeError, ValueError):
         return f"<{type(value).__name__}>"
 

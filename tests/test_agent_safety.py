@@ -154,6 +154,7 @@ def test_build_agent_capabilities_follows_switches(monkeypatch):
     assert kinds == {
         "ProcessHistory",
         "ModelActivityLog",
+        "AgentTraceCapability",
         "SteeringInjection",
         "ClampOversizedMessages",
         "WarnNearLimits",
