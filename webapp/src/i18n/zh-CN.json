@@ -397,7 +397,6 @@
       "until": "结束时间",
       "search": "搜索",
       "searchPlaceholder": "输出或错误信息",
-      "apply": "应用",
       "reset": "重置",
       "sessionId": "session_id",
       "sessionIdPlaceholder": "ID 或其任意片段"
@@ -468,7 +467,6 @@
       "truncated": "内容过长, 已截断",
       "unreconstructable": "这一步的完整消息无法还原: 数据超过了单次事件的上限",
       "rawJson": "原始 JSON",
-      "conversation": "对话",
       "instructions": "指令",
       "settings": "模型参数",
       "dropped": "另有 {count} 条事件超出上限未记录",

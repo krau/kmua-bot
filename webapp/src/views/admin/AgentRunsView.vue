@@ -3,9 +3,7 @@
  * Recorded agent runs, most recent first.
  *
  * Read-only on purpose: these rows describe what the bot did, and an operator who
- * could edit them would no longer be reading a record. Filters are committed with a
- * button rather than on every keystroke, because three of them are free-form ids and
- * dates - reloading on each character would query a half-typed id on every tick.
+ * could edit them would no longer be reading a record.
  */
 import { computed, ref, watch } from "vue";
 import { useRouter } from "vue-router";
@@ -20,6 +18,7 @@ import SettingsSection from "@/components/SettingsSection.vue";
 import StateBlock from "@/components/StateBlock.vue";
 import TextField from "@/components/TextField.vue";
 import { useAsyncData } from "@/composables/useAsyncData";
+import { useDebouncedRef } from "@/composables/useDebouncedRef";
 import { t } from "@/i18n";
 import { formatDateTime, formatTokens, truncate } from "@/utils/format";
 
@@ -44,7 +43,7 @@ const STATUSES: AgentRunStatus[] = ["ok", "error", "timeout", "cancelled", "reje
 const router = useRouter();
 const page = ref(1);
 
-/** Edited filter values; copied into `applied` when the operator commits. */
+/** Edited filter values; copied into `applied` as they settle. */
 const sessionId = ref("");
 const chatId = ref("");
 const userId = ref("");
@@ -55,6 +54,26 @@ const until = ref("");
 const search = ref("");
 
 /**
+ * The boxes as one snapshot, debounced before it reaches the query.
+ *
+ * Every other list in the panel lets the query follow the box rather than asking the
+ * operator to commit it, and the delay is what keeps a half-typed id from being
+ * queried a character at a time. A date that is still incomplete parses to
+ * `undefined`, so it narrows nothing until it names a real moment.
+ */
+const boxes = computed(() => ({
+  sessionId: sessionId.value,
+  chatId: chatId.value,
+  userId: userId.value,
+  kind: kind.value,
+  status: status.value,
+  since: since.value,
+  until: until.value,
+  search: search.value,
+}));
+const settled = useDebouncedRef(boxes);
+
+/**
  * The committed filters, typed by the API's own query shape.
  *
  * `buildUrl` writes each key verbatim and FastAPI ignores what it does not know,
@@ -62,6 +81,8 @@ const search = ref("");
  * paging fields makes the next such typo a compile error.
  */
 const applied = ref<Omit<AgentRunQuery, "page" | "size">>({});
+
+const hasFilters = computed(() => Object.keys(applied.value).length > 0);
 
 const kindOptions = computed(() => [
   { value: "", text: t("agentRuns.filters.all") },
@@ -97,24 +118,6 @@ function parseId(raw: string): number | undefined {
   return Number(value);
 }
 
-function applyFilters(): void {
-  applied.value = {
-    session_id: sessionId.value.trim() || undefined,
-    chat_id: parseId(chatId.value),
-    user_id: parseId(userId.value),
-    kind: kind.value || undefined,
-    status: status.value || undefined,
-    since: parseMoment(since.value, false),
-    until: parseMoment(until.value, true),
-    q: search.value.trim() || undefined,
-  };
-  if (page.value !== 1) {
-    page.value = 1;
-    return;
-  }
-  void runs.reload();
-}
-
 function resetFilters(): void {
   sessionId.value = "";
   chatId.value = "";
@@ -124,7 +127,6 @@ function resetFilters(): void {
   since.value = "";
   until.value = "";
   search.value = "";
-  applyFilters();
 }
 
 const runs = useAsyncData((signal) =>
@@ -137,6 +139,26 @@ const runs = useAsyncData((signal) =>
     signal,
   ),
 );
+
+watch(settled, (boxes) => {
+  applied.value = {
+    session_id: boxes.sessionId.trim() || undefined,
+    chat_id: parseId(boxes.chatId),
+    user_id: parseId(boxes.userId),
+    kind: boxes.kind || undefined,
+    status: boxes.status || undefined,
+    since: parseMoment(boxes.since, false),
+    until: parseMoment(boxes.until, true),
+    q: boxes.search.trim() || undefined,
+  };
+  if (page.value !== 1) {
+    // The page watcher reloads, so a filtered list never asks for a page it did not
+    // reset - an empty page 4 is indistinguishable from "nothing matched".
+    page.value = 1;
+    return;
+  }
+  void runs.reload();
+});
 
 watch(page, () => void runs.reload());
 
@@ -217,20 +239,14 @@ function open(runId: number): void {
       inputmode="search"
       :maxlength="128"
     />
+    <SettingsRow
+      v-if="hasFilters"
+      :label="t('agentRuns.filters.reset')"
+      navigable
+      destructive
+      @click="resetFilters"
+    />
   </SettingsSection>
-
-  <div class="mb-section flex gap-related px-related">
-    <button
-      type="button"
-      class="text-accent dark:text-accent-dark text-sub underline"
-      @click="applyFilters"
-    >
-      {{ t("agentRuns.filters.apply") }}
-    </button>
-    <button type="button" class="text-hint text-sub underline" @click="resetFilters">
-      {{ t("agentRuns.filters.reset") }}
-    </button>
-  </div>
 
   <StateBlock
     :loading="runs.loading.value && !runs.data.value"
