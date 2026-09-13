@@ -389,7 +389,7 @@
     "openHint": "查看这次运行的每一步",
     "filters": {
       "all": "全部",
-      "chatId": "会话 ID",
+      "chatId": "群组 ID",
       "userId": "用户 ID",
       "kind": "类型",
       "status": "状态",
@@ -398,16 +398,17 @@
       "search": "搜索",
       "searchPlaceholder": "输出或错误信息",
       "reset": "重置",
-      "sessionId": "session_id",
-      "sessionIdPlaceholder": "ID 或其任意片段"
+      "sessionId": "会话 ID",
+      "sessionIdPlaceholder": "session_id 或其任意片段",
+      "chatIdHint": "群聊/频道的 chat_id; 私聊填对方用户 ID"
     },
     "columns": {
       "run": "运行",
       "startedAt": "开始时间",
       "kind": "类型",
       "status": "状态",
-      "chat": "会话",
-      "user": "用户",
+      "chat": "群组 ID",
+      "user": "用户 ID",
       "model": "模型",
       "durationMs": "耗时 / ms",
       "tokens": "输入 / 输出 token",
@@ -415,7 +416,7 @@
       "events": "事件",
       "parent": "父运行",
       "messageId": "消息 ID",
-      "sessionId": "session_id"
+      "sessionId": "会话 ID"
     },
     "kind": {
       "chat": "对话",
@@ -484,6 +485,6 @@
       "cacheTokens": "缓存读 / 写 token",
       "outputChars": "输出去截断字符数"
     },
-    "session": "sid"
+    "session": "会话"
   }
 }

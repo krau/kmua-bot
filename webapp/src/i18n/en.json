@@ -389,7 +389,7 @@
     "openHint": "See every step of this run",
     "filters": {
       "all": "All",
-      "chatId": "Chat ID",
+      "chatId": "Group ID",
       "userId": "User ID",
       "kind": "Kind",
       "status": "Status",
@@ -398,16 +398,17 @@
       "search": "Search",
       "searchPlaceholder": "Output or error text",
       "reset": "Reset",
-      "sessionId": "session_id",
-      "sessionIdPlaceholder": "id or any part of it"
+      "sessionId": "Session ID",
+      "sessionIdPlaceholder": "session_id or any part of it",
+      "chatIdHint": "chat_id of the group or channel; a private chat takes the user id"
     },
     "columns": {
       "run": "Run",
       "startedAt": "Started",
       "kind": "Kind",
       "status": "Status",
-      "chat": "Chat",
-      "user": "User",
+      "chat": "Group ID",
+      "user": "User ID",
       "model": "Model",
       "durationMs": "Duration / ms",
       "tokens": "Input / output tokens",
@@ -415,7 +416,7 @@
       "events": "Events",
       "parent": "Parent run",
       "messageId": "Message ID",
-      "sessionId": "session_id"
+      "sessionId": "Session ID"
     },
     "kind": {
       "chat": "Chat",
@@ -484,6 +485,6 @@
       "cacheTokens": "Cache read / write tokens",
       "outputChars": "Output length before truncation"
     },
-    "session": "sid"
+    "session": "session"
   }
 }

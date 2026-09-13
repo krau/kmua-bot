@@ -4,6 +4,10 @@
  *
  * Read-only on purpose: these rows describe what the bot did, and an operator who
  * could edit them would no longer be reading a record.
+ *
+ * The filters are committed by the native main button, not as they are typed: the
+ * text box matches anywhere inside a run's output or error message, which no index
+ * can serve, so a query per keystroke would scan the whole table.
  */
 import { computed, ref, watch } from "vue";
 import { useRouter } from "vue-router";
@@ -18,7 +22,8 @@ import SettingsSection from "@/components/SettingsSection.vue";
 import StateBlock from "@/components/StateBlock.vue";
 import TextField from "@/components/TextField.vue";
 import { useAsyncData } from "@/composables/useAsyncData";
-import { useDebouncedRef } from "@/composables/useDebouncedRef";
+import { useDirtyState } from "@/composables/useDirtyState";
+import { useMainButton } from "@/composables/useMainButton";
 import { t } from "@/i18n";
 import { formatDateTime, formatTokens, truncate } from "@/utils/format";
 
@@ -40,38 +45,35 @@ const KINDS: AgentRunKind[] = [
 
 const STATUSES: AgentRunStatus[] = ["ok", "error", "timeout", "cancelled", "rejected"];
 
+interface FilterBoxes {
+  sessionId: string;
+  chatId: string;
+  userId: string;
+  kind: string;
+  status: string;
+  since: string;
+  until: string;
+  search: string;
+}
+
+function blank(): FilterBoxes & Record<string, unknown> {
+  return {
+    sessionId: "",
+    chatId: "",
+    userId: "",
+    kind: "",
+    status: "",
+    since: "",
+    until: "",
+    search: "",
+  };
+}
+
 const router = useRouter();
 const page = ref(1);
 
-/** Edited filter values; copied into `applied` as they settle. */
-const sessionId = ref("");
-const chatId = ref("");
-const userId = ref("");
-const kind = ref("");
-const status = ref("");
-const since = ref("");
-const until = ref("");
-const search = ref("");
-
-/**
- * The boxes as one snapshot, debounced before it reaches the query.
- *
- * Every other list in the panel lets the query follow the box rather than asking the
- * operator to commit it, and the delay is what keeps a half-typed id from being
- * queried a character at a time. A date that is still incomplete parses to
- * `undefined`, so it narrows nothing until it names a real moment.
- */
-const boxes = computed(() => ({
-  sessionId: sessionId.value,
-  chatId: chatId.value,
-  userId: userId.value,
-  kind: kind.value,
-  status: status.value,
-  since: since.value,
-  until: until.value,
-  search: search.value,
-}));
-const settled = useDebouncedRef(boxes);
+/** The filter boxes, edited freely and searched when the operator says so. */
+const form = useDirtyState<FilterBoxes & Record<string, unknown>>(blank());
 
 /**
  * The committed filters, typed by the API's own query shape.
@@ -82,7 +84,11 @@ const settled = useDebouncedRef(boxes);
  */
 const applied = ref<Omit<AgentRunQuery, "page" | "size">>({});
 
-const hasFilters = computed(() => Object.keys(applied.value).length > 0);
+// Values, not keys: every key is written on every search, an unused one as
+// `undefined`, so the key count would stay at eight however little is filtered.
+const hasFilters = computed(() =>
+  Object.values(applied.value).some((value) => value !== undefined),
+);
 
 const kindOptions = computed(() => [
   { value: "", text: t("agentRuns.filters.all") },
@@ -118,15 +124,40 @@ function parseId(raw: string): number | undefined {
   return Number(value);
 }
 
-function resetFilters(): void {
-  sessionId.value = "";
-  chatId.value = "";
-  userId.value = "";
-  kind.value = "";
-  status.value = "";
-  since.value = "";
-  until.value = "";
-  search.value = "";
+/**
+ * Commit the boxes to the query.
+ *
+ * Nothing is searched until this runs: the text box matches anywhere inside a run's
+ * output or error message, which no index can serve, so following the box as it is
+ * typed would scan the table on every pause.
+ */
+function applyFilters(): void {
+  const boxes = form.draft.value;
+  applied.value = {
+    session_id: boxes.sessionId.trim() || undefined,
+    chat_id: parseId(boxes.chatId),
+    user_id: parseId(boxes.userId),
+    kind: boxes.kind || undefined,
+    status: boxes.status || undefined,
+    since: parseMoment(boxes.since, false),
+    until: parseMoment(boxes.until, true),
+    q: boxes.search.trim() || undefined,
+  };
+  // The boxes are the new baseline: what is on screen is what the list shows.
+  form.commit(boxes);
+  if (page.value !== 1) {
+    // The page watcher reloads, so a filtered list never asks for a page it did not
+    // reset - an empty page 4 is indistinguishable from "nothing matched".
+    page.value = 1;
+    return;
+  }
+  void runs.reload();
+}
+
+/** Drop both the edits and the applied filters. */
+function clearFilters(): void {
+  form.commit(blank());
+  applyFilters();
 }
 
 const runs = useAsyncData((signal) =>
@@ -140,24 +171,19 @@ const runs = useAsyncData((signal) =>
   ),
 );
 
-watch(settled, (boxes) => {
-  applied.value = {
-    session_id: boxes.sessionId.trim() || undefined,
-    chat_id: parseId(boxes.chatId),
-    user_id: parseId(boxes.userId),
-    kind: boxes.kind || undefined,
-    status: boxes.status || undefined,
-    since: parseMoment(boxes.since, false),
-    until: parseMoment(boxes.until, true),
-    q: boxes.search.trim() || undefined,
-  };
-  if (page.value !== 1) {
-    // The page watcher reloads, so a filtered list never asks for a page it did not
-    // reset - an empty page 4 is indistinguishable from "nothing matched".
-    page.value = 1;
-    return;
-  }
-  void runs.reload();
+useMainButton({
+  text: () => t("agentRuns.filters.search"),
+  // Always there: searching is an action on this page, not a save, and re-running
+  // the same query after new runs arrive is normal.
+  visible: () => true,
+  enabled: () => !runs.loading.value,
+  loading: () => runs.loading.value,
+  onClick: applyFilters,
+  secondary: {
+    text: () => t("agentRuns.filters.reset"),
+    visible: () => hasFilters.value || form.isDirty.value,
+    onClick: clearFilters,
+  },
 });
 
 watch(page, () => void runs.reload());
@@ -201,50 +227,60 @@ function open(runId: number): void {
 
   <SettingsSection>
     <TextField
-      v-model="sessionId"
+      v-model="form.draft.value.sessionId"
       :label="t('agentRuns.filters.sessionId')"
       :placeholder="t('agentRuns.filters.sessionIdPlaceholder')"
       :maxlength="32"
+      :changed="form.changedFields.value.includes('sessionId')"
     />
     <TextField
-      v-model="chatId"
+      v-model="form.draft.value.chatId"
       :label="t('agentRuns.filters.chatId')"
+      :hint="t('agentRuns.filters.chatIdHint')"
       inputmode="numeric"
       :maxlength="24"
+      :changed="form.changedFields.value.includes('chatId')"
     />
     <TextField
-      v-model="userId"
+      v-model="form.draft.value.userId"
       :label="t('agentRuns.filters.userId')"
       inputmode="numeric"
       :maxlength="24"
+      :changed="form.changedFields.value.includes('userId')"
     />
-    <SelectField v-model="kind" :label="t('agentRuns.filters.kind')" :options="kindOptions" />
-    <SelectField v-model="status" :label="t('agentRuns.filters.status')" :options="statusOptions" />
+    <SelectField
+      v-model="form.draft.value.kind"
+      :label="t('agentRuns.filters.kind')"
+      :options="kindOptions"
+      :changed="form.changedFields.value.includes('kind')"
+    />
+    <SelectField
+      v-model="form.draft.value.status"
+      :label="t('agentRuns.filters.status')"
+      :options="statusOptions"
+      :changed="form.changedFields.value.includes('status')"
+    />
     <TextField
-      v-model="since"
+      v-model="form.draft.value.since"
       :label="t('agentRuns.filters.since')"
       placeholder="2026-09-01 00:00"
       :maxlength="20"
+      :changed="form.changedFields.value.includes('since')"
     />
     <TextField
-      v-model="until"
+      v-model="form.draft.value.until"
       :label="t('agentRuns.filters.until')"
       placeholder="2026-09-30"
       :maxlength="20"
+      :changed="form.changedFields.value.includes('until')"
     />
     <TextField
-      v-model="search"
+      v-model="form.draft.value.search"
       :label="t('agentRuns.filters.search')"
       :placeholder="t('agentRuns.filters.searchPlaceholder')"
       inputmode="search"
       :maxlength="128"
-    />
-    <SettingsRow
-      v-if="hasFilters"
-      :label="t('agentRuns.filters.reset')"
-      navigable
-      destructive
-      @click="resetFilters"
+      :changed="form.changedFields.value.includes('search')"
     />
   </SettingsSection>
 
