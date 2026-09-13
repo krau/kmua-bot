@@ -21,6 +21,7 @@ import PageHeader from "@/components/PageHeader.vue";
 import SettingsRow from "@/components/SettingsRow.vue";
 import SettingsSection from "@/components/SettingsSection.vue";
 import StateBlock from "@/components/StateBlock.vue";
+import ToggleSwitch from "@/components/ToggleSwitch.vue";
 import { useAsyncData } from "@/composables/useAsyncData";
 import { t, tError } from "@/i18n";
 import { formatDateTime, formatNumber, truncate } from "@/utils/format";
@@ -104,6 +105,11 @@ async function toggle(seq: number): Promise<void> {
   } finally {
     if (current()) eventLoading.value = false;
   }
+}
+
+/** A step whose payload is a transcript, so the switch between forms applies to it. */
+function isMessageEvent(row: (typeof events.value)[number]): boolean {
+  return row.kind === "model_request" || row.kind === "model_response";
 }
 
 function eventHint(row: (typeof events.value)[number]): string {
@@ -218,14 +224,14 @@ function summaryItems(data: NonNullable<typeof run.value>): DefinitionItem[] {
       </SettingsSection>
 
       <SettingsSection v-if="run.output_text" :label="t('agentRuns.detail.output')">
-        <p class="bg-bg whitespace-pre-wrap break-words px-related py-related text-sub">
+        <p class="px-related py-related text-sub whitespace-pre-wrap break-words">
           {{ run.output_text }}
         </p>
       </SettingsSection>
 
       <SettingsSection v-if="run.error_message" :label="t('agentRuns.detail.error')">
         <p
-          class="bg-bg text-danger dark:text-danger-dark whitespace-pre-wrap break-words px-related py-related font-mono text-note"
+          class="text-danger dark:text-danger-dark px-related py-related font-mono text-note whitespace-pre-wrap break-words"
         >
           {{ run.error_message }}
         </p>
@@ -243,6 +249,14 @@ function summaryItems(data: NonNullable<typeof run.value>): DefinitionItem[] {
             navigable
             @click="toggle(row.seq)"
           />
+          <SettingsRow
+            v-if="openSeq === row.seq && isMessageEvent(row)"
+            :label="t('agentRuns.detail.rawJson')"
+          >
+            <template #control>
+              <ToggleSwitch v-model="showRaw" :aria-label="t('agentRuns.detail.rawJson')" />
+            </template>
+          </SettingsRow>
           <div
             v-if="openSeq === row.seq"
             class="border-line border-b px-related py-related last:border-b-0"
@@ -252,46 +266,27 @@ function summaryItems(data: NonNullable<typeof run.value>): DefinitionItem[] {
               {{ eventError }}
             </p>
             <template v-else-if="event">
-              <p v-if="event.truncated" class="mb-tight text-note text-hint">
+              <p v-if="event.truncated" class="mb-related text-note text-hint">
                 {{ t("agentRuns.detail.truncated") }}
               </p>
 
-              <template v-if="event.kind === 'model_request' || event.kind === 'model_response'">
-                <div class="mb-related flex gap-related">
-                  <button
-                    type="button"
-                    class="text-sub underline"
-                    :class="showRaw ? 'text-hint' : 'text-accent dark:text-accent-dark'"
-                    @click="showRaw = false"
-                  >
-                    {{ t("agentRuns.detail.conversation") }}
-                  </button>
-                  <button
-                    type="button"
-                    class="text-sub underline"
-                    :class="showRaw ? 'text-accent dark:text-accent-dark' : 'text-hint'"
-                    @click="showRaw = true"
-                  >
-                    {{ t("agentRuns.detail.rawJson") }}
-                  </button>
-                </div>
-
+              <template v-if="isMessageEvent(row)">
                 <template v-if="event.kind === 'model_request' && !showRaw">
                   <div v-if="instructionsJson" class="mb-related">
                     <p class="mb-tight text-note text-hint">
                       {{ t("agentRuns.detail.instructions") }}
                     </p>
-                    <pre
-                      class="bg-bg rounded-container overflow-x-auto px-related py-related font-mono text-note whitespace-pre-wrap break-all"
-                      >{{ instructionsJson }}</pre>
+                    <pre class="font-mono text-note whitespace-pre-wrap break-all">{{
+                      instructionsJson
+                    }}</pre>
                   </div>
                   <div v-if="settingsJson" class="mb-related">
                     <p class="mb-tight text-note text-hint">
                       {{ t("agentRuns.detail.settings") }}
                     </p>
-                    <pre
-                      class="bg-bg rounded-container overflow-x-auto px-related py-related font-mono text-note whitespace-pre-wrap break-all"
-                      >{{ settingsJson }}</pre>
+                    <pre class="font-mono text-note whitespace-pre-wrap break-all">{{
+                      settingsJson
+                    }}</pre>
                   </div>
                 </template>
 
@@ -306,7 +301,7 @@ function summaryItems(data: NonNullable<typeof run.value>): DefinitionItem[] {
                       }}<template v-if="block.toolName"> · {{ block.toolName }}</template>
                     </p>
                     <pre
-                      class="bg-bg rounded-container overflow-x-auto px-related py-related whitespace-pre-wrap break-all"
+                      class="whitespace-pre-wrap break-all"
                       :class="
                         block.kind === 'tool-call' || block.kind === 'tool-return'
                           ? 'font-mono text-note'
@@ -316,16 +311,14 @@ function summaryItems(data: NonNullable<typeof run.value>): DefinitionItem[] {
                   </div>
                 </div>
 
-                <pre
-                  v-if="showRaw"
-                  class="bg-bg rounded-container overflow-x-auto px-related py-related font-mono text-note whitespace-pre-wrap break-all"
-                  >{{ payloadJson }}</pre>
+                <pre v-if="showRaw" class="font-mono text-note whitespace-pre-wrap break-all">{{
+                  payloadJson
+                }}</pre>
               </template>
 
-              <pre
-                v-else
-                class="bg-bg rounded-container overflow-x-auto px-related py-related font-mono text-note whitespace-pre-wrap break-all"
-                >{{ payloadJson }}</pre>
+              <pre v-else class="font-mono text-note whitespace-pre-wrap break-all">{{
+                payloadJson
+              }}</pre>
             </template>
           </div>
         </template>
