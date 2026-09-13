@@ -302,7 +302,10 @@ async def record_and_charge(
     output_tokens: int,
     session: AsyncSession | None = None,
 ) -> None:
-    """记一次 run 的用量并按用量扣费, 同一事务完成。"""
+    """记一次 run 的用量并按用量扣费, 同一事务完成。
+
+    `charge_accounts` 为空表示只记账不扣费: 豁免账户的用量仍要能被 /quota 与面板
+    统计出来。"""
     assert session is not None
     await record_usage(accounts, day, input_tokens, output_tokens, session=session)
     await charge_tokens(

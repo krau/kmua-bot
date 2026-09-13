@@ -231,16 +231,19 @@ async def settle(subject: Subject, usage: RunUsage | None) -> None:
     用量记到本次调用涉及的每个账户上(含被群池或别人的余额付款的那一次), 面板因此
     能看到群的真实消耗; 扣减则由 `database.charge_tokens` 按固定顺序完成, 且与记账
     同属一个事务。
-    豁免的账户不计数也不扣费 —— 这正是"豁免"的含义。
+    豁免只免扣费, 不免统计 —— 不记的话 /quota 与面板就看不到 owner、全局管理员和
+    豁免群实际花掉的 token。
     """
     accounts, exempt = await _plan(subject)
-    if exempt:
-        return
     day = database.utc_day()
     input_tokens = int(getattr(usage, "input_tokens", 0) or 0)
     output_tokens = int(getattr(usage, "output_tokens", 0) or 0)
     await database.record_and_charge(
-        subject.accounts(), accounts, day, input_tokens, output_tokens
+        subject.accounts(),
+        () if exempt else accounts,
+        day,
+        input_tokens,
+        output_tokens,
     )
 
 

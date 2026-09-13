@@ -322,17 +322,33 @@ async def test_a_contended_non_last_payer_never_falls_into_debt(monkeypatch):
 # ------------------------------------------------------------------ exemption
 
 
-async def test_exempt_chat_is_never_charged():
+async def test_an_exempt_chat_is_recorded_but_never_charged():
+    """豁免免的是收费, 不是统计: 运维要从 /quota 和面板看到这台 bot 到底花了多少。"""
     await database.set_chat_policy(GROUP_ID, ChatPolicy(agent_quota_exempt=True))
 
     assert await quota.can_start(group_subject()) is True
     await quota.settle(group_subject(), RunUsage(input_tokens=5000, output_tokens=5000))
 
-    assert await usage_rows() == []
+    for scope, scope_id in group_subject().accounts():
+        requests, free_used, input_tokens, output_tokens = await database.get_usage(
+            scope, scope_id, database.utc_day()
+        )
+        # 记账照旧, 免费额度不动: 没有发生任何扣减。
+        assert (requests, free_used, input_tokens, output_tokens) == (
+            1,
+            0,
+            5_000,
+            5_000,
+        )
     assert await database.get_credit(database.SCOPE_USER, PLAIN_ID) == 0
+    assert await database.get_credit(database.SCOPE_CHAT, GROUP_ID) == 0
+
+    # 这些用量必须能从 /quota 查出来, 否则"被统计"只发生在数据库里。
+    text = quota.status_text(await quota.get_state(group_subject()), "zh-CN")
+    assert "10.0k tokens" in text
 
 
-async def test_owner_and_global_admin_are_exempt(monkeypatch):
+async def test_owner_and_global_admin_are_recorded_but_never_charged(monkeypatch):
     monkeypatch.setattr(app_config, "owners", [OWNER_ID], raising=False)
     await make_user(GLOBAL_ADMIN_ID, full_name="Admin", global_admin=True)
 
@@ -341,7 +357,16 @@ async def test_owner_and_global_admin_are_exempt(monkeypatch):
         assert await quota.can_start(subject) is True
         await quota.settle(subject, RunUsage(input_tokens=9999, output_tokens=9999))
 
-    assert await usage_rows() == []
+        requests, free_used, input_tokens, output_tokens = await database.get_usage(
+            database.SCOPE_USER, user_id, database.utc_day()
+        )
+        assert (requests, free_used, input_tokens, output_tokens) == (
+            1,
+            0,
+            9_999,
+            9_999,
+        )
+        assert await database.get_credit(database.SCOPE_USER, user_id) == 0
 
 
 async def test_zero_free_daily_means_unlimited_but_still_metered(monkeypatch):
