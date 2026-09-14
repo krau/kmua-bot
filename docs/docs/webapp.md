@@ -4,14 +4,12 @@ kmua 内置一个基于 [Telegram Mini Apps](https://core.telegram.org/bots/weba
 
 ## 前置条件
 
-Telegram 只会打开 **HTTPS** 的 Mini App, 所以你需要:
-
-1. 一个域名, 以及一个在前面终止 TLS 的反向代理
+1. 域名及其证书
 2. 在 [@BotFather](https://t.me/BotFather) 为 bot 注册一个 Mini App
 
-前端产物已经打进镜像, 服务器上不需要装 Node 或跑构建.
+使用 docker 部署时, 前端产物已经打包进镜像
 
-## 1. 注册 Mini App
+## 注册 Mini App
 
 在 [@BotFather](https://t.me/BotFather) 里发 `/newapp`, 选择你的 bot, 然后按提示填写:
 
@@ -25,15 +23,9 @@ Telegram 只会打开 **HTTPS** 的 Mini App, 所以你需要:
 
 Web App URL 要和配置里的 `webapp_url` 完全一致, Short name 要和 `webapp_short_name` 一致.
 
-## 2. 配置反向代理
+## 修改配置
 
-面板只监听 HTTP, TLS 由反代终止. API 和页面由同一个服务提供, 所以整个域名转发到同一个后端即可, 不要只转发 `/`.
-
-`X-Forwarded-For` 需要透传, 否则限流会把所有请求算到反代身上, 一个人触发限流会影响所有用户.
-
-## 3. 改配置
-
-在 `settings.toml` 里加三行:
+在 `settings.toml` 里添加如下配置:
 
 ```toml
 webapp = true
@@ -41,34 +33,13 @@ webapp_url = "https://panel.example.com"
 webapp_short_name = "panel"
 ```
 
-其余选项都有合理默认值.
-
-## 4. 启动并验证
+## 启动
 
 ```bash
 docker compose pull
 docker compose up -d
 docker compose logs -f kmua
 ```
-
-日志里应该看到:
-
-```
-webapp: listening on http://0.0.0.0:8180 (panel + health)
-```
-
-`(panel + health)` 是关键. 如果显示 `(health only)`, 说明配置没通过检查, 上一行会有 error 说明原因.
-
-## 入口
-
-| 位置 | 怎么打开 |
-| --- | --- |
-| 私聊 | `/start` 里的"管理面板"按钮, 或聊天框旁的菜单按钮 |
-| 群内 | `/panel` 直达本群配置页; `/config` 面板底部也有同样的按钮; `/start` 对本群 bot 管理员也会显示 |
-
-群内的入口是一个链接而不是 Mini App 按钮: Telegram 只在私聊里给 `web_app` 按钮传递启动参数, 群里要用 `t.me/<bot>/<short_name>?startapp=` 的形式. 所以 `webapp_short_name` 必须和 BotFather 注册的一致, 否则群内入口不会出现.
-
-群内 `/panel` 和 `/config` 都需要本群的 bot 管理权限.
 
 ## 完整配置项
 
@@ -87,17 +58,3 @@ webapp: listening on http://0.0.0.0:8180 (panel + health)
 | `webapp_trusted_proxies` | `["127.0.0.1", "::1"]` | 信任其 `X-Forwarded-For` 的地址 |
 | `webapp_static_dir` | `""` | 前端产物目录, 留空用镜像内置的 |
 | `webapp_admin_edit_user` | `true` | 是否允许后台编辑用户信息 |
-
-## 关闭面板
-
-面板出问题时不需要回滚镜像, 关掉即可:
-
-```toml
-webapp = false
-```
-
-```bash
-docker compose restart kmua
-```
-
-bot 的全部聊天功能不受影响, 健康检查照常工作. 群配置仍可用 `/config` 的 inline 键盘操作.

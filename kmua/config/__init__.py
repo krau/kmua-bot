@@ -65,8 +65,6 @@ class _AppConfig(pydantic.BaseModel):
     # serves /health and /ready with identical semantics. When `webapp_host` /
     # `webapp_port` are left at their defaults, these values are used instead.
     health_check_enabled: bool = False
-    health_check_host: str = "localhost"
-    health_check_port: int = 8180
 
     # Telegram Mini App management panel.
     #
@@ -424,9 +422,6 @@ class _AppConfig(pydantic.BaseModel):
     agent_usage_tool_calls_limit: int = 0
     agent_usage_total_tokens_limit: int = 0
     # 每个用户每天的免费 agent 用量, 单位是 token (输入 + 输出), 跨群共享, 按 UTC 日重置。
-    # 0 = 不限制(仍照常记账)。owners 与全局管理员不计费; 被面板标记豁免的群同样不计费。
-    # 免费额度用尽后从该用户的额度余额(credits, 由面板发放)扣; 仍不够时这次调用照常跑完并
-    # 如实记成负余额, 由下一次调用的预检拒绝。
     agent_quota_free_daily_tokens: int = 100_000
     # Record every agent run and its steps (model requests and responses, tool
     # calls and results) and expose them read-only in the panel. Off means no
