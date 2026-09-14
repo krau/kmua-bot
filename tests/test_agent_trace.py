@@ -824,6 +824,88 @@ async def test_cleanup_removes_only_old_runs_and_their_events():
     assert await dao.get_run(rows[0].id) is None
 
 
+async def test_cleanup_removes_a_conversation_only_when_it_goes_quiet():
+    """A conversation's records are increments of one another: all or nothing."""
+    old = datetime.now(UTC) - timedelta(days=40)
+    recent = datetime.now(UTC)
+    drafts = [
+        dao.AgentRunDraft(
+            kind="chat",
+            status="ok",
+            session_id="01a00000-0000-7000-8000-00000000000a",
+            started_at=started,
+            finished_at=started,
+            duration_ms=0,
+            events=(dao.AgentRunEventDraft(seq=1, kind="steering", payload=None),),
+        )
+        for started in (old, recent)
+    ]
+    drafts.extend(
+        dao.AgentRunDraft(
+            kind="chat",
+            status="ok",
+            session_id="01a00000-0000-7000-8000-00000000000b",
+            started_at=started,
+            finished_at=started,
+            duration_ms=0,
+            events=(dao.AgentRunEventDraft(seq=1, kind="steering", payload=None),),
+        )
+        for started in (old, old + timedelta(days=1))
+    )
+    await dao.record_trace(drafts)
+
+    removed = await dao.delete_runs_before(datetime.now(UTC) - timedelta(days=30))
+    # The quiet conversation is gone entirely - both of its runs, not just the old
+    # one - and the conversation that is still talking keeps everything.
+    assert removed == 2
+    kept = [
+        (row.session_id, row.started_at.replace(tzinfo=None)) for row in await runs()
+    ]
+    assert sorted(kept) == sorted(
+        [
+            ("01a00000-0000-7000-8000-00000000000a", recent.replace(tzinfo=None)),
+            ("01a00000-0000-7000-8000-00000000000a", old.replace(tzinfo=None)),
+        ]
+    )
+    assert (
+        await dao.session_has_stored_requests("01a00000-0000-7000-8000-00000000000b")
+        is False
+    )
+
+
+async def test_the_run_after_the_cleanup_is_written_whole_again():
+    """Nothing left on record means the next turn has nothing to increment."""
+    seen: list[list[Any]] = []
+    provider = _conversation(seen)
+
+    first = await _turn(provider, "hello")
+    second = await _turn(provider, "again", history=first.all_messages())
+    session_id = (await runs())[0].session_id
+    assert session_id is not None
+
+    # The conversation goes quiet and its records fall out of the window.
+    removed = await dao.delete_runs_before(datetime.now(UTC) + timedelta(seconds=5))
+    assert removed == 2
+    assert await runs() == []
+    assert trace._baselines.get(session_id) is not None, (
+        "the process still remembers it"
+    )
+
+    await _turn(provider, "and again", history=second.all_messages())
+
+    *_, third_run = await runs()
+    request = (await stored_events(third_run.id))[0]
+    assert isinstance(request.payload, dict)
+    assert request.payload["messages_total"] == 5
+    assert request.payload["messages_prefix_len"] == 0
+    assert len(request.payload["messages"]) == 5
+    assert "be brief" in json.dumps(request.payload["instruction_parts"])
+
+    replay = await dao.reconstruct_request(third_run.id, request.seq)
+    assert replay is not None
+    assert replay.messages == trace._serialize_messages(seen[2])
+
+
 async def test_paging_filters_and_search():
     now = datetime.now(UTC)
     drafts = [

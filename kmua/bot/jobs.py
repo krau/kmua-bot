@@ -58,7 +58,9 @@ async def _cleanup_agent_traces() -> None:
 
     Runs are the bot's own diagnostics, so they are the first thing to go when the
     window is shortened: the retention is read from config on every pass, and a
-    non-positive value means "keep everything".
+    non-positive value means "keep everything". A conversation goes as a whole, once
+    none of its runs is newer than the window - its records are increments of one
+    another, and the newer ones are unreadable without the older ones.
     """
     retention = app_config.agent_trace_retention_days
     if retention <= 0:

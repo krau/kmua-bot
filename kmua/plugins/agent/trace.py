@@ -53,6 +53,7 @@ from kmua.database.agent_trace import (
     AgentRunEventDraft,
     record_rejection,
     record_trace,
+    session_has_stored_requests,
 )
 from kmua.logger import logger
 
@@ -393,6 +394,9 @@ class TraceSession:
         self.prev_request_messages: list[dict[str, Any]] | None = None
         # What this run last recorded, for runs no conversation owns.
         self._instructions: str | None = None
+        # True when this run opens a conversation whose records are gone: its first
+        # request then has nothing to increment and is written whole.
+        self._starts_conversation = False
         self._request_started: float | None = None
         self._tool_started: dict[str, float] = {}
         self._token: Token[TraceSession | None] | None = None
@@ -469,18 +473,19 @@ class TraceSession:
         if self.prev_request_messages is not None:
             return _common_prefix_len(self.prev_request_messages, docs)
         baseline = self._baseline()
-        if baseline is None:
+        if baseline is None or self._starts_conversation:
             return 0
         return _common_prefix_digests(baseline.digests, docs)
 
     def _store_instructions(self, instructions: Any) -> bool:
         """Whether this request has to record its instructions again.
 
-        A request that carries none records that too, because "none" and "unchanged"
-        are different answers.
+        The first request of a conversation always does, because nothing earlier is
+        left to carry them over from. A request that carries none records that too,
+        because "none" and "unchanged" are different answers.
         """
         dump = _instruction_dump(instructions)
-        if dump is None:
+        if dump is None or self._starts_conversation:
             return True
         baseline = self._baseline()
         if baseline is not None:
@@ -591,7 +596,9 @@ async def start_trace(
     A run that belongs to a conversation is stamped with that conversation's
     instance id; a nested run takes its parent's, because it is part of the same
     turn, and work with no conversation of its own (RSS, sticker descriptions) has
-    none.
+    none. Opening a conversation costs one lookup: what this process remembers about
+    it is only a convenience, and a conversation whose records were cleaned up has to
+    start over with a whole request.
 
     Returns None when tracing is off, so every caller can treat the return value
     as "maybe a session" and the whole capture path disappears with the switch.
@@ -614,6 +621,12 @@ async def start_trace(
         model_role=model_role,
         streaming=streaming,
     )
+    if parent is None and session_id is not None and _baselines.get(session_id):
+        # What this process remembers is not proof: the records may have been cleaned
+        # up since. A conversation with nothing on record starts over whole.
+        session._starts_conversation = not await session_has_stored_requests(session_id)
+        if session._starts_conversation:
+            _baselines.pop(session_id, None)
     if parent is not None:
         parent.children.append(session)
         session.parent = parent

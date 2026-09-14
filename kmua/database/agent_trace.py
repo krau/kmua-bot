@@ -357,9 +357,8 @@ async def reconstruct_request(
     Requests store only the messages past their longest common prefix with the
     conversation's previous request, and their instructions only when those changed,
     so replaying the conversation from its first stored request rebuilds both. Returns
-    None when the step is not a model request, when the first request is no longer
-    there (retention removed it, and with it the beginning of every later request),
-    or when a replay does not end at exactly the length each event recorded - a
+    None when the step is not a model request, when a step lost its payload to a size
+    cap, or when a replay does not end at exactly the length each event recorded - a
     partial view is not returned as if it were the truth.
     """
     assert session is not None
@@ -418,19 +417,71 @@ async def delete_runs_before(
 ) -> int:
     """Delete runs started before `cutoff` and their events; returns the run count.
 
+    A run that belongs to a conversation is only deleted once the whole conversation
+    is older than the cutoff: its records are increments of one another, so the newer
+    ones are unreadable without the older ones and there is nothing to rebuild them
+    from. A run with no conversation is on its own and goes by age.
+
     Both deletes happen here rather than through `ON DELETE CASCADE`: SQLite in
     this project never enables `PRAGMA foreign_keys`, and the tables declare no
     foreign keys anyway.
     """
     assert session is not None
-    expired = sqlalchemy.select(AgentRun.id).where(AgentRun.started_at < cutoff)
+    idle_sessions = (
+        sqlalchemy.select(AgentRun.session_id)
+        .where(AgentRun.session_id.is_not(None))
+        .group_by(AgentRun.session_id)
+        .having(sqlalchemy.func.max(AgentRun.started_at) < cutoff)
+    )
+    # One statement picks the runs to drop, then both tables are emptied by id: the
+    # selection cannot shift between the two deletes, and the caller's count is what
+    # the selection found rather than what each delete happened to touch.
+    expired = list(
+        (
+            await session.execute(
+                sqlalchemy.select(AgentRun.id).where(
+                    sqlalchemy.or_(
+                        sqlalchemy.and_(
+                            AgentRun.session_id.is_(None), AgentRun.started_at < cutoff
+                        ),
+                        AgentRun.session_id.in_(idle_sessions),
+                    )
+                )
+            )
+        )
+        .scalars()
+        .all()
+    )
+    if not expired:
+        return 0
     await session.execute(
         sqlalchemy.delete(AgentRunEvent).where(AgentRunEvent.run_id.in_(expired))
     )
-    result = await session.execute(
-        sqlalchemy.delete(AgentRun).where(AgentRun.started_at < cutoff)
+    await session.execute(sqlalchemy.delete(AgentRun).where(AgentRun.id.in_(expired)))
+    return len(expired)
+
+
+@with_session
+async def session_has_stored_requests(
+    session_id: str, session: AsyncSession | None = None
+) -> bool:
+    """Whether one conversation already has a request on record.
+
+    The capture side asks before it decides what to store: a conversation whose
+    records were cleaned up has nothing left to increment, so its next request has
+    to be written whole.
+    """
+    assert session is not None
+    stmt = (
+        sqlalchemy.select(AgentRunEvent.id)
+        .join(AgentRun, AgentRun.id == AgentRunEvent.run_id)
+        .where(
+            AgentRun.session_id == session_id,
+            AgentRunEvent.kind == "model_request",
+        )
+        .limit(1)
     )
-    return int(result.rowcount or 0)  # type: ignore[attr-defined]
+    return (await session.execute(stmt)).first() is not None
 
 
 __all__ = [
@@ -450,5 +501,6 @@ __all__ = [
     "record_rejection",
     "record_trace",
     "reconstruct_request",
+    "session_has_stored_requests",
     "reconstruct_request_messages",
 ]

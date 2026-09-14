@@ -859,7 +859,10 @@ class AgentRun(Base):
     # replaced when that thread starts over (/forget) or the process restarts. Runs
     # with no conversation of their own (RSS work, sticker descriptions) leave it
     # null; nested runs (compaction, transcription) inherit their parent's.
-    session_id: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    # Indexed: cleanup groups by it and the capture side looks it up every turn.
+    session_id: Mapped[str | None] = mapped_column(
+        String(32), nullable=True, index=True
+    )
     chat_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
     user_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
     message_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
