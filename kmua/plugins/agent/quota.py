@@ -165,7 +165,9 @@ async def _plan(subject: Subject) -> tuple[list[database.ChargeAccount], bool]:
         exempt = exempt or policy.agent_quota_exempt
         accounts.append(
             database.ChargeAccount(
-                SCOPE_CHAT, subject.chat_id, policy.agent_quota_daily_tokens
+                SCOPE_CHAT,
+                subject.chat_id,
+                database.agent_free_daily_tokens(policy),
             )
         )
     return accounts, exempt

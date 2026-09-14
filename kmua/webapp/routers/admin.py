@@ -322,7 +322,10 @@ async def _agent_usage_out(scope: str, scope_id: int, exempt: bool) -> AgentUsag
         limit = app_config.agent_quota_free_daily_tokens
         free_limit = None if limit <= 0 else limit
     else:
-        free_limit = (await database.get_chat_policy(scope_id)).agent_quota_daily_tokens
+        # The allowance the chat is actually charged against, which is the policy's own
+        # number unless that is 0 and the deployment sets a default.
+        policy = await database.get_chat_policy(scope_id)
+        free_limit = database.agent_free_daily_tokens(policy)
     return AgentUsageOut(
         scope=scope,
         scope_id=scope_id,

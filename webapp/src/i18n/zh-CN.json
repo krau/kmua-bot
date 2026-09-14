@@ -359,7 +359,7 @@
     "quotaExempt": "本群不受额度限制",
     "quotaExemptHint": "开启后本群完全不计费也不限额",
     "quotaDaily": "每日群额度 (tokens)",
-    "quotaDailyHint": "个人额度用尽后群内共享; 0 = 不分配",
+    "quotaDailyHint": "个人额度用尽后群内共享; 0 = 用全局默认",
     "quotaDailyNone": "未分配",
     "quotaCredits": "群额度余额 (tokens)",
     "quotaUsage": "今日群用量"

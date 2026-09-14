@@ -359,7 +359,7 @@
     "quotaExempt": "No quota limit in this chat",
     "quotaExemptHint": "Members and channel posts here are never charged or limited",
     "quotaDaily": "Daily chat allowance (tokens)",
-    "quotaDailyHint": "Shared by members after their own allowance; 0 = none",
+    "quotaDailyHint": "Shared by members after their own allowance; 0 = the deployment default",
     "quotaDailyNone": "Not allocated",
     "quotaCredits": "Chat credit balance (tokens)",
     "quotaUsage": "Usage today"

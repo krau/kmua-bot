@@ -20,6 +20,7 @@ from __future__ import annotations
 import sqlalchemy
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from kmua.config import app_config
 from kmua.logger import logger
 
 from .db import with_session, with_tx
@@ -227,8 +228,21 @@ async def count_chat_policies(session: AsyncSession | None = None) -> int:
     return result.scalar() or 0
 
 
+def agent_free_daily_tokens(policy: ChatPolicy) -> int:
+    """This chat's daily free agent allowance, in tokens.
+
+    A chat's own number wins when it is positive; otherwise the deployment-wide
+    default applies, so an operator can hand every group an allowance without
+    editing each one. 0 means the chat has none.
+    """
+    return (
+        policy.agent_quota_daily_tokens or app_config.agent_quota_chat_free_daily_tokens
+    )
+
+
 __all__ = [
     "agent_allowed_cache",
+    "agent_free_daily_tokens",
     "count_chat_policies",
     "delete_chat_policy",
     "get_chat_policies",

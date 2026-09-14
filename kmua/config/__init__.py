@@ -423,6 +423,9 @@ class _AppConfig(pydantic.BaseModel):
     agent_usage_total_tokens_limit: int = 0
     # 每个用户每天的免费 agent 用量, 单位是 token (输入 + 输出), 跨群共享, 按 UTC 日重置。
     agent_quota_free_daily_tokens: int = 100_000
+    # 每个群每天的免费 agent 用量, 单位是 token, 按 UTC 日重置, 群内共享: 成员的个人免费
+    # 额度用尽后从群额度扣。群策略里自己设了正数就按群里的; 0 = 没有全局默认, 群不分配额度。
+    agent_quota_chat_free_daily_tokens: int = 0
     # Record every agent run and its steps (model requests and responses, tool
     # calls and results) and expose them read-only in the panel. Off means no
     # session is created and no row is written; the switch is read per run.
