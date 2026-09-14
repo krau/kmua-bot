@@ -1,12 +1,14 @@
 from dataclasses import dataclass, field
 from enum import StrEnum
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from powermem import AsyncMemory
 from pydantic import BaseModel, Field
 from pydantic_ai import ModelMessage
 from pyrogram.client import Client as PyrogramClient
 from pyrogram.types import Message
+
+if TYPE_CHECKING:
+    from powermem import AsyncMemory
 
 
 class ChatMemoryy(BaseModel):
@@ -148,7 +150,7 @@ class ContextDeps:
     chat_id: int
     message: Message
     instructions: str = ""
-    powermemory: AsyncMemory | None = None
+    powermemory: "AsyncMemory | None" = None
     multimodal_model: Any | None = None
     history: list[ModelMessage] = field(default_factory=list)
     tools_called_this_turn: set[str] = field(default_factory=set)

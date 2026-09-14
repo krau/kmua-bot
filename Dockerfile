@@ -24,7 +24,7 @@ COPY pyproject.toml uv.lock ./
 RUN apt-get update && \
     apt-get install -y --no-install-recommends gcc g++ make build-essential git graphviz ca-certificates ffmpeg curl \
         python3 python3-dev jq zip unzip sqlite3 wget tree nodejs npm tini && \
-    uv sync --frozen --no-dev && \
+    uv sync --frozen --no-dev --compile-bytecode && \
     uv pip install pip && \
     apt-get purge -y --auto-remove gcc g++ make build-essential python3-dev && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
@@ -35,6 +35,7 @@ RUN curl -fsSL -o /usr/local/bin/landrun \
     && chmod +x /usr/local/bin/landrun
 
 COPY . .
+RUN .venv/bin/python -m compileall -q -j 0 kmua
 # Where the FastAPI app looks for the bundle by default.
 COPY --from=webui /build/kmua/webapp/dist /kmua/kmua/webapp/dist
 

@@ -5,7 +5,6 @@ from typing import Any
 import pyrogram
 import pyrogram.errors
 from aiocache import SimpleMemoryCache
-from powermem import AsyncMemory
 from pydantic_ai import (
     Agent,
     ModelMessage,
@@ -60,6 +59,11 @@ powermemory = None
 powermemory_ready = False
 
 if app_config.agent_powermem_config is not None:
+    # Imported here instead of at module scope: powermem builds a large pydantic
+    # model tree while importing, and that cost lands on every start even when
+    # group memory is not configured at all.
+    from powermem import AsyncMemory
+
     # for group memory, the key is f"group_{chat_id}"
     # The usage hook rides in the config: powermem's model calls are its own, and the
     # callback is the only place their token usage can be seen.

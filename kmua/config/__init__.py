@@ -522,12 +522,31 @@ def _get_typed_config[T: pydantic.BaseModel](
     return config_class(**config_dict)
 
 
+def _resolve_settings_files() -> list[str]:
+    """Return the settings files to load, as absolute paths, in load order.
+
+    Dynaconf resolves relative names with `inspect.stack()`, which walks the whole
+    interpreter stack building a frame info per frame (source files included) for
+    each candidate name. On a cold container that costs seconds of source reads,
+    and the result is a directory guess this project already knows: the package
+    root (`/kmua` in the image, the checkout when running from source) and the
+    working directory, each optionally with a `config/` subdirectory.
+    """
+    roots = [Path(__file__).resolve().parent.parent.parent, Path.cwd()]
+    resolved: list[str] = []
+    for name in ("settings.toml", "settings.dev.toml"):
+        for root in roots:
+            candidates = (root / name, root / "config" / name)
+            found = next((path for path in candidates if path.is_file()), None)
+            if found is not None:
+                resolved.append(str(found))
+                break
+    return resolved
+
+
 _settings = Dynaconf(
     envvar_prefix="KMUA",
-    settings_files=[
-        "settings.toml",
-        "settings.dev.toml",
-    ],
+    settings_files=_resolve_settings_files(),
     environments=False,
 )
 
