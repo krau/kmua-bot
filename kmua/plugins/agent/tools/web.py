@@ -157,20 +157,42 @@ async def _fetch_crawl_api(url: str) -> WebFetchResult:
     }
 
     timeout = aiohttp.ClientTimeout(total=app_config.agent_crawl_api_timeout)
-    async with aiohttp.ClientSession(timeout=timeout) as session:
-        async with session.post(
-            f"{api_url.rstrip('/')}/crawl",
-            json=payload,
-            headers=headers,
-        ) as resp:
-            if resp.status == 408:
-                return WebFetchResult(
-                    success=False,
-                    url=url,
-                    error="Crawl API timed out",
-                )
-            resp.raise_for_status()
-            data: dict[str, Any] = await resp.json()
+    try:
+        async with aiohttp.ClientSession(timeout=timeout) as session:
+            async with session.post(
+                f"{api_url.rstrip('/')}/crawl",
+                json=payload,
+                headers=headers,
+            ) as resp:
+                if resp.status == 408:
+                    return WebFetchResult(
+                        success=False,
+                        url=url,
+                        error="Crawl API timed out",
+                    )
+                if resp.status in (401, 403):
+                    return WebFetchResult(
+                        success=False,
+                        url=url,
+                        error=(f"Crawl API rejected the request (HTTP {resp.status})"),
+                    )
+                resp.raise_for_status()
+                data: dict[str, Any] = await resp.json()
+    except TimeoutError:
+        return WebFetchResult(
+            success=False,
+            url=url,
+            error=(
+                "Crawl API timed out after "
+                f"{app_config.agent_crawl_api_timeout}s (agent_crawl_api_timeout)"
+            ),
+        )
+    except (aiohttp.ClientConnectionError, aiohttp.ClientPayloadError) as e:
+        return WebFetchResult(
+            success=False,
+            url=url,
+            error=await _crawl_api_error(api_url, e),
+        )
 
     if not data.get("success"):
         results = data.get("results") or []
@@ -198,6 +220,37 @@ async def _fetch_crawl_api(url: str) -> WebFetchResult:
             error="Page returned empty content",
         )
     return WebFetchResult(success=True, url=url, content=_truncate(text))
+
+
+async def _crawl_api_error(api_url: str, error: Exception) -> str:
+    """Explain a crawl API connection failure from the one endpoint needing no token.
+
+    Since 0.9 the server serves an authenticated API only: without
+    `CRAWL4AI_API_TOKEN` it binds the container's own loopback, and a published port
+    then accepts and resets every request. `/health` stays public, so probing it
+    tells "nothing is serving that address" apart from "the server dropped this
+    request".
+    """
+    base = api_url.rstrip("/")
+    status: int | None = None
+    try:
+        async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=5)) as s:
+            async with s.get(f"{base}/health") as resp:
+                status = resp.status
+    except Exception:
+        status = None
+
+    if status is None:
+        return (
+            f"Crawl API at {base} dropped the connection ({error.__class__.__name__}). "
+            "crawl4ai 0.9+ binds its own loopback unless CRAWL4AI_API_TOKEN is set, "
+            "which leaves a published port accepting and resetting requests"
+        )
+    return (
+        f"Crawl API at {base} answered /health with HTTP {status} but dropped the "
+        f"crawl request ({error.__class__.__name__}): check agent_crawl_api_token "
+        "against CRAWL4AI_API_TOKEN and the server's own logs"
+    )
 
 
 def _is_telegram_url(url: str) -> bool:

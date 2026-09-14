@@ -307,6 +307,10 @@ class _AppConfig(pydantic.BaseModel):
     # crawl4ai API server for JS-rendered pages (e.g. docker run crawl4ai)
     # if not set, js=True requests will return an error
     agent_crawl_api_url: str | None = None
+    # crawl4ai >= 0.9 serves an authenticated API: the server must run with
+    # CRAWL4AI_API_TOKEN and this must carry the same value. Without a token the
+    # server binds its own container loopback, and a published port then accepts
+    # and resets every request.
     agent_crawl_api_token: str | None = None
     agent_crawl_api_timeout: int = 60
     agent_model_timeout: int = 120  # Main model timeout (0 = no timeout)
