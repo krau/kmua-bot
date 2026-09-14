@@ -12,7 +12,11 @@ from datetime import UTC, datetime, timedelta, timezone
 import pytest
 
 from kmua.database import agent_trace as store
+from kmua.plugins.agent import trace
 from tests.webapp_helpers import api_client, bearer, make_user, set_owners
+
+# What a stored message carries instead of a second copy of the system prompt.
+_OMITTED = trace._INSTRUCTIONS_OMITTED
 
 pytestmark = pytest.mark.usefixtures("initialised_db")
 
@@ -267,10 +271,119 @@ async def test_a_request_step_returns_the_replayed_messages():
     ]
     assert body["payload"]["messages_total"] == 1
 
+    # This step recorded no instructions of its own, and none were carried over.
+    assert "instructions" not in body["payload"]
+    assert body["instructions"] is None
+    assert body["instructions_inherited"] is False
+
     # Only requests carry a transcript; a tool step reports its payload instead.
     assert tool_event.status_code == 200
     assert tool_event.json()["messages"] is None
     assert tool_event.json()["payload"] == {"tool_call_id": "c1", "result": "echo:x"}
+
+
+async def _seed_conversation(session_id: str) -> tuple[int, int]:
+    """Two steps of one conversation: the second carries its instructions over."""
+    instructions = [{"content": "be brief", "part_kind": "system-prompt"}]
+    first = [
+        {
+            "kind": "request",
+            "parts": [{"content": "hi", "part_kind": "user-prompt"}],
+            "instructions": _OMITTED,
+        }
+    ]
+    second = [
+        *first,
+        {"kind": "response", "parts": [{"content": "sure", "part_kind": "text"}]},
+        {
+            "kind": "request",
+            "parts": [{"content": "more", "part_kind": "user-prompt"}],
+            "instructions": _OMITTED,
+        },
+    ]
+    now = datetime.now(UTC)
+    drafts = [
+        store.AgentRunDraft(
+            kind="chat",
+            status="ok",
+            session_id=session_id,
+            chat_id=CHAT_ID,
+            user_id=USER_ID,
+            started_at=now,
+            finished_at=now,
+            duration_ms=1,
+            events=(
+                _event(
+                    1,
+                    "model_request",
+                    {
+                        "messages_total": 1,
+                        "messages_prefix_len": 0,
+                        "messages": first,
+                        "instruction_parts": instructions,
+                    },
+                ),
+            ),
+        ),
+        store.AgentRunDraft(
+            kind="chat",
+            status="ok",
+            session_id=session_id,
+            chat_id=CHAT_ID,
+            user_id=USER_ID,
+            started_at=now,
+            finished_at=now,
+            duration_ms=1,
+            events=(
+                _event(
+                    1,
+                    "model_request",
+                    {
+                        "messages_total": 3,
+                        "messages_prefix_len": 1,
+                        "messages": second[1:],
+                    },
+                ),
+            ),
+        ),
+    ]
+    await store.record_trace(drafts)
+    page = await store.get_runs_page(1, 10)
+    ids = sorted(run.id for run in page.items)
+    return ids[0], ids[1]
+
+
+async def test_a_step_reports_the_instructions_its_conversation_recorded():
+    """Instructions are written once per conversation, so a step may inherit them."""
+    await make_user(OWNER_ID, full_name="Trace Owner")
+    first_run, second_run = await _seed_conversation(
+        "01a00000-0000-7000-8000-000000000000"
+    )
+
+    async with api_client() as client:
+        headers = bearer(OWNER_ID)
+        own = await client.get(
+            f"/api/admin/agent-runs/{first_run}/events/1", headers=headers
+        )
+        inherited = await client.get(
+            f"/api/admin/agent-runs/{second_run}/events/1", headers=headers
+        )
+
+    assert own.status_code == 200 and inherited.status_code == 200
+    body = inherited.json()
+    assert body["payload"]["messages_prefix_len"] == 1
+    # The transcript is the whole list, rebuilt across the two steps...
+    assert [message["kind"] for message in body["messages"]] == [
+        "request",
+        "response",
+        "request",
+    ]
+    # ...and the instructions come from the step that recorded them.
+    assert body["instructions"] == [
+        {"content": "be brief", "part_kind": "system-prompt"}
+    ]
+    assert body["instructions_inherited"] is True
+    assert own.json()["instructions_inherited"] is False
 
 
 async def test_unknown_ids_are_not_found():

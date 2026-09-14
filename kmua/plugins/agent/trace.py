@@ -14,19 +14,23 @@ records the assembled response, not its deltas), and a run that crashed before i
 finished (the row is written once, at the end).
 
 A request's `messages` are stored as an increment: only the part past the longest
-common prefix with the previous request of the same run. Reading them back means
-replaying the run in order, which `reconstruct_request_messages` does.
+common prefix with the previous request of the same conversation. Instructions are
+stored the same way, and only when they changed. Reading either back means
+replaying the conversation in order, which `reconstruct_request` does.
 """
 
 from __future__ import annotations
 
 import asyncio
 import dataclasses
+import hashlib
 import json
 import time
+from collections import OrderedDict
 from collections.abc import AsyncIterator, Sequence
 from contextlib import asynccontextmanager
 from contextvars import ContextVar, Token
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
 
@@ -68,6 +72,15 @@ _REJECT_TTL_SECONDS = 60
 
 _BINARY_KIND = "binary"
 _OUTPUT_KINDS = {"EndTurn": "end_turn", "AskUserOutput": "ask_user"}
+
+# What a request carries over from the conversation's last one instead of storing
+# again. `_ANCHOR_REQUESTS` bounds how far a replay can have to walk: past that many
+# requests the next one is written whole, so a reader only ever rebuilds a short
+# chain - and a conversation whose oldest runs fell out of retention loses at most
+# that many requests instead of all of them.
+_ANCHOR_REQUESTS = 20
+_MAX_SESSION_BASELINES = 64
+_INSTRUCTIONS_OMITTED = "<instructions: see instruction_parts>"
 
 _UNSET: Any = object()
 
@@ -222,9 +235,21 @@ def _serialize_messages(messages: Sequence[Any]) -> list[dict[str, Any]]:
     Python-mode dump followed by `_json_safe_message`: the pair is total over what
     pydantic-ai puts in a message, which is what keeps a binary body out of the
     database even when a tool returned one inside its own value.
+
+    Every request message repeats the instructions it was sent with - the same
+    system prompt, once per turn of the conversation. Only a marker survives here;
+    the text itself is recorded once per request as `instruction_parts`, and even
+    that only when it changed.
     """
     docs = ModelMessagesTypeAdapter.dump_python(list(messages), mode="python")
-    return [_json_safe_message(doc) for doc in docs]
+    return [_without_instructions(_json_safe_message(doc)) for doc in docs]
+
+
+def _without_instructions(doc: Any) -> Any:
+    """Replace a message's own copy of the system prompt with a marker."""
+    if isinstance(doc, dict) and "instructions" in doc:
+        doc["instructions"] = _INSTRUCTIONS_OMITTED
+    return doc
 
 
 def _common_prefix_len(left: list[dict[str, Any]], right: list[dict[str, Any]]) -> int:
@@ -233,6 +258,58 @@ def _common_prefix_len(left: list[dict[str, Any]], right: list[dict[str, Any]]) 
     while index < length and left[index] == right[index]:
         index += 1
     return index
+
+
+def _digest(doc: dict[str, Any]) -> bytes:
+    """Identity of one message, insensitive to the order its keys were built in."""
+    return hashlib.blake2b(
+        json.dumps(doc, sort_keys=True).encode(), digest_size=16
+    ).digest()
+
+
+def _instruction_dump(value: Any) -> str | None:
+    """A comparable form of a request's dumped instructions, None when it has none."""
+    if value is None or value == []:
+        return None
+    return json.dumps(value, sort_keys=True)
+
+
+def _common_prefix_digests(
+    digests: tuple[bytes, ...], docs: list[dict[str, Any]]
+) -> int:
+    """Longest prefix of `docs` that the digests say is already stored.
+
+    The conversation's baseline is kept as digests rather than as messages: a busy
+    bot holds one history per active conversation, and a long one is megabytes.
+    """
+    length = min(len(digests), len(docs))
+    index = 0
+    while index < length and digests[index] == _digest(docs[index]):
+        index += 1
+    return index
+
+
+@dataclass(slots=True)
+class _Baseline:
+    """What the conversation's previous request already has on disk."""
+
+    digests: tuple[bytes, ...]
+    # The instructions that request recorded; None when it recorded none.
+    instructions: str | None
+    # Requests written since the last whole one, so a replay knows how far it walks.
+    requests: int
+
+
+# One entry per conversation, oldest first. An entry is only ever an optimisation:
+# a miss (evicted, restarted, first turn) writes the history whole instead.
+_baselines: OrderedDict[str, _Baseline] = OrderedDict()
+
+
+def _remember_baseline(session_id: str, baseline: _Baseline) -> None:
+    _baselines[session_id] = baseline
+    _baselines.move_to_end(session_id)
+    while len(_baselines) > _MAX_SESSION_BASELINES:
+        _baselines.popitem(last=False)
 
 
 def _model_name(request_context: ModelRequestContext) -> str:
@@ -320,6 +397,8 @@ class TraceSession:
         self.started_at = datetime.now(UTC)
         self.finished_at: datetime | None = None
         self.prev_request_messages: list[dict[str, Any]] | None = None
+        # What this run last recorded, for runs no conversation owns.
+        self._instructions: str | None = None
         self._request_started: float | None = None
         self._tool_started: dict[str, float] = {}
         self._token: Token[TraceSession | None] | None = None
@@ -352,30 +431,91 @@ class TraceSession:
 
     def note_model_request(self, request_context: ModelRequestContext) -> None:
         docs = _serialize_messages(request_context.messages)
-        previous = self.prev_request_messages
-        prefix_len = 0 if previous is None else _common_prefix_len(previous, docs)
+        prefix_len = self._prefix_len_for(docs)
         self.prev_request_messages = docs
         self._request_started = time.monotonic()
         name = _model_name(request_context)
-        self._append(
-            "model_request",
-            name=name,
-            payload={
-                "model": name,
-                "model_id": request_context.model_id,
-                "streaming": bool(request_context.streaming),
-                "model_settings": safe_value(request_context.model_settings),
-                "instruction_parts": safe_value(
-                    getattr(
-                        request_context.model_request_parameters,
-                        "instruction_parts",
-                        None,
-                    )
-                ),
-                "messages_total": len(docs),
-                "messages_prefix_len": prefix_len,
-                "messages": docs[prefix_len:],
-            },
+        instructions = safe_value(
+            getattr(
+                request_context.model_request_parameters,
+                "instruction_parts",
+                None,
+            )
+        )
+        payload: dict[str, Any] = {
+            "model": name,
+            "model_id": request_context.model_id,
+            "streaming": bool(request_context.streaming),
+            "model_settings": safe_value(request_context.model_settings),
+            "messages_total": len(docs),
+            "messages_prefix_len": prefix_len,
+            "messages": docs[prefix_len:],
+        }
+        if self._store_instructions(instructions, anchor=prefix_len == 0):
+            payload["instruction_parts"] = instructions
+        self._remember(docs, instructions, prefix_len)
+        self._append("model_request", name=name, payload=payload)
+
+    # ----------------------------------------------------- what to store again
+
+    def _baseline(self) -> _Baseline | None:
+        """The conversation's stored state, for a run that belongs to one."""
+        if self.session_id is None or self.parent is not None:
+            return None
+        return _baselines.get(self.session_id)
+
+    def _prefix_len_for(self, docs: list[dict[str, Any]]) -> int:
+        """How much of this request the conversation already has stored.
+
+        The run's own previous request wins while a turn keeps calling the model -
+        comparing the two lists outright is exact and needs no digests. A new turn
+        starts from what its conversation left behind, so a history is written once
+        per conversation instead of once per turn.
+        """
+        if self.prev_request_messages is not None:
+            return _common_prefix_len(self.prev_request_messages, docs)
+        baseline = self._baseline()
+        if baseline is None or baseline.requests >= _ANCHOR_REQUESTS:
+            return 0
+        return _common_prefix_digests(baseline.digests, docs)
+
+    def _store_instructions(self, instructions: Any, *, anchor: bool) -> bool:
+        """Whether this request has to record its instructions again.
+
+        A whole request is a restart of the chain, so it always records them; the
+        reader then never has to walk past one request to find the prompt. A request
+        that carries none records that too, because "none" and "unchanged" are
+        different answers.
+        """
+        dump = _instruction_dump(instructions)
+        if anchor or dump is None:
+            return True
+        baseline = self._baseline()
+        if baseline is not None:
+            return baseline.instructions != dump
+        return self._instructions != dump
+
+    def _remember(
+        self, docs: list[dict[str, Any]], instructions: Any, prefix_len: int
+    ) -> None:
+        dump = _instruction_dump(instructions)
+        self._instructions = dump
+        if self.session_id is None or self.parent is not None:
+            return
+        baseline = self._baseline()
+        if prefix_len == 0:
+            requests = 0
+        elif baseline is None:
+            requests = 1
+        else:
+            requests = baseline.requests + 1
+        _remember_baseline(
+            self.session_id,
+            _Baseline(
+                digests=tuple(_digest(doc) for doc in docs),
+                instructions=dump,
+                requests=requests,
+            ),
         )
 
     def note_model_response(

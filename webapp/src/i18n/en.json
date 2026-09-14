@@ -483,7 +483,8 @@
       "modelRole": "Model role",
       "streaming": "Streaming",
       "cacheTokens": "Cache read / write tokens",
-      "outputChars": "Output length before truncation"
+      "outputChars": "Output length before truncation",
+      "instructionsInherited": "carried over from an earlier request"
     },
     "session": "session"
   }

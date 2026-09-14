@@ -483,7 +483,8 @@
       "modelRole": "模型角色",
       "streaming": "流式",
       "cacheTokens": "缓存读 / 写 token",
-      "outputChars": "输出去截断字符数"
+      "outputChars": "输出去截断字符数",
+      "instructionsInherited": "承接自早前的请求"
     },
     "session": "会话"
   }

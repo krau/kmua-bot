@@ -66,11 +66,21 @@ const blocks = computed(() => traceBlocks(transcript.value ?? []));
 
 const payloadJson = computed(() => JSON.stringify(event.value?.payload ?? null, null, 2));
 
+/**
+ * The instructions this request carried.
+ *
+ * A request only stores them when they changed, so most steps come back with the
+ * copy the conversation recorded earlier - the replay resolves that, and the panel
+ * says so rather than passing it off as this step's own payload.
+ */
 const instructionsJson = computed(() => {
-  const payload = event.value?.payload;
-  const parts = payload?.["instruction_parts"];
+  const current = event.value;
+  if (!current) return null;
+  const parts = current.instructions ?? current.payload?.["instruction_parts"];
   return parts === undefined || parts === null ? null : JSON.stringify(parts, null, 2);
 });
+
+const instructionsInherited = computed(() => event.value?.instructions_inherited === true);
 
 const settingsJson = computed(() => {
   const settings = event.value?.payload?.["model_settings"];
@@ -275,6 +285,9 @@ function summaryItems(data: NonNullable<typeof run.value>): DefinitionItem[] {
                   <div v-if="instructionsJson" class="mb-related">
                     <p class="mb-tight text-note text-hint">
                       {{ t("agentRuns.detail.instructions") }}
+                      <span v-if="instructionsInherited">
+                        · {{ t("agentRuns.detail.instructionsInherited") }}
+                      </span>
                     </p>
                     <pre class="font-mono text-note whitespace-pre-wrap break-all">{{
                       instructionsJson

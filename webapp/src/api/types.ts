@@ -477,10 +477,17 @@ export interface AgentRunDetail extends AgentRunSummary {
 export interface AgentRunEventDetail extends AgentRunEvent {
   payload: Record<string, unknown> | null;
   /**
-   * The messages the model received, rebuilt from the run's prefix encoding.
+   * The messages the model received, rebuilt from the conversation's increments.
    * Only present for `model_request` steps, and null when it cannot be rebuilt.
    */
   messages: unknown[] | null;
+  /**
+   * The instructions the request carried, taken from an earlier request when this
+   * one only carried them over; null when the step is not a model request.
+   */
+  instructions: unknown;
+  /** Whether those instructions came from an earlier request in the conversation. */
+  instructions_inherited: boolean;
 }
 
 /** Filters for the run list; empty values are dropped from the query string. */

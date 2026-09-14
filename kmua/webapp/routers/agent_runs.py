@@ -140,9 +140,9 @@ async def read_agent_run_event(
     event = await store.get_run_event(run_id, seq)
     if event is None:
         raise not_found(ErrorCode.NOT_FOUND, "Agent run event not found")
-    messages = (
-        await store.reconstruct_request_messages(run_id, seq)
+    replay = (
+        await store.reconstruct_request(run_id, seq)
         if event.kind == "model_request"
         else None
     )
-    return agent_run_event_detail_out(event, messages)
+    return agent_run_event_detail_out(event, replay)

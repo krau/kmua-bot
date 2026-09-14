@@ -619,11 +619,16 @@ class AgentRunDetailOut(AgentRunOut):
 class AgentRunEventDetailOut(AgentRunEventOut):
     payload: dict[str, Any] | None = None
     messages: list[dict[str, Any]] | None = None
-    """The request's full messages, rebuilt from the run's prefix encoding.
+    """The request's full messages, rebuilt from the conversation's increments.
 
     Only set for `model_request` events, and None when the encoding cannot be
     replayed - the panel then says so instead of showing a truncated transcript.
     """
+    instructions: Any = None
+    """The instructions that request carried, taken from the request that recorded
+    them when this one only carried them over."""
+    instructions_inherited: bool = False
+    """Whether the instructions came from an earlier request rather than this one."""
 
 
 # ----------------------------------------------------------------- chat policy

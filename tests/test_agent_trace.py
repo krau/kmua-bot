@@ -47,6 +47,7 @@ pytestmark = pytest.mark.usefixtures("initialised_db")
 @pytest.fixture(autouse=True)
 async def clean_traces():
     """Start every test from empty trace tables: runs are append-only."""
+    trace._baselines.clear()
     async with AsyncSessionFactory() as session:
         async with session.begin():
             await session.execute(sqlalchemy.delete(AgentRunEvent))
@@ -507,6 +508,155 @@ async def test_a_real_run_records_requests_responses_and_tool_results():
     assert "be brief" in instruction_text
     assert first_request.payload["messages_total"] == 1
     assert first_request.payload["messages_prefix_len"] == 0
+
+
+async def _turn(provider: Agent, prompt: str, history: list[Any] | None = None):
+    """One conversation turn: a run of its own, in the same (chat, user) thread."""
+    session = await trace.start_trace("chat", chat_id=-100, user_id=7, message_id=42)
+    assert session is not None
+    result = await provider.run(prompt, message_history=history)
+    task = trace.finish_trace(session, usage=result.usage, output=result.output)
+    assert task is not None
+    await task
+    return result
+
+
+def _answers(seen: list[list[Any]]):
+    """A model that answers in one request, recording what it was handed."""
+
+    def respond(messages: list[Any], _info: Any) -> ModelResponse:
+        seen.append(list(messages))
+        return ModelResponse(parts=[TextPart(content="sure")])
+
+    return respond
+
+
+def _conversation(seen: list[list[Any]], instructions: str = "be brief") -> Agent:
+    return Agent(
+        model=FunctionModel(_answers(seen)),
+        instructions=instructions,
+        capabilities=[trace.AgentTraceCapability()],
+    )
+
+
+async def test_a_later_turn_stores_only_what_the_conversation_missed():
+    """A turn is an increment of the conversation, not a copy of its history."""
+    seen: list[list[Any]] = []
+    provider = _conversation(seen)
+
+    first = await _turn(provider, "hello")
+    await _turn(provider, "again", history=first.all_messages())
+
+    first_run, second_run = await runs()
+    first_request = (await stored_events(first_run.id))[0]
+    second_request = (await stored_events(second_run.id))[0]
+    assert isinstance(first_request.payload, dict)
+    assert isinstance(second_request.payload, dict)
+
+    # First turn: the whole request, because there is nothing to compare against.
+    assert first_request.payload["messages_total"] == 1
+    assert first_request.payload["messages_prefix_len"] == 0
+
+    # Second turn: its predecessor's request, its own answer and the new prompt.
+    # The prefix is the part already on disk, so only two messages are written.
+    assert second_request.payload["messages_total"] == 3
+    assert second_request.payload["messages_prefix_len"] == 1
+    assert len(second_request.payload["messages"]) == 2
+
+    replay = await dao.reconstruct_request(second_run.id, second_request.seq)
+    assert replay is not None
+    assert replay.messages == trace._serialize_messages(seen[1])
+
+    # The first turn's request is still exactly what it was.
+    earlier = await dao.reconstruct_request(first_run.id, first_request.seq)
+    assert earlier is not None
+    assert earlier.messages == trace._serialize_messages(seen[0])
+
+
+async def test_the_instructions_are_recorded_once_per_conversation():
+    """The system prompt is a property of the conversation, not of every step."""
+    seen: list[list[Any]] = []
+    provider = _conversation(seen)
+
+    first = await _turn(provider, "hello")
+    await _turn(provider, "again", history=first.all_messages())
+
+    first_run, second_run = await runs()
+    first_request = (await stored_events(first_run.id))[0]
+    second_request = (await stored_events(second_run.id))[0]
+    assert isinstance(first_request.payload, dict)
+    assert isinstance(second_request.payload, dict)
+
+    assert "be brief" in json.dumps(first_request.payload["instruction_parts"])
+    # Unchanged, so this request does not carry it again...
+    assert "instruction_parts" not in second_request.payload
+    # ...and neither request repeats it inside the messages it stores.
+    for payload in (first_request.payload, second_request.payload):
+        stored = json.dumps(payload["messages"], ensure_ascii=False)
+        assert trace._INSTRUCTIONS_OMITTED in stored
+        assert "be brief" not in stored
+
+    replay = await dao.reconstruct_request(second_run.id, second_request.seq)
+    assert replay is not None
+    assert "be brief" in json.dumps(replay.instructions)
+    assert replay.instructions_inherited is True
+    own = await dao.reconstruct_request(first_run.id, first_request.seq)
+    assert own is not None
+    assert own.instructions_inherited is False
+
+
+async def test_a_conversation_is_stored_whole_again_at_every_anchor(monkeypatch):
+    """Past the anchor gap the next request is whole, so a replay stays short."""
+    monkeypatch.setattr(trace, "_ANCHOR_REQUESTS", 1)
+    seen: list[list[Any]] = []
+    provider = _conversation(seen)
+
+    first = await _turn(provider, "hello")
+    second = await _turn(provider, "again", history=first.all_messages())
+    await _turn(provider, "and again", history=second.all_messages())
+
+    *_, third_run = await runs()
+    third_request = (await stored_events(third_run.id))[0]
+    assert isinstance(third_request.payload, dict)
+    assert third_request.payload["messages_total"] == 5
+    assert third_request.payload["messages_prefix_len"] == 0
+    assert len(third_request.payload["messages"]) == 5
+    # A whole request records the instructions again, so a replay can start here.
+    assert "be brief" in json.dumps(third_request.payload["instruction_parts"])
+
+    replay = await dao.reconstruct_request(third_run.id, third_request.seq)
+    assert replay is not None
+    assert replay.messages == trace._serialize_messages(seen[2])
+
+
+async def test_a_replay_survives_the_loss_of_the_oldest_runs(monkeypatch):
+    """Retention cuts the head off a conversation; the anchors bound the damage."""
+    monkeypatch.setattr(trace, "_ANCHOR_REQUESTS", 1)
+    seen: list[list[Any]] = []
+    provider = _conversation(seen)
+
+    first = await _turn(provider, "hello")
+    second = await _turn(provider, "again", history=first.all_messages())
+    await _turn(provider, "and again", history=second.all_messages())
+
+    first_run, second_run, third_run = await runs()
+    async with AsyncSessionFactory() as session:
+        async with session.begin():
+            await session.execute(
+                sqlalchemy.delete(AgentRunEvent).where(
+                    AgentRunEvent.run_id == first_run.id
+                )
+            )
+            await session.execute(
+                sqlalchemy.delete(AgentRun).where(AgentRun.id == first_run.id)
+            )
+
+    # The second turn started from a history that is now gone: it cannot be shown.
+    assert await dao.reconstruct_request(second_run.id, 1) is None
+    # The third was written whole, so it still can.
+    third = await dao.reconstruct_request(third_run.id, 1)
+    assert third is not None
+    assert third.messages == trace._serialize_messages(seen[2])
 
 
 async def test_cjk_is_stored_as_text_not_escapes():
