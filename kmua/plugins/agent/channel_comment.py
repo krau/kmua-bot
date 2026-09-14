@@ -248,6 +248,10 @@ async def comment_channel_message(client: Client, message: pyrogram.types.Messag
         return
     if not is_chat_allowed(chat.id):
         return
+    subject = quota.subject_of(message)
+    if not await quota.can_start(subject):
+        logger.debug(f"Skip commenting on channel post in {chat.id}: no quota")
+        return
     channel = message.sender_chat
     if channel is None or channel.id is None:
         return
@@ -295,7 +299,7 @@ async def comment_channel_message(client: Client, message: pyrogram.types.Messag
             output = result.output
             # 这次模型调用和普通回合一样花 token, 按发言身份结算: 频道身份没有个人账户,
             # 于是记在群账上(与匿名管理、频道消息同一条规则)。
-            await quota.settle(quota.subject_of(message), result.usage)
+            await quota.settle(subject, result.usage)
             # 记录与后续动作(评论/投票发送)无关: 那一步失败不代表这次模型调用失败。
             trace.mark_trace(
                 session,

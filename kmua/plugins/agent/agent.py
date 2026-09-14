@@ -23,6 +23,7 @@ from kmua.services import link_parse, manyacg
 from . import (
     datatype,
     myfilter,
+    powermem_usage,
     provider,
     quota,
     runner,
@@ -60,7 +61,9 @@ powermemory_ready = False
 
 if app_config.agent_powermem_config is not None:
     # for group memory, the key is f"group_{chat_id}"
-    powermemory = AsyncMemory(app_config.agent_powermem_config)
+    # The usage hook rides in the config: powermem's model calls are its own, and the
+    # callback is the only place their token usage can be seen.
+    powermemory = AsyncMemory(powermem_usage.install(app_config.agent_powermem_config))
 
     async def _init_powermem():
         global powermemory_ready

@@ -251,8 +251,12 @@ async def add_sticker_command(
         return
     sticker = reply.sticker
     chat_id = chat.id
+    subject = quota.subject_of(message)
+    if not await quota.can_start(subject):
+        logger.debug(f"Skip sticker memory for chat {chat_id}: no quota")
+        return
     common.spawn(
-        _process_sticker(client, sticker, chat_id),
+        _process_sticker(client, sticker, chat_id, subject),
         name=f"sticker-memory-{chat_id}",
     )
     logger.info(
@@ -341,10 +345,14 @@ async def on_sticker(client: PyrogramClient, message: pyrogram.types.Message) ->
         return
     if not chat_config.sticker_memory_enabled:
         return
+    subject = quota.subject_of(message)
+    if not await quota.can_start(subject):
+        logger.debug(f"Skip sticker memory for chat {chat.id}: no quota")
+        return
     count = await sticker_vec.count(chat.id)
     if not common.random_chance(sample_rate_for(count)):
         return
     common.spawn(
-        _process_sticker(client, sticker, chat.id, quota.subject_of(message)),
+        _process_sticker(client, sticker, chat.id, subject),
         name=f"sticker-memory-{chat.id}",
     )

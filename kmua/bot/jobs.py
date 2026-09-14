@@ -242,23 +242,33 @@ async def rss_push():
             int, str
         ] = {}  # chat_id -> lang (group, not rate-limited)
         if app_config.agent and app_config.agent_model:
+            from kmua.plugins.agent import quota
             from kmua.plugins.agent.rss_digest import (
                 generate_rss_broadcast,
                 generate_rss_digest,
             )
+
+            async def allowed(chat_id: int) -> bool:
+                """Whether this chat still has an allowance to be served with."""
+                return await quota.can_start(
+                    quota.Subject(user_id=None, chat_id=chat_id, in_group=True)
+                )
 
             # Never leak a signed feed URL into logs or the model prompt when
             # the feed has no title (same redaction the fetch path uses).
             feed_label = result.feed_title or redact_url(feed.url)
             for lang in summary_langs:
                 # One generation serves every chat in this language that asked for
-                # summaries, so the bill is split across exactly those chats.
+                # summaries, so the bill is split across exactly those chats - and a
+                # chat with no allowance left is not one of them: it stops receiving
+                # digests rather than being charged for them.
                 served = [
                     chat_id
                     for chat_id in chat_ids
                     if lang_by_chat[chat_id] == lang
                     and chat_configs.get(chat_id) is not None
                     and chat_configs[chat_id].rss_agent_summary
+                    and await allowed(chat_id)
                 ]
                 digest_by_lang[lang] = await generate_rss_digest(
                     new_entries, feed_label, lang, served
@@ -275,7 +285,7 @@ async def rss_push():
                 broadcast_served = [
                     chat_id
                     for chat_id, chat_lang in broadcast_targets.items()
-                    if chat_lang == lang
+                    if chat_lang == lang and await allowed(chat_id)
                 ]
                 broadcast_by_lang[lang] = await generate_rss_broadcast(
                     new_entries, feed_label, lang, broadcast_served

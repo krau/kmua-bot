@@ -29,6 +29,10 @@ async def update_user_memory(
     user_id: int,
     subject: quota.Subject,
 ):
+    if not await quota.can_start(subject):
+        # 没额度就不更新记忆, 静默跳过: 这是后台工作, 不需要打扰用户。
+        logger.debug(f"Skip updating memory for user {user_id}: no quota")
+        return
     lock = await _get_user_memory_lock(user_id)
     async with lock:
         # 防止 spammer 刷记忆

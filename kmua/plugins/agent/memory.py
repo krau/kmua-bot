@@ -12,6 +12,7 @@ from kmua.logger import logger
 from kmua.plugins.agent import quota, state
 from kmua.plugins.agent.user_memory import update_user_memory
 
+from . import powermem_usage
 from .agent import memory_agent, powermemory
 from .myfilter import (
     base_filter,
@@ -319,8 +320,14 @@ async def record_group_memory(client: Client, message: pyrogram.types.Message):
         # 每个群组每小时最多通过此函数更新一次记忆
         last_update_key = state.group_memory_update_key(chat.id)
         last_updated = await memttlcache.get(last_update_key)
+        subject = quota.Subject(user_id=None, chat_id=chat.id, in_group=True)
         if last_updated or chat.id in _group_memory_inflight_chats:
             group_messages = []
+        elif not await quota.can_start(subject):
+            # 群没额度就别总结, 静默跳过: 保留这批消息(截到最近 100 条), 等有额度时再补,
+            # 也不消耗"每小时一次"的名额。
+            logger.debug(f"Skip group memory update for chat {chat.id}: no quota")
+            group_messages = batch_messages
         else:
             _group_memory_inflight_chats.add(chat.id)
             chunks = _group_memory_chunks(batch_messages)
@@ -328,37 +335,43 @@ async def record_group_memory(client: Client, message: pyrogram.types.Message):
                 f"Updating group memory for chat {chat.id} with "
                 f"{len(batch_messages)} messages in {len(chunks)} chunks"
             )
-            try:
-                for index, batch_text in enumerate(chunks, start=1):
-                    coro = powermemory.add(
-                        batch_text, infer=True, user_id=f"group_{chat.id}"
-                    )
-                    if app_config.agent_model_timeout > 0:
-                        result = await asyncio.wait_for(
-                            coro, timeout=app_config.agent_model_timeout
+            # powermem 自己调模型, 用量只在它的回调里看得到: 整段收集起来, 结束后记到
+            # 群账上, 否则这段开销在任何地方都不显示。
+            with powermem_usage.collect() as memory_calls:
+                try:
+                    for index, batch_text in enumerate(chunks, start=1):
+                        coro = powermemory.add(
+                            batch_text, infer=True, user_id=f"group_{chat.id}"
                         )
-                    else:
-                        result = await coro
-                    logger.debug(
-                        f"Updated group memory chunk {index}/{len(chunks)} for chat "
-                        f"{chat.id}, powermem result: {result}"
+                        if app_config.agent_model_timeout > 0:
+                            result = await asyncio.wait_for(
+                                coro, timeout=app_config.agent_model_timeout
+                            )
+                        else:
+                            result = await coro
+                        logger.debug(
+                            f"Updated group memory chunk {index}/{len(chunks)} for chat "
+                            f"{chat.id}, powermem result: {result}"
+                        )
+                except TimeoutError:
+                    logger.warning(f"group memory update timed out for chat {chat.id}")
+                    group_messages = batch_messages
+                except Exception as e:
+                    logger.exception(
+                        f"group memory update failed for chat {chat.id}: "
+                        f"{e.__class__.__name__}: {e}"
                     )
-            except TimeoutError:
-                logger.warning(f"group memory update timed out for chat {chat.id}")
-                group_messages = batch_messages
-            except Exception as e:
-                logger.exception(
-                    f"group memory update failed for chat {chat.id}: "
-                    f"{e.__class__.__name__}: {e}"
-                )
-                # Keep the attempted batch for a later retry; do not mark the
-                # hourly quota until every chunk has been stored.
-                group_messages = batch_messages
-            else:
-                await memttlcache.set(last_update_key, True, ttl=3600)
-                group_messages = []
-            finally:
-                _group_memory_inflight_chats.discard(chat.id)
+                    # Keep the attempted batch for a later retry; do not mark the
+                    # hourly quota until every chunk has been stored.
+                    group_messages = batch_messages
+                else:
+                    await memttlcache.set(last_update_key, True, ttl=3600)
+                    group_messages = []
+                finally:
+                    _group_memory_inflight_chats.discard(chat.id)
+            memory_usage = powermem_usage.usage_of(memory_calls)
+            if memory_usage is not None:
+                await quota.settle(subject, memory_usage)
     await memttlcache.set(
         state.group_messages_key(chat.id), group_messages, ttl=86400 * 7
     )
