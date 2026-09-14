@@ -242,14 +242,11 @@ async def _crawl_api_error(api_url: str, error: Exception) -> str:
 
     if status is None:
         return (
-            f"Crawl API at {base} dropped the connection ({error.__class__.__name__}). "
-            "crawl4ai 0.9+ binds its own loopback unless CRAWL4AI_API_TOKEN is set, "
-            "which leaves a published port accepting and resetting requests"
+            f"Crawl API at {base} dropped the connection ({error.__class__.__name__})."
         )
     return (
         f"Crawl API at {base} answered /health with HTTP {status} but dropped the "
-        f"crawl request ({error.__class__.__name__}): check agent_crawl_api_token "
-        "against CRAWL4AI_API_TOKEN and the server's own logs"
+        f"crawl request ({error.__class__.__name__})"
     )
 
 
