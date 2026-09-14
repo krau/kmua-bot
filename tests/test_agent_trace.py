@@ -605,33 +605,32 @@ async def test_the_instructions_are_recorded_once_per_conversation():
     assert own.instructions_inherited is False
 
 
-async def test_a_conversation_is_stored_whole_again_at_every_anchor(monkeypatch):
-    """Past the anchor gap the next request is whole, so a replay stays short."""
-    monkeypatch.setattr(trace, "_ANCHOR_REQUESTS", 1)
+async def test_a_forgotten_baseline_is_written_whole_again():
+    """A restart or an evicted entry costs one whole request, nothing else."""
     seen: list[list[Any]] = []
     provider = _conversation(seen)
 
     first = await _turn(provider, "hello")
-    second = await _turn(provider, "again", history=first.all_messages())
-    await _turn(provider, "and again", history=second.all_messages())
+    trace._baselines.clear()
+    await _turn(provider, "again", history=first.all_messages())
 
-    *_, third_run = await runs()
-    third_request = (await stored_events(third_run.id))[0]
-    assert isinstance(third_request.payload, dict)
-    assert third_request.payload["messages_total"] == 5
-    assert third_request.payload["messages_prefix_len"] == 0
-    assert len(third_request.payload["messages"]) == 5
-    # A whole request records the instructions again, so a replay can start here.
-    assert "be brief" in json.dumps(third_request.payload["instruction_parts"])
+    *_, second_run = await runs()
+    second_request = (await stored_events(second_run.id))[0]
+    assert isinstance(second_request.payload, dict)
+    assert second_request.payload["messages_total"] == 3
+    assert second_request.payload["messages_prefix_len"] == 0
+    assert len(second_request.payload["messages"]) == 3
+    # Nothing was carried over, so this request records the instructions itself.
+    assert "be brief" in json.dumps(second_request.payload["instruction_parts"])
 
-    replay = await dao.reconstruct_request(third_run.id, third_request.seq)
+    replay = await dao.reconstruct_request(second_run.id, second_request.seq)
     assert replay is not None
-    assert replay.messages == trace._serialize_messages(seen[2])
+    assert replay.messages == trace._serialize_messages(seen[1])
+    assert replay.instructions_inherited is False
 
 
-async def test_a_replay_survives_the_loss_of_the_oldest_runs(monkeypatch):
-    """Retention cuts the head off a conversation; the anchors bound the damage."""
-    monkeypatch.setattr(trace, "_ANCHOR_REQUESTS", 1)
+async def test_a_replay_stops_when_the_first_request_is_gone():
+    """A conversation is stored as appends, so its first request is its beginning."""
     seen: list[list[Any]] = []
     provider = _conversation(seen)
 
@@ -640,6 +639,11 @@ async def test_a_replay_survives_the_loss_of_the_oldest_runs(monkeypatch):
     await _turn(provider, "and again", history=second.all_messages())
 
     first_run, second_run, third_run = await runs()
+    # While the conversation is whole, the newest turn is rebuilt from every step.
+    latest = await dao.reconstruct_request(third_run.id, 1)
+    assert latest is not None
+    assert latest.messages == trace._serialize_messages(seen[2])
+
     async with AsyncSessionFactory() as session:
         async with session.begin():
             await session.execute(
@@ -651,12 +655,11 @@ async def test_a_replay_survives_the_loss_of_the_oldest_runs(monkeypatch):
                 sqlalchemy.delete(AgentRun).where(AgentRun.id == first_run.id)
             )
 
-    # The second turn started from a history that is now gone: it cannot be shown.
-    assert await dao.reconstruct_request(second_run.id, 1) is None
-    # The third was written whole, so it still can.
-    third = await dao.reconstruct_request(third_run.id, 1)
-    assert third is not None
-    assert third.messages == trace._serialize_messages(seen[2])
+    # What the second turn added is still on record, but the history it appended to
+    # is not, so there is no whole transcript left to show - and saying so beats
+    # showing the tail as if it were the conversation.
+    assert await dao.reconstruct_request_messages(second_run.id, 1) is None
+    assert await dao.reconstruct_request_messages(third_run.id, 1) is None
 
 
 async def test_cjk_is_stored_as_text_not_escapes():

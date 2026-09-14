@@ -934,9 +934,10 @@ class AgentRunEvent(Base):
 
     `payload` holds the step's own data. For `model_request` it is an increment:
     only the messages past the longest common prefix with the previous request of
-    the same run are stored, which is what keeps a long turn at roughly one copy of
-    its history instead of one per request. Over-long strings are cut to
-    `agent_trace_max_field_chars` before storage.
+    the same conversation are stored, and the instructions only when they changed,
+    which is what keeps a conversation at roughly one copy of its history instead of
+    one per request. Over-long strings are cut to `agent_trace_max_field_chars`
+    before storage.
     """
 
     __tablename__ = "agent_run_events"

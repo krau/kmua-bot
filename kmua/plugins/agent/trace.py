@@ -73,12 +73,8 @@ _REJECT_TTL_SECONDS = 60
 _BINARY_KIND = "binary"
 _OUTPUT_KINDS = {"EndTurn": "end_turn", "AskUserOutput": "ask_user"}
 
-# What a request carries over from the conversation's last one instead of storing
-# again. `_ANCHOR_REQUESTS` bounds how far a replay can have to walk: past that many
-# requests the next one is written whole, so a reader only ever rebuilds a short
-# chain - and a conversation whose oldest runs fell out of retention loses at most
-# that many requests instead of all of them.
-_ANCHOR_REQUESTS = 20
+# How many conversations keep their baseline in memory. A miss only costs one request
+# written whole - the same thing the first request of a conversation does anyway.
 _MAX_SESSION_BASELINES = 64
 _INSTRUCTIONS_OMITTED = "<instructions: see instruction_parts>"
 
@@ -296,8 +292,6 @@ class _Baseline:
     digests: tuple[bytes, ...]
     # The instructions that request recorded; None when it recorded none.
     instructions: str | None
-    # Requests written since the last whole one, so a replay knows how far it walks.
-    requests: int
 
 
 # One entry per conversation, oldest first. An entry is only ever an optimisation:
@@ -451,9 +445,9 @@ class TraceSession:
             "messages_prefix_len": prefix_len,
             "messages": docs[prefix_len:],
         }
-        if self._store_instructions(instructions, anchor=prefix_len == 0):
+        if self._store_instructions(instructions):
             payload["instruction_parts"] = instructions
-        self._remember(docs, instructions, prefix_len)
+        self._remember(docs, instructions)
         self._append("model_request", name=name, payload=payload)
 
     # ----------------------------------------------------- what to store again
@@ -475,46 +469,34 @@ class TraceSession:
         if self.prev_request_messages is not None:
             return _common_prefix_len(self.prev_request_messages, docs)
         baseline = self._baseline()
-        if baseline is None or baseline.requests >= _ANCHOR_REQUESTS:
+        if baseline is None:
             return 0
         return _common_prefix_digests(baseline.digests, docs)
 
-    def _store_instructions(self, instructions: Any, *, anchor: bool) -> bool:
+    def _store_instructions(self, instructions: Any) -> bool:
         """Whether this request has to record its instructions again.
 
-        A whole request is a restart of the chain, so it always records them; the
-        reader then never has to walk past one request to find the prompt. A request
-        that carries none records that too, because "none" and "unchanged" are
-        different answers.
+        A request that carries none records that too, because "none" and "unchanged"
+        are different answers.
         """
         dump = _instruction_dump(instructions)
-        if anchor or dump is None:
+        if dump is None:
             return True
         baseline = self._baseline()
         if baseline is not None:
             return baseline.instructions != dump
         return self._instructions != dump
 
-    def _remember(
-        self, docs: list[dict[str, Any]], instructions: Any, prefix_len: int
-    ) -> None:
+    def _remember(self, docs: list[dict[str, Any]], instructions: Any) -> None:
         dump = _instruction_dump(instructions)
         self._instructions = dump
         if self.session_id is None or self.parent is not None:
             return
-        baseline = self._baseline()
-        if prefix_len == 0:
-            requests = 0
-        elif baseline is None:
-            requests = 1
-        else:
-            requests = baseline.requests + 1
         _remember_baseline(
             self.session_id,
             _Baseline(
                 digests=tuple(_digest(doc) for doc in docs),
                 instructions=dump,
-                requests=requests,
             ),
         )
 

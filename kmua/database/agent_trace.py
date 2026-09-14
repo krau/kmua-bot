@@ -60,12 +60,6 @@ EVENT_KINDS: tuple[str, ...] = (
     "error",
 )
 
-# A replay walks back to the newest request written whole. The writer anchors every
-# `_ANCHOR_REQUESTS` requests, so one page normally holds it; the extra pages cover a
-# conversation written before that rule existed.
-_CHAIN_PAGE = 24
-_CHAIN_PAGES = 3
-
 # A payload replaced by one of these markers is gone, so a request whose data was
 # dropped this way cannot be replayed. The reasons are the two caps in
 # `kmua.plugins.agent.trace`.
@@ -326,69 +320,32 @@ class RequestReplay:
 
 async def _request_chain(
     session: AsyncSession, run: AgentRun, target: AgentRunEvent
-) -> list[AgentRunEvent] | None:
+) -> list[AgentRunEvent]:
     """The stored requests a replay of `target` needs, oldest first.
 
     A run that belongs to a conversation is measured against that conversation, so
-    its chain starts at the newest request that was written whole - found by walking
-    back a page at a time, which `_ANCHOR_REQUESTS` keeps short. A nested run and a
+    its chain is every request the conversation stored before it. A nested run and a
     run with no conversation of its own only ever chain within themselves.
     """
-    alone = (
-        sqlalchemy.select(AgentRunEvent)
-        .where(
-            AgentRunEvent.run_id == run.id,
-            AgentRunEvent.kind == "model_request",
-            AgentRunEvent.seq <= target.seq,
-        )
-        .order_by(AgentRunEvent.seq)
+    stmt = sqlalchemy.select(AgentRunEvent).where(
+        AgentRunEvent.kind == "model_request",
+        sqlalchemy.or_(
+            AgentRunEvent.run_id < target.run_id,
+            sqlalchemy.and_(
+                AgentRunEvent.run_id == target.run_id,
+                AgentRunEvent.seq <= target.seq,
+            ),
+        ),
     )
     if run.session_id is None or run.parent_run_id is not None:
-        return list((await session.execute(alone)).scalars().all())
-
-    collected: list[AgentRunEvent] = []
-    cursor_run, cursor_seq = target.run_id, target.seq
-    for _ in range(_CHAIN_PAGES):
-        stmt = (
-            sqlalchemy.select(AgentRunEvent)
-            .join(AgentRun, AgentRun.id == AgentRunEvent.run_id)
-            .where(
-                AgentRun.session_id == run.session_id,
-                AgentRun.parent_run_id.is_(None),
-                AgentRunEvent.kind == "model_request",
-                sqlalchemy.or_(
-                    AgentRunEvent.run_id < cursor_run,
-                    sqlalchemy.and_(
-                        AgentRunEvent.run_id == cursor_run,
-                        AgentRunEvent.seq <= cursor_seq,
-                    ),
-                ),
-            )
-            .order_by(AgentRunEvent.run_id.desc(), AgentRunEvent.seq.desc())
-            .limit(_CHAIN_PAGE)
+        stmt = stmt.where(AgentRunEvent.run_id == run.id)
+    else:
+        stmt = stmt.join(AgentRun, AgentRun.id == AgentRunEvent.run_id).where(
+            AgentRun.session_id == run.session_id,
+            AgentRun.parent_run_id.is_(None),
         )
-        page = list((await session.execute(stmt)).scalars().all())
-        if not page:
-            return None
-        collected.extend(page)
-        anchor = next(
-            (event for event in page if _prefix_len_of(event) == 0),
-            None,
-        )
-        if anchor is not None:
-            # Everything past the anchor, in the order it was written.
-            reached = collected.index(anchor)
-            return list(reversed(collected[: reached + 1]))
-        cursor_run, cursor_seq = page[-1].run_id, page[-1].seq
-    return None
-
-
-def _prefix_len_of(event: AgentRunEvent) -> int | None:
-    payload = _payload_of(event)
-    if payload is None:
-        return None
-    prefix_len = payload.get("messages_prefix_len")
-    return prefix_len if isinstance(prefix_len, int) else None
+    stmt = stmt.order_by(AgentRunEvent.run_id, AgentRunEvent.seq)
+    return list((await session.execute(stmt)).scalars().all())
 
 
 @with_session
@@ -399,11 +356,11 @@ async def reconstruct_request(
 
     Requests store only the messages past their longest common prefix with the
     conversation's previous request, and their instructions only when those changed,
-    so replaying the conversation in order rebuilds both. Returns None when the step
-    is not a model request, when the chain has no whole request to start from (the
-    older ones fell out of retention), or when a replay does not end at exactly the
-    length each event recorded - a partial view is not returned as if it were the
-    truth.
+    so replaying the conversation from its first stored request rebuilds both. Returns
+    None when the step is not a model request, when the first request is no longer
+    there (retention removed it, and with it the beginning of every later request),
+    or when a replay does not end at exactly the length each event recorded - a
+    partial view is not returned as if it were the truth.
     """
     assert session is not None
     target = await get_run_event(run_id, seq)
@@ -413,8 +370,6 @@ async def reconstruct_request(
     if run is None:
         return None
     chain = await _request_chain(session, run, target)
-    if chain is None:
-        return None
 
     acc: list[dict[str, Any]] = []
     # The newest request that recorded instructions wins; the rest carried them over.
