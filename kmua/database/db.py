@@ -1,9 +1,10 @@
 import inspect
+import json
 import pathlib
 from collections.abc import AsyncGenerator, Awaitable, Callable
 from contextlib import asynccontextmanager
 from functools import wraps
-from typing import ParamSpec, TypeVar
+from typing import Any, ParamSpec, TypeVar
 
 import alembic.command
 import alembic.config
@@ -21,7 +22,22 @@ from kmua.logger import logger
 
 from .models import Base
 
-engine = create_async_engine(app_config.db_url, echo=app_config.debug, future=True)
+
+def _json_dumps(value: Any) -> str:
+    """Serialize a JSON column value as UTF-8 text.
+
+    The default escapes every non-ASCII character into `\\uXXXX`, which no reader
+    wants and which doubles the size of CJK text in the database.
+    """
+    return json.dumps(value, ensure_ascii=False)
+
+
+engine = create_async_engine(
+    app_config.db_url,
+    echo=app_config.debug,
+    future=True,
+    json_serializer=_json_dumps,
+)
 
 
 def _tune_sqlite_pragmas(dbapi_connection, _record) -> None:

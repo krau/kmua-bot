@@ -509,6 +509,25 @@ async def test_a_real_run_records_requests_responses_and_tool_results():
     assert first_request.payload["messages_prefix_len"] == 0
 
 
+async def test_cjk_is_stored_as_text_not_escapes():
+    """The payload column holds UTF-8: an operator reading the row sees the text."""
+    text = "主人这是想套本小姐的话吗"
+    session = await trace.start_trace("chat", chat_id=-100, user_id=7)
+    assert session is not None
+    session.note_steering([text])
+    task = trace.finish_trace(session, usage=RunUsage(), output="ok")
+    assert task is not None
+    await task
+
+    async with AsyncSessionFactory() as db:
+        result = await db.execute(
+            sqlalchemy.text("select payload from agent_run_events")
+        )
+        raw = "\n".join(row[0] for row in result.all())
+    assert text in raw
+    assert "\\u4e3b" not in raw
+
+
 async def test_a_failing_model_call_is_recorded_as_an_event_and_a_status():
     def explode(_messages: list[Any], _info: Any) -> ModelResponse:
         raise RuntimeError("provider exploded")
