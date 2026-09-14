@@ -618,17 +618,12 @@ class AgentRunDetailOut(AgentRunOut):
 
 class AgentRunEventDetailOut(AgentRunEventOut):
     payload: dict[str, Any] | None = None
-    messages: list[dict[str, Any]] | None = None
-    """The request's full messages, rebuilt from the conversation's increments.
+    """The stored payload, verbatim.
 
-    Only set for `model_request` events, and None when the encoding cannot be
-    replayed - the panel then says so instead of showing a truncated transcript.
+    A `model_request` payload is an increment of the conversation, so what a step
+    carries is what that request added; `messages_total` and `messages_prefix_len`
+    in it say how much it came after.
     """
-    instructions: Any = None
-    """The instructions that request carried, taken from the request that recorded
-    them when this one only carried them over."""
-    instructions_inherited: bool = False
-    """Whether the instructions came from an earlier request rather than this one."""
 
 
 # ----------------------------------------------------------------- chat policy

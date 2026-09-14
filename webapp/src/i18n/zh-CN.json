@@ -466,7 +466,6 @@
       "eventHint": "点击查看这一步的完整内容",
       "payload": "原始数据",
       "truncated": "内容过长, 已截断",
-      "unreconstructable": "这一步的完整消息无法还原: 数据超过了单次事件的上限",
       "rawJson": "原始 JSON",
       "instructions": "指令",
       "settings": "模型参数",
@@ -484,7 +483,9 @@
       "streaming": "流式",
       "cacheTokens": "缓存读 / 写 token",
       "outputChars": "输出去截断字符数",
-      "instructionsInherited": "承接自早前的请求"
+      "increment": "本记录只存新增: {stored} 条 (该请求共 {total} 条, 前 {prefix} 条与上一次请求相同)",
+      "instructionsNotStored": "本记录未存指令: 与上一次请求相同",
+      "noMessages": "这一步没有记录消息"
     },
     "session": "会话"
   }

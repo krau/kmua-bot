@@ -250,7 +250,7 @@ async def test_the_detail_lists_steps_without_their_payloads():
     assert body["events"][3]["name"] == "echo"
 
 
-async def test_a_request_step_returns_the_replayed_messages():
+async def test_a_request_step_returns_the_payload_as_stored():
     await make_user(OWNER_ID, full_name="Trace Owner")
     run_id = await seed_run()
 
@@ -266,19 +266,22 @@ async def test_a_request_step_returns_the_replayed_messages():
     assert request_event.status_code == 200
     body = request_event.json()
     assert body["kind"] == "model_request"
-    assert body["messages"] == [
-        {"kind": "request", "parts": [{"content": "hi", "part_kind": "user-prompt"}]}
-    ]
-    assert body["payload"]["messages_total"] == 1
+    # The row as the database holds it: this step's own messages and nothing rebuilt.
+    assert body["payload"] == {
+        "model": "test-model",
+        "messages_total": 1,
+        "messages_prefix_len": 0,
+        "messages": [
+            {
+                "kind": "request",
+                "parts": [{"content": "hi", "part_kind": "user-prompt"}],
+            }
+        ],
+    }
+    assert "messages" not in body, "the response is the row, not a rebuilt transcript"
 
-    # This step recorded no instructions of its own, and none were carried over.
-    assert "instructions" not in body["payload"]
-    assert body["instructions"] is None
-    assert body["instructions_inherited"] is False
-
-    # Only requests carry a transcript; a tool step reports its payload instead.
+    # A tool step reports its payload the same way.
     assert tool_event.status_code == 200
-    assert tool_event.json()["messages"] is None
     assert tool_event.json()["payload"] == {"tool_call_id": "c1", "result": "echo:x"}
 
 
@@ -353,8 +356,8 @@ async def _seed_conversation(session_id: str) -> tuple[int, int]:
     return ids[0], ids[1]
 
 
-async def test_a_step_reports_the_instructions_its_conversation_recorded():
-    """Instructions are written once per conversation, so a step may inherit them."""
+async def test_a_step_that_carried_its_instructions_over_shows_none():
+    """Instructions live on the step that recorded them, and nowhere else."""
     await make_user(OWNER_ID, full_name="Trace Owner")
     first_run, second_run = await _seed_conversation(
         "01a00000-0000-7000-8000-000000000000"
@@ -365,25 +368,19 @@ async def test_a_step_reports_the_instructions_its_conversation_recorded():
         own = await client.get(
             f"/api/admin/agent-runs/{first_run}/events/1", headers=headers
         )
-        inherited = await client.get(
+        carried = await client.get(
             f"/api/admin/agent-runs/{second_run}/events/1", headers=headers
         )
 
-    assert own.status_code == 200 and inherited.status_code == 200
-    body = inherited.json()
-    assert body["payload"]["messages_prefix_len"] == 1
-    # The transcript is the whole list, rebuilt across the two steps...
-    assert [message["kind"] for message in body["messages"]] == [
-        "request",
-        "response",
-        "request",
-    ]
-    # ...and the instructions come from the step that recorded them.
-    assert body["instructions"] == [
+    assert own.status_code == 200 and carried.status_code == 200
+    # The step that recorded the prompt has it; the next step has only its increment.
+    assert own.json()["payload"]["instruction_parts"] == [
         {"content": "be brief", "part_kind": "system-prompt"}
     ]
-    assert body["instructions_inherited"] is True
-    assert own.json()["instructions_inherited"] is False
+    body = carried.json()["payload"]
+    assert "instruction_parts" not in body
+    assert body["messages_prefix_len"] == 1
+    assert [message["kind"] for message in body["messages"]] == ["response", "request"]
 
 
 async def test_unknown_ids_are_not_found():

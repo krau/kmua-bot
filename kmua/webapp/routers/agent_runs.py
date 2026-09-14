@@ -136,13 +136,8 @@ async def read_agent_run_event(
     run_id: int,
     seq: int = Path(ge=1, description="Step number within the run"),
 ) -> AgentRunEventDetailOut:
-    """One step in full: its payload, and a request's replayed messages."""
+    """One step in full: the payload as it is stored."""
     event = await store.get_run_event(run_id, seq)
     if event is None:
         raise not_found(ErrorCode.NOT_FOUND, "Agent run event not found")
-    replay = (
-        await store.reconstruct_request(run_id, seq)
-        if event.kind == "model_request"
-        else None
-    )
-    return agent_run_event_detail_out(event, replay)
+    return agent_run_event_detail_out(event)

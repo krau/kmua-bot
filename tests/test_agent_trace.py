@@ -1,8 +1,9 @@
-"""Agent run tracing: what the capture layer stores, and how it reads back.
+"""Agent run tracing: what the capture layer stores.
 
 The trace is a diagnostic record, so these tests defend two things at once: that a
-finished run lands in the database with its events intact, and that the compact
-encoding of request messages can be replayed into exactly what the model received.
+finished run lands in the database with its events intact, and that what a request
+stores is its increment of the conversation - only the part the conversation had not
+recorded yet.
 """
 
 from __future__ import annotations
@@ -282,73 +283,6 @@ def _request_draft(
     )
 
 
-async def test_request_messages_replay_from_prefix_increments():
-    first = [
-        {"parts": [{"content": "one", "part_kind": "user-prompt"}], "kind": "request"}
-    ]
-    second = [
-        *first,
-        {"parts": [{"content": "two", "part_kind": "user-prompt"}], "kind": "request"},
-    ]
-    await dao.record_trace(
-        [
-            _request_draft(
-                "chat",
-                [
-                    dao.AgentRunEventDraft(
-                        seq=1,
-                        kind="model_request",
-                        payload={
-                            "messages_total": len(first),
-                            "messages_prefix_len": 0,
-                            "messages": first,
-                        },
-                    ),
-                    dao.AgentRunEventDraft(
-                        seq=2,
-                        kind="model_request",
-                        payload={
-                            "messages_total": len(second),
-                            "messages_prefix_len": 1,
-                            "messages": second[1:],
-                        },
-                    ),
-                ],
-            )
-        ]
-    )
-    run = (await runs())[0]
-    assert await dao.reconstruct_request_messages(run.id, 1) == first
-    assert await dao.reconstruct_request_messages(run.id, 2) == second
-    # A step that is not a request has nothing to replay.
-    assert await dao.reconstruct_request_messages(run.id, 3) is None
-
-
-async def test_a_capped_request_cannot_be_replayed():
-    payload = {
-        "truncated": True,
-        "reason": "event_payload_cap",
-        "chars": 5_000_000,
-    }
-    await dao.record_trace(
-        [
-            _request_draft(
-                "chat",
-                [
-                    dao.AgentRunEventDraft(
-                        seq=1, kind="model_request", payload=payload, truncated=True
-                    )
-                ],
-            )
-        ]
-    )
-    run = (await runs())[0]
-    assert await dao.reconstruct_request_messages(run.id, 1) is None
-
-
-# ------------------------------------------------------------- real agent run
-
-
 def _two_tool_rounds(seen: list[list[Any]]):
     """A model that calls a tool twice, then answers - three requests, one run."""
 
@@ -463,20 +397,29 @@ async def test_a_real_run_records_requests_responses_and_tool_results():
     assert run.model_name == first_request.payload["model"]
     assert len(seen) == 3
     for index, event in enumerate(requests):
-        replay = await dao.reconstruct_request_messages(run.id, event.seq)
-        # The stored transcript is the one the model was handed - including the
-        # history rewrite a capability outside the trace applied.
-        assert replay == trace._serialize_messages(seen[index])
+        # What is stored is the part of the request the conversation had not recorded
+        # yet, cut out of the list the model was handed - including the history
+        # rewrite a capability outside the trace applied.
+        payload = event.payload
+        assert isinstance(payload, dict)
+        assert (
+            payload["messages"]
+            == trace._serialize_messages(seen[index])[payload["messages_prefix_len"] :]
+        )
         # Anchored on content this test controls, so a serializer that silently drops
         # parts fails here rather than agreeing with itself. Request n carries the
         # tool round the model answered after request n-1, and the last one its reply.
-        stored = json.dumps(replay, ensure_ascii=False)
-        assert _HISTORY_MARK in stored, "the stored request must be the rewritten one"
-        if index:
+        stored = json.dumps(payload["messages"], ensure_ascii=False)
+        if index == 0:
+            # The first request is stored whole, mark included.
+            assert _HISTORY_MARK in stored, (
+                "the stored request must be the rewritten one"
+            )
+        else:
+            # A later request stores its own slice, so the tool round it answered is
+            # the content that proves the slice is the right one.
             assert f"echo:t{index}" in stored, "the tool return must be stored"
             assert f'"text": "t{index}"' in stored, "the tool arguments must be stored"
-        payload = event.payload
-        assert isinstance(payload, dict)
         # Every event stores a slice plus the full length, never the whole thing.
         assert (
             payload["messages_prefix_len"] + len(payload["messages"])
@@ -563,14 +506,10 @@ async def test_a_later_turn_stores_only_what_the_conversation_missed():
     assert second_request.payload["messages_prefix_len"] == 1
     assert len(second_request.payload["messages"]) == 2
 
-    replay = await dao.reconstruct_request(second_run.id, second_request.seq)
-    assert replay is not None
-    assert replay.messages == trace._serialize_messages(seen[1])
-
-    # The first turn's request is still exactly what it was.
-    earlier = await dao.reconstruct_request(first_run.id, first_request.seq)
-    assert earlier is not None
-    assert earlier.messages == trace._serialize_messages(seen[0])
+    # What the second turn stores is exactly the part the first one did not have.
+    assert second_request.payload["messages"] == trace._serialize_messages(seen[1])[1:]
+    # And the first turn's request is still the whole list it was.
+    assert first_request.payload["messages"] == trace._serialize_messages(seen[0])
 
 
 async def test_the_instructions_are_recorded_once_per_conversation():
@@ -596,13 +535,8 @@ async def test_the_instructions_are_recorded_once_per_conversation():
         assert trace._INSTRUCTIONS_OMITTED in stored
         assert "be brief" not in stored
 
-    replay = await dao.reconstruct_request(second_run.id, second_request.seq)
-    assert replay is not None
-    assert "be brief" in json.dumps(replay.instructions)
-    assert replay.instructions_inherited is True
-    own = await dao.reconstruct_request(first_run.id, first_request.seq)
-    assert own is not None
-    assert own.instructions_inherited is False
+    # A step that carried them over has no copy of its own to show.
+    assert "instruction_parts" not in second_request.payload
 
 
 async def test_a_forgotten_baseline_is_written_whole_again():
@@ -623,43 +557,7 @@ async def test_a_forgotten_baseline_is_written_whole_again():
     # Nothing was carried over, so this request records the instructions itself.
     assert "be brief" in json.dumps(second_request.payload["instruction_parts"])
 
-    replay = await dao.reconstruct_request(second_run.id, second_request.seq)
-    assert replay is not None
-    assert replay.messages == trace._serialize_messages(seen[1])
-    assert replay.instructions_inherited is False
-
-
-async def test_a_replay_stops_when_the_first_request_is_gone():
-    """A conversation is stored as appends, so its first request is its beginning."""
-    seen: list[list[Any]] = []
-    provider = _conversation(seen)
-
-    first = await _turn(provider, "hello")
-    second = await _turn(provider, "again", history=first.all_messages())
-    await _turn(provider, "and again", history=second.all_messages())
-
-    first_run, second_run, third_run = await runs()
-    # While the conversation is whole, the newest turn is rebuilt from every step.
-    latest = await dao.reconstruct_request(third_run.id, 1)
-    assert latest is not None
-    assert latest.messages == trace._serialize_messages(seen[2])
-
-    async with AsyncSessionFactory() as session:
-        async with session.begin():
-            await session.execute(
-                sqlalchemy.delete(AgentRunEvent).where(
-                    AgentRunEvent.run_id == first_run.id
-                )
-            )
-            await session.execute(
-                sqlalchemy.delete(AgentRun).where(AgentRun.id == first_run.id)
-            )
-
-    # What the second turn added is still on record, but the history it appended to
-    # is not, so there is no whole transcript left to show - and saying so beats
-    # showing the tail as if it were the conversation.
-    assert await dao.reconstruct_request_messages(second_run.id, 1) is None
-    assert await dao.reconstruct_request_messages(third_run.id, 1) is None
+    assert second_request.payload["messages"] == trace._serialize_messages(seen[1])
 
 
 async def test_cjk_is_stored_as_text_not_escapes():
@@ -901,9 +799,7 @@ async def test_the_run_after_the_cleanup_is_written_whole_again():
     assert len(request.payload["messages"]) == 5
     assert "be brief" in json.dumps(request.payload["instruction_parts"])
 
-    replay = await dao.reconstruct_request(third_run.id, request.seq)
-    assert replay is not None
-    assert replay.messages == trace._serialize_messages(seen[2])
+    assert request.payload["messages"] == trace._serialize_messages(seen[2])
 
 
 async def test_paging_filters_and_search():
@@ -1028,15 +924,20 @@ async def test_a_whole_runner_turn_records_the_run_the_ledger_was_billed_for(
     assert (input_tokens, output_tokens) == (run.input_tokens, run.output_tokens)
     assert run.input_tokens > 0
 
-    # Every request of the turn is on record, and the last one replays completely.
+    # Every request of the turn is on record, and the last one stores the tail of the
+    # list the model was handed.
     events = await stored_events(run.id)
     requests = [event for event in events if event.kind == "model_request"]
     assert len(requests) == 3
     last_request = requests[-1]
     assert isinstance(last_request.payload, dict)
-    replay = await dao.reconstruct_request_messages(run.id, last_request.seq)
     assert len(seen) == 3
-    assert replay == trace._serialize_messages(seen[-1])
+    assert (
+        last_request.payload["messages"]
+        == trace._serialize_messages(seen[-1])[
+            last_request.payload["messages_prefix_len"] :
+        ]
+    )
 
     await memttlcache.delete(state.history_key(-100902, 9201))
     await memttlcache.delete(state.prompt_coverage_key(-100902, 9201))

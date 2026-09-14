@@ -41,46 +41,46 @@ const showRaw = ref(false);
 
 const events = computed(() => run.value?.events ?? []);
 
-/** The response's own serialized messages, kept in the event payload. */
-const payloadMessages = computed(() => {
+/**
+ * The messages this step stores, exactly as the row holds them.
+ *
+ * A request stores an increment, so this is what that request added - never the
+ * whole conversation, which the panel would have to replay the other steps to
+ * rebuild, and which is not what the row says.
+ */
+const storedMessages = computed(() => {
   const value = event.value?.payload?.["messages"];
   return Array.isArray(value) ? value : null;
 });
 
-/**
- * What to render as a conversation.
- *
- * A request's transcript is rebuilt from the run's prefix encoding and arrives as
- * `messages`; a response has nothing to rebuild, so its messages come straight from
- * the payload. Reading `messages` for both is why a response used to claim its data
- * had been dropped. Null means this step has no transcript at all - a replay that
- * failed, or a payload that was replaced by a size marker.
- */
-const transcript = computed(() => {
-  const current = event.value;
-  if (!current) return null;
-  return current.kind === "model_request" ? current.messages : payloadMessages.value;
+/** Where the increment starts, as the row records it. Prefix 0 means the whole request. */
+const increment = computed(() => {
+  const payload = event.value?.payload;
+  const total = payload?.["messages_total"];
+  const prefix = payload?.["messages_prefix_len"];
+  if (typeof total !== "number" || typeof prefix !== "number") return null;
+  return { total, prefix, stored: total - prefix };
 });
 
-const blocks = computed(() => traceBlocks(transcript.value ?? []));
+const blocks = computed(() => traceBlocks(storedMessages.value ?? []));
 
 const payloadJson = computed(() => JSON.stringify(event.value?.payload ?? null, null, 2));
 
 /**
- * The instructions this request carried.
+ * The instructions this step stores.
  *
- * A request only stores them when they changed, so most steps come back with the
- * copy the conversation recorded earlier - the replay resolves that, and the panel
- * says so rather than passing it off as this step's own payload.
+ * A request records them only when they changed, so a step that did not is one the
+ * conversation's earlier step already describes - and the panel says that instead of
+ * presenting a copy the row does not have.
  */
 const instructionsJson = computed(() => {
-  const current = event.value;
-  if (!current) return null;
-  const parts = current.instructions ?? current.payload?.["instruction_parts"];
+  const parts = event.value?.payload?.["instruction_parts"];
   return parts === undefined || parts === null ? null : JSON.stringify(parts, null, 2);
 });
 
-const instructionsInherited = computed(() => event.value?.instructions_inherited === true);
+const instructionsStored = computed(
+  () => event.value?.payload?.["instruction_parts"] !== undefined,
+);
 
 const settingsJson = computed(() => {
   const settings = event.value?.payload?.["model_settings"];
@@ -285,14 +285,14 @@ function summaryItems(data: NonNullable<typeof run.value>): DefinitionItem[] {
                   <div v-if="instructionsJson" class="mb-related">
                     <p class="mb-tight text-note text-hint">
                       {{ t("agentRuns.detail.instructions") }}
-                      <span v-if="instructionsInherited">
-                        · {{ t("agentRuns.detail.instructionsInherited") }}
-                      </span>
                     </p>
                     <pre class="font-mono text-note whitespace-pre-wrap break-all">{{
                       instructionsJson
                     }}</pre>
                   </div>
+                  <p v-else-if="!instructionsStored" class="mb-related text-note text-hint">
+                    {{ t("agentRuns.detail.instructionsNotStored") }}
+                  </p>
                   <div v-if="settingsJson" class="mb-related">
                     <p class="mb-tight text-note text-hint">
                       {{ t("agentRuns.detail.settings") }}
@@ -303,26 +303,40 @@ function summaryItems(data: NonNullable<typeof run.value>): DefinitionItem[] {
                   </div>
                 </template>
 
-                <p v-if="transcript === null && !showRaw" class="text-sub text-hint">
-                  {{ t("agentRuns.detail.unreconstructable") }}
+                <p v-if="storedMessages === null && !showRaw" class="text-sub text-hint">
+                  {{ t("agentRuns.detail.noMessages") }}
                 </p>
 
-                <div v-else-if="!showRaw" class="flex flex-col gap-related">
-                  <div v-for="(block, index) in blocks" :key="index">
-                    <p class="mb-tight text-note text-hint">
-                      {{ t(`agentRuns.detail.role.${block.role}`)
-                      }}<template v-if="block.toolName"> · {{ block.toolName }}</template>
-                    </p>
-                    <pre
-                      class="whitespace-pre-wrap break-all"
-                      :class="
-                        block.kind === 'tool-call' || block.kind === 'tool-return'
-                          ? 'font-mono text-note'
-                          : 'text-sub'
-                      "
-                      >{{ block.text }}</pre>
+                <template v-else-if="!showRaw">
+                  <p
+                    v-if="increment && increment.prefix > 0"
+                    class="mb-related text-note text-hint"
+                  >
+                    {{
+                      t("agentRuns.detail.increment", {
+                        stored: formatNumber(increment.stored),
+                        total: formatNumber(increment.total),
+                        prefix: formatNumber(increment.prefix),
+                      })
+                    }}
+                  </p>
+                  <div class="flex flex-col gap-related">
+                    <div v-for="(block, index) in blocks" :key="index">
+                      <p class="mb-tight text-note text-hint">
+                        {{ t(`agentRuns.detail.role.${block.role}`)
+                        }}<template v-if="block.toolName"> · {{ block.toolName }}</template>
+                      </p>
+                      <pre
+                        class="whitespace-pre-wrap break-all"
+                        :class="
+                          block.kind === 'tool-call' || block.kind === 'tool-return'
+                            ? 'font-mono text-note'
+                            : 'text-sub'
+                        "
+                        >{{ block.text }}</pre>
+                    </div>
                   </div>
-                </div>
+                </template>
 
                 <pre v-if="showRaw" class="font-mono text-note whitespace-pre-wrap break-all">{{
                   payloadJson

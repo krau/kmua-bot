@@ -15,8 +15,8 @@ finished (the row is written once, at the end).
 
 A request's `messages` are stored as an increment: only the part past the longest
 common prefix with the previous request of the same conversation. Instructions are
-stored the same way, and only when they changed. Reading either back means
-replaying the conversation in order, which `reconstruct_request` does.
+stored the same way, and only when they changed. `messages_total` and
+`messages_prefix_len` in the payload say where the increment starts.
 """
 
 from __future__ import annotations

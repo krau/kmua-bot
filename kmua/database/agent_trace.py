@@ -13,10 +13,11 @@ The enumerated string values live here as module constants because the write sid
 both validate against them; the tables themselves carry no enum constraint, like
 every other string column in this schema.
 
-`model_request` payloads are encoded as an increment over the previous request of
-the same conversation: the messages past their longest common prefix, and the
-instructions only when those changed. See `reconstruct_request`, which is the only
-correct way to read them.
+`model_request` payloads are an increment over the previous request of the same
+conversation: the messages past their longest common prefix, and the instructions
+only when those changed. `messages_total` and `messages_prefix_len` say where the
+increment starts, so reading a whole request means replaying the conversation in
+order; the panel shows the increment itself.
 """
 
 from __future__ import annotations
@@ -307,110 +308,6 @@ def _payload_of(event: AgentRunEvent) -> dict[str, Any] | None:
     return payload if isinstance(payload, dict) else None
 
 
-@dataclass(slots=True)
-class RequestReplay:
-    """One model request as the model saw it."""
-
-    messages: list[dict[str, Any]]
-    # The instructions that request carried, resolved from the request that recorded
-    # them when this one only carried them over.
-    instructions: Any = None
-    instructions_inherited: bool = False
-
-
-async def _request_chain(
-    session: AsyncSession, run: AgentRun, target: AgentRunEvent
-) -> list[AgentRunEvent]:
-    """The stored requests a replay of `target` needs, oldest first.
-
-    A run that belongs to a conversation is measured against that conversation, so
-    its chain is every request the conversation stored before it. A nested run and a
-    run with no conversation of its own only ever chain within themselves.
-    """
-    stmt = sqlalchemy.select(AgentRunEvent).where(
-        AgentRunEvent.kind == "model_request",
-        sqlalchemy.or_(
-            AgentRunEvent.run_id < target.run_id,
-            sqlalchemy.and_(
-                AgentRunEvent.run_id == target.run_id,
-                AgentRunEvent.seq <= target.seq,
-            ),
-        ),
-    )
-    if run.session_id is None or run.parent_run_id is not None:
-        stmt = stmt.where(AgentRunEvent.run_id == run.id)
-    else:
-        stmt = stmt.join(AgentRun, AgentRun.id == AgentRunEvent.run_id).where(
-            AgentRun.session_id == run.session_id,
-            AgentRun.parent_run_id.is_(None),
-        )
-    stmt = stmt.order_by(AgentRunEvent.run_id, AgentRunEvent.seq)
-    return list((await session.execute(stmt)).scalars().all())
-
-
-@with_session
-async def reconstruct_request(
-    run_id: int, seq: int, session: AsyncSession | None = None
-) -> RequestReplay | None:
-    """Rebuild one `model_request` event as the model received it.
-
-    Requests store only the messages past their longest common prefix with the
-    conversation's previous request, and their instructions only when those changed,
-    so replaying the conversation from its first stored request rebuilds both. Returns
-    None when the step is not a model request, when a step lost its payload to a size
-    cap, or when a replay does not end at exactly the length each event recorded - a
-    partial view is not returned as if it were the truth.
-    """
-    assert session is not None
-    target = await get_run_event(run_id, seq)
-    if target is None or target.kind != "model_request":
-        return None
-    run = await session.get(AgentRun, run_id)
-    if run is None:
-        return None
-    chain = await _request_chain(session, run, target)
-
-    acc: list[dict[str, Any]] = []
-    # The newest request that recorded instructions wins; the rest carried them over.
-    instructions: Any = None
-    holder: int | None = None
-    for event in chain:
-        payload = _payload_of(event)
-        if payload is None or payload.get("reason") in PAYLOAD_CAP_REASONS:
-            return None
-        prefix_len = payload.get("messages_prefix_len")
-        chunk = payload.get("messages")
-        total = payload.get("messages_total")
-        if (
-            not isinstance(prefix_len, int)
-            or not isinstance(chunk, list)
-            or not isinstance(total, int)
-        ):
-            return None
-        if prefix_len > len(acc):
-            return None
-        acc = acc[:prefix_len] + chunk
-        if len(acc) != total:
-            return None
-        if "instruction_parts" in payload:
-            instructions = payload["instruction_parts"]
-            holder = event.id
-    return RequestReplay(
-        messages=acc,
-        instructions=instructions,
-        instructions_inherited=holder is not None and holder != target.id,
-    )
-
-
-@with_session
-async def reconstruct_request_messages(
-    run_id: int, seq: int, session: AsyncSession | None = None
-) -> list[dict[str, Any]] | None:
-    """Rebuild just the messages of one `model_request` event."""
-    replay = await reconstruct_request(run_id, seq)
-    return replay.messages if replay is not None else None
-
-
 @with_tx
 async def delete_runs_before(
     cutoff: datetime, session: AsyncSession | None = None
@@ -492,7 +389,6 @@ __all__ = [
     "RUN_STATUSES",
     "AgentRunDraft",
     "AgentRunEventDraft",
-    "RequestReplay",
     "delete_runs_before",
     "get_run",
     "get_run_event",
@@ -500,7 +396,5 @@ __all__ = [
     "list_run_events",
     "record_rejection",
     "record_trace",
-    "reconstruct_request",
     "session_has_stored_requests",
-    "reconstruct_request_messages",
 ]

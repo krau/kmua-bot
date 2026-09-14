@@ -9,7 +9,6 @@ from __future__ import annotations
 from datetime import datetime
 
 from kmua.config import app_config
-from kmua.database.agent_trace import RequestReplay
 from kmua.database.models import (
     AgentRun,
     AgentRunEvent,
@@ -219,17 +218,9 @@ def agent_run_event_out(event: AgentRunEvent) -> AgentRunEventOut:
     )
 
 
-def agent_run_event_detail_out(
-    event: AgentRunEvent,
-    replay: RequestReplay | None,
-) -> AgentRunEventDetailOut:
-    payload = event.payload if isinstance(event.payload, dict) else None
+def agent_run_event_detail_out(event: AgentRunEvent) -> AgentRunEventDetailOut:
+    """One step with its stored payload - the row as the database holds it."""
     return AgentRunEventDetailOut(
         **agent_run_event_out(event).model_dump(),
-        payload=payload,
-        messages=replay.messages if replay is not None else None,
-        instructions=replay.instructions if replay is not None else None,
-        instructions_inherited=(
-            replay.instructions_inherited if replay is not None else False
-        ),
+        payload=event.payload if isinstance(event.payload, dict) else None,
     )
