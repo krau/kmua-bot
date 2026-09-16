@@ -27,7 +27,7 @@ from pyrogram.client import Client as PyrogramClient
 from kmua import affection, common
 from kmua.common.memory_store import memttlcache
 from kmua.common.rich_message import message_plain_text
-from kmua.common.utils import is_explicit_reply
+from kmua.common.utils import GROUP_CHAT_TYPES, is_explicit_reply
 from kmua.config import app_config
 from kmua.logger import logger
 from kmua.plugins.agent import datatype, input_format, provider, quota, state, trace
@@ -240,17 +240,15 @@ async def get_input_prompt(
     current message (or its direct reply) contributed media, so nearby context
     and deep reply-chain media cannot swap in the multimodal model.
 
-    Group chats with nearby history use input_format.build_group_prompt; other
-    callers keep the legacy inline format. The third element maps
+    Group chats always use input_format.build_group_prompt; include_nearby only
+    decides whether the 历史消息 section is assembled. Private chats and channel
+    comments keep the inline format. The third element maps
     file_unique_id -> image_number for media this turn delivered (empty on the
     legacy path), feeding the coverage cursor so repeated media is referenced,
     not resent.
     """
-    is_group = message.chat is not None and message.chat.type in (
-        pyrogram.enums.ChatType.SUPERGROUP,
-        pyrogram.enums.ChatType.GROUP,
-    )
-    if is_group and include_nearby > 0:
+    is_group = message.chat is not None and message.chat.type in GROUP_CHAT_TYPES
+    if is_group:
         nearby = await _fetch_nearby(message, include_nearby)
         prompt, media_meta = await input_format.build_group_prompt(
             client, message, nearby, ctx, coverage=coverage

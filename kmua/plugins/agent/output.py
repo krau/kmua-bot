@@ -11,6 +11,7 @@ from kmua.common.rich_message import (
     rich_html_plain_text,
     send_rich_message,
 )
+from kmua.common.utils import GROUP_CHAT_TYPES
 from kmua.config import app_config
 from kmua.logger import logger
 from kmua.plugins.agent import datatype, state
@@ -144,10 +145,7 @@ async def reply_output(
 ):
     if message.chat is None:
         return
-    is_group_chat = message.chat.type in (
-        pyrogram.enums.ChatType.SUPERGROUP,
-        pyrogram.enums.ChatType.GROUP,
-    )
+    is_group_chat = message.chat.type in GROUP_CHAT_TYPES
     user = message.sender_chat or message.from_user
     if not text.strip():
         return
@@ -274,9 +272,8 @@ class StreamingOutput:
         self.last_edit_time = 0.0
         self.edit_count = 0
         self.start_time = 0.0
-        self.is_group_chat = message.chat and message.chat.type in (
-            pyrogram.enums.ChatType.SUPERGROUP,
-            pyrogram.enums.ChatType.GROUP,
+        self.is_group_chat = (
+            message.chat is not None and message.chat.type in GROUP_CHAT_TYPES
         )
         self.user = message.sender_chat or message.from_user
         self._edit_task: asyncio.Task | None = None

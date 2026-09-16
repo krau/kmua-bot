@@ -15,6 +15,7 @@ from pyrogram import filters
 from pyrogram.client import Client as PyrogramClient
 
 from kmua import common, database, i18n
+from kmua.common.utils import GROUP_CHAT_TYPES
 from kmua.config import app_config
 from kmua.logger import logger
 from kmua.services import link_parse, manyacg
@@ -346,9 +347,8 @@ if app_config.agent and app_config.agent_model:
         history: list[ModelMessage] = await common.memttlcache.get(
             state.history_key(chat_id, user_id), []
         )
-        is_group_chat = message.chat and message.chat.type in (
-            pyrogram.enums.ChatType.SUPERGROUP,
-            pyrogram.enums.ChatType.GROUP,
+        is_group_chat = (
+            message.chat is not None and message.chat.type in GROUP_CHAT_TYPES
         )
         instructions = (
             app_config.agent_prompt
@@ -934,7 +934,7 @@ async def wake_agent(client: PyrogramClient, message: pyrogram.types.Message):
             )
         )
         return
-    if chat.type == pyrogram.enums.ChatType.SUPERGROUP:
+    if chat.type in GROUP_CHAT_TYPES:
         chat_config = await database.get_chat_config(chat)
         if not chat_config.ai_reply:
             return await word_reply(client, message)
@@ -946,7 +946,7 @@ async def wake_agent(client: PyrogramClient, message: pyrogram.types.Message):
         return
     if (
         is_bot_user
-        and chat.type == pyrogram.enums.ChatType.SUPERGROUP
+        and chat.type in GROUP_CHAT_TYPES
         and chat_config is not None
         and not chat_config.ai_reply_other_bots_enabled
     ):
@@ -1017,10 +1017,7 @@ async def wake_agent(client: PyrogramClient, message: pyrogram.types.Message):
         history: list[ModelMessage] = await common.memttlcache.get(
             state.history_key(chat_id, user.id), []
         )
-        is_group_chat = chat.type in (
-            pyrogram.enums.ChatType.SUPERGROUP,
-            pyrogram.enums.ChatType.GROUP,
-        )
+        is_group_chat = chat.type in GROUP_CHAT_TYPES
         instructions = (
             app_config.agent_prompt
             if not is_group_chat

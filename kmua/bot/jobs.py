@@ -9,6 +9,7 @@ import pyrogram
 import pyrogram.errors
 
 from kmua import common, database, enums, i18n
+from kmua.common.utils import GROUP_CHAT_TYPES
 from kmua.config import app_config
 from kmua.database.models import ChatConfig
 from kmua.logger import logger
@@ -411,10 +412,7 @@ async def _is_group_chat(chat_id: int) -> bool:
             f"{e.__class__.__name__}: {e}"
         )
         return False
-    return chat.type in (
-        pyrogram.enums.ChatType.SUPERGROUP,
-        pyrogram.enums.ChatType.GROUP,
-    )
+    return chat.type in GROUP_CHAT_TYPES
 
 
 async def _broadcast_locked(chat_id: int) -> bool:

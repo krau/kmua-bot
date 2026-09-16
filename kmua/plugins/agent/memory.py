@@ -7,6 +7,7 @@ from pyrogram.client import Client
 
 from kmua import database, enums
 from kmua.common.memory_store import memttlcache
+from kmua.common.utils import GROUP_CHAT_TYPES
 from kmua.config import app_config
 from kmua.logger import logger
 from kmua.plugins.agent import quota, state
@@ -181,10 +182,7 @@ async def record_memory(client: Client, message: pyrogram.types.Message):
     ), "Invalid message state in record_memory"
     if not is_chat_allowed(chat.id):
         return
-    in_group = chat.type in (
-        pyrogram.enums.ChatType.SUPERGROUP,
-        pyrogram.enums.ChatType.GROUP,
-    )
+    in_group = chat.type in GROUP_CHAT_TYPES
     if in_group:
         chat_config = await database.get_chat_config(chat.id)
         if not chat_config.ai_reply:
@@ -234,10 +232,7 @@ async def record_agent_memory(client: Client, message: pyrogram.types.Message):
     ), "Invalid message state in record_agent_memory"
     if not is_chat_allowed(chat.id):
         return
-    in_group = chat.type in (
-        pyrogram.enums.ChatType.SUPERGROUP,
-        pyrogram.enums.ChatType.GROUP,
-    )
+    in_group = chat.type in GROUP_CHAT_TYPES
     if in_group:
         chat_config = await database.get_chat_config(chat.id)
         if not chat_config.ai_reply:

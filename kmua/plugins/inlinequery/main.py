@@ -6,6 +6,7 @@ from pyrogram.client import Client
 
 from kmua import database, i18n
 from kmua.common.memory_store import memttlcache
+from kmua.common.utils import GROUP_CHAT_TYPES
 from kmua.logger import logger
 from kmua.plugins.inlinequery.manomeme import handle_manomeme
 
@@ -20,7 +21,7 @@ async def inline_query_handler(client: Client, query: types.InlineQuery):
     datas = query.query.strip().split(" ")
     if not datas or datas[0] == "":
         results: list[types.InlineQueryResult] = []
-        if query.chat_type == enums.ChatType.SUPERGROUP:
+        if query.chat_type in GROUP_CHAT_TYPES:
             results.append(
                 types.InlineQueryResultArticle(
                     id="chat_quotes",

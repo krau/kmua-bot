@@ -3,10 +3,11 @@ import re
 import httpx
 from pyrogram import filters
 from pyrogram.client import Client
-from pyrogram.enums import ChatType, ParseMode
+from pyrogram.enums import ParseMode
 from pyrogram.types import Message
 
 from kmua import common, database, i18n
+from kmua.common.utils import GROUP_CHAT_TYPES
 
 
 @Client.on_message(
@@ -16,7 +17,7 @@ async def bililink_convert(client: Client, message: Message):
     chat = message.chat
     if not chat or chat.id is None:
         return
-    in_group = chat.type in (ChatType.GROUP, ChatType.SUPERGROUP)
+    in_group = chat.type in GROUP_CHAT_TYPES
     if in_group:
         chat_config = await database.get_chat_config(chat.id)
         if not chat_config.convert_b23_enabled:

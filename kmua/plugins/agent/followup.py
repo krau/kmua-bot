@@ -7,7 +7,7 @@ from pyrogram.client import Client as PyrogramClient
 
 from kmua import common, database, enums
 from kmua.common.memory_store import memttlcache
-from kmua.common.utils import is_explicit_reply
+from kmua.common.utils import GROUP_CHAT_TYPES, is_explicit_reply
 from kmua.config import app_config
 from kmua.logger import logger
 from kmua.plugins.agent import datatype, provider, quota, state, trace
@@ -79,10 +79,7 @@ async def _follow_up_filter_func(
     if not message or not message.chat:
         return False
     chat = message.chat
-    if chat.type not in (
-        pyrogram.enums.ChatType.SUPERGROUP,
-        pyrogram.enums.ChatType.GROUP,
-    ):
+    if chat.type not in GROUP_CHAT_TYPES:
         return False
     if not chat.id:
         return False
@@ -291,7 +288,7 @@ Bot回复: {bot_full_output}
             user=user,
             user_data=user_data,
             history=history,
-            is_group_chat=True,
+            is_group_chat=chat.type in GROUP_CHAT_TYPES,
         )
         follow_up_prompt, _, _ = await get_input_prompt(
             client, message, include_nearby=0, ctx=None

@@ -19,6 +19,7 @@ from pyrogram.client import Client as PyrogramClient
 from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
 from kmua.common.memory_store import memttlcache
+from kmua.common.utils import GROUP_CHAT_TYPES
 from kmua.config import app_config
 from kmua.i18n import i18n
 from kmua.logger import logger
@@ -424,11 +425,7 @@ async def _run_agent_impl(
                         if (
                             full_output
                             and message.chat
-                            and message.chat.type
-                            in (
-                                pyrogram.enums.ChatType.SUPERGROUP,
-                                pyrogram.enums.ChatType.GROUP,
-                            )
+                            and message.chat.type in GROUP_CHAT_TYPES
                         ):
                             bot_reply = await memttlcache.get(
                                 state.bot_last_reply_key(chat_id)
@@ -527,11 +524,7 @@ async def _run_agent_impl(
                     if (
                         full_output
                         and message.chat
-                        and message.chat.type
-                        in (
-                            pyrogram.enums.ChatType.SUPERGROUP,
-                            pyrogram.enums.ChatType.GROUP,
-                        )
+                        and message.chat.type in GROUP_CHAT_TYPES
                     ):
                         bot_reply = await memttlcache.get(
                             state.bot_last_reply_key(chat_id)

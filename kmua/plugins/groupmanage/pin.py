@@ -6,6 +6,7 @@ import pyrogram.errors
 from pyrogram.client import Client as PyrogramClient
 
 from kmua import database
+from kmua.common.utils import GROUP_CHAT_TYPES
 from kmua.logger import logger
 
 
@@ -13,10 +14,7 @@ async def channel_forward_filter_func(_, __, message: pyrogram.types.Message):
     chat = message.chat
     if chat is None:
         return False
-    if chat.type not in (
-        pyrogram.enums.ChatType.SUPERGROUP,
-        pyrogram.enums.ChatType.GROUP,
-    ):
+    if chat.type not in GROUP_CHAT_TYPES:
         return False
     if not message.automatic_forward:
         return False

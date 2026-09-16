@@ -6,6 +6,7 @@ from pyrogram.enums import ChatType
 from pyrogram.types import CallbackQuery, InlineQuery, Message
 
 from kmua import common, database, enums
+from kmua.common.utils import GROUP_CHAT_TYPES
 from kmua.config import app_config
 from kmua.logger import logger
 
@@ -122,7 +123,7 @@ async def on_cb(client: Client, callback_query: CallbackQuery):
         return
     if chat.type == ChatType.GROUP:
         callback_query.stop_propagation()
-    if chat.type == ChatType.SUPERGROUP:
+    if chat.type in GROUP_CHAT_TYPES:
         chat_db = await database.upsert_chat(chat)
         await database.add_association_in_chat(chat_db, user_db, None)
 

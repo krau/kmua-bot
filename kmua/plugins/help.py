@@ -4,6 +4,7 @@ import pyrogram
 from pyrogram.client import Client
 
 from kmua import common, database, i18n
+from kmua.common.utils import GROUP_CHAT_TYPES
 
 
 @Client.on_message(pyrogram.filters.command("help"), group=0)
@@ -13,10 +14,7 @@ async def help_command(client: Client, message: pyrogram.types.Message):
     user = message.from_user
     if chat is None or chat.id is None or user is None:
         return
-    in_group = chat.type in (
-        pyrogram.enums.ChatType.GROUP,
-        pyrogram.enums.ChatType.SUPERGROUP,
-    )
+    in_group = chat.type in GROUP_CHAT_TYPES
     if in_group:
         lang = (await database.get_chat_config(chat.id)).lang
     else:

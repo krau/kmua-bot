@@ -8,6 +8,7 @@ import pyrogram
 from pyrogram.client import Client as PyrogramClient
 
 from kmua import common, database, i18n
+from kmua.common.utils import GROUP_CHAT_TYPES
 from kmua.config import app_config
 from kmua.logger import logger
 from kmua.services import aniobjcut
@@ -46,10 +47,7 @@ async def parse_artwork(client: PyrogramClient, message: pyrogram.types.Message)
     artwork_url = message.matches[0].group()
     if not artwork_url:
         return
-    is_group = chat.type in (
-        pyrogram.enums.ChatType.SUPERGROUP,
-        pyrogram.enums.ChatType.GROUP,
-    )
+    is_group = chat.type in GROUP_CHAT_TYPES
     if is_group:
         chat_config = await database.get_chat_config(chat.id)
         if not chat_config.parse_links_enabled or not chat_config.parse_artwork_enabled:
@@ -160,7 +158,7 @@ async def setu_command(client: PyrogramClient, message: pyrogram.types.Message):
         return
     if not chat or not chat.type or not chat.id:
         return
-    if chat.type in (pyrogram.enums.ChatType.SUPERGROUP, pyrogram.enums.ChatType.GROUP):
+    if chat.type in GROUP_CHAT_TYPES:
         chat_config = await database.get_chat_config(chat.id)
         if not chat_config.setu_enabled:
             await message.reply(
@@ -233,7 +231,7 @@ async def randavatar_command(client: PyrogramClient, message: pyrogram.types.Mes
         return
     if not chat or not chat.type or not chat.id:
         return
-    if chat.type in (pyrogram.enums.ChatType.SUPERGROUP, pyrogram.enums.ChatType.GROUP):
+    if chat.type in GROUP_CHAT_TYPES:
         chat_config = await database.get_chat_config(chat.id)
         if not chat_config.setu_enabled:
             await message.reply(

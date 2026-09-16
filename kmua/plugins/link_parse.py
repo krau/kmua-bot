@@ -20,7 +20,7 @@ import pyrogram
 from pyrogram import filters
 from pyrogram.client import Client
 from pyrogram.client import Client as PyrogramClient
-from pyrogram.enums import ChatType, ParseMode
+from pyrogram.enums import ParseMode
 from pyrogram.raw.functions.messages.upload_media import (
     UploadMedia as _RawUploadMedia,
 )
@@ -36,6 +36,7 @@ from pyrogram.types import Message
 from kmua import database, i18n
 from kmua.common.download import download_capped
 from kmua.common.rich_message import send_rich_message
+from kmua.common.utils import GROUP_CHAT_TYPES
 from kmua.logger import logger
 from kmua.services import link_parse
 from kmua.services import wechat as wechat_service
@@ -78,7 +79,7 @@ async def parse_social_link(client: Client, message: Message):
     is_wechat = wechat_service.is_wechat_url(url)
     source = ""
     clean_url = ""
-    if chat.type in (ChatType.SUPERGROUP, ChatType.GROUP):
+    if chat.type in GROUP_CHAT_TYPES:
         chat_config = await database.get_chat_config(chat.id)
         lang = chat_config.lang
     else:

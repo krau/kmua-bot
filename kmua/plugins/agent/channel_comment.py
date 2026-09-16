@@ -8,6 +8,7 @@ from pyrogram.client import Client
 
 from kmua import database
 from kmua.common.memory_store import memttlcache
+from kmua.common.utils import GROUP_CHAT_TYPES
 from kmua.config import app_config
 from kmua.logger import logger
 from kmua.plugins.agent.output import TypingKeepAlive, reply_output
@@ -207,10 +208,7 @@ async def channel_comment_filter_func(_, __, message: pyrogram.types.Message):
     chat = message.chat
     if chat is None:
         return False
-    if chat.type not in (
-        pyrogram.enums.ChatType.SUPERGROUP,
-        pyrogram.enums.ChatType.GROUP,
-    ):
+    if chat.type not in GROUP_CHAT_TYPES:
         return False
     if not app_config.agent_channel_comment_enabled:
         return False

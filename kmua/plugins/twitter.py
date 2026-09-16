@@ -14,6 +14,7 @@ from pyrogram.client import Client as PyrogramClient
 
 from kmua import common, database, i18n
 from kmua.common.download import download_capped
+from kmua.common.utils import GROUP_CHAT_TYPES
 from kmua.logger import logger
 from kmua.services import twitter as twitter_service
 from kmua.services.twitter import TWITTER_URL_RE
@@ -28,7 +29,7 @@ async def parse_tweet(client: PyrogramClient, message: pyrogram.types.Message):
     user = message.from_user or message.sender_chat
     if not user or not user.id or not chat or not chat.id:
         return
-    if chat.type in (pyrogram.enums.ChatType.SUPERGROUP, pyrogram.enums.ChatType.GROUP):
+    if chat.type in GROUP_CHAT_TYPES:
         chat_config = await database.get_chat_config(chat.id)
         # The same link-parsing switch as artwork parsing governs tweets.
         if not chat_config.parse_links_enabled or not chat_config.parse_artwork_enabled:

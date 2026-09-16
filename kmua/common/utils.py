@@ -14,6 +14,16 @@ MAX_WEBM_SIZE = 10 * 1024 * 1024
 # WEBM 处理超时 (秒)
 WEBM_PROCESS_TIMEOUT = 10
 
+# "是不是群聊"一律用它判定: Telegram 对开启了话题的超级群返回 ChatType.FORUM,
+# pyrogram 自己的 filters.group 也是这三个。
+GROUP_CHAT_TYPES = frozenset(
+    {
+        pyrogram.enums.ChatType.GROUP,
+        pyrogram.enums.ChatType.SUPERGROUP,
+        pyrogram.enums.ChatType.FORUM,
+    }
+)
+
 # Strong references to background tasks so they are not garbage-collected
 # mid-flight (asyncio only keeps weak references to tasks).
 _background_tasks: set[asyncio.Task] = set()
