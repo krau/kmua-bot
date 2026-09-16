@@ -636,9 +636,6 @@ async def get_input_prompt(
                 )
             )
 
-    sender = message.sender_chat or message.from_user
-    sender_name = sender_label(sender)
-    current_msg_label = f"[当前消息|发送者:{sender_name}|消息ID:{message.id}]"
     if ctx is None:
         ctx_str = ""
     elif isinstance(ctx, datatype.ContextInfo):
@@ -647,10 +644,9 @@ async def get_input_prompt(
         ctx_str = "\n".join(f"{k}: {v}" for k, v in ctx.items() if v is not None)
     else:
         ctx_str = str(ctx)
-    ctx_text = f"{current_msg_label}\n{ctx_str}" if ctx_str else current_msg_label
     user_prompt.extend(
         await build_contents_from_message(
-            message, ctx_text=ctx_text, include_media=True
+            message, ctx_text=ctx_str or None, include_media=True
         )
     )
     needs_multimodal = any(
