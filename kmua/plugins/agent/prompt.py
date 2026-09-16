@@ -578,48 +578,6 @@ async def get_input_prompt(
         if is_history_chain:
             reply_chain = reply_chain[-1:]
 
-    has_reply = bool(reply_chain)
-
-    if include_nearby and include_nearby > 0 and message.chat and message.chat.id:
-        message_ids = []
-        base_id = message.id
-        for i in range(include_nearby):
-            mid = base_id - i - 1
-            if mid > 0:
-                message_ids.append(mid)
-        message_ids.reverse()
-
-        if message_ids:
-            prev_msgs = await common.get_cached_messages_objects(
-                message.chat.id, message_ids
-            )
-            closest_media_msg: pyrogram.types.Message | None = None
-            for prev_msg in reversed(prev_msgs):
-                if _is_deleted_message(prev_msg):
-                    continue
-                if prev_msg.media and not closest_media_msg:
-                    closest_media_msg = prev_msg
-                    break
-            for prev_msg in prev_msgs:
-                if _is_deleted_message(prev_msg):
-                    continue
-                if prev_msg.id in seen_msg_ids:
-                    continue
-                seen_msg_ids.add(prev_msg.id)
-                sender_name = sender_label(prev_msg.from_user or prev_msg.sender_chat)
-                include_media = (
-                    not has_reply
-                    and closest_media_msg is not None
-                    and prev_msg.id == closest_media_msg.id
-                )
-                user_prompt.extend(
-                    await build_contents_from_message(
-                        prev_msg,
-                        f"[群聊消息|发送者:{sender_name}|消息ID:{prev_msg.id}]",
-                        include_media=include_media,
-                    )
-                )
-
     # 回复链只在最后一条（当前消息直接回复的）中包含媒体
     if reply_chain:
         last_idx = len(reply_chain) - 1
