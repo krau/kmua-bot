@@ -10,7 +10,7 @@ from kmua.common.memory_store import memttlcache
 from kmua.common.utils import GROUP_CHAT_TYPES, is_explicit_reply
 from kmua.config import app_config
 from kmua.logger import logger
-from kmua.plugins.agent import datatype, provider, quota, state, trace
+from kmua.plugins.agent import datatype, jev, provider, quota, state, trace
 from kmua.plugins.agent.prompt import build_ctx_info, get_input_prompt
 from kmua.plugins.agent.runner import (
     get_chat_model_override,
@@ -74,7 +74,7 @@ async def _follow_up_filter_func(
 ) -> bool:
     if not app_config.agent or not app_config.agent_follow_up:
         return False
-    if not _default_relevance_check_agent:
+    if not _default_relevance_check_agent and not app_config.agent_followup_jev_model:
         return False
     if not message or not message.chat:
         return False
@@ -213,10 +213,24 @@ Bot回复: {bot_full_output}
 """
     session: trace.TraceSession | None = None
     try:
-        small_model_override = await get_chat_model_override(chat.id, "small")
-        relevance_check_agent = _make_relevance_check_agent(small_model_override)
-        if not relevance_check_agent:
-            return
+        # 使用小模型超时控制防止相关性检查阻塞事件循环
+        timeout = app_config.agent_small_model_timeout
+        jev_model_spec = app_config.agent_followup_jev_model
+        if jev_model_spec:
+            # 实验性: jev 只输出概率不生成文本, 因而不走 pydantic-ai。
+            coro = jev.check_relevance(
+                relevance_check_prompt,
+                spec=jev_model_spec,
+                timeout=timeout if timeout > 0 else None,
+            )
+        else:
+            small_model_override = await get_chat_model_override(chat.id, "small")
+            relevance_check_agent = _make_relevance_check_agent(small_model_override)
+            if not relevance_check_agent:
+                return
+            coro = relevance_check_agent.run(
+                user_prompt=relevance_check_prompt,
+            )
 
         session = await trace.start_trace(
             "followup_relevance",
@@ -225,11 +239,8 @@ Bot回复: {bot_full_output}
             message_id=message.id,
             model_role="small",
         )
-        # 使用小模型超时控制防止相关性检查阻塞事件循环
-        timeout = app_config.agent_small_model_timeout
-        coro = relevance_check_agent.run(
-            user_prompt=relevance_check_prompt,
-        )
+        if jev_model_spec:
+            trace.mark_trace(session, model_name=jev_model_spec)
 
         if timeout > 0:
             try:

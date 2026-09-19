@@ -97,6 +97,16 @@ def _make_openai_provider(provider_name: str) -> OpenAIProvider:
     return OpenAIProvider(base_url=_openai_base_url(cfg), api_key=cfg.key)
 
 
+def resolve_spec(spec: str) -> tuple[ProviderConfig, str]:
+    """Return the provider config and model name of a 'provider/model' spec.
+
+    For callers that need the provider's url/key/proxy directly instead of a
+    pydantic-ai model object.
+    """
+    provider_name, model_name = _parse_spec(spec)
+    return _get_provider(provider_name), model_name
+
+
 def make_chat_model(
     spec: str,
 ) -> VideoCapableOpenAIChatModel | OpenAIResponsesModel:

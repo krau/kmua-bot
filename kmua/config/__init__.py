@@ -186,6 +186,14 @@ class _AppConfig(pydantic.BaseModel):
     agent: bool = False
     agent_group_context_nearby_message_count: int = 0
     agent_follow_up: bool = True
+    # 实验性: 接话判断改用 jev(System One 决策模型, 只输出布尔概率不生成文本)。
+    # 值为 "provider/model" 形式的 spec, provider 的 url 需指向网关 evaluation 基址:
+    #   agent_followup_jev_model = "vercel/typesafe-ai/jev"
+    #   [agent_providers.vercel]
+    #   url = "https://ai-gateway.vercel.sh/v4/ai"
+    #   key = "..."
+    # 留空则仍用 agent_model_small, per-chat 小模型覆盖只对该路径生效。
+    agent_followup_jev_model: str | None = None
     agent_cross_group_memory: bool = False
     agent_group_memory: bool = True
     agent_powermem_config_path: str | None = None
