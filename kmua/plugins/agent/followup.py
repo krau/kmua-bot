@@ -221,6 +221,7 @@ Bot回复: {bot_full_output}
             coro = jev.check_relevance(
                 relevance_check_prompt,
                 spec=jev_model_spec,
+                threshold=app_config.agent_followup_jev_threshold,
                 timeout=timeout if timeout > 0 else None,
             )
         else:

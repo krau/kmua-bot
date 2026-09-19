@@ -23,9 +23,9 @@ from kmua.common.http import get_agent_http_client
 from kmua.plugins.agent import provider
 
 _URL_PATH = "/systemone"
-# jev returns calibrated probabilities; at/above this one the new message is
-# treated as continuing the previous topic.
-_RELEVANCE_THRESHOLD = 0.5
+# Default decision boundary on jev's calibrated probability: callers pass a
+# configured threshold to make this stricter.
+_DEFAULT_RELEVANCE_THRESHOLD = 0.5
 
 _RELEVANCE_QUESTION = {
     "type": "noul",
@@ -71,13 +71,15 @@ async def check_relevance(
     state: str,
     *,
     spec: str,
+    threshold: float = _DEFAULT_RELEVANCE_THRESHOLD,
     timeout: float | None = None,
 ) -> JevRelevanceResult:
     """Ask jev whether *state*'s new message continues the previous topic.
 
     *spec* is a ``provider/model`` spec; the provider's ``url`` must be the
     System One base URL (``https://api.typesafe.ai/v1``) and the model is a
-    TypeSafe model name such as ``jev-latest``.
+    TypeSafe model name such as ``jev-latest``. The message counts as a
+    continuation when jev's probability reaches *threshold*.
     """
     cfg, model_name = provider.resolve_spec(spec)
     url = f"{cfg.url.rstrip('/')}{_URL_PATH}"
@@ -120,7 +122,7 @@ async def check_relevance(
     )
     return JevRelevanceResult(
         output=JevRelevanceOutput(
-            relevance=answer.noul >= _RELEVANCE_THRESHOLD,
+            relevance=answer.noul >= threshold,
             reason=f"jev probability={answer.noul:.3f}",
         ),
         usage=usage,

@@ -88,6 +88,7 @@ _PUBLIC_FIELDS: dict[str, tuple[str, ...]] = {
         "agent_cross_group_memory",
         "agent_follow_up",
         "agent_followup_jev_model",
+        "agent_followup_jev_threshold",
         "agent_sticker_memory",
         "agent_sticker_memory_sample_rate",
         "agent_sticker_warmup_count",

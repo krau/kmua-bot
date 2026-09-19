@@ -194,6 +194,8 @@ class _AppConfig(pydantic.BaseModel):
     #   key = "..."
     # 留空则仍用 agent_model_small, per-chat 小模型覆盖只对该路径生效。
     agent_followup_jev_model: str | None = None
+    # jev 相关性概率阈值(0-1): noul 达到该值才认为新消息在延续话题, 越接近 1 越保守。
+    agent_followup_jev_threshold: float = pydantic.Field(default=0.5, ge=0.0, le=1.0)
     agent_cross_group_memory: bool = False
     agent_group_memory: bool = True
     agent_powermem_config_path: str | None = None
