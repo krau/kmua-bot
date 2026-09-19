@@ -1,10 +1,9 @@
-"""Experimental: jev (TypeSafe System One) decisions via Vercel AI Gateway.
+"""Experimental: jev (TypeSafe System One) decisions for the follow-up check.
 
 jev is not a chat model: it takes a ``state`` plus typed ``questions`` and
-returns typed answers (boolean probability / choice / score), never text. It
-therefore has no pydantic-ai model class; this module speaks the Gateway
-evaluation protocol directly (the same one AI SDK's ``experimental_evaluate``
-uses).
+returns typed answers (yes/no probability / choice / score), never text. It
+therefore has no pydantic-ai model class; this module speaks the System One
+HTTP API directly.
 
 Only the follow-up relevance check needs this path. Removing the feature means
 deleting this module, the branch in :mod:`kmua.plugins.agent.followup`, the
@@ -23,17 +22,13 @@ from pydantic_ai.usage import RunUsage
 from kmua.common.http import get_agent_http_client
 from kmua.plugins.agent import provider
 
-_URL_PATH = "/evaluation-model"
-# Protocol headers; keep the versions in sync with @ai-sdk/gateway, which is
-# what the Gateway routes evaluation requests by.
-_GATEWAY_PROTOCOL_VERSION = "0.0.1"
-_SPECIFICATION_VERSION = "4"
+_URL_PATH = "/systemone"
 # jev returns calibrated probabilities; at/above this one the new message is
 # treated as continuing the previous topic.
-_RELEVANCE_THRESHOLD = 0.7
+_RELEVANCE_THRESHOLD = 0.5
 
 _RELEVANCE_QUESTION = {
-    "type": "boolean",
+    "type": "noul",
     "instructions": "新消息是否是对 Bot 回复的评论、疑问、补充、反驳或相关讨论?",
     "criteria": {
         "true": "新消息与 Bot 回复的话题存在明显关联",
@@ -58,13 +53,13 @@ class JevRelevanceResult:
 
 
 class _Usage(BaseModel):
-    inputTokens: int = 0
-    outputTokens: int = 0
+    input_tokens: int = 0
+    output_tokens: int = 0
 
 
 class _Answer(BaseModel):
     type: str
-    probability: float | None = None
+    noul: float | None = None
 
 
 class _Response(BaseModel):
@@ -81,18 +76,17 @@ async def check_relevance(
     """Ask jev whether *state*'s new message continues the previous topic.
 
     *spec* is a ``provider/model`` spec; the provider's ``url`` must be the
-    evaluation base URL (e.g. ``https://ai-gateway.vercel.sh/v4/ai``).
+    System One base URL (``https://api.typesafe.ai/v1``) and the model is a
+    TypeSafe model name such as ``jev-latest``.
     """
     cfg, model_name = provider.resolve_spec(spec)
     url = f"{cfg.url.rstrip('/')}{_URL_PATH}"
-    headers = {
-        "Authorization": f"Bearer {cfg.key}",
-        "ai-gateway-protocol-version": _GATEWAY_PROTOCOL_VERSION,
-        "ai-gateway-auth-method": "api-key",
-        "ai-evaluation-model-specification-version": _SPECIFICATION_VERSION,
-        "ai-model-id": model_name,
+    headers = {"Authorization": f"Bearer {cfg.key}"}
+    payload = {
+        "model": model_name,
+        "state": state,
+        "questions": {"relevance": _RELEVANCE_QUESTION},
     }
-    payload = {"state": state, "questions": {"relevance": _RELEVANCE_QUESTION}}
 
     # Reuse the cached proxied client when a proxy is configured; otherwise the
     # check owns a short-lived client (at most one request per check).
@@ -114,20 +108,20 @@ async def check_relevance(
         )
     data = _Response.model_validate(response.json())
     answer = data.answers.get("relevance")
-    if answer is None or answer.probability is None:
+    if answer is None or answer.noul is None:
         raise RuntimeError(
             f"jev response carried no probability: {response.text[:200]}"
         )
 
     usage = RunUsage(
         requests=1,
-        input_tokens=data.usage.inputTokens if data.usage else 0,
-        output_tokens=data.usage.outputTokens if data.usage else 0,
+        input_tokens=data.usage.input_tokens if data.usage else 0,
+        output_tokens=data.usage.output_tokens if data.usage else 0,
     )
     return JevRelevanceResult(
         output=JevRelevanceOutput(
-            relevance=answer.probability >= _RELEVANCE_THRESHOLD,
-            reason=f"jev probability={answer.probability:.3f}",
+            relevance=answer.noul >= _RELEVANCE_THRESHOLD,
+            reason=f"jev probability={answer.noul:.3f}",
         ),
         usage=usage,
     )
