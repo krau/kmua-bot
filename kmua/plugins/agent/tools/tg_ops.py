@@ -12,6 +12,7 @@ from io import BytesIO
 from typing import Any
 
 import pyrogram
+import pyrogram.errors
 from pydantic_ai import RunContext
 
 from kmua.common.safe_http import DEFAULT_MAX_BYTES, UnsafeUrlError, safe_download_bytes
@@ -40,7 +41,7 @@ _METHODS: dict[str, tuple[str, set[str], set[str]]] = {
     "sendReaction": (
         "send_reaction",
         {"message_id", "emoji"},
-        {"message_id", "emoji"},
+        {"emoji"},
     ),
     "sendPoll": (
         "send_poll",
@@ -129,6 +130,18 @@ async def _call_kmua_extension(
     return f"Error: Unknown method: {method}"
 
 
+def _as_message_id(value: Any) -> int | None:
+    """value as a Telegram message id, or None when it cannot be one."""
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, int):
+        return value if value > 0 else None
+    if isinstance(value, str) and value.isdigit():
+        parsed = int(value)
+        return parsed if parsed > 0 else None
+    return None
+
+
 async def _convert_params(
     ctx: RunContext[datatype.ContextDeps],
     method: str,
@@ -194,6 +207,18 @@ async def _convert_params(
             kwargs["reply_parameters"] = pyrogram.types.ReplyParameters(
                 message_id=int(value)
             )
+        elif method == "sendReaction" and key == "message_id":
+            if value is None:
+                # JSON null means "not given": fall through to the default below.
+                continue
+            target = _as_message_id(value)
+            if target is None:
+                return None, (
+                    f"Error: Invalid message_id for sendReaction: {value!r}. "
+                    "Use a positive Telegram message id, or omit message_id to "
+                    "react to the message being answered."
+                )
+            kwargs[key] = target
         elif key == "disable_web_page_preview":
             kwargs["link_preview_options"] = pyrogram.types.LinkPreviewOptions(
                 is_disabled=bool(value)
@@ -274,6 +299,11 @@ async def _convert_params(
             )
         else:
             kwargs[key] = value
+    if method == "sendReaction" and "message_id" not in kwargs:
+        # No target given: react to the message being answered. That is the
+        # only id this tool can vouch for, so the common case never depends on
+        # an id the model had to produce.
+        kwargs["message_id"] = ctx.deps.message.id
     return kwargs, None
 
 
@@ -326,7 +356,7 @@ async def tg(
     Standard methods (params follow Bot API field names):
     - sendPhoto: photo (http(s) URL, work:// or kmua:// reference), caption, has_spoiler, reply_to_message_id
     - sendDocument: document (http(s) URL or a work:// / kmua:// reference) OR content (plain text made into the document), plus file_name, caption, reply_to_message_id
-    - sendReaction: message_id, emoji
+    - sendReaction: emoji; message_id is optional (omit it to react to the message being answered)
     - sendPoll: question, options (2-8 strings), is_anonymous, allows_multiple_answers, reply_to_message_id
     - sendDice: emoji (🎲 🎯 🎳 🎰 🎲 variants)
     - sendAudio / sendVideo / sendVoice / sendAnimation: the media field, caption, reply_to_message_id
@@ -360,6 +390,14 @@ async def tg(
         result = await getattr(ctx.deps.client, client_method)(
             chat_id=ctx.deps.chat_id, **kwargs
         )
+    except pyrogram.errors.MessageIdInvalid:
+        logger.error(f"tg {method} error: target message not in this chat")
+        if method == "sendReaction":
+            return (
+                "Error: sendReaction target is not a message of this chat. "
+                "Omit message_id to react to the message being answered."
+            )
+        return f"Error: {method} failed: MessageIdInvalid"
     except Exception as e:
         logger.error(f"tg {method} error: {e.__class__.__name__}: {e}")
         return f"Error: {method} failed: {e.__class__.__name__}"
