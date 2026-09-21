@@ -600,9 +600,16 @@ async def get_input_prompt(
         ctx_str = "\n".join(f"{k}: {v}" for k, v in ctx.items() if v is not None)
     else:
         ctx_str = str(ctx)
+    # This path has no history section, so the label is the only place the
+    # model learns the id of the message it is answering. Id-keyed tools
+    # (tg sendReaction/reply_to_message_id, chat://media) need it: without it
+    # the model makes an id up and hits whichever old message carries it.
+    sender = message.sender_chat or message.from_user
+    current_label = f"[当前消息|发送者:{sender_label(sender)}|消息ID:{message.id}]"
+    ctx_text = f"{current_label}\n{ctx_str}" if ctx_str else current_label
     user_prompt.extend(
         await build_contents_from_message(
-            message, ctx_text=ctx_str or None, include_media=True
+            message, ctx_text=ctx_text, include_media=True
         )
     )
     needs_multimodal = any(
