@@ -64,9 +64,7 @@ async def parse_tweet(client: PyrogramClient, message: pyrogram.types.Message):
                 twitter_service.build_tweet_text(tweet, lang),
                 parse_mode=pyrogram.enums.ParseMode.HTML,
                 link_preview_options=pyrogram.types.LinkPreviewOptions(
-                    is_disabled=False,
-                    url=tweet.url,
-                    prefer_large_media=True,
+                    is_disabled=True
                 ),
             )
     except Exception as e:
@@ -124,11 +122,7 @@ async def _send_tweet_media(
         await message.reply_text(
             twitter_service.build_tweet_text(tweet, lang),
             parse_mode=pyrogram.enums.ParseMode.HTML,
-            link_preview_options=pyrogram.types.LinkPreviewOptions(
-                is_disabled=False,
-                url=tweet.url,
-                prefer_large_media=True,
-            ),
+            link_preview_options=pyrogram.types.LinkPreviewOptions(is_disabled=True),
         )
         return
     await client.send_media_group(
