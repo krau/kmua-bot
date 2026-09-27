@@ -20,7 +20,7 @@ from .. import datatype
 from . import workspace
 
 # The sandbox only sees work:// file basenames; deeper paths are not supported.
-_MAX_IO_FILES = 10
+# How many may be staged in one call is config: agent_shell_max_stage_files.
 
 # Limits how many shell executions run at once across all chats/sessions
 # (config: agent_shell_concurrency). Guards the shared runner and the
@@ -118,8 +118,9 @@ async def shell(
     """
     from . import io as io_tools
 
-    if len(files) > _MAX_IO_FILES:
-        return "Error: Too many files entries (max 10)."
+    stage_limit = app_config.agent_shell_max_stage_files
+    if stage_limit > 0 and len(files) > stage_limit:
+        return f"Error: Too many files entries (max {stage_limit})."
     if not command or not command.strip():
         return "Error: command must not be empty."
     if clean:

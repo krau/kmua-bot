@@ -400,6 +400,37 @@ class _AppConfig(pydantic.BaseModel):
     # work:// targets are additionally capped by the 5 MB workspace limit.
     agent_download_max_bytes: int = 20_000_000
     agent_landrun_path: str = "/usr/local/bin/landrun"
+    # Filesystem the sandbox may reach beyond its own session directory (always
+    # read-write + executable) and the codebase/venv mounts. Named after the
+    # landrun flags: read+exec, read-only, read-write.
+    agent_shell_read_only_exec_paths: list[str] = ["/usr"]
+    agent_shell_read_only_paths: list[str] = ["/lib", "/lib64", "/bin", "/etc"]
+    agent_shell_read_write_paths: list[str] = ["/dev"]
+    # PATH inside the sandbox; the bot venv's bin/ is prepended when enabled.
+    agent_shell_path: str = "/usr/local/bin:/usr/bin:/bin"
+    # Resource caps enforced with bash ulimit inside the sandbox: landlock
+    # covers the filesystem and the network, not resources. 0 skips the cap,
+    # leaving the bot process's own limit in force.
+    agent_shell_cpu_seconds: int = pydantic.Field(default=30, ge=0)
+    agent_shell_memory_mb: int = pydantic.Field(default=256, ge=0)
+    agent_shell_max_processes: int = pydantic.Field(default=16, ge=0)
+    agent_shell_max_file_size_mb: int = pydantic.Field(default=10, ge=0)
+    agent_shell_max_open_files: int = pydantic.Field(default=256, ge=0)
+    # Command output longer than this many characters is truncated before it
+    # reaches the model. 0 keeps everything.
+    agent_shell_output_max_chars: int = pydantic.Field(default=64 * 1024, ge=0)
+    # Max work:// files one shell call may stage into the sandbox. 0 = no cap.
+    agent_shell_max_stage_files: int = pydantic.Field(default=10, ge=0)
+    # Environment variable name fragments unset from the sandbox's environment
+    # before the command runs. Narrowing this leaks host secrets into the
+    # sandbox; widen it to cover vars the bot inherits from other tooling.
+    agent_shell_env_sanitize_markers: list[str] = [
+        "KMUA_",
+        "_TOKEN",
+        "_KEY",
+        "_SECRET",
+        "_PASSWORD",
+    ]
 
     # Master switch for channel comments (the per-chat ai_comment setting
     # still applies on top).

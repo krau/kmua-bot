@@ -19,8 +19,6 @@ from pathlib import Path
 from kmua.config import app_config
 from kmua.logger import logger
 
-MAX_SHELL_OUTPUT = 64 * 1024  # 64 KB
-
 _landrun_available: bool | None = None
 
 
@@ -168,22 +166,19 @@ def _venv_path() -> Path | None:
     return venv if venv.exists() else None
 
 
-_SENSITIVE_ENV_MARKERS = ("KMUA_", "_TOKEN", "_KEY", "_SECRET", "_PASSWORD")
-
-
 def _env_sanitize_prefix() -> str:
     """A bash prefix that unsets host-inherited sensitive variables.
 
     landrun inherits the bot's environment (only PATH/HOME/TMPDIR are
     overridden), so scripts inside the sandbox could otherwise read config
     secrets straight out of os.environ. Static unset list built from the
-    current environment; markers match the bot's KMUA_ prefix and common
-    secret-name suffixes.
+    current environment and the configured name fragments.
     """
+    markers = [m.upper() for m in app_config.agent_shell_env_sanitize_markers if m]
+    if not markers:
+        return ""
     to_unset = [
-        var
-        for var in os.environ
-        if any(marker in var.upper() for marker in _SENSITIVE_ENV_MARKERS)
+        var for var in os.environ if any(marker in var.upper() for marker in markers)
     ]
     if not to_unset:
         return ""
@@ -205,8 +200,29 @@ def _ensure_codebase_link(workdir: Path) -> None:
             logger.warning(f"Failed to link codebase into sandbox: {e}")
 
 
+def _ulimit_prefix() -> str:
+    """Resource caps applied to the sandbox shell before the command runs.
+
+    landlock covers the filesystem and the network only; CPU, address space,
+    process count, file size and descriptor caps come from ulimit. A cap
+    configured as 0 is skipped so the sandbox inherits the bot's own limit.
+    Values are scaled the way bash reads them: -v and -f take KiB.
+    """
+    caps = [
+        ("-t", app_config.agent_shell_cpu_seconds),
+        ("-v", app_config.agent_shell_memory_mb * 1024),
+        ("-u", app_config.agent_shell_max_processes),
+        ("-f", app_config.agent_shell_max_file_size_mb * 1024),
+        ("-n", app_config.agent_shell_max_open_files),
+    ]
+    flags = " ".join(f"{flag} {value}" for flag, value in caps if value > 0)
+    if not flags:
+        return ""
+    return f"ulimit {flags} 2>/dev/null; "
+
+
 def _build_landrun_cmd(command: str, workdir: Path) -> list[str]:
-    path = "/usr/local/bin:/usr/bin:/bin"
+    path = app_config.agent_shell_path
     venv = _venv_path()
     if app_config.agent_shell_venv_access and venv is not None:
         # The bot's own virtualenv: scripts can import the exact dependency
@@ -216,13 +232,18 @@ def _build_landrun_cmd(command: str, workdir: Path) -> list[str]:
     cmd = [
         app_config.agent_landrun_path,
         "--best-effort",
-        "--rox",
-        "/usr",
-        "--ro",
-        "/lib,/lib64,/bin,/etc",
-        # device nodes needed by scripts (bash redirects, /dev/urandom, ...)
-        "--rw",
-        "/dev",
+    ]
+    # System whitelist (config): the defaults cover running programs (--rox)
+    # plus the paths most tools expect to read; /dev serves bash redirects and
+    # /dev/urandom.
+    for flag, paths in (
+        ("--rox", app_config.agent_shell_read_only_exec_paths),
+        ("--ro", app_config.agent_shell_read_only_paths),
+        ("--rw", app_config.agent_shell_read_write_paths),
+    ):
+        if paths:
+            cmd += [flag, ",".join(paths)]
+    cmd += [
         "--rwx",
         str(workdir),
         "--env",
@@ -242,19 +263,14 @@ def _build_landrun_cmd(command: str, workdir: Path) -> list[str]:
     ports = app_config.agent_shell_network_ports
     if ports:
         cmd += ["--connect-tcp", ",".join(str(p) for p in ports)]
-    # Resource limits via bash ulimit (landlock does not cover these): 30s CPU,
-    # 256MB virtual memory, 16 processes, 10MB max file size. The process
-    # cap is deliberately low: a fork bomb must stay far below what could
-    # starve the shared container.
-    sanitize = _env_sanitize_prefix()
+    # Resource limits come from config and are applied via bash ulimit: the
+    # process cap stays deliberately low by default, since a fork bomb must
+    # stay far below what could starve the shared container.
     cmd += [
         "--",
         "bash",
         "-c",
-        (
-            "ulimit -t 30 -v 262144 -u 16 -f 10240 2>/dev/null; "
-            "ulimit -n 256 2>/dev/null; " + sanitize + command
-        ),
+        _ulimit_prefix() + _env_sanitize_prefix() + command,
     ]
     return cmd
 
@@ -309,7 +325,8 @@ async def run_shell(
                 proc.stdout.feed_eof()
             stdout, _ = await proc.communicate()
     output = (stdout or b"").decode("utf-8", errors="replace")
-    if len(output) > MAX_SHELL_OUTPUT:
-        output = output[:MAX_SHELL_OUTPUT] + "\n...[output truncated]"
+    limit = app_config.agent_shell_output_max_chars
+    if limit > 0 and len(output) > limit:
+        output = output[:limit] + "\n...[output truncated]"
     exit_code = proc.returncode if proc.returncode is not None else 1
     return ShellResult(exit_code=exit_code, output=output, timed_out=timed_out)
