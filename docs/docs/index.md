@@ -1,9 +1,67 @@
 # 简介
 
-kmua 是一只 Telegram 上的机器人, 使用 [Pyrogram](https://github.com/KurimuzonAkuma/pyrogram) 开发, 以 AGPL 协议开源
+kmua 是一只 Telegram 上的机器人, 使用 [Pyrogram](https://github.com/KurimuzonAkuma/pyrogram) 开发, 以 AGPL 协议开源.
+
+> 干啥啥不行, 喵喵第一名
 
 DEMO: [@kmuav2bot](https://t.me/kmuav2bot)
 
 这是猫猫
 
 ![猫猫](./images/miyaneko.jpg)
+
+## 它能做什么
+
+kmua 没有单一用途, 是一只主要活跃在群组里的多功能 bot, 大致可以分为这几类:
+
+- **群聊互动**: 语录、每日老婆、漂流瓶、群头衔、词云、对他人"施法"
+- **群管理**: 新人入群验证、入群欢迎语、bot 管理员、按群开关各项功能
+- **内容解析**: 自动解析 Pixiv、Twitter / X、Bilibili、酷安、贴吧、微信公众号等链接, 还原 b23 短链
+- **AI 对话**: 接入 OpenAI 兼容接口的智能体, 可对话、查资料、发表情、评论频道, 需要部署者开启
+- **订阅与工具**: RSS 订阅推送、IP / 域名查询、ID 查询、信息图渲染
+- **管理面板**: 基于 Telegram Mini App 的图形化配置界面
+
+每一项功能的用法见 [详细帮助](help.md).
+
+## 快速开始
+
+### 直接使用
+
+1. 把 bot 拉进群组 (或私聊 bot), 发送 `/start`
+2. 发送 `/help` 查看命令列表
+3. 在群里由群管理员发送 `/config`, 按需开关各项功能
+
+> 要让 bot 读到群里的普通消息 (语录随机发送、词云、自动解析链接等), 需要在 [@BotFather](https://t.me/BotFather) 为 bot 关闭隐私模式.
+> 如果你使用的是别人部署的 bot, 这一步通常已经做好了.
+
+### 自己部署
+
+见 [部署指南](self-host.md). 一般情况下只需要 Bot Token 和你自己的用户 ID 就能跑起来.
+部署后可选的进阶功能:
+
+| 功能 | 说明 |
+| --- | --- |
+| AI 对话 | 配置 `agent` 相关选项, 接入 OpenAI 兼容接口 |
+| 管理面板 | 见 [管理面板](webapp.md) |
+| ManyACG | 配置后可使用 `/setu`、`/randavatar` 并解析插画站链接 |
+| RSS | 默认启用, 需要由 owner 放行可订阅的聊天 |
+| 信息图 | 配置 `infographic` 后可使用 `/infographic` |
+
+## 一些基本概念
+
+**群组类型**: kmua 面向超级群组 (supergroup, 含话题群) 设计, 普通群组 (group) 中 bot 不会响应, 请先将群升级为超级群.
+
+**金币**: kmua 有一套简单的金币系统, 用于扔 / 捡漂流瓶、更换老婆、购买礼物等.
+在超级群里每天首次发言会获得日常奖励, 之后发言、记录语录、被记录语录、"施法"时也有概率获得金币. 具体数值由部署者配置.
+
+**群管理权限**: 文档中提到"群管理"的命令, 指满足以下任一条件的用户可以使用:
+匿名管理员; bot 全局管理员; 被 `/botpromote` 设为 bot 管理员的人; 群主; 或拥有"添加管理员"权限的群管理员.
+
+**bot 全局管理员 / owner**: owner 由部署者在 `settings.toml` 的 `owners` 中指定, 拥有最高权限;
+bot 全局管理员是数据库中被标记的用户, 同样可以使用 `/status` 等管理命令.
+
+**多语言**: 内置简体中文、繁体中文、English、日本語、한국어 等多种语言, 在私聊发送 `/lang` 切换个人语言, 群管理在群里发送 `/lang` 切换本群语言.
+
+## 许可
+
+本项目以 AGPL 协议开源, 详见 [License](license.md).
