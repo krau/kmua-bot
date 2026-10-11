@@ -34,6 +34,20 @@ RUN curl -fsSL -o /usr/local/bin/landrun \
       https://github.com/Zouuup/landrun/releases/download/v0.1.17/landrun-linux-amd64 \
     && chmod +x /usr/local/bin/landrun
 
+# GitHub CLI from GitHub's official Debian repository: the agent logs in once
+# under the shared shell HOME (agent_shell_shared_state_path) and stays logged
+# in for every later command. Community/Debian packages are old and broken
+# (see cli/cli docs/install_linux.md), hence the official repo.
+RUN mkdir -p -m 755 /etc/apt/keyrings \
+    && curl -fsSL -o /etc/apt/keyrings/githubcli-archive-keyring.gpg \
+         https://cli.github.com/packages/githubcli-archive-keyring.gpg \
+    && chmod go+r /etc/apt/keyrings/githubcli-archive-keyring.gpg \
+    && printf 'deb [arch=%s signed-by=/etc/apt/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main\n' \
+         "$(dpkg --print-architecture)" > /etc/apt/sources.list.d/github-cli.list \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends gh \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
+
 COPY . .
 RUN .venv/bin/python -m compileall -q -j 0 kmua
 # Where the FastAPI app looks for the bundle by default.

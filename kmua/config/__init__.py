@@ -431,6 +431,15 @@ class _AppConfig(pydantic.BaseModel):
         "_SECRET",
         "_PASSWORD",
     ]
+    # Global shared shell state: every session's sandbox commands run with
+    # HOME pointing at one shared directory, so CLI logins (gh, git, ...)
+    # persist across sessions instead of dying with a session's sandbox.
+    # This is the switch for the whole class of shared-state CLIs; disabling
+    # it restores a per-session HOME.
+    agent_shell_shared_state_enabled: bool = True
+    # Directory backing that shared HOME. Deliberately outside the session
+    # sweep, so it must be deleted by hand to revoke every CLI login at once.
+    agent_shell_shared_state_path: str = "data/workspaces-shell-shared"
 
     # Master switch for channel comments (the per-chat ai_comment setting
     # still applies on top).

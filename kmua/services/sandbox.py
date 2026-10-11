@@ -5,6 +5,12 @@ processes may touch. landrun applies a kernel-level Landlock whitelist: the
 sandbox can read the system paths needed to run programs, read/write its own
 session directory, and reach only the configured outbound TCP ports. The bot's
 own code (kmua/, settings, other sessions' data) is unreachable, as is /proc.
+
+HOME inside the sandbox points at a shared state directory
+(agent_shell_shared_state_path, switch: agent_shell_shared_state_enabled), not
+at the session directory: CLI logins written there (gh, git, ...) persist
+across sessions and calls by design. Session cleanup never touches it, so
+deleting that directory is what revokes every CLI login at once.
 """
 
 from __future__ import annotations
@@ -119,9 +125,14 @@ def _cleanup_stale_sessions_sync(max_age_days: int) -> int:
     import shutil
 
     cutoff = time.time() - max_age_days * 86400
+    # The shared state directory deliberately outlives sessions; if an operator
+    # configures it inside the sweep root, it must not be collected.
+    shared = shared_state_dir()
     count = 0
     for workdir in root.iterdir():
         if not workdir.is_dir():
+            continue
+        if workdir.resolve() == shared:
             continue
         try:
             stale = _last_activity_mtime(workdir) < cutoff
@@ -185,6 +196,34 @@ def _env_sanitize_prefix() -> str:
     return "; ".join(f"unset {var}" for var in to_unset) + "; "
 
 
+def shared_state_dir() -> Path:
+    """The shared shell state directory: the sandbox HOME for every session.
+
+    CLI logins (gh, git, ...) are stored here so they survive session sweeps
+    and reach every chat; deleting the directory revokes them all at once.
+    """
+    return Path(app_config.agent_shell_shared_state_path).resolve()
+
+
+def _ensure_shared_state() -> Path | None:
+    """Create the shared state directory when the feature is on.
+
+    Returns None when disabled, which keeps every session on its own HOME.
+    Owner-only permissions: the directory holds CLI credentials.
+    """
+    if not app_config.agent_shell_shared_state_enabled:
+        return None
+    shared = shared_state_dir()
+    try:
+        shared.mkdir(parents=True, exist_ok=True)
+        if (shared.stat().st_mode & 0o777) != 0o700:
+            os.chmod(shared, 0o700)
+    except OSError as e:
+        logger.warning(f"Failed to prepare shared shell state at {shared}: {e}")
+        return None
+    return shared
+
+
 def _ensure_codebase_link(workdir: Path) -> None:
     """Expose the read-only codebase as ./kmua inside the session workdir.
 
@@ -243,13 +282,22 @@ def _build_landrun_cmd(command: str, workdir: Path) -> list[str]:
     ):
         if paths:
             cmd += [flag, ",".join(paths)]
+    # Global shared state (one HOME for every session): CLI logins live here,
+    # so a later session (or a later call in the same one) finds itself
+    # logged in. Shared by design, therefore readable/writable from every
+    # shell session; only delete it to revoke those logins.
+    shared_state = _ensure_shared_state()
+    home = workdir
+    if shared_state is not None:
+        cmd += ["--rw", str(shared_state)]
+        home = shared_state
     cmd += [
         "--rwx",
         str(workdir),
         "--env",
         f"PATH={path}",
         "--env",
-        f"HOME={workdir}",
+        f"HOME={home}",
         "--env",
         f"TMPDIR={workdir}/tmp",
     ]

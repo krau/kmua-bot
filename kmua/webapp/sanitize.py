@@ -113,6 +113,8 @@ _PUBLIC_FIELDS: dict[str, tuple[str, ...]] = {
         "agent_shell_output_max_chars",
         "agent_shell_max_stage_files",
         "agent_shell_env_sanitize_markers",
+        "agent_shell_shared_state_enabled",
+        "agent_shell_shared_state_path",
         "agent_landrun_path",
         "agent_periodic_sticker_interval",
         "agent_periodic_reaction_interval",

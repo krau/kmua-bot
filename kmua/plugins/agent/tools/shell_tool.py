@@ -104,6 +104,10 @@ async def shell(
     `write work://out/result.json content="sandbox://result.json"` copies a
     produced file out.
 
+    Logins survive: HOME is a bot-wide shared directory, so CLI credentials
+    (e.g. gh auth login) written under ~/.config persist across calls and
+    even across different chats. Never print credential files back.
+
     For Python packages: `python3 -m pip install --target="$PWD/pylibs" <pkg>`
     then run with `PYTHONPATH="$PWD/pylibs"` (session-only).
 
