@@ -80,6 +80,9 @@ class AuthResponse(ApiModel):
     roles: list[str]
     # Chat id decoded from ?startapp=, for navigation only.
     start_chat_id: int | None = None
+    # The caller's stored panel language. Sent with the token so the first render
+    # is already in the right language, without waiting for the profile request.
+    lang: str = "zh-CN"
 
 
 # ----------------------------------------------------------------------------- me

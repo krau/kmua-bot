@@ -14,7 +14,7 @@ from fastapi import APIRouter, Path, Query, Request
 
 from kmua import database
 from kmua.bot.client import client
-from kmua.common import jobqueue, ops
+from kmua.common import jobqueue
 from kmua.config import app_config, reload_config
 from kmua.database.models import ChatPolicy, UserData
 from kmua.logger import logger
@@ -62,8 +62,7 @@ _OWNER_ONLY_FIELDS = frozenset(
 
 @router.get("/stats", response_model=StatsOut)
 async def read_stats(user: RequireAdmin) -> StatsOut:
-    stats = await ops.collect_stats()
-    dashboard = await database.get_dashboard_stats()
+    stats = await database.get_panel_stats()
     snapshot = runtime_metrics.snapshot()
     return StatsOut(
         users=stats["users"],  # type: ignore[arg-type]
@@ -88,7 +87,7 @@ async def read_stats(user: RequireAdmin) -> StatsOut:
             "api_requests": snapshot.api_requests,
             "api_latency_ms": snapshot.api_latency_ms,
         },
-        dashboard=dashboard,
+        dashboard=stats["dashboard"],  # type: ignore[arg-type]
     )
 
 
@@ -127,9 +126,12 @@ async def list_chats(
     q: str = Query("", max_length=128, description="Search title, username or id"),
 ) -> PageOut[AdminChatOut]:
     result = await database.get_chats_page(page=page, size=size, query=q)
+    # One grouped count for the page instead of one query per row.
+    member_counts = await database.count_chat_members_many(
+        [chat.id for chat in result.items]
+    )
     items = [
-        admin_chat_out(chat, await database.count_chat_members(chat.id))
-        for chat in result.items
+        admin_chat_out(chat, member_counts.get(chat.id, 0)) for chat in result.items
     ]
     return PageOut[AdminChatOut](
         items=items, total=result.total, page=result.page, size=result.size

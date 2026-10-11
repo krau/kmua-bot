@@ -39,6 +39,7 @@ async def authenticate(request: Request, payload: AuthRequest) -> AuthResponse:
         ),
         roles=resolve_roles(user_data),
         start_chat_id=auth.parse_start_param_chat_id(init_data.start_param),
+        lang=user_data.user_config.lang,
     )
 
 

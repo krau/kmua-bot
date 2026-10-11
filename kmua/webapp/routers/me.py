@@ -68,21 +68,35 @@ def gift_out(gift_entry) -> GiftOut:
 
 @router.get("", response_model=MeOut)
 async def read_me(user: CurrentUser) -> MeOut:
+    """Return the caller's own record.
+
+    Every field here comes from the database, so they are read on one session
+    rather than one per field: the panel requests this on every launch, and on a
+    busy event loop the extra connections cost more than the queries do.
+    """
     config = user.data.user_config
     married_name: str | None = None
-    if user.data.married_waifu_id:
-        partner = await database.get_user_by_id(user.data.married_waifu_id)
-        married_name = partner.full_name if partner else None
 
-    percentile: float | None
-    try:
-        percentile = await database.get_affection_percentile(config.affection)
-    except Exception as e:
-        # The histogram is an optimisation; a stale one must not break the page.
-        logger.warning(f"webapp: affection percentile failed for {user.id}: {e}")
-        percentile = None
+    async with database.get_session() as session:
+        if user.data.married_waifu_id:
+            partner = await database.get_user_by_id(
+                user.data.married_waifu_id, session=session
+            )
+            married_name = partner.full_name if partner else None
 
-    chats = await database.get_user_chats(user.id)
+        percentile: float | None
+        try:
+            percentile = await database.get_affection_percentile(
+                config.affection, session=session
+            )
+        except Exception as e:
+            # The histogram is an optimisation; a stale one must not break the page.
+            logger.warning(f"webapp: affection percentile failed for {user.id}: {e}")
+            percentile = None
+
+        chats = await database.get_user_chats(user.id, session=session)
+        quote_count = await database.get_user_quote_count(user.id, session=session)
+        gift_count = await database.count_user_gifts(user.id, session=session)
 
     return MeOut(
         id=user.id,
@@ -96,8 +110,8 @@ async def read_me(user: CurrentUser) -> MeOut:
         is_married=user.data.is_married,
         married_waifu_id=user.data.married_waifu_id,
         married_waifu_name=married_name,
-        quote_count=await database.get_user_quote_count(user.id),
-        gift_count=await database.count_user_gifts(user.id),
+        quote_count=quote_count,
+        gift_count=gift_count,
         chat_count=len(chats),
         roles=user.roles,
     )

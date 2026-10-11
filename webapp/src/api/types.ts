@@ -21,6 +21,7 @@ export interface AuthResponse {
   user: SessionUser;
   roles: Role[];
   start_chat_id: number | null;
+  lang: string;
 }
 
 export interface SystemInfo {

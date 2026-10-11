@@ -1,3 +1,5 @@
+from collections.abc import Sequence
+
 import sqlalchemy
 import sqlalchemy.dialects
 import sqlalchemy.dialects.mysql
@@ -308,6 +310,28 @@ async def count_chat_members(chat_id: int, session: AsyncSession | None = None) 
         .where(UserChatAssociation.chat_id == chat_id)
     )
     return (await session.execute(stmt)).scalar() or 0
+
+
+@with_session
+async def count_chat_members_many(
+    chat_ids: Sequence[int], session: AsyncSession | None = None
+) -> dict[int, int]:
+    """Count members for several chats in one query, for the panel's list view.
+
+    A page of groups would otherwise cost one count query per row, which on a
+    large association table is the slowest part of opening the list.
+    """
+    assert session is not None
+    if not chat_ids:
+        return {}
+
+    stmt = (
+        sqlalchemy.select(UserChatAssociation.chat_id, sqlalchemy.func.count())
+        .where(UserChatAssociation.chat_id.in_(chat_ids))
+        .group_by(UserChatAssociation.chat_id)
+    )
+    counted = {chat_id: total for chat_id, total in (await session.execute(stmt))}
+    return {chat_id: counted.get(chat_id, 0) for chat_id in chat_ids}
 
 
 @with_tx

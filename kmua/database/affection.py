@@ -340,34 +340,6 @@ async def init_affection_histogram() -> None:
             await session.commit()
 
 
-@with_session
-async def get_affection_stats(session: AsyncSession | None = None) -> dict:
-    assert session is not None
-
-    total_users = (
-        await session.execute(
-            sqlalchemy.select(sqlalchemy.func.count()).select_from(UserData)
-        )
-    ).scalar() or 0
-
-    row = (
-        await session.execute(
-            sqlalchemy.select(
-                sqlalchemy.func.count(AffectionHistogram.bucket),
-                sqlalchemy.func.min(AffectionHistogram.bucket),
-                sqlalchemy.func.max(AffectionHistogram.bucket),
-            )
-        )
-    ).one()
-
-    return {
-        "total_users": total_users,
-        "bucket_count": row[0],
-        "min_bucket": row[1],
-        "max_bucket": row[2],
-    }
-
-
 async def uninstall_postgres_trigger() -> None:
     """
     卸载 PostgreSQL 触发器
@@ -411,7 +383,6 @@ __all__ = [
     "affection_bucket",
     "get_affection_percentile",
     "rebuild_histogram",
-    "get_affection_stats",
     "init_affection_histogram",
     "install_postgres_trigger",
     "uninstall_postgres_trigger",

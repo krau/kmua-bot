@@ -11,6 +11,7 @@ import { computed, ref } from "vue";
 import { authenticate } from "@/api/endpoints/auth";
 import { setReauthenticator, setSessionToken } from "@/api/client";
 import type { Role, SessionUser } from "@/api/types";
+import { setLocale } from "@/i18n";
 import { launchContext } from "@/telegram";
 
 export const useSessionStore = defineStore("session", () => {
@@ -38,6 +39,9 @@ export const useSessionStore = defineStore("session", () => {
     expiresAt.value = response.expires_at;
     // Prefer the value the server decoded; fall back to the SDK's own parse.
     startChatId.value = response.start_chat_id ?? deepLinkChat;
+    // The stored language comes with the token, so the first render is already in
+    // the user's language even though the profile request has not finished.
+    setLocale(response.lang);
 
     // Let the HTTP client recover from a 401 without bouncing the user out.
     setReauthenticator(async () => {
@@ -45,6 +49,7 @@ export const useSessionStore = defineStore("session", () => {
       user.value = refreshed.user;
       roles.value = refreshed.roles;
       expiresAt.value = refreshed.expires_at;
+      setLocale(refreshed.lang);
       return refreshed.token;
     });
   }

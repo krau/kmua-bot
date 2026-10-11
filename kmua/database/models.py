@@ -146,9 +146,12 @@ class UserChatAssociation(Base):
     is_bot_admin: Mapped[bool] = mapped_column(Boolean, default=False)
     promoted_by: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
 
+    # Read by the panel's "recent activity" counters, which filter a date window
+    # over the whole table.
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),
+        index=True,
     )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
@@ -325,9 +328,12 @@ class Quote(Base):
     message_id: Mapped[int] = mapped_column(BigInteger, nullable=False, index=True)
     text: Mapped[str | None] = mapped_column(String(4096), nullable=True)
     img: Mapped[str | None] = mapped_column(String(256), nullable=True)
+    # Read by the panel's "recent activity" counters, which filter a date window
+    # over the whole table.
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),
+        index=True,
     )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
@@ -380,9 +386,12 @@ class Bottle(Base):
     - voice
     - None (for text-only bottles)
     """
+    # Read by the panel's "recent activity" counters, which filter a date window
+    # over the whole table.
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),
+        index=True,
     )
     last_picked_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True),
@@ -421,9 +430,12 @@ class BottleReply(Base):
     )
     file_id: Mapped[str | None] = mapped_column(String(256), nullable=True)
     media_type: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    # Read by the panel's "recent activity" counters, which filter a date window
+    # over the whole table.
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),
+        index=True,
     )
 
     def __repr__(self) -> str:

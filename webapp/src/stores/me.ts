@@ -16,19 +16,28 @@ import { setLocale } from "@/i18n";
 export const useMeStore = defineStore("me", () => {
   const me = ref<Me | null>(null);
   const loading = ref(false);
+  // The shell warms this store up while a view may ask for the same record; both
+  // should share one request instead of racing two.
+  let pending: Promise<Me> | null = null;
 
   async function load(force = false): Promise<Me> {
     if (me.value && !force) return me.value;
+    if (pending && !force) return pending;
+
     loading.value = true;
-    try {
-      const data = await fetchMe();
-      me.value = data;
-      // The user's stored language is the panel's language.
-      setLocale(data.lang);
-      return data;
-    } finally {
-      loading.value = false;
-    }
+    pending = (async () => {
+      try {
+        const data = await fetchMe();
+        me.value = data;
+        // The user's stored language is the panel's language.
+        setLocale(data.lang);
+        return data;
+      } finally {
+        loading.value = false;
+        pending = null;
+      }
+    })();
+    return pending;
   }
 
   async function save(patch: MeConfigPatch): Promise<Me> {

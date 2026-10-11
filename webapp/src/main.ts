@@ -81,14 +81,13 @@ async function boot(): Promise<void> {
     return;
   }
 
-  // Loaded before mount so the very first render is already in the user's
-  // language, rather than flashing the default and switching.
+  // Started, not awaited: the session response already carried the language, so
+  // the first render is correct without a second round trip on the boot path.
+  // Whatever page needs the profile waits for this same request through the store.
   const me = useMeStore();
-  try {
-    await me.load();
-  } catch {
+  void me.load().catch(() => {
     // Non-fatal: the profile page will surface and retry this itself.
-  }
+  });
 
   app.use(router);
 

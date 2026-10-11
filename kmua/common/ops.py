@@ -173,12 +173,17 @@ async def divorce_user(user_id: int) -> DivorceResult:
 
 
 async def collect_stats() -> dict[str, object]:
-    """Aggregate the counters the /status command and the panel both show."""
+    """Aggregate the counters the /status command and the panel both show.
+
+    Both read the same numbers, so they read them the same way: one session and one
+    pass per table, rather than one query per counter.
+    """
+    stats = await database.get_panel_stats()
     return {
-        "users": await database.count_users(),
-        "chats": await database.count_chats(),
-        "quotes": await database.count_quotes(),
-        "associations": await database.count_associations(),
-        "bottles": await database.count_bottles(),
-        "affection": await database.get_affection_stats(),
+        "users": stats["users"],
+        "chats": stats["chats"],
+        "quotes": stats["quotes"],
+        "associations": stats["associations"],
+        "bottles": stats["bottles"],
+        "affection": stats["affection"],
     }
