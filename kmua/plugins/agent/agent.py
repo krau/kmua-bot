@@ -1,4 +1,5 @@
 import asyncio
+import html
 import random
 from typing import Any
 
@@ -15,7 +16,7 @@ from pyrogram import filters
 from pyrogram.client import Client as PyrogramClient
 
 from kmua import common, database, i18n
-from kmua.common.utils import GROUP_CHAT_TYPES
+from kmua.common.utils import GROUP_CHAT_TYPES, is_explicit_reply
 from kmua.config import app_config
 from kmua.logger import logger
 from kmua.services import link_parse, manyacg
@@ -36,7 +37,7 @@ from . import (
 from .history import compact_history
 from .model_log import ModelActivityLog
 from .output import TypingKeepAlive
-from .prompt import build_ctx_info, get_input_prompt
+from .prompt import _download_media_with_timeout, build_ctx_info, get_input_prompt
 from .runner import (
     get_chat_model_override,
     get_chat_prompt_override,
@@ -130,6 +131,51 @@ async def _run_registered(chat_id: int, user_id: int, coro) -> Any:
     finally:
         if _active_run_tasks.get(key) is task:
             del _active_run_tasks[key]
+
+
+# The prompt is re-sent with every model request, so a prompt file is capped
+# far below the general media limit.
+_PROMPT_FILE_MAX_BYTES = 512 * 1024
+
+
+def _decode_prompt_file(data: bytes) -> str | None:
+    """UTF-8 text, or None when the bytes look binary/garbled."""
+    try:
+        text = data.decode("utf-8")
+    except UnicodeDecodeError:
+        return None
+    if any(ord(char) < 32 and char not in "\n\r\t\f" for char in text):
+        return None
+    return text.strip()
+
+
+async def _read_prompt_file(
+    client: PyrogramClient, document: pyrogram.types.Document
+) -> tuple[str | None, str | None]:
+    """Download a replied document and decode it as the new prompt text.
+
+    Returns (text, None) on success, (None, user-facing error) otherwise.
+    """
+    too_large = (
+        f"The file is over the {_PROMPT_FILE_MAX_BYTES} byte limit for a prompt file."
+    )
+    if not document.file_id:
+        return None, "The replied file cannot be downloaded."
+    size = document.file_size
+    if size is not None and size > _PROMPT_FILE_MAX_BYTES:
+        return None, too_large
+    file = await _download_media_with_timeout(client, document.file_id)
+    if file is None:
+        return None, "Failed to download the file."
+    data = file.getvalue()
+    if len(data) > _PROMPT_FILE_MAX_BYTES:
+        return None, too_large
+    text = _decode_prompt_file(data)
+    if text is None:
+        return None, "The file is not UTF-8 text."
+    if not text:
+        return None, "The file is empty."
+    return text, None
 
 
 _BOT_WAKE_DELAY_MIN_SECONDS = 0.721
@@ -774,9 +820,33 @@ if app_config.agent and app_config.agent_model:
         args = message.text.split(maxsplit=1) if message.text else []
         prompt_text = args[1].strip() if len(args) >= 2 else None
 
+        replied_document = None
+        if is_explicit_reply(message) and message.reply_to_message:
+            replied_document = message.reply_to_message.document
+
         current = await get_chat_prompt_override(chat_id)
 
-        if prompt_text is None:
+        if prompt_text is None and replied_document is not None:
+            text, error = await _read_prompt_file(client, replied_document)
+            if error is not None:
+                await message.reply_text(
+                    error, parse_mode=pyrogram.enums.ParseMode.HTML
+                )
+                return
+            assert text is not None
+            await set_chat_prompt_override(chat_id, text)
+            file_name = replied_document.file_name or "the replied file"
+            await message.reply_text(
+                "Custom prompt set for this chat from "
+                f"<code>{html.escape(file_name)}</code>.",
+                parse_mode=pyrogram.enums.ParseMode.HTML,
+            )
+            logger.info(
+                f"Admin {user.id} set prompt override for chat {chat_id} from file "
+                f"{file_name!r} ({len(text)} chars, "
+                f"replaced existing: {current is not None})"
+            )
+        elif prompt_text is None:
             if current:
                 status = "Custom prompt is <b>active</b> for this chat."
             else:
@@ -784,6 +854,8 @@ if app_config.agent and app_config.agent_model:
             await message.reply_text(
                 f"{status}\n\nUsage:\n"
                 "<code>/prompt &lt;text&gt;</code> — set custom prompt\n"
+                "<code>/prompt</code> replying to a text file — set custom prompt "
+                "from the file\n"
                 "<code>/prompt reset</code> — restore default",
                 parse_mode=pyrogram.enums.ParseMode.HTML,
             )
