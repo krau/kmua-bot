@@ -3,15 +3,13 @@
 from __future__ import annotations
 
 import builtins
-from typing import Any
 
-from ddgs import DDGS
 from pydantic_ai import ModelRetry, RunContext, ToolReturn
-from pydantic_ai.common_tools.duckduckgo import DuckDuckGoSearchTool
 
 from kmua.config import app_config
 from kmua.logger import logger
 
+from ...websearch import SearchResponse, search_web
 from .. import bot, chat, code_repo, datatype, workspace
 from .content import _read_content
 from .media import (
@@ -276,24 +274,26 @@ async def list(ctx: RunContext[datatype.ContextDeps], path: str = "work://") -> 
         return f"Error: {e}"
 
 
-def _format_search_results(query: str, results: builtins.list[Any]) -> str:
-    """Render search results; results are dicts with title/href/body keys."""
-    if not results:
+def _format_search_results(query: str, response: SearchResponse) -> str:
+    """Render the backend answer and provider-independent hits."""
+    parts: builtins.list[str] = []
+    if response.answer:
+        parts.append(f"Answer for '{query}':\n{response.answer}")
+    if response.results:
+        if parts:
+            parts.append("")
+        lines = [f"Search results for '{query}' ({len(response.results)}):"]
+        for i, r in enumerate(response.results, 1):
+            lines.append(f"\n{i}. {r.title}\n   {r.url}\n   {r.snippet}")
+        parts.append("\n".join(lines))
+    elif not response.answer:
         return f"No results found for '{query}'"
-    lines = [f"Search results for '{query}' ({len(results)}):"]
-    for i, r in enumerate(results, 1):
-        title = r.get("title") or ""
-        url = r.get("href") or ""
-        snippet = r.get("body") or ""
-        lines.append(f"\n{i}. {title}\n   {url}\n   {snippet}")
-    return "\n".join(lines)
+    return "\n".join(parts)
 
 
 async def _search_web(query: str, max_results: int) -> str:
-    results = await DuckDuckGoSearchTool(
-        DDGS(), max_results=min(max_results, 10)
-    ).__call__(query)
-    return _format_search_results(query, results)
+    response = await search_web(query, max_results)
+    return _format_search_results(query, response)
 
 
 async def search(

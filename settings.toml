@@ -57,6 +57,36 @@ agent_prompt = ''''''
 # url = "https://api.openai.com/v1"
 # key = "sk-..."
 # api_type = "responses"
+
+# Web search backends. `providers` is both the enable list and the priority
+# order: each backend is tried until one returns results. Unconfigured
+# backends (missing key) and failed requests are skipped.
+#   fallback_on_empty = true  # also try the next backend when results are empty
+#   timeout = 20              # seconds per request
+# Each backend accepts:
+#   key   = API key (not needed for duckduckgo)
+#   url   = optional base URL override, e.g. a mirror
+#   proxy = optional proxy; falls back to agent_proxy
+#   include_answer = true  # query-level synthesized answer (Tavily)
+#
+# [agent_search]
+# providers = ["tavily", "brave", "deepseek", "duckduckgo"]
+# fallback_on_empty = true
+# timeout = 20
+#
+# [agent_search.tavily]
+# key = "tvly-..."
+# include_answer = true
+#
+# [agent_search.brave]
+# key = "..."
+#
+# [agent_search.deepseek]
+# key = "sk-..."
+#
+# [agent_search.duckduckgo]
+# # Keyless fallback; kept last here so paid backends get the first chance.
+
 manyacg_api_url = "https://api.manyacg.top/v1"
 manyacg_api_key = ""
 manyacg_channel = "MoreACG"

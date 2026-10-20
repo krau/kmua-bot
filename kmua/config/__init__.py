@@ -38,6 +38,39 @@ class ProviderConfig(pydantic.BaseModel):
     """
 
 
+class SearchProviderConfig(pydantic.BaseModel):
+    """Endpoint settings for one web search backend."""
+
+    key: str = ""
+    url: str | None = None
+    """Optional base URL override (mirror or self-hosted endpoint)."""
+    proxy: str | None = None
+    """Optional proxy; falls back to ``agent_proxy`` when unset."""
+    include_answer: bool = True
+    """Ask for a query-level synthesized answer. Used by Tavily."""
+
+
+class SearchConfig(pydantic.BaseModel):
+    """Priority-ordered web search backends.
+
+    ``providers`` is a fallback order: each backend is tried until one returns
+    results. A backend listed without its API key is skipped.
+    """
+
+    providers: list[str] = ["duckduckgo"]
+    # Whether an empty result set should fall through to the next backend.
+    fallback_on_empty: bool = True
+    timeout: int = pydantic.Field(default=20, ge=1)
+    tavily: SearchProviderConfig = pydantic.Field(default_factory=SearchProviderConfig)
+    brave: SearchProviderConfig = pydantic.Field(default_factory=SearchProviderConfig)
+    deepseek: SearchProviderConfig = pydantic.Field(
+        default_factory=SearchProviderConfig
+    )
+    duckduckgo: SearchProviderConfig = pydantic.Field(
+        default_factory=SearchProviderConfig
+    )
+
+
 class _AppConfig(pydantic.BaseModel):
     # base config
     token: str
@@ -314,6 +347,10 @@ class _AppConfig(pydantic.BaseModel):
     # 每次 user prompt 中最多发送的多模态内容, 0 = no limit
     agent_multimodal_input_count: int = 2
     agent_extra_tools: list[str] = ["websearch", "webfetch"]
+    # Web search backends, tried in this priority order until one returns
+    # results. Built-in names: "tavily", "brave", "deepseek", "duckduckgo".
+    # Per-backend key/url/proxy live under [agent_search.<name>].
+    agent_search: SearchConfig = pydantic.Field(default_factory=SearchConfig)
     # crawl4ai API server for JS-rendered pages (e.g. docker run crawl4ai)
     # if not set, js=True requests will return an error
     agent_crawl_api_url: str | None = None
