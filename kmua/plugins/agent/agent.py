@@ -178,6 +178,44 @@ async def _read_prompt_file(
     return text, None
 
 
+async def _chat_label(client: PyrogramClient, chat_id: int) -> str:
+    """Human-readable label for a chat id; falls back to the id."""
+    try:
+        tg_chat = await client.get_chat(chat_id)
+    except Exception:
+        return str(chat_id)
+    title = getattr(tg_chat, "title", None)
+    if title:
+        return f"{title} ({chat_id})"
+    first_name = getattr(tg_chat, "first_name", None)
+    if first_name:
+        return f"{first_name} ({chat_id})"
+    return str(chat_id)
+
+
+def _split_prompt_args(text: str | None) -> tuple[int | None, str | None]:
+    """Split ``/prompt [@chat_id] [text]`` into target chat and prompt text.
+
+    Only a leading ``@`` followed by a numeric id is treated as the target,
+    matching the ``/model`` command. The remaining text keeps its internal
+    whitespace.
+    """
+    parts = (text or "").split(maxsplit=1)
+    if len(parts) < 2:
+        return None, None
+    rest = parts[1].strip()
+    if not rest:
+        return None, None
+    head = rest.split(maxsplit=1)
+    token = head[0]
+    if token.startswith("@"):
+        maybe_id = token[1:]
+        if maybe_id.lstrip("-").isdigit() and maybe_id not in ("", "-"):
+            prompt = head[1].strip() if len(head) > 1 else None
+            return int(maybe_id), prompt
+    return None, rest
+
+
 _BOT_WAKE_DELAY_MIN_SECONDS = 0.721
 _BOT_WAKE_DELAY_MAX_SECONDS = 12.7
 
@@ -616,19 +654,7 @@ if app_config.agent and app_config.agent_model:
             if maybe_id.lstrip("-").isdigit() and maybe_id not in ("", "-"):
                 target_chat_id = int(maybe_id)
                 raw_args = raw_args[1:]
-                try:
-                    tg_chat = await client.get_chat(target_chat_id)
-                    if tg_chat is not None:
-                        if hasattr(tg_chat, "title") and tg_chat.title:
-                            target_chat_label = f"{tg_chat.title} ({target_chat_id})"
-                        elif hasattr(tg_chat, "first_name") and tg_chat.first_name:
-                            target_chat_label = (
-                                f"{tg_chat.first_name} ({target_chat_id})"
-                            )
-                except Exception:
-                    pass
-                if not target_chat_label:
-                    target_chat_label = str(target_chat_id)
+                target_chat_label = await _chat_label(client, target_chat_id)
 
         if not is_chat_allowed(target_chat_id):
             return
@@ -810,21 +836,29 @@ if app_config.agent and app_config.agent_model:
             return
         if not db_user.is_bot_global_admin and user.id not in app_config.owners:
             return
-        chat_id = message.chat.id if message.chat else None
-        if not chat_id:
+        current_chat_id = message.chat.id if message.chat else None
+        if not current_chat_id:
             return
-        if not is_chat_allowed(chat_id):
+        if not is_chat_allowed(current_chat_id):
             return
 
-        # Split only on the first whitespace to capture the full prompt text
-        args = message.text.split(maxsplit=1) if message.text else []
-        prompt_text = args[1].strip() if len(args) >= 2 else None
+        target_chat_id, prompt_text = _split_prompt_args(message.text)
+        if target_chat_id is None:
+            target_chat_id = current_chat_id
+        if not is_chat_allowed(target_chat_id):
+            return
+
+        if target_chat_id != current_chat_id:
+            label = await _chat_label(client, target_chat_id)
+            chat_desc = f"chat <code>{html.escape(label)}</code>"
+        else:
+            chat_desc = "this chat"
 
         replied_document = None
         if is_explicit_reply(message) and message.reply_to_message:
             replied_document = message.reply_to_message.document
 
-        current = await get_chat_prompt_override(chat_id)
+        current = await get_chat_prompt_override(target_chat_id)
 
         if prompt_text is None and replied_document is not None:
             text, error = await _read_prompt_file(client, replied_document)
@@ -834,49 +868,50 @@ if app_config.agent and app_config.agent_model:
                 )
                 return
             assert text is not None
-            await set_chat_prompt_override(chat_id, text)
+            await set_chat_prompt_override(target_chat_id, text)
             file_name = replied_document.file_name or "the replied file"
             await message.reply_text(
-                "Custom prompt set for this chat from "
+                f"Custom prompt set for {chat_desc} from "
                 f"<code>{html.escape(file_name)}</code>.",
                 parse_mode=pyrogram.enums.ParseMode.HTML,
             )
             logger.info(
-                f"Admin {user.id} set prompt override for chat {chat_id} from file "
+                f"Admin {user.id} set prompt override for chat {target_chat_id} from file "
                 f"{file_name!r} ({len(text)} chars, "
                 f"replaced existing: {current is not None})"
             )
         elif prompt_text is None:
             if current:
-                status = "Custom prompt is <b>active</b> for this chat."
+                status = f"Custom prompt is <b>active</b> for {chat_desc}."
             else:
-                status = "Using <b>default</b> prompt for this chat."
+                status = f"Using <b>default</b> prompt for {chat_desc}."
             await message.reply_text(
                 f"{status}\n\nUsage:\n"
-                "<code>/prompt &lt;text&gt;</code> — set custom prompt\n"
-                "<code>/prompt</code> replying to a text file — set custom prompt "
-                "from the file\n"
-                "<code>/prompt reset</code> — restore default",
+                "<code>/prompt [@chat_id] &lt;text&gt;</code> — set custom prompt\n"
+                "<code>/prompt [@chat_id]</code> replying to a text file — set custom "
+                "prompt from the file\n"
+                "<code>/prompt [@chat_id] reset</code> — restore default\n"
+                "Omit @chat_id to target the current chat.",
                 parse_mode=pyrogram.enums.ParseMode.HTML,
             )
         elif prompt_text.lower() == "reset":
-            await set_chat_prompt_override(chat_id, None)
+            await set_chat_prompt_override(target_chat_id, None)
             await message.reply_text(
-                "Prompt for this chat reset to default.",
+                f"Prompt for {chat_desc} reset to default.",
                 parse_mode=pyrogram.enums.ParseMode.HTML,
             )
             logger.info(
-                f"Admin {user.id} reset prompt override for chat {chat_id} "
+                f"Admin {user.id} reset prompt override for chat {target_chat_id} "
                 f"(had custom: {current is not None})"
             )
         else:
-            await set_chat_prompt_override(chat_id, prompt_text)
+            await set_chat_prompt_override(target_chat_id, prompt_text)
             await message.reply_text(
-                "Custom prompt set for this chat.",
+                f"Custom prompt set for {chat_desc}.",
                 parse_mode=pyrogram.enums.ParseMode.HTML,
             )
             logger.info(
-                f"Admin {user.id} set prompt override for chat {chat_id} "
+                f"Admin {user.id} set prompt override for chat {target_chat_id} "
                 f"(replaced existing: {current is not None})"
             )
 
