@@ -200,17 +200,19 @@ async def record_memory(client: Client, message: pyrogram.types.Message):
     )
     if len(user_messages) > 100:
         user_messages = user_messages[-100:]
-        # 每个用户每小时最多通过此函数更新一次记忆
+        # 每个用户每小时最多成功更新一次记忆
         last_update_key = state.user_memory_update_key(user.id)
         last_updated = await memttlcache.get(last_update_key)
         if not last_updated:
-            await memttlcache.set(last_update_key, True, ttl=3600)
             texts = "\n".join([um.text for um in user_messages])
+            updated = False
             if memory_agent is not None:
-                await update_user_memory(
+                updated = await update_user_memory(
                     memory_agent, texts, user.id, quota.subject_of(message)
                 )
-        user_messages = []
+            if updated:
+                await memttlcache.set(last_update_key, True, ttl=3600)
+                user_messages = []
     await memttlcache.set(
         state.user_messages_global_key(user.id), user_messages, ttl=86400 * 7
     )
@@ -255,20 +257,22 @@ async def record_agent_memory(client: Client, message: pyrogram.types.Message):
     )
     if len(agent_messages) >= _AGENT_MEMORY_TRIGGER_COUNT:
         agent_messages = agent_messages[-_AGENT_MEMORY_TRIGGER_COUNT:]
-        # 每个用户每小时最多通过此函数更新一次记忆
+        # 每个用户每小时最多成功更新一次记忆
         last_update_key = state.agent_memory_update_key(user.id)
         last_updated = await memttlcache.get(last_update_key)
         if not last_updated:
-            await memttlcache.set(last_update_key, True, ttl=3600)
+            updated = False
             if memory_agent is not None:
-                await update_user_memory(
+                updated = await update_user_memory(
                     memory_agent,
                     format_user_messages(agent_messages),
                     user.id,
                     quota.subject_of(message),
                 )
-            agent_messages = []
-        # 小时额度已用完: 保留最近 100 条, 下次触发时再提交, 不丢弃已记录内容
+            if updated:
+                await memttlcache.set(last_update_key, True, ttl=3600)
+                agent_messages = []
+        # 本小时已更新或本次更新未落盘: 保留最近 100 条, 下次触发时再提交
     await memttlcache.set(
         state.agent_messages_key(user.id), agent_messages, ttl=86400 * 7
     )

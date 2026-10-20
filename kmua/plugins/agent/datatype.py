@@ -11,6 +11,13 @@ if TYPE_CHECKING:
     from powermem import AsyncMemory
 
 
+def _memory_text(value: list[str] | str | None) -> str:
+    """Render one memory field without splitting a string into characters."""
+    if isinstance(value, str):
+        return value
+    return ";".join(value or [])
+
+
 class ChatMemoryy(BaseModel):
     disposition: list[str] | str | None = Field(description="性格")
     interests: list[str] | str | None = Field(description="兴趣爱好")
@@ -25,29 +32,28 @@ class ChatMemoryy(BaseModel):
 
     def to_text(self, is_group_chat: bool = False) -> str:
         parts = []
-        if self.disposition:
-            parts.append(f"性格: {';'.join(self.disposition)}")
-        if self.attitudes_to_you:
-            parts.append(f"对你的态度: {';'.join(self.attitudes_to_you)}")
+        disposition = _memory_text(self.disposition)
+        if disposition:
+            parts.append(f"性格: {disposition}")
+        attitudes = _memory_text(self.attitudes_to_you)
+        if attitudes:
+            parts.append(f"对你的态度: {attitudes}")
 
         # 仅在私聊时输出完整信息
         if not is_group_chat:
-            if self.interests:
-                parts.append(f"兴趣爱好: {';'.join(self.interests)}")
-            if self.doings:
-                parts.append(f"正在做的事情: {';'.join(self.doings)}")
-            if self.works:
-                parts.append(f"工作/职业: {';'.join(self.works)}")
-            if self.wishes:
-                parts.append(f"愿望/目标: {';'.join(self.wishes)}")
-            if self.worries:
-                parts.append(f"担忧/烦恼: {';'.join(self.worries)}")
-            if self.skills:
-                parts.append(f"技能/专长: {';'.join(self.skills)}")
-            if self.experiences_with_you:
-                parts.append(f"与你的经历: {';'.join(self.experiences_with_you)}")
-            if self.extra_info:
-                parts.append(f"其他补充信息: {';'.join(self.extra_info)}")
+            for label, value in (
+                ("兴趣爱好", self.interests),
+                ("正在做的事情", self.doings),
+                ("工作/职业", self.works),
+                ("愿望/目标", self.wishes),
+                ("担忧/烦恼", self.worries),
+                ("技能/专长", self.skills),
+                ("与你的经历", self.experiences_with_you),
+                ("其他补充信息", self.extra_info),
+            ):
+                text = _memory_text(value)
+                if text:
+                    parts.append(f"{label}: {text}")
         return "\n".join(parts)
 
 

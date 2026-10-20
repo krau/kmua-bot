@@ -13,6 +13,32 @@ from kmua.plugins.agent import datatype, quota, state, trace
 _user_memory_locks: WeakValueDictionary[int, asyncio.Lock] = WeakValueDictionary()
 _user_memory_locks_lock = asyncio.Lock()
 
+_MEMORY_ITEMS_PER_FIELD = 3
+
+
+def _memory_items(value: list[str] | str | None) -> list[str]:
+    if value is None:
+        return []
+    items = [value] if isinstance(value, str) else value
+    return [item.strip() for item in items if item and item.strip()]
+
+
+def _merge_memory_field(
+    old_value: list[str] | str | None,
+    new_value: list[str] | str | None,
+) -> list[str]:
+    """Merge one field, evicting the oldest entries first.
+
+    Entries the model mentions again move to the newest end, so a full field
+    makes room for new information instead of discarding it.
+    """
+    old_items = _memory_items(old_value)
+    new_items = _memory_items(new_value)
+    merged = [item for item in old_items if item not in new_items]
+    merged.extend(new_items)
+    merged = list(dict.fromkeys(merged))
+    return merged[-_MEMORY_ITEMS_PER_FIELD:]
+
 
 async def _get_user_memory_lock(user_id: int) -> asyncio.Lock:
     async with _user_memory_locks_lock:
@@ -28,11 +54,16 @@ async def update_user_memory(
     message_text: str,
     user_id: int,
     subject: quota.Subject,
-):
+) -> bool:
+    """Update one user's memory.
+
+    Returns True only when the new memory was stored; False means the caller
+    should keep its pending message batch for a later retry.
+    """
     if not await quota.can_start(subject):
         # 没额度就不更新记忆, 静默跳过: 这是后台工作, 不需要打扰用户。
         logger.debug(f"Skip updating memory for user {user_id}: no quota")
-        return
+        return False
     lock = await _get_user_memory_lock(user_id)
     async with lock:
         # 防止 spammer 刷记忆
@@ -41,12 +72,14 @@ async def update_user_memory(
             logger.debug(
                 f"Skip updating memory for user {user_id} due to 30s rate limit"
             )
-            return
+            return False
         await memttlcache.set(throttle_key, True, ttl=300)
 
         logger.debug(f"Updating memory for user {user_id}")
         old_memory = await memttlcache.get(state.memory_key(user_id))
-        if old_memory and isinstance(old_memory, datatype.ChatMemoryy):
+        if not isinstance(old_memory, datatype.ChatMemoryy):
+            old_memory = None
+        if old_memory:
             message_text = f"根据已有的记忆和新的聊天消息, 更新对用户的记忆, 并决定对用户的好感变化.\n旧的记忆: {old_memory}\n新的聊天消息: {message_text}"
 
         # 使用超时控制防止模型调用阻塞事件循环
@@ -68,7 +101,7 @@ async def update_user_memory(
                 except TimeoutError as e:
                     trace.mark_trace(session, status="timeout", error=e)
                     logger.warning(f"update_user_memory timed out for user {user_id}")
-                    return  # 超时后静默返回，不影响主流程
+                    return False  # 超时后静默返回，不影响主流程
             else:
                 memory_result = await coro
 
@@ -102,40 +135,13 @@ async def update_user_memory(
         except Exception as e:
             logger.exception(f"Error updating user affection: {e}")
         new_memory = result.get_memory()
-        if old_memory:
-            # 合并记忆列表, 每个字段去重, 且限制长度为 3
-            for field in datatype.ChatMemoryy.model_fields:
-                old_value = getattr(old_memory, field, [])
-                new_value = getattr(new_memory, field, [])
-                if old_value and new_value:
-                    if isinstance(old_value, list) and isinstance(new_value, list):
-                        combined = list(dict.fromkeys(old_value + new_value))
-                        setattr(new_memory, field, combined[:3])
-                    elif isinstance(old_value, str) and isinstance(new_value, str):
-                        if new_value not in old_value:
-                            combined = [old_value, new_value]
-                        else:
-                            combined = [old_value]
-                        setattr(new_memory, field, combined)
-                    elif isinstance(old_value, list) and isinstance(new_value, str):
-                        if new_value not in old_value:
-                            combined = old_value + [new_value]
-                        else:
-                            combined = old_value
-                        setattr(new_memory, field, combined[:3])
-                    elif isinstance(old_value, str) and isinstance(new_value, list):
-                        if old_value not in new_value:
-                            combined = [old_value] + new_value
-                        else:
-                            combined = new_value
-                        setattr(new_memory, field, combined[:3])
-                elif old_value and not new_value:
-                    if isinstance(old_value, list):
-                        setattr(new_memory, field, old_value[:3])
-                    else:
-                        setattr(new_memory, field, [old_value])
+        for field in datatype.ChatMemoryy.model_fields:
+            old_value = getattr(old_memory, field, None) if old_memory else None
+            merged = _merge_memory_field(old_value, getattr(new_memory, field, None))
+            setattr(new_memory, field, merged)
         await memttlcache.set(
             state.memory_key(user_id),
             new_memory,
             ttl=86400 * 30,  # 30 days
         )
+        return True
