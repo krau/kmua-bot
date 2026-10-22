@@ -391,10 +391,11 @@ def _unprocessed_reason(message: pyrogram.types.Message) -> str | None:
 def _env_header(
     message: pyrogram.types.Message, ctx: datatype.ContextInfo | None
 ) -> str:
-    """Per-prompt environment stamp: chat title and current time. The chat
-    info and the ContextInfo fields the per-turn message blocks do not
-    already show (user profile, memory about the user, affection prompt)
-    are included only on the first prompt (ctx present)."""
+    """Per-prompt environment stamp: chat title, current time and chat info.
+
+    ContextInfo fields are not included here; the group prompt places them in
+    the current-message block on the first turn (ctx present).
+    """
     chat = message.chat
     title = getattr(chat, "title", None) or "未知群组"
     lines = [f"# 群聊 - {title}", f"当前时间: {_now_text()}"]
@@ -404,12 +405,6 @@ def _env_header(
     if info_lines:
         lines.append("群组信息:")
         lines.extend(f"  {line}" for line in info_lines)
-    if ctx.memory_about_user is not None:
-        memory_text = ctx.memory_about_user.to_text(is_group_chat=ctx.is_group_chat)
-        if memory_text:
-            lines.append(f"关于用户的记忆: ({memory_text})")
-    if ctx.append_prompt:
-        lines.append(f"附加提示: {ctx.append_prompt}")
     return "\n".join(lines)
 
 
@@ -662,6 +657,15 @@ async def build_group_prompt(
     sender = senders.get(message.id)
     sender_label = sender.label() if sender else "?"
     current_lines = [f"当前用户: {sender_label}"]
+    # The first prompt of a conversation carries the user-memory snapshot and
+    # the affection hint in ctx; later prompts keep them out (already in history).
+    if ctx is not None:
+        if ctx.memory_about_user is not None:
+            memory_text = ctx.memory_about_user.to_text(is_group_chat=ctx.is_group_chat)
+            if memory_text:
+                current_lines.append(f"关于用户的记忆: ({memory_text})")
+        if ctx.append_prompt:
+            current_lines.append(f"附加提示: {ctx.append_prompt}")
     current_text = message_plain_text(message)
     current_lines.append(f"消息内容: {_quote(current_text)}")
     if message.id in budget.numbered:
