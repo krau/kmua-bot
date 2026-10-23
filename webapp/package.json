@@ -22,7 +22,7 @@
   "dependencies": {
     "@telegram-apps/sdk": "3.11.8",
     "pinia": "4.0.2",
-    "vue": "3.5.40",
+    "vue": "3.5.44",
     "vue-router": "5.2.0"
   },
   "devDependencies": {
@@ -40,8 +40,8 @@
     "prettier": "3.9.6",
     "tailwindcss": "4.3.3",
     "typescript": "5.9.3",
-    "vite": "8.1.5",
-    "vitest": "4.1.11",
+    "vite": "8.3.5",
+    "vitest": "4.1.12",
     "vue-tsc": "3.3.8"
   }
 }
