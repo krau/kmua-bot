@@ -17,6 +17,7 @@ from .media import (
     _media_payload_from_bytes,
     _tme_message_parts,
 )
+from .profile import _read_user
 from .protocols import _require, _split_target
 from .targets import _download_persisted, read_bytes
 
@@ -156,6 +157,9 @@ async def _read_content(
             return text
         content = _page_lines(text, start_line, max_lines)
         return content or ""
+
+    if protocol == "user://":
+        return await _read_user(ctx, rest)
 
     if protocol == "chat://":
         if rest.startswith("/media/"):

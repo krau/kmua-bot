@@ -20,6 +20,7 @@ _PROTOCOLS = (
     "sandbox://",
     "persist://",
     "chat://",
+    "user://",
     "memory://",
     "web://",
 )
@@ -41,8 +42,9 @@ def _split_target(path: str) -> tuple[str, str]:
     raise ValueError(
         f"Unsupported target: {path}. Use kmua:// (codebase), work:// "
         f"(workspace), persist:// (persisted files), chat:// (current chat: "
-        f"info, history, media), memory:// (memory), web:// (web search) or "
-        f"http(s):// (web; t.me message links return the message content)."
+        f"info, history, media), user:// (user profiles), memory:// (memory), "
+        f"web:// (web search) or http(s):// (web; t.me message links return "
+        f"the message content)."
     )
 
 

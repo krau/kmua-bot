@@ -56,6 +56,7 @@ async def prepare_read(
             "work://": bool(app_config.agent_workspace_enabled),
             "persist://": True,
             "chat://": _is_group_chat(ctx.deps),
+            "user://": True,
             "http": _web_fetch_enabled(),
         },
     )

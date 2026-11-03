@@ -4,6 +4,8 @@ Protocols:
 - kmua://      read-only view of the bot's own codebase (agentfs snapshot)
 - work://      sandboxed workspace: files the agent writes
 - chat://      the current group: info, message history, sending quotes
+- user://      Telegram user profiles: members of the current group (or
+               yourself in private chats), including profile photos
 - memory://    the group's long-term memory
 - web://       web search
 - http(s)://   web page fetching
@@ -13,6 +15,7 @@ Layout:
   of truth shared by the call-time gate and the prepare functions)
 - targets.py   — byte/line access to sandbox, workspace and persisted targets
 - media.py     — Telegram media download, binary classification and native ToolReturn content
+- profile.py   — Telegram user profile metadata and avatar reads for user://
 - content.py   — the read-side content dispatcher
 - tools.py     — the six tool functions exposed to the model
 - prepares.py  — per-tool visibility mirroring availability into descriptions
