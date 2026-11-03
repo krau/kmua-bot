@@ -44,8 +44,8 @@ async def read(
       default 50), ?from_id=<a>&to_id=<b> for an inclusive id range, or
       ?reply_chain_of=<id> for the full reply chain of message <id> (oldest
       ancestor first, <id> last)
-    - user://current, user://123 or user://@name — a Telegram user's profile:
-      name, username, bio and account flags. user://123/avatar to get the profile photo.
+    - user://current | user://<id|@username>[/avatar]
+      ?include=affection,memory,coins,marriage,stats,account|all
     - https://example.com — a web page or binary resource
 
     Text targets support start_line/max_lines paging (1-indexed; max_lines up

@@ -4,8 +4,9 @@ Protocols:
 - kmua://      read-only view of the bot's own codebase (agentfs snapshot)
 - work://      sandboxed workspace: files the agent writes
 - chat://      the current group: info, message history, sending quotes
-- user://      Telegram user profiles: members of the current group (or
-               yourself in private chats), including profile photos
+- user://      Telegram user profiles: current-chat members (or yourself in
+               private chats); optional affection/memory/coins/marriage/stats/
+               account and photos
 - memory://    the group's long-term memory
 - web://       web search
 - http(s)://   web page fetching
