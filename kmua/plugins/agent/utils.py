@@ -5,7 +5,7 @@ from kmua.common.utils import is_explicit_reply
 from kmua.config import app_config
 from kmua.plugins.agent import state
 
-from .output import StreamingOutput, TypingKeepAlive, reply_output
+from .output import TypingKeepAlive, reply_output
 from .prompt import (
     build_ctx_info,
     check_needs_multimodal,
@@ -18,7 +18,6 @@ from .user_memory import update_user_memory
 __all__ = [
     "reply_output",
     "TypingKeepAlive",
-    "StreamingOutput",
     "get_input_prompt",
     "build_ctx_info",
     "check_needs_multimodal",

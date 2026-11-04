@@ -8,13 +8,7 @@ from pydantic_ai import (
     Agent,
     UserContent,
 )
-from pydantic_ai.messages import (
-    ModelMessage,
-    PartDeltaEvent,
-    PartStartEvent,
-    TextPart,
-    TextPartDelta,
-)
+from pydantic_ai.messages import ModelMessage
 from pyrogram.client import Client as PyrogramClient
 from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
@@ -26,7 +20,7 @@ from kmua.logger import logger
 from kmua.plugins.agent import datatype, provider, quota, safety, state, trace
 from kmua.plugins.agent.cache_stats import log_run_cache_stats
 from kmua.plugins.agent.datatype import AskUserOutput, EndTurn
-from kmua.plugins.agent.output import StreamingOutput, TypingKeepAlive, reply_output
+from kmua.plugins.agent.output import TypingKeepAlive, reply_output
 from kmua.plugins.agent.prompt import (
     check_needs_multimodal,
     transcribe_multimodal_content,
@@ -330,220 +324,92 @@ async def _run_agent_impl(
             ctx = TypingKeepAlive(client, message)
             await ctx.__aenter__()
         try:
-            if app_config.agent_streaming:
-                streaming_output: StreamingOutput | None = None
+            async with _iter_with_spill_session(
+                agi,
+                chat_id=chat_id,
+                user_id=user_id,
+                model=use_model,
+                model_settings=model_settings,
+                instructions=additional_instructions,
+                user_prompt=user_prompt,
+                message_history=history,
+                deps=deps,
+                usage_limits=safety.build_usage_limits(),
+            ) as agent_run:
+                replied_texts: set[str] = set()
+                full_output_parts: list[str] = []
                 output: Any = None
-                try:
-                    async with _iter_with_spill_session(
-                        agi,
-                        chat_id=chat_id,
-                        user_id=user_id,
-                        model=use_model,
-                        model_settings=model_settings,
-                        instructions=additional_instructions,
-                        user_prompt=user_prompt,
-                        message_history=history,
-                        deps=deps,
-                        usage_limits=safety.build_usage_limits(),
-                    ) as agent_run:
-                        node = agent_run.next_node
-                        while not Agent.is_end_node(node):
-                            if Agent.is_model_request_node(node):
-                                async with node.stream(agent_run.ctx) as request_stream:
-                                    async for event in request_stream:
-                                        if isinstance(event, PartStartEvent):
-                                            if isinstance(event.part, TextPart):
-                                                if streaming_output is None:
-                                                    streaming_output = StreamingOutput(
-                                                        client, message
-                                                    )
-                                                await streaming_output.append_delta(
-                                                    event.part.content
-                                                )
-                                        elif isinstance(event, PartDeltaEvent):
-                                            if isinstance(event.delta, TextPartDelta):
-                                                if streaming_output is None:
-                                                    streaming_output = StreamingOutput(
-                                                        client, message
-                                                    )
-                                                await streaming_output.append_delta(
-                                                    event.delta.content_delta
-                                                )
-                            elif Agent.is_call_tools_node(node):
-                                has_tool_calls = any(
-                                    part.part_kind == "tool-call"
-                                    for part in node.model_response.parts
-                                )
-                                if has_tool_calls and streaming_output is not None:
-                                    await streaming_output.finalize()
-                                    streaming_output = None
-                            # next() runs the full capability lifecycle
-                            # (before/wrap/after_node_run), which drains
-                            # end-of-run pending messages into a redirect
-                            # instead of stranding them.
-                            node = await agent_run.next(node)
-                        assert agent_run.result is not None, (
-                            "Agent run ended without result"
-                        )
-                        logger.debug(
-                            f"Agent run end with result: {agent_run.result.output}"
-                        )
-                        output = agent_run.result.output
-                        if isinstance(output, (EndTurn, AskUserOutput)):
-                            if streaming_output is not None:
-                                await streaming_output.abort()
-                        else:
-                            if isinstance(output, str) and "final_result" in output:
-                                if streaming_output is not None:
-                                    await streaming_output.abort()
-                                logger.warning(
-                                    f"The stupid agent returned 'final_result' as text🤡 for user {user_id}"
-                                )
-                            elif streaming_output is not None:
-                                await streaming_output.finalize()
-                            elif output:
-                                await reply_output(client, message, output)
-                        # 下面的收尾动作可能失败并跳出, 所以先结算, 免得答案已发出却不计费。
-                        await quota.settle(subject, agent_run.usage)
-                        trace.mark_trace(
-                            session,
-                            usage=agent_run.usage,
-                            output=output,
-                            model_name=use_model.model_name,
-                            model_role=(
-                                "multimodal"
-                                if use_model is effective_multimodal
-                                else "main"
-                            ),
-                        )
-                        # Save full output for follow-up detection
-                        full_output = ""
-                        if streaming_output is not None:
-                            full_output = streaming_output.current_text
-                        elif isinstance(output, str):
-                            full_output = output
-                        if (
-                            full_output
-                            and message.chat
-                            and message.chat.type in GROUP_CHAT_TYPES
-                        ):
-                            bot_reply = await memttlcache.get(
-                                state.bot_last_reply_key(chat_id)
-                            )
-                            if bot_reply and isinstance(
-                                bot_reply, datatype.BotLastReply
-                            ):
-                                bot_reply.full_output = full_output
-                                await memttlcache.set(
-                                    state.bot_last_reply_key(chat_id),
-                                    bot_reply,
-                                    ttl=300,
-                                )
-                        await memttlcache.set(
-                            state.history_key(chat_id, user_id),
-                            agent_run.all_messages(),
-                            ttl=app_config.cachettl_agent_history,
-                        )
-                        if coverage_meta is not None:
-                            await advance_prompt_coverage(
-                                chat_id, user_id, coverage_meta
-                            )
-                        log_run_cache_stats(use_model.model_name, agent_run.usage)
-                except Exception:
-                    if streaming_output is not None:
-                        await streaming_output.abort()
-                    raise
-            else:
-                async with _iter_with_spill_session(
-                    agi,
-                    chat_id=chat_id,
-                    user_id=user_id,
-                    model=use_model,
-                    model_settings=model_settings,
-                    user_prompt=user_prompt,
-                    instructions=additional_instructions,
-                    message_history=history,
-                    deps=deps,
-                    usage_limits=safety.build_usage_limits(),
-                ) as agent_run:
-                    replied = False
-                    full_output_parts: list[str] = []
-                    output: Any = None
-                    node = agent_run.next_node
-                    while not Agent.is_end_node(node):
-                        if Agent.is_call_tools_node(node):
-                            for part in node.model_response.parts:
-                                if part.part_kind == "text" and part.content:
-                                    if "final_result" in part.content:
-                                        logger.warning(
-                                            f"The stupid agent returned 'final_result' as text🤡 for user {user_id}"
-                                        )
-                                    else:
-                                        await reply_output(
-                                            client, message, part.content
-                                        )
-                                        full_output_parts.append(part.content)
-                                        replied = True
-                        # next() runs the full capability lifecycle, which
-                        # drains end-of-run pending messages into a redirect.
-                        node = await agent_run.next(node)
-                    assert agent_run.result is not None, (
-                        "Agent run ended without result"
+                node = agent_run.next_node
+                while not Agent.is_end_node(node):
+                    if app_config.agent_streaming and Agent.is_model_request_node(node):
+                        # Consume the provider stream internally; Telegram only
+                        # receives completed text blocks below.
+                        async with node.stream(agent_run.ctx) as request_stream:
+                            async for _ in request_stream:
+                                pass
+                    if Agent.is_call_tools_node(node):
+                        for part in node.model_response.parts:
+                            if part.part_kind == "text" and part.content:
+                                if "final_result" in part.content:
+                                    logger.warning(
+                                        f"The stupid agent returned 'final_result' as text🤡 for user {user_id}"
+                                    )
+                                elif part.content not in replied_texts:
+                                    await reply_output(client, message, part.content)
+                                    replied_texts.add(part.content)
+                                    full_output_parts.append(part.content)
+                    # next() runs the full capability lifecycle, which drains
+                    # end-of-run pending messages into a redirect.
+                    node = await agent_run.next(node)
+                assert agent_run.result is not None, "Agent run ended without result"
+                logger.info(f"Agent run end for user {user_id} in chat {chat_id}")
+                logger.debug(f"Agent run end with result: {agent_run.result.output}")
+                output = agent_run.result.output
+                if isinstance(output, str) and "final_result" in output:
+                    logger.warning(
+                        f"The stupid agent returned 'final_result' as text🤡 for user {user_id}"
                     )
-                    logger.info(f"Agent run end for user {user_id} in chat {chat_id}")
+                elif isinstance(output, (EndTurn, AskUserOutput)):
                     logger.debug(
-                        f"Agent run end with result: {agent_run.result.output}"
+                        f"Agent returned {type(output).__name__} for user {user_id}"
                     )
-                    output = agent_run.result.output
-                    if isinstance(output, str) and "final_result" in output:
-                        logger.warning(
-                            f"The stupid agent returned 'final_result' as text🤡 for user {user_id}"
+                elif isinstance(output, str) and output and output not in replied_texts:
+                    await reply_output(client, message, output)
+                    full_output_parts.append(output)
+                # 结算排在收尾动作之前: 收尾失败不该让这次调用免费。
+                await quota.settle(subject, agent_run.usage)
+                trace.mark_trace(
+                    session,
+                    usage=agent_run.usage,
+                    output=output,
+                    model_name=use_model.model_name,
+                    model_role=(
+                        "multimodal" if use_model is effective_multimodal else "main"
+                    ),
+                )
+                # Save full output for follow-up detection
+                full_output = "\n".join(full_output_parts)
+                if (
+                    full_output
+                    and message.chat
+                    and message.chat.type in GROUP_CHAT_TYPES
+                ):
+                    bot_reply = await memttlcache.get(state.bot_last_reply_key(chat_id))
+                    if bot_reply and isinstance(bot_reply, datatype.BotLastReply):
+                        bot_reply.full_output = full_output
+                        await memttlcache.set(
+                            state.bot_last_reply_key(chat_id),
+                            bot_reply,
+                            ttl=300,
                         )
-                    elif isinstance(output, (EndTurn, AskUserOutput)):
-                        logger.debug(
-                            f"Agent returned {type(output).__name__} for user {user_id}"
-                        )
-                    elif not replied and output:
-                        await reply_output(client, message, output)
-                        full_output_parts.append(output)
-                    # 结算排在收尾动作之前: 收尾失败不该让这次调用免费。
-                    await quota.settle(subject, agent_run.usage)
-                    trace.mark_trace(
-                        session,
-                        usage=agent_run.usage,
-                        output=output,
-                        model_name=use_model.model_name,
-                        model_role=(
-                            "multimodal"
-                            if use_model is effective_multimodal
-                            else "main"
-                        ),
-                    )
-                    # Save full output for follow-up detection
-                    full_output = "\n".join(full_output_parts)
-                    if (
-                        full_output
-                        and message.chat
-                        and message.chat.type in GROUP_CHAT_TYPES
-                    ):
-                        bot_reply = await memttlcache.get(
-                            state.bot_last_reply_key(chat_id)
-                        )
-                        if bot_reply and isinstance(bot_reply, datatype.BotLastReply):
-                            bot_reply.full_output = full_output
-                            await memttlcache.set(
-                                state.bot_last_reply_key(chat_id),
-                                bot_reply,
-                                ttl=300,
-                            )
-                    await memttlcache.set(
-                        state.history_key(chat_id, user_id),
-                        agent_run.all_messages(),
-                        ttl=app_config.cachettl_agent_history,
-                    )
-                    if coverage_meta is not None:
-                        await advance_prompt_coverage(chat_id, user_id, coverage_meta)
-                    log_run_cache_stats(use_model.model_name, agent_run.usage)
+                await memttlcache.set(
+                    state.history_key(chat_id, user_id),
+                    agent_run.all_messages(),
+                    ttl=app_config.cachettl_agent_history,
+                )
+                if coverage_meta is not None:
+                    await advance_prompt_coverage(chat_id, user_id, coverage_meta)
+                log_run_cache_stats(use_model.model_name, agent_run.usage)
         finally:
             if ctx is not None and ctx_owned:
                 await ctx.__aexit__(None, None, None)

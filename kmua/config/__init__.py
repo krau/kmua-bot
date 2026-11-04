@@ -318,6 +318,8 @@ class _AppConfig(pydantic.BaseModel):
     # multimodal input. Comment posts with media the model cannot take are
     # silently skipped instead of being commented without the media.
     agent_struct_model_multimodal: bool = False
+    # Stream model requests/responses internally. Received text is not edited
+    # into a Telegram message; completed text blocks are sent normally.
     agent_streaming: bool = True
     # Whether agent replies are sent as Bot API rich messages (headings,
     # tables, formulas, task lists, details, inline media) instead of plain
@@ -367,9 +369,6 @@ class _AppConfig(pydantic.BaseModel):
     # including all tool calls and streaming). Prevents a stuck model/tool call
     # from blocking a dispatcher worker indefinitely. 0 = no timeout.
     agent_run_timeout: int = 600
-    # Max seconds a streaming reply keeps editing its message before the bot
-    # stops updating it (the final text is still delivered).
-    agent_streaming_max_time: int = 300
     # Timeout for a single webfetch (_fetch_http via crawl4ai). 0 = no timeout.
     agent_webfetch_timeout: int = 45
     # Image generation/editing: "provider/model" spec.
