@@ -3,7 +3,7 @@ import mimetypes
 
 import pyrogram
 from pydantic import BaseModel, Field
-from pydantic_ai import Agent
+from pydantic_ai import Agent, Tool
 from pyrogram.client import Client
 
 from kmua import database
@@ -15,8 +15,8 @@ from kmua.plugins.agent.output import TypingKeepAlive, reply_output
 from kmua.plugins.agent.prompt import get_input_prompt
 from kmua.plugins.agent.runner import get_chat_prompt_override
 
-from . import provider, quota, trace
-from .agent import struct_model
+from . import datatype, provider, quota, tools, trace
+from .agent import multimodal_model, powermemory, struct_model
 from .whitelist import is_chat_allowed
 
 
@@ -37,6 +37,11 @@ _comment_model_options.setdefault("thinking", False)
 comment_agent = Agent(
     model=struct_model,
     output_type=CommentResult,
+    deps_type=datatype.ContextDeps,
+    tools=[
+        Tool(tools.read, prepare=tools.prepare_read),
+        Tool(tools.search, prepare=tools.prepare_search),
+    ],
     capabilities=[trace.AgentTraceCapability()],
     retries=5,
     model_settings=provider.make_model_settings(_comment_model_options),
@@ -293,6 +298,15 @@ async def comment_channel_message(client: Client, message: pyrogram.types.Messag
                 model=struct_model,
                 instructions=instructions,
                 user_prompt=prompts,
+                deps=datatype.ContextDeps(
+                    client=client,
+                    user_id=channel.id,
+                    chat_id=chat.id,
+                    message=message,
+                    instructions=instructions,
+                    powermemory=powermemory,
+                    multimodal_model=multimodal_model,
+                ),
             )
             output = result.output
             # 这次模型调用和普通回合一样花 token, 按发言身份结算: 频道身份没有个人账户,
