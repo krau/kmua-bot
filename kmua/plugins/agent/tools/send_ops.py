@@ -123,6 +123,7 @@ async def schedule_message(
     media_type: Literal["photo", "video", "audio", "document"] | None = None,
     media_url: str | None = None,
     caption: str | None = None,
+    chat_id: int | None = None,
 ) -> str:
     """Schedule a message to be sent at a specific time.
 
@@ -138,8 +139,10 @@ async def schedule_message(
             "audio", "document". Required if media_url is provided.
         media_url: Direct URL for media types. Required if media_type is provided.
         caption: Optional caption for media messages.
+        chat_id: Target chat id; defaults to the current chat.
     """
-    if ctx.deps.message is None or ctx.deps.chat_id is None:
+    chat_id = chat_id if chat_id is not None else ctx.deps.chat_id
+    if ctx.deps.message is None or chat_id is None:
         return SendResult(
             success=False, message="Message context is unavailable."
         ).text()
@@ -170,8 +173,6 @@ async def schedule_message(
         raise ModelRetry("media_type is required when providing media_url.")
     if has_media and not media_url:
         raise ModelRetry("media_url is required when providing media_type.")
-
-    chat_id = ctx.deps.chat_id
 
     if send_immediately:
         try:

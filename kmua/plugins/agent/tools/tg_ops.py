@@ -1,9 +1,9 @@
-"""A single tool that calls Telegram methods on the current chat.
+"""A single tool that calls Telegram methods, using Telegram Bot API naming.
 
 The API mirrors the Telegram Bot API: `method` is a Bot API method name and
 `params` uses the Bot API field names. Only a whitelist of sending/expressive
-methods is exposed, plus kmua-specific extensions. chat_id is always the
-current chat and cannot be overridden.
+methods is exposed, plus kmua-specific extensions. chat_id defaults to the
+current chat; the only other allowed target is the current user.
 """
 
 from __future__ import annotations
@@ -106,14 +106,19 @@ def _method_list() -> str:
 
 
 async def _call_kmua_extension(
-    ctx: RunContext[datatype.ContextDeps], method: str, params: dict[str, Any]
+    ctx: RunContext[datatype.ContextDeps],
+    method: str,
+    params: dict[str, Any],
+    chat_id: int,
 ) -> str:
     if method == "scheduleMessage":
         text = params.get("text")
         schedule_time = params.get("schedule_time")
         if not text or not schedule_time:
             return "Error: scheduleMessage requires text and schedule_time."
-        return await send_ops.schedule_message(ctx, str(schedule_time), text=str(text))
+        return await send_ops.schedule_message(
+            ctx, str(schedule_time), text=str(text), chat_id=chat_id
+        )
     if method == "blockUser":
         try:
             duration = int(params.get("duration_minutes") or 0)
@@ -142,6 +147,35 @@ def _as_message_id(value: Any) -> int | None:
     return None
 
 
+def _as_chat_id(value: Any) -> int | None:
+    """value as a Telegram chat id, including negative ids."""
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, int):
+        return value
+    if isinstance(value, str):
+        token = value.strip()
+        if token.lstrip("-").isdigit():
+            return int(token)
+    return None
+
+
+def _resolve_chat_id(
+    ctx: RunContext[datatype.ContextDeps], params: dict[str, Any]
+) -> tuple[int | None, str | None]:
+    """Pop ``chat_id`` and restrict it to the current chat or current user."""
+    raw = params.pop("chat_id", None)
+    if raw is None:
+        return ctx.deps.chat_id, None
+    target = _as_chat_id(raw)
+    if target is None or target not in (ctx.deps.chat_id, ctx.deps.user_id):
+        return None, (
+            f"Error: chat_id must be the current chat ({ctx.deps.chat_id}) "
+            f"or current user ({ctx.deps.user_id})."
+        )
+    return target, None
+
+
 async def _convert_params(
     ctx: RunContext[datatype.ContextDeps],
     method: str,
@@ -149,14 +183,12 @@ async def _convert_params(
 ) -> tuple[dict[str, Any] | None, str | None]:
     """Map Bot API params to pyrogram kwargs. Returns (kwargs, error)."""
     _, allowed, required = _METHODS[method]
-    unknown = set(params) - allowed - {"chat_id"}
+    unknown = set(params) - allowed
     if unknown:
         return None, (
             f"Error: Unknown field(s) for {method}: {', '.join(sorted(unknown))}. "
             f"Allowed: {', '.join(sorted(allowed))}."
         )
-    if "chat_id" in params:
-        return None, "Error: chat_id is always the current chat; do not pass it."
     if method == "sendDocument" and "content" in params and "document" in params:
         return None, "Error: sendDocument takes either document or content, not both."
     if (
@@ -349,11 +381,12 @@ async def tg(
     method: str,
     params: dict[str, Any] = {},
 ) -> str:
-    """Call a Telegram method on the current chat, using Telegram Bot API naming.
+    """Call a Telegram method, using Telegram Bot API naming.
 
-    chat_id is always the current chat and is set for you.
+    chat_id is optional: omit it for the current chat, or pass the current
+    chat id or current user id. Other targets are rejected.
 
-    Standard methods (params follow Bot API field names):
+    Standard methods (params follow Bot API field names; chat_id is accepted by all):
     - sendPhoto: photo (http(s) URL, work:// or kmua:// reference), caption, has_spoiler, reply_to_message_id
     - sendDocument: document (http(s) URL or a work:// / kmua:// reference) OR content (plain text made into the document), plus file_name, caption, reply_to_message_id
     - sendReaction: emoji; message_id is optional (omit it to react to the message being answered)
@@ -372,23 +405,30 @@ async def tg(
           you do not need `sendMessage` for normal replies. Use this tool only when you need some extra message sending beyond the default reply (e.g. reply to others, second message).
 
     Example: tg("sendPoll", {"question": "Lunch?", "options": ["noodles", "rice"]})
+    Example with target: tg("sendMessage", {"chat_id": <current_user_id>, "text": "..."})
     """
     if ctx.deps.message is None or ctx.deps.message.id is None:
         return "Error: Current message context is unavailable."
 
+    target_params = dict(params)
+    target_chat_id, error = _resolve_chat_id(ctx, target_params)
+    if error:
+        return error
+    assert target_chat_id is not None
+
     if method in _KMUA_EXTENSIONS:
-        return await _call_kmua_extension(ctx, method, params)
+        return await _call_kmua_extension(ctx, method, target_params, target_chat_id)
     if method not in _METHODS:
         return f"Error: Unknown method: {method}. Supported: {_method_list()}."
 
-    kwargs, error = await _convert_params(ctx, method, params)
+    kwargs, error = await _convert_params(ctx, method, target_params)
     if error:
         return error
     assert kwargs is not None
     client_method = _METHODS[method][0]
     try:
         result = await getattr(ctx.deps.client, client_method)(
-            chat_id=ctx.deps.chat_id, **kwargs
+            chat_id=target_chat_id, **kwargs
         )
     except pyrogram.errors.MessageIdInvalid:
         logger.error(f"tg {method} error: target message not in this chat")
