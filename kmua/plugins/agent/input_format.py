@@ -383,6 +383,9 @@ def _unprocessed_reason(message: pyrogram.types.Message) -> str | None:
     """Why this media cannot be delivered even in principle (not budget)."""
     if message.media is None:
         return None
+    if message.media is pyrogram.enums.MessageMediaType.WEB_PAGE:
+        # The link text is already present; there is no payload to deliver.
+        return None
     if is_deliverable(message):
         return None
     return "无法查看此内容"
