@@ -1,5 +1,4 @@
 import datetime
-import mimetypes
 
 import pyrogram
 from pydantic import BaseModel, Field
@@ -11,6 +10,11 @@ from kmua.common.memory_store import memttlcache
 from kmua.common.utils import GROUP_CHAT_TYPES
 from kmua.config import app_config
 from kmua.logger import logger
+from kmua.plugins.agent.input_format import (
+    is_deliverable,
+    is_readable_text_document,
+    is_text_document,
+)
 from kmua.plugins.agent.output import TypingKeepAlive, reply_output
 from kmua.plugins.agent.prompt import get_input_prompt
 from kmua.plugins.agent.runner import get_chat_prompt_override
@@ -87,105 +91,25 @@ async def _is_first_media_in_group(message: pyrogram.types.Message) -> bool:
 
 
 def _message_has_unsupported_media(message: pyrogram.types.Message) -> bool:
-    """Return True if the message contains media that get_input_prompt cannot process.
+    """Return True if the message contains media the comment run cannot use.
 
-    This mirrors the media handling logic in get_input_prompt so that comments
-    are skipped when the model would only see a caption without the actual media.
+    Mirrors the assembler's classification so comments are skipped when the
+    model would only see a caption without the actual media.
     """
     if not message.media:
         return False
 
-    # POLL is always converted to text; WEB_PAGE URL text is always visible.
+    # POLL is converted to text; WEB_PAGE URL text is visible in the message.
     if message.media in (
         pyrogram.enums.MessageMediaType.POLL,
         pyrogram.enums.MessageMediaType.WEB_PAGE,
     ):
         return False
 
-    if not app_config.agent_multimodal:
-        return True
-
-    match message.media:
-        case pyrogram.enums.MessageMediaType.PHOTO:
-            photo = message.photo
-            return not (
-                photo
-                and photo.file_id
-                and "photo" in app_config.agent_multimodal_inputs
-            )
-
-        case pyrogram.enums.MessageMediaType.LIVE_PHOTO:
-            # get_input_prompt has no handler for LIVE_PHOTO.
-            return True
-
-        case pyrogram.enums.MessageMediaType.VIDEO:
-            video = message.video
-            return not (
-                video
-                and video.file_id
-                and video.mime_type
-                and video.file_size
-                and video.file_size <= 20 * 1024 * 1024
-                and "video" in app_config.agent_multimodal_inputs
-            )
-
-        case pyrogram.enums.MessageMediaType.AUDIO:
-            audio = message.audio
-            return not (
-                audio
-                and audio.file_id
-                and audio.mime_type
-                and audio.file_size
-                and audio.file_size <= 10 * 1024 * 1024
-                and "audio" in app_config.agent_multimodal_inputs
-            )
-
-        case pyrogram.enums.MessageMediaType.VOICE:
-            voice = message.voice
-            return not (
-                voice
-                and voice.file_id
-                and voice.mime_type
-                and voice.file_size
-                and voice.file_size <= 10 * 1024 * 1024
-                and "audio" in app_config.agent_multimodal_inputs
-            )
-
-        case pyrogram.enums.MessageMediaType.DOCUMENT:
-            document = message.document
-            if not document or not document.file_id:
-                return True
-            if not document.file_size or document.file_size > 10 * 1024 * 1024:
-                return True
-            mime_type = document.mime_type
-            if not mime_type:
-                mime_type, _ = mimetypes.guess_type(document.file_name or "")
-                mime_type = mime_type or "application/octet-stream"
-            mime_type = mime_type.split(";")[0]
-            if mime_type.startswith("text/"):
-                return False
-            if (
-                mime_type.startswith("image/")
-                and "photo" in app_config.agent_multimodal_inputs
-            ):
-                return False
-            if mime_type in app_config.agent_multimodal_inputs:
-                return False
-            return True
-
-        case pyrogram.enums.MessageMediaType.STICKER:
-            sticker = message.sticker
-            if not sticker or not sticker.file_id:
-                return True
-            if sticker.is_animated:
-                return True
-            return "photo" not in app_config.agent_multimodal_inputs
-
-        case _:
-            # ANIMATION, VIDEO_NOTE, LOCATION, VENUE, CONTACT, DICE, GAME,
-            # GIVEAWAY, GIVEAWAY_WINNERS, STORY, INVOICE, PAID_MEDIA,
-            # CHECKLIST, UNSUPPORTED — none are handled by get_input_prompt.
-            return True
+    if is_text_document(message):
+        # Plain text is readable without multimodal support.
+        return not is_readable_text_document(message)
+    return not is_deliverable(message)
 
 
 def _media_would_be_embedded(message: pyrogram.types.Message) -> bool:
@@ -199,13 +123,8 @@ def _media_would_be_embedded(message: pyrogram.types.Message) -> bool:
         pyrogram.enums.MessageMediaType.WEB_PAGE,
     ):
         return False
-    if message.media == pyrogram.enums.MessageMediaType.DOCUMENT:
-        document = message.document
-        mime_type = document.mime_type if document else None
-        if not mime_type and document:
-            mime_type, _ = mimetypes.guess_type(document.file_name)
-        if mime_type and mime_type.split(";")[0].startswith("text/"):
-            return False
+    if is_text_document(message):
+        return False
     return True
 
 

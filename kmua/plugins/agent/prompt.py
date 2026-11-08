@@ -243,7 +243,7 @@ async def get_input_prompt(
     Group chats always use input_format.build_group_prompt; include_nearby only
     decides whether the 历史消息 section is assembled. Private chats and channel
     comments keep the inline format. The third element maps
-    file_unique_id -> image_number for media this turn delivered (empty on the
+    file_unique_id -> media_number for media this turn delivered (empty on the
     legacy path), feeding the coverage cursor so repeated media is referenced,
     not resent.
     """
@@ -337,21 +337,26 @@ async def get_input_prompt(
                     and document.file_size is not None
                     and document.file_size <= 10 * 1024 * 1024
                 ):
-                    mime_type = document.mime_type
-                    if not mime_type:
-                        thetype, _ = mimetypes.guess_type(document.file_name or "")
-                        mime_type = thetype or "application/octet-stream"
-                    if mime_type.split(";")[0].startswith("text/"):
+                    mime_type = input_format.document_mime(document)
+                    if mime_type and mime_type.startswith("text/"):
                         doc_file = await _download_media_with_timeout(
                             client, document.file_id
                         )
                         if doc_file:
                             try:
                                 text = doc_file.getvalue().decode("utf-8")
-                                contents.append(text)
-                                media_included = True
                             except UnicodeDecodeError:
-                                pass
+                                logger.debug(
+                                    f"text document {document.file_name!r} is not UTF-8"
+                                )
+                            else:
+                                if text.strip():
+                                    contents.append(text)
+                                    media_included = True
+                                else:
+                                    logger.debug(
+                                        f"text document {document.file_name!r} is empty"
+                                    )
             if app_config.agent_multimodal:
                 match media:
                     case pyrogram.enums.MessageMediaType.PHOTO:

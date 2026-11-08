@@ -1,12 +1,13 @@
 """Group-chat message assembly: the markdown user prompt format.
 
 The assembler returns the prompt list: one markdown string followed by the
-binary media in image_number order. Transcribe mode replaces the binaries and
-back-fills the transcribed attribute by image_number.
+binary media in media_number order. Transcribe mode replaces the binaries and
+back-fills the transcribed attribute by media_number.
 """
 
 from __future__ import annotations
 
+import mimetypes
 import re
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -35,6 +36,44 @@ _INPUTS_KEY = {
     pyrogram.enums.MessageMediaType.AUDIO: "audio",
     pyrogram.enums.MessageMediaType.VOICE: "audio",
 }
+
+
+def document_mime(document: pyrogram.types.Document | None) -> str | None:
+    """Normalized MIME of a document (lowercase, parameters stripped)."""
+    if document is None:
+        return None
+    mime = getattr(document, "mime_type", None)
+    if not mime:
+        mime, _ = mimetypes.guess_type(getattr(document, "file_name", None) or "")
+    if not mime:
+        return None
+    return mime.split(";", 1)[0].strip().lower() or None
+
+
+def is_text_document(message: pyrogram.types.Message) -> bool:
+    """Whether the message is a document whose payload is plain text."""
+    return (
+        message.media is pyrogram.enums.MessageMediaType.DOCUMENT
+        and (document_mime(message.document) or "").startswith("text/")
+    )
+
+
+def is_readable_text_document(message: pyrogram.types.Message) -> bool:
+    """Whether the text document has a known size within the inlining cap.
+
+    Decoding is checked when the file is actually read.
+    """
+    if not is_text_document(message):
+        return False
+    document = message.document
+    if document is None or not document.file_id:
+        return False
+    size = getattr(document, "file_size", None)
+    return (
+        size is not None
+        and size <= _SIZE_CAPS[pyrogram.enums.MessageMediaType.DOCUMENT]
+    )
+
 
 _MEDIA_TYPE_NAMES = {
     pyrogram.enums.MessageMediaType.PHOTO: "photo",
@@ -107,6 +146,22 @@ def is_deliverable(
         if not sticker or sticker.is_animated:
             return False
         return "photo" in app_config.agent_multimodal_inputs and bool(sticker.file_id)
+    if media is pyrogram.enums.MessageMediaType.DOCUMENT:
+        document = message.document
+        if not document or not document.file_id:
+            return False
+        size = getattr(document, "file_size", None)
+        cap = _SIZE_CAPS[pyrogram.enums.MessageMediaType.DOCUMENT]
+        if size is None or size > cap:
+            return False
+        mime = document_mime(document)
+        if not mime or mime.startswith("text/"):
+            # Text documents are inlined as text, never sent as binary.
+            return False
+        if mime.startswith("image/"):
+            return "photo" in app_config.agent_multimodal_inputs
+        # Binary documents are enabled by their MIME type, not by a key.
+        return mime in app_config.agent_multimodal_inputs
     cap = _SIZE_CAPS.get(media)
     if cap is None:
         return False
@@ -211,15 +266,15 @@ def _quote(value: str) -> str:
 
 @dataclass
 class Budget:
-    """Allocated image numbering over the assembled messages.
+    """Allocated media numbering over the assembled messages.
 
-    numbered maps message id -> image_number (globally monotonic across the
-    conversation: 1 is the oldest image the conversation ever delivered);
+    numbered maps message id -> media_number (globally monotonic across the
+    conversation: 1 is the oldest media item the conversation ever delivered);
     binaries holds the downloads in the same order, so the N-th binary
-    corresponds to the N-th fresh image. Messages whose media was already
-    delivered (this turn or in an earlier turn) carry a referenced_image_number
+    corresponds to the N-th fresh media item. Messages whose media was already
+    delivered (this turn or in an earlier turn) carry a referenced media number
     instead of a fresh one — they are tracked in referenced_ids and rendered
-    without an image_number attribute.
+    without a media_number attribute.
     """
 
     numbered: dict[int, int] = field(default_factory=dict)
@@ -299,7 +354,7 @@ async def allocate_budget(
 def _budget_media_meta(
     media_messages: list[pyrogram.types.Message], budget: Budget
 ) -> dict[str, int]:
-    """file_unique_id -> image_number for every image freshly delivered this
+    """file_unique_id -> media_number for every item freshly delivered this
     turn (references to already-seen media are excluded: they carry old
     numbers that must not advance the cursor)."""
     meta: dict[str, int] = {}
@@ -356,8 +411,35 @@ async def _download(
                 return None
             return BinaryContent(data=frame, media_type="image/webp")
         return BinaryContent(data=data.getvalue(), media_type="image/webp")
-    media_type = getattr(payload, "mime_type", None) or "application/octet-stream"
+    if media is pyrogram.enums.MessageMediaType.DOCUMENT:
+        media_type = document_mime(message.document) or "application/octet-stream"
+    else:
+        media_type = getattr(payload, "mime_type", None) or "application/octet-stream"
     return BinaryContent(data=data.getvalue(), media_type=media_type)
+
+
+async def _read_text_document(
+    client: pyrogram.client.Client, message: pyrogram.types.Message
+) -> str | None:
+    """Inline text of a readable text document; None when empty/unreadable."""
+    if not is_readable_text_document(message):
+        return None
+    document = message.document
+    assert document is not None
+    from .prompt import _download_media_with_timeout
+
+    data = await _download_media_with_timeout(client, document.file_id)
+    if data is None:
+        return None
+    try:
+        text = data.getvalue().decode("utf-8")
+    except UnicodeDecodeError:
+        logger.debug(f"text document {document.file_name!r} is not UTF-8")
+        return None
+    if not text.strip():
+        logger.debug(f"text document {document.file_name!r} is empty")
+        return None
+    return text
 
 
 def _service_text(message: pyrogram.types.Message) -> str:
@@ -434,7 +516,7 @@ def _chat_info_lines(chat: pyrogram.types.Chat | None) -> list[str]:
 
 def _msg_line(
     message: pyrogram.types.Message,
-    image_number: int | None,
+    media_number: int | None,
     unprocessed: str | None,
     referenced: bool = False,
 ) -> str:
@@ -450,13 +532,13 @@ def _msg_line(
     type_name = media_type_name(media)
     if type_name:
         attrs.append(f"media_type={_quote(type_name)}")
-    if image_number is not None:
+    if media_number is not None:
         if referenced:
             # already delivered in an earlier turn (or earlier in this one):
             # the model saw it verbatim, so reference the number, never resend
-            attrs.append(f"referenced_media={image_number}")
+            attrs.append(f"referenced_media={media_number}")
         else:
-            attrs.append(f"image_number={image_number}")
+            attrs.append(f"media_number={media_number}")
     if unprocessed:
         attrs.append(f"unprocessed={_quote(unprocessed)}")
     if message.service is not None:
@@ -581,8 +663,8 @@ async def build_group_prompt(
     """Assemble the group-chat markdown user prompt.
 
     Returns (prompt list, media meta): the markdown string followed by any
-    binary media in image_number order, plus file_unique_id -> image_number of
-    every image this turn delivered (for the conversation coverage cursor).
+    binary media in media_number order, plus file_unique_id -> media_number of
+    every item this turn delivered (for the conversation coverage cursor).
     Nearby messages already delivered in a previous turn of the same
     conversation (id <= coverage.last_message_id) are omitted entirely: they
     live verbatim in the model history, so resending them would only duplicate
@@ -650,6 +732,39 @@ async def build_group_prompt(
         start_number=coverage.next_number if coverage else 1,
     )
 
+    async def append_media_lines(
+        lines: list[str],
+        msg: pyrogram.types.Message,
+        indent: str = "",
+    ) -> None:
+        """Name the message's media so it never renders as an empty message.
+
+        Text documents are inlined; other undelivered media get an explicit
+        reason instead of disappearing behind an empty ``消息内容``.
+        """
+        media = msg.media
+        if media is None or media is pyrogram.enums.MessageMediaType.WEB_PAGE:
+            return
+        name = media_type_name(media)
+        if name:
+            lines.append(f"{indent}消息媒体: {name}")
+        if is_text_document(msg):
+            document = msg.document
+            if document is not None and document.file_name:
+                lines.append(f"{indent}消息文件名: {_quote(document.file_name)}")
+            text = await _read_text_document(client, msg)
+            if text is not None:
+                lines.append(f"{indent}文件内容: {_quote(text)}")
+            else:
+                lines.append(f'{indent}无法查看: "文本文件内容为空或无法读取"')
+            return
+        if msg.id not in budget.numbered:
+            reason = _unprocessed_reason(msg)
+            if reason is None and media is not pyrogram.enums.MessageMediaType.POLL:
+                reason = "媒体未能发送"
+            if reason:
+                lines.append(f"{indent}无法查看: {_quote(reason)}")
+
     parts: list[str] = [_env_header(message, ctx)]
 
     if history:
@@ -671,13 +786,16 @@ async def build_group_prompt(
             current_lines.append(f"附加提示: {ctx.append_prompt}")
     current_text = message_plain_text(message)
     current_lines.append(f"消息内容: {_quote(current_text)}")
+    await append_media_lines(current_lines, message)
     if message.id in budget.numbered:
         if message.id in budget.referenced_ids:
             current_lines.append(
-                f"消息图号: 图{budget.numbered[message.id]} (此图已在之前的对话中展示)"
+                f"消息媒体编号: {budget.numbered[message.id]} (此媒体已在之前的对话中展示)"
             )
         else:
-            current_lines.append(f"消息图号: 图{budget.numbered[message.id]}")
+            current_lines.append(
+                f"消息媒体编号: {budget.numbered[message.id]}"
+            )
     current_lines.append(f"消息 ID: {message.id}")
     depth = _reply_chain_depth(message)
     if depth > 1:
@@ -691,13 +809,17 @@ async def build_group_prompt(
         current_lines.append("当前用户所回复的消息:")
         current_lines.append(f"    发送者: {reply_label}")
         current_lines.append(f"    消息内容: {_quote(reply_text)}")
+        await append_media_lines(current_lines, reply_msg, indent="    ")
         if reply_msg.id in budget.numbered:
             if reply_msg.id in budget.referenced_ids:
                 current_lines.append(
-                    f"    消息图号: 图{budget.numbered[reply_msg.id]} (此图已在之前的对话中展示)"
+                    f"    消息媒体编号: {budget.numbered[reply_msg.id]} "
+                    f"(此媒体已在之前的对话中展示)"
                 )
             else:
-                current_lines.append(f"    消息图号: 图{budget.numbered[reply_msg.id]}")
+                current_lines.append(
+                    f"    消息媒体编号: {budget.numbered[reply_msg.id]}"
+                )
         current_lines.append(f"    消息 ID: {reply_msg.id}")
     parts.append("\n".join(current_lines))
 
@@ -706,9 +828,9 @@ async def build_group_prompt(
     return [markdown, *budget.binaries], meta
 
 
-# An image_number= attribute (not referenced_media=): negative lookbehind so
+# A media_number= attribute (not referenced_media=): negative lookbehind so
 # the dedicated reference attribute never matches.
-_IMAGE_NUMBER_RE = re.compile(r"(?<![A-Za-z_])image_number=\d+ ")
+_MEDIA_NUMBER_RE = re.compile(r"(?<![A-Za-z_])media_number=\d+ ")
 
 
 def apply_transcriptions(
@@ -716,16 +838,16 @@ def apply_transcriptions(
 ) -> list[UserContent]:
     """Transcribe-mode post-processing: the runner replaced each binary with
     its transcription text in order; fold the texts back into the markdown as
-    the transcribed attribute of the matching image_number.
+    the transcribed attribute of the matching media_number.
 
     Numbers are globally monotonic across the conversation, so match by
     occurrence order instead of the number value. Reference attributes
-    (referenced_media=) are not image_number attributes and are skipped.
+    (referenced_media=) are not media_number attributes and are skipped.
     """
     if not prompt or not isinstance(prompt[0], str) or not transcriptions:
         return prompt
     markdown = prompt[0]
-    matches = list(_IMAGE_NUMBER_RE.finditer(markdown))
+    matches = list(_MEDIA_NUMBER_RE.finditer(markdown))
     if not matches:
         return prompt
     # insert from the back so earlier match positions stay valid

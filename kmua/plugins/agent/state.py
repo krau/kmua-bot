@@ -19,11 +19,11 @@ class PromptCoverage:
 
     last_message_id: nearby messages at or below this id were delivered in a
     previous turn (same conversation), so their re-appearance is skipped in
-    the prompt. sent_media maps a file_unique_id to the image_number it was
+    the prompt. sent_media maps a file_unique_id to the media_number it was
     delivered under, so a re-sent copy is referenced instead of downloaded
-    again. next_number is the first image_number of the next turn: numbers
+    again. next_number is the first media_number of the next turn: numbers
     grow monotonically across the conversation, so a reference (old number)
-    never collides with a freshly numbered image.
+    never collides with a freshly numbered item.
     """
 
     last_message_id: int = 0
