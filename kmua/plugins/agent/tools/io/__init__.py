@@ -6,7 +6,8 @@ Protocols:
 - chat://      the current group: info, message history, sending quotes
 - user://      Telegram user profiles: current-chat members (or yourself in
                private chats); optional affection/memory/coins/marriage/stats/
-               account and photos
+               account and photos. user://current/memory[/<field>] writes one
+               fact into the current user's memory.
 - memory://    the group's long-term memory
 - web://       web search
 - http(s)://   web page fetching

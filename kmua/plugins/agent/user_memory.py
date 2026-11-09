@@ -14,6 +14,13 @@ _user_memory_locks: WeakValueDictionary[int, asyncio.Lock] = WeakValueDictionary
 _user_memory_locks_lock = asyncio.Lock()
 
 _MEMORY_ITEMS_PER_FIELD = 3
+_MAX_MEMORY_FACT_CHARS = 500
+
+
+def _empty_memory() -> datatype.ChatMemoryy:
+    return datatype.ChatMemoryy(
+        **{field: None for field in datatype.ChatMemoryy.model_fields}
+    )
 
 
 def _memory_items(value: list[str] | str | None) -> list[str]:
@@ -47,6 +54,44 @@ async def _get_user_memory_lock(user_id: int) -> asyncio.Lock:
             lock = asyncio.Lock()
             _user_memory_locks[user_id] = lock
         return lock
+
+
+async def store_user_memory_fact(
+    user_id: int, field: str, content: str
+) -> datatype.ChatMemoryy:
+    """Merge one fact into a field of a user's long-term memory.
+
+    Uses the same per-user lock as the inference path, so an explicit write
+    and a background memory update cannot lose each other's entries.
+    """
+    text = content.strip()
+    if not text:
+        raise ValueError("Memory content must not be empty.")
+    if len(text) > _MAX_MEMORY_FACT_CHARS:
+        raise ValueError(
+            f"Memory content is too long (max {_MAX_MEMORY_FACT_CHARS} characters)."
+        )
+    if field not in datatype.ChatMemoryy.model_fields:
+        raise ValueError(f"Unknown memory field: {field}")
+    lock = await _get_user_memory_lock(user_id)
+    async with lock:
+        cached = await memttlcache.get(state.memory_key(user_id))
+        memory = (
+            cached.model_copy()
+            if isinstance(cached, datatype.ChatMemoryy)
+            else _empty_memory()
+        )
+        setattr(
+            memory,
+            field,
+            _merge_memory_field(getattr(memory, field, None), text),
+        )
+        await memttlcache.set(
+            state.memory_key(user_id),
+            memory,
+            ttl=86400 * 30,
+        )
+        return memory
 
 
 async def update_user_memory(

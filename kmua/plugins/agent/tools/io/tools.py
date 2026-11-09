@@ -20,6 +20,7 @@ from .media import (
     _tme_message_parts,
     _transcribe_media_tool_return,
 )
+from .profile import _write_user_memory
 from .protocols import _require, _split_target
 from .targets import _sandbox_target, _session_key, _write_persisted, read_bytes
 
@@ -122,6 +123,11 @@ async def write(
         and overwrite it by name.
     - memory://               — store content as a fact about this group in its
         long-term memory
+    - user://current/memory[/<field>] — store one concise fact (max 500
+        characters) about the current user in their long-term memory; field
+        defaults to extra_info (choices: disposition, interests, doings, works,
+        wishes, worries, skills, attitudes_to_you, experiences_with_you,
+        extra_info).
 
     content can be plain text or a reference to another target whose content
     is used as the payload — e.g. work://notes/hello.html (workspace file) or
@@ -161,6 +167,9 @@ async def write(
         if protocol == "memory://":
             text = content if isinstance(content, str) else content.decode("utf-8")
             return await chat.update_group_memory(ctx, text)
+        if protocol == "user://":
+            text = content if isinstance(content, str) else content.decode("utf-8")
+            return await _write_user_memory(ctx, rest, text)
         if protocol == "persist://":
             return await _write_persisted(ctx, rest, content)
         if protocol == "sandbox://":
@@ -171,7 +180,7 @@ async def write(
             )
             return f"Wrote {len(content) if isinstance(content, bytes) else len(content.encode('utf-8'))} bytes to {path}."
         if protocol != "work://":
-            return f"Error: {path} is read-only or not writable; only work://, sandbox://, persist:// and memory:// targets accept writes."
+            return f"Error: {path} is read-only or not writable; only work://, sandbox://, persist://, memory:// and user://<target>/memory targets accept writes."
         await workspace.write_file(_session_key(ctx), rest, content)
     except Exception as e:
         logger.error(f"write error for {path}: {e}")

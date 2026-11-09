@@ -42,7 +42,8 @@ def _split_target(path: str) -> tuple[str, str]:
     raise ValueError(
         f"Unsupported target: {path}. Use kmua:// (codebase), work:// "
         f"(workspace), persist:// (persisted files), chat:// (current chat: "
-        f"info, history, media), user:// (user profiles), memory:// (memory), "
+        f"info, history, media), user:// (user profiles, current user's memory), "
+        f"memory:// (group memory), "
         f"web:// (web search) or http(s):// (web; t.me message links return "
         f"the message content)."
     )

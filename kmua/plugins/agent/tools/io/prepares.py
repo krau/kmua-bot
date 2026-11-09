@@ -71,6 +71,7 @@ async def prepare_write(
             "work://": bool(app_config.agent_workspace_enabled),
             "persist://": True,
             "memory://": await _memory_enabled(ctx),
+            "user://": True,
         },
     )
 

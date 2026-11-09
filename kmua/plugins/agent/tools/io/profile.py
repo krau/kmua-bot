@@ -20,6 +20,7 @@ from kmua import affection, common, database
 from kmua.config import app_config
 
 from ... import state
+from ...user_memory import store_user_memory_fact
 from .. import datatype
 from .media import MediaPayload
 
@@ -60,6 +61,23 @@ def _profile_data(chat: Any) -> dict[str, Any]:
     return data
 
 
+def _resolve_user_token(token: str, current_id: int) -> int | str:
+    """Resolve ``current``, a numeric user id, or a @username."""
+    if token.lower() == _CURRENT_USER_ALIAS:
+        return current_id
+    if token.lstrip("-").isdigit():
+        target = int(token)
+        if target <= 0:
+            raise ValueError("user:// target must be a user id, not a chat id.")
+        return target
+    username = token.removeprefix("@")
+    if not username or token.startswith("+") or username.isdigit():
+        raise ValueError("user:// target must be a numeric user id or a @username.")
+    if username.lower() in _RESERVED_USER_NAMES:
+        raise ValueError(f"user://{username} is not a target; use user://current.")
+    return token
+
+
 def _user_target(rest: str, current_id: int) -> tuple[int | str, bool]:
     """Resolve a ``user://`` path to a user reference and avatar flag."""
     parts = [part for part in rest.split("/") if part]
@@ -74,21 +92,31 @@ def _user_target(rest: str, current_id: int) -> tuple[int | str, bool]:
         raise ValueError(
             f"Invalid user:// target {rest!r}; use user://<user_id>[/avatar]."
         )
-    token = parts[0]
-    if token.lower() == _CURRENT_USER_ALIAS:
-        target: int | str = current_id
-    elif token.lstrip("-").isdigit():
-        target = int(token)
-        if target <= 0:
-            raise ValueError("user:// target must be a user id, not a chat id.")
-    else:
-        username = token.removeprefix("@")
-        if not username or token.startswith("+") or username.isdigit():
-            raise ValueError("user:// target must be a numeric user id or a @username.")
-        if username.lower() in _RESERVED_USER_NAMES:
-            raise ValueError(f"user://{username} is not a target; use user://current.")
-        target = token
-    return target, avatar
+    return _resolve_user_token(parts[0], current_id), avatar
+
+
+def _user_memory_target(rest: str, current_id: int) -> tuple[int | str, str]:
+    """Resolve ``user://<target>/memory[/<field>]`` to a target and field."""
+    parsed = urlsplit(rest)
+    if parsed.query or parsed.fragment:
+        raise ValueError(
+            "user:// memory writes take no query parameters; "
+            "use user://<target>/memory/<field>."
+        )
+    parts = [part for part in parsed.path.split("/") if part]
+    if len(parts) < 2 or parts[1] != "memory":
+        raise ValueError("Only user://<target>/memory[/<field>] is writable.")
+    if len(parts) > 3:
+        raise ValueError(
+            "Invalid user:// memory target; use user://<target>/memory[/<field>]."
+        )
+    field = parts[2] if len(parts) == 3 else "extra_info"
+    if field not in datatype.ChatMemoryy.model_fields:
+        raise ValueError(
+            f"Unknown memory field {field!r}; supported: "
+            f"{', '.join(datatype.ChatMemoryy.model_fields)}."
+        )
+    return _resolve_user_token(parts[0], current_id), field
 
 
 def _user_query(rest: str) -> tuple[str, tuple[str, ...]]:
@@ -253,6 +281,25 @@ async def _download_avatar(
     return data
 
 
+async def _write_user_memory(
+    ctx: RunContext[datatype.ContextDeps], rest: str, content: str
+) -> str:
+    """Store one fact in the current user's long-term memory."""
+    target, field = _user_memory_target(rest, ctx.deps.user_id)
+    if isinstance(target, str):
+        chat = await _load_user(ctx, target)
+        _ensure_resolved_scope(ctx, chat)
+        target_id = chat.id
+    else:
+        target_id = target
+    if target_id <= 0:
+        raise ValueError("user:// memory targets must be users, not chats.")
+    if target_id != ctx.deps.user_id:
+        raise ValueError("Only the current user's memory can be modified.")
+    await store_user_memory_fact(target_id, field, content)
+    return f"Stored in user memory [{field}]"
+
+
 async def _read_user(
     ctx: RunContext[datatype.ContextDeps], rest: str
 ) -> str | MediaPayload:
@@ -283,4 +330,4 @@ async def _read_user(
     )
 
 
-__all__ = ["_read_user"]
+__all__ = ["_read_user", "_write_user_memory"]
