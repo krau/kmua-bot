@@ -49,7 +49,7 @@ def _split_target(path: str) -> tuple[str, str]:
 
 
 def _is_group_chat(deps: datatype.ContextDeps) -> bool:
-    return deps.chat_id != deps.user_id
+    return deps.is_group_chat
 
 
 def _web_search_enabled() -> bool:

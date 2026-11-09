@@ -472,8 +472,7 @@ async def send_anime_photo(
             success=False, message="Current message context is unavailable."
         )
     if (
-        ctx.deps.chat_id is not None
-        and ctx.deps.chat_id != ctx.deps.user_id
+        ctx.deps.is_group_chat
         and not (await database.get_chat_config(ctx.deps.chat_id)).setu_enabled
     ):
         return AnimePhotoResult(

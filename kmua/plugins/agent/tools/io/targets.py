@@ -22,7 +22,7 @@ def _session_key(ctx: RunContext[datatype.ContextDeps]) -> str:
     private chats — matching the agent session granularity. Each key owns a
     dedicated workspace database."""
     deps = ctx.deps
-    return str(deps.chat_id) if deps.chat_id != deps.user_id else str(deps.user_id)
+    return str(deps.user_id) if deps.is_private else str(deps.chat_id)
 
 
 def _safe_sandbox_path(rel: str) -> Path:

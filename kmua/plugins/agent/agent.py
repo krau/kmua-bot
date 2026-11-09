@@ -249,18 +249,24 @@ async def _clear_memttlcache_prefix(prefix: str) -> int:
     return len(keys)
 
 
-async def _clear_conversation_session(chat_id: int, user_id: int) -> None:
+async def _clear_conversation_session(
+    chat_id: int, user_id: int, *, is_private: bool
+) -> None:
     """Clear one conversation's agent session: history, ask state, spills, the
     recorded session id (so the next run opens a new instance), and (private
     chats only) the session workspace files. Group sandboxes are shared by the
-    whole chat and stay untouched."""
+    whole chat and stay untouched.
+
+    ``is_private`` comes from the chat type, never from ``chat_id == user_id``:
+    an anonymous admin posts with the group itself as sender, so the two ids
+    are equal inside a group."""
     await common.memttlcache.delete(state.history_key(chat_id, user_id))
     await state.clear_conversation_session(chat_id, user_id)
     await common.memttlcache.delete(state.prompt_coverage_key(chat_id, user_id))
     await tools.clear_ask_state(chat_id, user_id)
     await safety.delete_spill_session(f"{chat_id}_{user_id}")
     state.clear_steering(chat_id, user_id)
-    if chat_id == user_id:
+    if is_private:
         from kmua.plugins.agent.tools import workspace as workspace_tools
         from kmua.services import sandbox
 
@@ -523,7 +529,13 @@ if app_config.agent and app_config.agent_model:
             return
         if not is_chat_allowed(chat_id):
             return
-        await _clear_conversation_session(chat_id, user.id)
+        await _clear_conversation_session(
+            chat_id,
+            user.id,
+            is_private=bool(
+                message.chat and message.chat.type == pyrogram.enums.ChatType.PRIVATE
+            ),
+        )
         await message.reply_text(
             i18n.t("bot.msg.agent.forgot", locale=user_config.lang)
         )
@@ -611,7 +623,15 @@ if app_config.agent and app_config.agent_model:
         user_config = await database.get_user_config(caller.id)
         lang = user_config.lang
 
-        await _clear_conversation_session(target_chat_id, target_user_id)
+        await _clear_conversation_session(
+            target_chat_id,
+            target_user_id,
+            is_private=bool(
+                callback_query.message
+                and callback_query.message.chat
+                and callback_query.message.chat.type == pyrogram.enums.ChatType.PRIVATE
+            ),
+        )
 
         await callback_query.answer(
             i18n.t("bot.msg.agent.forgot", locale=lang), show_alert=False

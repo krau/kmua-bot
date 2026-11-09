@@ -30,7 +30,7 @@ async def get_chat_info(ctx: RunContext[datatype.ContextDeps]) -> ChatInfo | Non
     chat_username = None
     chat_config = {}
     logger.debug(f"Fetching chat info for chat_id: {ctx.deps.chat_id}")
-    if chat_id == ctx.deps.user_id:
+    if ctx.deps.is_private:
         user_db = await database.get_user_by_id(ctx.deps.user_id)
         if user_db is None:
             return None

@@ -211,7 +211,7 @@ async def _ensure_target_scope(
     ctx: RunContext[datatype.ContextDeps], target: int | str
 ) -> None:
     """Reject targets outside the current chat before loading their profile."""
-    if ctx.deps.chat_id == ctx.deps.user_id:
+    if ctx.deps.is_private:
         if isinstance(target, int) and target != ctx.deps.user_id:
             raise ValueError(
                 "In a private chat only the current user's profile is readable."
@@ -227,7 +227,7 @@ async def _ensure_target_scope(
 
 def _ensure_resolved_scope(ctx: RunContext[datatype.ContextDeps], chat: Any) -> None:
     """Verify that a private-chat username resolved to the current user."""
-    if ctx.deps.chat_id == ctx.deps.user_id and chat.id != ctx.deps.user_id:
+    if ctx.deps.is_private and chat.id != ctx.deps.user_id:
         raise ValueError(
             "In a private chat only the current user's profile is readable."
         )

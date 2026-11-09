@@ -5,7 +5,10 @@ from typing import TYPE_CHECKING, Any
 from pydantic import BaseModel, Field
 from pydantic_ai import ModelMessage
 from pyrogram.client import Client as PyrogramClient
+from pyrogram.enums import ChatType
 from pyrogram.types import Message
+
+from kmua.common.utils import GROUP_CHAT_TYPES
 
 if TYPE_CHECKING:
     from powermem import AsyncMemory
@@ -160,6 +163,18 @@ class ContextDeps:
     multimodal_model: Any | None = None
     history: list[ModelMessage] = field(default_factory=list)
     tools_called_this_turn: set[str] = field(default_factory=set)
+
+    @property
+    def is_private(self) -> bool:
+        """The message's chat type, not id equality: an anonymous admin's
+        sender id equals the group id, but the chat is still a group."""
+        chat = self.message.chat if self.message is not None else None
+        return chat is not None and chat.type == ChatType.PRIVATE
+
+    @property
+    def is_group_chat(self) -> bool:
+        chat = self.message.chat if self.message is not None else None
+        return chat is not None and chat.type in GROUP_CHAT_TYPES
 
 
 @dataclass

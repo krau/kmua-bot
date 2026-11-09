@@ -62,9 +62,8 @@ async def get_history_messages(
         Formatted message list or an error message.
     """
     chat_id = ctx.deps.chat_id
-    user_id = ctx.deps.user_id
 
-    if chat_id == user_id:
+    if ctx.deps.is_private:
         return "This tool is not available in private chats."
 
     if count is None:

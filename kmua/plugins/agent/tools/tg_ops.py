@@ -90,7 +90,7 @@ _MEDIA_FIELDS = {
 def _session_key(ctx: RunContext[datatype.ContextDeps]) -> str:
     """Workspace session key: chat id for groups, user id for private chats."""
     deps = ctx.deps
-    return str(deps.chat_id) if deps.chat_id != deps.user_id else str(deps.user_id)
+    return str(deps.user_id) if deps.is_private else str(deps.chat_id)
 
 
 _KMUA_EXTENSIONS = {
