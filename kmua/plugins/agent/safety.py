@@ -36,7 +36,7 @@ from pydantic_ai_harness.guardrails.detectors import for_text, redact_secrets
 from pydantic_ai_harness.tool_output_limits import (
     Action,
     Band,
-    LocalFileStore,
+    LocalFileOverflowStore,
     Spill,
     ToolOutputLimits,
     Truncate,
@@ -97,7 +97,7 @@ def build_tool_output_limits() -> ToolOutputLimits | None:
         return None
     truncate = Truncate(max_chars=app_config.agent_tool_output_max_chars)
     if app_config.agent_tool_output_spill:
-        inner = LocalFileStore(
+        inner = LocalFileOverflowStore(
             base_dir=app_config.cachedir / "overflow",
             cleanup_after=timedelta(hours=6),
         )
@@ -140,7 +140,7 @@ class _SessionScopedOverflowStore:
     owner.
     """
 
-    def __init__(self, inner: LocalFileStore) -> None:
+    def __init__(self, inner: LocalFileOverflowStore) -> None:
         self._inner = inner
 
     async def write(self, key: str, data: bytes) -> str:
