@@ -243,9 +243,17 @@ async def settle(subject: Subject, usage: RunUsage | None) -> None:
     豁免只免扣费, 不免统计 —— 不记的话 /quota 与面板就看不到 owner、全局管理员和
     豁免群实际花掉的 token。
     """
+    await settle_metered(subject, billing.from_run_usage(usage))
+
+
+async def settle_metered(subject: Subject, meter: billing.BillingUsage) -> None:
+    """结算一份已经计价的用量。
+
+    RSS 会把一次共享调用的原始 token 和 credits 分别拆给多个群; 拆账后不能再按各自的
+    token 份额重新计价, 否则每次向上取整都会让总扣费超过整次调用。
+    """
     accounts, exempt = await _plan(subject)
     day = database.utc_day()
-    meter = billing.from_run_usage(usage)
     await database.record_and_charge(
         subject.accounts(),
         () if exempt else accounts,
@@ -378,6 +386,7 @@ __all__ = [
     "get_state",
     "notify_exhausted",
     "settle",
+    "settle_metered",
     "status_text",
     "subject_for_chat",
     "subject_of",

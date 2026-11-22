@@ -16,6 +16,7 @@ from typing import Any
 
 from kmua.config import app_config
 from kmua.consts import token_units_to_credits
+from kmua.plugins.agent.cache_stats import cache_stats_from_usage
 
 
 @dataclass(frozen=True)
@@ -53,10 +54,11 @@ def from_run_usage(
     removed from the full-price input bucket and re-added at the configured
     rate; cache writes stay in the full-price bucket for now.
     """
-    input_tokens = _int_field(usage, "input_tokens")
+    input_tokens, cache_read_tokens, cache_write_tokens = cache_stats_from_usage(usage)
+    input_tokens = max(0, int(input_tokens or 0))
+    cache_read_tokens = max(0, int(cache_read_tokens or 0))
+    cache_write_tokens = max(0, int(cache_write_tokens or 0))
     output_tokens = _int_field(usage, "output_tokens")
-    cache_read_tokens = _int_field(usage, "cache_read_tokens")
-    cache_write_tokens = _int_field(usage, "cache_write_tokens")
     percent = (
         app_config.agent_quota_cache_read_billing_percent
         if cache_read_billing_percent is None
@@ -77,4 +79,35 @@ def from_run_usage(
     )
 
 
-__all__ = ["BillingUsage", "from_run_usage"]
+def split_billing_usage(meter: BillingUsage, count: int) -> list[BillingUsage]:
+    """Split one metered run across recipients without changing its total cost.
+
+    Raw counters and credits are split independently. Division remainders go to the
+    first recipients, so both the token counts and the rounded credit total remain
+    exact even when the run costs fewer credits than there are recipients.
+    """
+    if count <= 0:
+        raise ValueError("count must be positive")
+
+    def shares(total: int) -> list[int]:
+        base, remainder = divmod(total, count)
+        return [base + (index < remainder) for index in range(count)]
+
+    input_shares = shares(meter.input_tokens)
+    output_shares = shares(meter.output_tokens)
+    cache_read_shares = shares(meter.cache_read_tokens)
+    cache_write_shares = shares(meter.cache_write_tokens)
+    credit_shares = shares(meter.credits)
+    return [
+        BillingUsage(
+            input_tokens=input_shares[index],
+            output_tokens=output_shares[index],
+            cache_read_tokens=cache_read_shares[index],
+            cache_write_tokens=cache_write_shares[index],
+            credits=credit_shares[index],
+        )
+        for index in range(count)
+    ]
+
+
+__all__ = ["BillingUsage", "from_run_usage", "split_billing_usage"]

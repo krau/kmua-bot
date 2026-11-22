@@ -64,6 +64,58 @@ def _rewrite(
         bind.execute(sa.update(table).where(where).values(**values))
 
 
+def _rewrite_ledger(convert: Callable[[int], int]) -> None:
+    """Rebuild ledger deltas from converted running balances.
+
+    Rounding ``delta`` and ``balance_after`` independently makes the sum of ledger
+    deltas disagree with the converted account balance. Instead, convert each
+    historical balance, derive the delta from the previous converted balance, and
+    pin the final row to the account's converted balance.
+    """
+    table_name = "agent_credit_ledger"
+    bind = op.get_bind()
+    insp = sa.inspect(bind)
+    if not insp.has_table(table_name):
+        return
+
+    ledger = sa.Table(table_name, sa.MetaData(), autoload_with=bind)
+    required = {"id", "scope", "scope_id", "delta", "balance_after"}
+    if not required.issubset(ledger.c.keys()):
+        return
+
+    balances: dict[tuple[str, int], int] = {}
+    if insp.has_table("agent_credits"):
+        credits = sa.Table("agent_credits", sa.MetaData(), autoload_with=bind)
+        if {"scope", "scope_id", "balance"}.issubset(credits.c.keys()):
+            balances = {
+                (row.scope, int(row.scope_id)): int(row.balance or 0)
+                for row in bind.execute(
+                    sa.select(credits.c.scope, credits.c.scope_id, credits.c.balance)
+                )
+            }
+
+    rows_by_account: dict[tuple[str, int], list[sa.RowMapping]] = {}
+    for row in bind.execute(
+        sa.select(ledger).order_by(ledger.c.scope, ledger.c.scope_id, ledger.c.id)
+    ).mappings():
+        rows_by_account.setdefault((row["scope"], int(row["scope_id"])), []).append(row)
+
+    for account, rows in rows_by_account.items():
+        previous = 0
+        final_balance = balances.get(account)
+        for index, row in enumerate(rows):
+            balance_after = convert(int(row["balance_after"] or 0))
+            if index == len(rows) - 1 and final_balance is not None:
+                balance_after = final_balance
+            delta = balance_after - previous
+            bind.execute(
+                sa.update(ledger)
+                .where(ledger.c.id == row["id"])
+                .values(delta=delta, balance_after=balance_after)
+            )
+            previous = balance_after
+
+
 def upgrade() -> None:
     """Upgrade schema."""
     bind = op.get_bind()
@@ -129,11 +181,7 @@ def upgrade() -> None:
         _to_credits,
     )
     _rewrite("agent_credits", ("balance",), _to_credits)
-    _rewrite(
-        "agent_credit_ledger",
-        ("delta", "balance_after"),
-        _to_credits,
-    )
+    _rewrite_ledger(_to_credits)
 
 
 def downgrade() -> None:
@@ -144,11 +192,7 @@ def downgrade() -> None:
         _to_token_units,
     )
     _rewrite("agent_credits", ("balance",), _to_token_units)
-    _rewrite(
-        "agent_credit_ledger",
-        ("delta", "balance_after"),
-        _to_token_units,
-    )
+    _rewrite_ledger(_to_token_units)
 
     bind = op.get_bind()
     insp = sa.inspect(bind)
