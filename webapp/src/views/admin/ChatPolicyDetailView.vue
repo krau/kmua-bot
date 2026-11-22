@@ -82,14 +82,14 @@ async function setFlag(
 
 const dailyDraft = ref(0);
 const creditsDraft = ref(0);
-type QuotaField = "agent_quota_daily_tokens" | "agent_credits";
+type QuotaField = "agent_quota_daily_credits" | "agent_credits";
 let saveTimer: ReturnType<typeof setTimeout> | null = null;
 /** 待提交的字段 → 值; 两个输入框各改一次都要提交, 所以按字段收。 */
 const queued = new Map<QuotaField, number>();
 
 /** 数字字段防抖提交: NumberField 每次按键都会发 update, 直接写会把 "123" 打成三次 PUT。 */
 function queueSave(field: QuotaField, value: number): void {
-  if (field === "agent_quota_daily_tokens") dailyDraft.value = value;
+  if (field === "agent_quota_daily_credits") dailyDraft.value = value;
   else creditsDraft.value = value;
   queued.set(field, value);
   if (saveTimer !== null) clearTimeout(saveTimer);
@@ -118,9 +118,9 @@ async function flushSave(): Promise<void> {
     if (data) {
       // 用量区块显示的就是这两个值, 不一起更新的话同一屏会自相矛盾。
       for (const [field, value] of writes) {
-        if (field === "agent_quota_daily_tokens") {
-          data.item.policy.agent_quota_daily_tokens = value;
-          data.agent_quota.free_limit_tokens = value;
+        if (field === "agent_quota_daily_credits") {
+          data.item.policy.agent_quota_daily_credits = value;
+          data.agent_quota.free_limit_credits = value;
         } else {
           data.agent_quota.credits = value;
         }
@@ -153,7 +153,7 @@ watch(
   () => detail.data.value,
   (data) => {
     if (!data) return;
-    dailyDraft.value = data.item.policy.agent_quota_daily_tokens;
+    dailyDraft.value = data.item.policy.agent_quota_daily_credits;
     creditsDraft.value = data.agent_quota.credits;
   },
   { immediate: true },
@@ -167,14 +167,19 @@ const usageItems = computed<DefinitionItem[]>(() => {
     {
       label: t("chatPolicy.quotaDaily"),
       value:
-        quota.free_limit_tokens === 0
+        quota.free_limit_credits === 0
           ? t("chatPolicy.quotaDailyNone")
-          : `${formatTokens(quota.free_used_tokens_today)} / ${formatTokens(quota.free_limit_tokens ?? 0)}`,
+          : `${formatTokens(quota.free_used_credits_today)} / ${formatTokens(quota.free_limit_credits ?? 0)}`,
     },
+    { label: t("admin.agentCreditsUsedToday"), value: formatTokens(quota.billed_credits_today) },
     { label: t("chatPolicy.quotaCredits"), value: formatTokens(quota.credits) },
     {
       label: t("admin.agentTokensToday"),
       value: `${formatTokens(quota.input_tokens_today)} / ${formatTokens(quota.output_tokens_today)}`,
+    },
+    {
+      label: t("admin.agentCacheTokensToday"),
+      value: `${formatTokens(quota.cache_read_tokens_today)} / ${formatTokens(quota.cache_write_tokens_today)}`,
     },
   ];
 });
@@ -261,7 +266,7 @@ async function remove(): Promise<void> {
         :label="t('chatPolicy.quotaDaily')"
         :hint="t('chatPolicy.quotaDailyHint')"
         :disabled="!session.isOwner || busy"
-        @update:model-value="queueSave('agent_quota_daily_tokens', $event)"
+        @update:model-value="queueSave('agent_quota_daily_credits', $event)"
       />
       <NumberField
         v-model="creditsDraft"

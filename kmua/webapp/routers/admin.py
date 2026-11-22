@@ -16,6 +16,7 @@ from kmua import database
 from kmua.bot.client import client
 from kmua.common import jobqueue
 from kmua.config import app_config, reload_config
+from kmua.consts import token_units_to_credits
 from kmua.database.models import ChatPolicy, UserData
 from kmua.logger import logger
 from kmua.webapp import audit
@@ -317,26 +318,27 @@ async def _agent_usage_out(scope: str, scope_id: int, exempt: bool) -> AgentUsag
     The free limit is reported as None when it does not apply, so the UI can tell
     "unlimited" apart from "0 left".
     """
-    requests_today, free_used, input_tokens, output_tokens = await database.get_usage(
-        scope, scope_id, database.utc_day()
-    )
+    usage = await database.get_usage(scope, scope_id, database.utc_day())
     if scope == database.SCOPE_USER:
-        limit = app_config.agent_quota_free_daily_tokens
+        limit = app_config.agent_quota_free_daily_credits
         free_limit = None if limit <= 0 else limit
     else:
         # The allowance the chat is actually charged against, which is the policy's own
         # number unless that is 0 and the deployment sets a default.
         policy = await database.get_chat_policy(scope_id)
-        free_limit = database.agent_free_daily_tokens(policy)
+        free_limit = database.agent_free_daily_credits(policy)
     return AgentUsageOut(
         scope=scope,
         scope_id=scope_id,
-        requests_today=requests_today,
-        free_used_tokens_today=free_used,
-        free_limit_tokens=free_limit,
+        requests_today=usage.requests,
+        free_used_credits_today=usage.free_used_credits,
+        free_limit_credits=free_limit,
+        billed_credits_today=usage.billed_credits,
         credits=await database.get_credit(scope, scope_id),
-        input_tokens_today=input_tokens,
-        output_tokens_today=output_tokens,
+        input_tokens_today=usage.input_tokens,
+        output_tokens_today=usage.output_tokens,
+        cache_read_tokens_today=usage.cache_read_tokens,
+        cache_write_tokens_today=usage.cache_write_tokens,
         exempt=exempt,
     )
 
@@ -606,7 +608,10 @@ async def write_chat_policy(
     # 群额度账户只在群聊里存在(`Subject.accounts()` 仅在 in_group 时加上它), 正数 id 只能
     # 是私聊, 给它配额度或发余额都是永远不会被消费的额度 —— 宁可当场拒绝。
     if chat_id > 0 and (
-        payload.agent_quota_daily_tokens is not None
+        (
+            payload.agent_quota_daily_credits is not None
+            or payload.agent_quota_daily_tokens is not None
+        )
         or payload.agent_quota_exempt is not None
         or payload.agent_credits is not None
     ):
@@ -616,6 +621,15 @@ async def write_chat_policy(
         )
 
     current = await database.get_chat_policy(chat_id)
+    daily_credits = payload.agent_quota_daily_credits
+    if daily_credits is None:
+        daily_credits = (
+            token_units_to_credits(payload.agent_quota_daily_tokens)
+            if payload.agent_quota_daily_tokens is not None
+            else None
+        )
+    if daily_credits is None:
+        daily_credits = current.agent_quota_daily_credits
     desired = ChatPolicy(
         agent_allowed=(
             current.agent_allowed
@@ -625,11 +639,7 @@ async def write_chat_policy(
         rss_allowed=(
             current.rss_allowed if payload.rss_allowed is None else payload.rss_allowed
         ),
-        agent_quota_daily_tokens=(
-            current.agent_quota_daily_tokens
-            if payload.agent_quota_daily_tokens is None
-            else payload.agent_quota_daily_tokens
-        ),
+        agent_quota_daily_credits=daily_credits,
         agent_quota_exempt=(
             current.agent_quota_exempt
             if payload.agent_quota_exempt is None

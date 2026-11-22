@@ -1,11 +1,15 @@
-"""每次 agent 调用的额度, 按 token 用量计费。
+"""每次 agent 调用的额度, 以 credits (额度代币) 计费。
 
 扣费顺序固定: 发言者免费额度 → 群免费额度 → 发言者余额 → 群余额。
+
+模型 token 只用于统计真实用量; 结算时先按计价规则折算成 credits:
+普通输入与输出按 token 计权, 缓存读按配置比例计费, 再按 100 可计费 token = 1 credit
+(向上取整)压缩数量级。额度上限和余额都只使用 credits。
 
 **时机**: token 用量只有 run 跑完才知道, 所以入口只做预检 (`can_start`: 任一位付款方还有
 额度就放行), 扣减发生在 run 成功后 (`settle`: 按实际用量依次扣)。一次 run 因此可能花掉超过
 剩余额度的量 —— 超出部分如实记账, 余额扣成负数(欠费), 下一次调用的预检就会拒绝, 直到运维补发。
-代价是"预检通过"不再保证"付得起"; 收益是计量单位与真实成本一致。
+代价是"预检通过"不再保证"付得起"; 收益是原始 token 与额度两套账都能保留。
 
 账户只有一个身份概念 —— 说话的那个人, 和所在的会话。匿名管理与频道身份两者都没有自己的
 账户(`sender_chat` 是频道或者就是本群), 于是它们只能花群账户的额度 —— 群没被分配额度就拒绝,
@@ -30,6 +34,7 @@ from kmua.config import app_config
 from kmua.enums import ChatID
 from kmua.i18n import i18n
 from kmua.logger import logger
+from kmua.plugins.agent import billing
 from kmua.plugins.agent import state as agent_state
 
 SCOPE_USER = database.SCOPE_USER
@@ -73,22 +78,25 @@ class Subject:
 
 @dataclass(frozen=True)
 class AccountState:
-    """一个账户的只读快照, token 单位。"""
+    """一个账户的只读快照: 原始 token 与 credits 分开。"""
 
     scope: str
     scope_id: int
     requests_today: int
-    free_used_tokens: int
-    free_limit_tokens: int | None
+    free_used_credits: int
+    free_limit_credits: int | None
+    billed_credits: int
     credits: int
     input_tokens_today: int
     output_tokens_today: int
+    cache_read_tokens_today: int
+    cache_write_tokens_today: int
 
     @property
     def free_left(self) -> int | None:
-        if self.free_limit_tokens is None:
+        if self.free_limit_credits is None:
             return None
-        return max(0, self.free_limit_tokens - self.free_used_tokens)
+        return max(0, self.free_limit_credits - self.free_used_credits)
 
     @property
     def exhausted(self) -> bool:
@@ -145,7 +153,7 @@ def subject_of(message: pyrogram.types.Message) -> Subject:
 
 
 async def _plan(subject: Subject) -> tuple[list[database.ChargeAccount], bool]:
-    """本次调用的付款账户(含各自免费上限, token)与是否豁免。"""
+    """本次调用的付款账户(含各自免费上限, credits)与是否豁免。"""
     exempt = False
     accounts: list[database.ChargeAccount] = []
     if subject.user_id is not None:
@@ -154,7 +162,7 @@ async def _plan(subject: Subject) -> tuple[list[database.ChargeAccount], bool]:
         else:
             user = await database.get_user_by_id(subject.user_id)
             exempt = user is not None and user.is_bot_global_admin
-        limit = app_config.agent_quota_free_daily_tokens
+        limit = app_config.agent_quota_free_daily_credits
         accounts.append(
             database.ChargeAccount(
                 SCOPE_USER, subject.user_id, None if limit <= 0 else limit
@@ -167,7 +175,7 @@ async def _plan(subject: Subject) -> tuple[list[database.ChargeAccount], bool]:
             database.ChargeAccount(
                 SCOPE_CHAT,
                 subject.chat_id,
-                database.agent_free_daily_tokens(policy),
+                database.agent_free_daily_credits(policy),
             )
         )
     return accounts, exempt
@@ -179,19 +187,20 @@ async def get_state(subject: Subject) -> QuotaState:
     day = database.utc_day()
     states: list[AccountState] = []
     for account in accounts:
-        requests, free_used, input_tokens, output_tokens = await database.get_usage(
-            account.scope, account.scope_id, day
-        )
+        usage = await database.get_usage(account.scope, account.scope_id, day)
         states.append(
             AccountState(
                 scope=account.scope,
                 scope_id=account.scope_id,
-                requests_today=requests,
-                free_used_tokens=free_used,
-                free_limit_tokens=account.free_limit,
+                requests_today=usage.requests,
+                free_used_credits=usage.free_used_credits,
+                free_limit_credits=account.free_limit,
+                billed_credits=usage.billed_credits,
                 credits=await database.get_credit(account.scope, account.scope_id),
-                input_tokens_today=input_tokens,
-                output_tokens_today=output_tokens,
+                input_tokens_today=usage.input_tokens,
+                output_tokens_today=usage.output_tokens,
+                cache_read_tokens_today=usage.cache_read_tokens,
+                cache_write_tokens_today=usage.cache_write_tokens,
             )
         )
     return QuotaState(accounts=states, exempt=exempt)
@@ -215,12 +224,10 @@ async def _has_capacity(accounts: list[database.ChargeAccount]) -> bool:
     day = database.utc_day()
     for account in accounts:
         if account.free_limit is None:
-            # 该账户的免费部分不限额(agent_quota_free_daily_tokens = 0)
+            # 该账户的免费部分不限额(agent_quota_free_daily_credits = 0)
             return True
-        _, free_used, _, _ = await database.get_usage(
-            account.scope, account.scope_id, day
-        )
-        if free_used < account.free_limit:
+        usage = await database.get_usage(account.scope, account.scope_id, day)
+        if usage.free_used_credits < account.free_limit:
             return True
         if await database.get_credit(account.scope, account.scope_id) > 0:
             return True
@@ -228,24 +235,26 @@ async def _has_capacity(accounts: list[database.ChargeAccount]) -> bool:
 
 
 async def settle(subject: Subject, usage: RunUsage | None) -> None:
-    """按本次 run 的实际 token 用量结算。
+    """按本次 run 的实际用量结算 credits, 同时保留全部原始 token 统计。
 
     用量记到本次调用涉及的每个账户上(含被群池或别人的余额付款的那一次), 面板因此
-    能看到群的真实消耗; 扣减则由 `database.charge_tokens` 按固定顺序完成, 且与记账
+    能看到群的真实消耗; 扣减则由 `database.charge_credits` 按固定顺序完成, 且与记账
     同属一个事务。
     豁免只免扣费, 不免统计 —— 不记的话 /quota 与面板就看不到 owner、全局管理员和
     豁免群实际花掉的 token。
     """
     accounts, exempt = await _plan(subject)
     day = database.utc_day()
-    input_tokens = int(getattr(usage, "input_tokens", 0) or 0)
-    output_tokens = int(getattr(usage, "output_tokens", 0) or 0)
+    meter = billing.from_run_usage(usage)
     await database.record_and_charge(
         subject.accounts(),
         () if exempt else accounts,
         day,
-        input_tokens,
-        output_tokens,
+        meter.credits,
+        meter.input_tokens,
+        meter.output_tokens,
+        meter.cache_read_tokens,
+        meter.cache_write_tokens,
     )
 
 
@@ -294,7 +303,7 @@ def fmt_tokens(value: int) -> str:
 
 def exhausted_text(state: QuotaState, lang: str) -> str:
     user = state.user
-    if user is None or user.free_limit_tokens is None:
+    if user is None or user.free_limit_credits is None:
         return i18n.t("bot.msg.agent.quota.exhausted_group", locale=lang)
     return i18n.t("bot.msg.agent.quota.exhausted", locale=lang)
 
@@ -305,22 +314,35 @@ def status_text(state: QuotaState, lang: str) -> str:
     user = state.user
     if user is not None:
         used_total = user.input_tokens_today + user.output_tokens_today
-        if user.free_limit_tokens is None:
+        lines.append(
+            i18n.t("bot.msg.agent.quota.calls_today", locale=lang).format(
+                used=user.requests_today
+            )
+        )
+        lines.append(
+            i18n.t("bot.msg.agent.quota.tokens_line", locale=lang).format(
+                input=fmt_tokens(user.input_tokens_today),
+                output=fmt_tokens(user.output_tokens_today),
+                cache_read=fmt_tokens(user.cache_read_tokens_today),
+                cache_write=fmt_tokens(user.cache_write_tokens_today),
+            )
+        )
+        lines.append(
+            i18n.t("bot.msg.agent.quota.billed_line", locale=lang).format(
+                credits=fmt_tokens(user.billed_credits)
+            )
+        )
+        if user.free_limit_credits is None:
             lines.append(
                 i18n.t("bot.msg.agent.quota.status_unlimited", locale=lang).format(
-                    used=user.requests_today, tokens=fmt_tokens(used_total)
+                    tokens=fmt_tokens(used_total)
                 )
             )
         else:
             lines.append(
-                i18n.t("bot.msg.agent.quota.calls_today", locale=lang).format(
-                    used=user.requests_today, tokens=fmt_tokens(used_total)
-                )
-            )
-            lines.append(
                 i18n.t("bot.msg.agent.quota.free_line", locale=lang).format(
-                    used=fmt_tokens(user.free_used_tokens),
-                    limit=fmt_tokens(user.free_limit_tokens),
+                    used=fmt_tokens(user.free_used_credits),
+                    limit=fmt_tokens(user.free_limit_credits),
                 )
             )
             lines.append(
@@ -329,12 +351,15 @@ def status_text(state: QuotaState, lang: str) -> str:
                 )
             )
     chat = state.chat
-    if chat is not None and (chat.free_limit_tokens or chat.credits):
+    if chat is not None and (
+        chat.free_limit_credits or chat.credits or chat.billed_credits
+    ):
         lines.append(
             i18n.t("bot.msg.agent.quota.chat_line", locale=lang).format(
-                used=fmt_tokens(chat.free_used_tokens),
-                limit=fmt_tokens(chat.free_limit_tokens or 0),
+                used=fmt_tokens(chat.free_used_credits),
+                limit=fmt_tokens(chat.free_limit_credits or 0),
                 credits=fmt_tokens(chat.credits),
+                billed=fmt_tokens(chat.billed_credits),
             )
         )
     if not lines:

@@ -44,7 +44,7 @@ vi.mock("@/api/endpoints/admin", () => ({
       policy: {
         agent_allowed: true,
         rss_allowed: false,
-        agent_quota_daily_tokens: 5,
+        agent_quota_daily_credits: 5,
         agent_quota_exempt: false,
       },
       created_at: "2026-01-01T00:00:00Z",
@@ -52,12 +52,15 @@ vi.mock("@/api/endpoints/admin", () => ({
       note: null,
     },
     agent_quota: {
-      free_used_tokens_today: 0,
-      free_limit_tokens: 5,
+      free_used_credits_today: 0,
+      free_limit_credits: 5,
+      billed_credits_today: 0,
       credits: 0,
       requests_today: 0,
       input_tokens_today: 0,
       output_tokens_today: 0,
+      cache_read_tokens_today: 0,
+      cache_write_tokens_today: 0,
       exempt: false,
     },
   })),
@@ -109,7 +112,7 @@ describe("ChatPolicyDetailView unmount", () => {
     wrapper.unmount();
     await vi.advanceTimersByTimeAsync(0);
 
-    expect(setChatPolicy).toHaveBeenCalledWith(-1001, { agent_quota_daily_tokens: 7 });
+    expect(setChatPolicy).toHaveBeenCalledWith(-1001, { agent_quota_daily_credits: 7 });
   });
 });
 

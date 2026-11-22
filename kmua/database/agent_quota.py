@@ -1,9 +1,12 @@
-"""Agent 额度: 账户字典、每日用量、余额与余额流水, 单位一律是 token (输入 + 输出)。
+"""Agent 额度: 每日原始 token 用量、credits 计费、余额与余额流水。
 
 两条独立闸门, 各自原子读写, 都不做读后写:
-- 免费日额度: `agent_usage_daily.free_used_tokens` 与上限比较, 只扣到上限为止。
+- 免费日额度: `agent_usage_daily.free_used_credits` 与上限比较, 只扣到上限为止。
 - 余额: `agent_credits.balance`, 扣减没有下限 —— 单次 run 的用量只有跑完才知道,
   用超的部分如实记成负余额(欠费), 由下一次调用的预检拦住。
+
+模型 token 与额度 credits 是两套账: `input_tokens` / cache counters / `output_tokens`
+记录供应商实际处理量; `billed_credits` 记录按计价规则折算后的额度消耗。
 
 账户用 `(scope, scope_id)` 表示: `SCOPE_USER` 是发言者, `SCOPE_CHAT` 是会话/群。
 行都是按需创建的: 用量行在第一次扣费时建, 余额行在第一次发放或扣费时建。
@@ -32,11 +35,23 @@ Account = tuple[str, int]
 
 
 class ChargeAccount(NamedTuple):
-    """一位付款方: 账户, 加上它的免费额度上限(token); None = 免费部分不限额。"""
+    """一位付款方: 账户, 加上它的免费额度上限(credits); None = 免费部分不限额。"""
 
     scope: str
     scope_id: int
     free_limit: int | None
+
+
+class UsageTotals(NamedTuple):
+    """One account's daily raw usage plus the credits metered for it."""
+
+    requests: int
+    free_used_credits: int
+    billed_credits: int
+    input_tokens: int
+    output_tokens: int
+    cache_read_tokens: int
+    cache_write_tokens: int
 
 
 def utc_day() -> date:
@@ -81,15 +96,23 @@ async def _ensure_credit_row(session: AsyncSession, scope: str, scope_id: int) -
 @with_session
 async def get_usage(
     scope: str, scope_id: int, day: date, session: AsyncSession | None = None
-) -> tuple[int, int, int, int]:
-    """(requests, free_used_tokens, input_tokens, output_tokens); 没有行时全为 0。"""
+) -> UsageTotals:
+    """Return raw token counters and credit consumption; absent rows are all zero."""
     assert session is not None
     row = await session.get(
         AgentUsageDaily, {"scope": scope, "scope_id": scope_id, "day": day}
     )
     if row is None:
-        return 0, 0, 0, 0
-    return row.requests, row.free_used_tokens, row.input_tokens, row.output_tokens
+        return UsageTotals(0, 0, 0, 0, 0, 0, 0)
+    return UsageTotals(
+        row.requests,
+        row.free_used_credits,
+        row.billed_credits,
+        row.input_tokens,
+        row.output_tokens,
+        row.cache_read_tokens,
+        row.cache_write_tokens,
+    )
 
 
 @with_tx
@@ -98,27 +121,27 @@ async def spend_free(
     scope_id: int,
     day: date,
     limit: int,
-    tokens: int,
+    credits: int,
     session: AsyncSession | None = None,
 ) -> int:
-    """从免费额度扣 tokens, 返回实际扣掉的量(0 表示该账户的免费额度已用尽)。
+    """从免费额度扣 credits, 返回实际扣掉的量(0 表示该账户的免费额度已用尽)。
 
     上限与自增在同一条 UPDATE 里判断, 所以并发的两次扣减不会各自读到旧值再一起写:
     写入时若该行已经涨到放不下这次扣减, 整条语句不生效, 返回 0 —— 少扣的那部分会由
     调用方转给下一个账户, 因此只会"少占一点免费额度", 不会过冲上限, 也不会漏记用量。
     """
     assert session is not None
-    if tokens <= 0 or limit <= 0:
+    if credits <= 0 or limit <= 0:
         return 0
     await _ensure_usage_row(session, scope, scope_id, day)
     current = await session.scalar(
-        sqlalchemy.select(AgentUsageDaily.free_used_tokens).where(
+        sqlalchemy.select(AgentUsageDaily.free_used_credits).where(
             AgentUsageDaily.scope == scope,
             AgentUsageDaily.scope_id == scope_id,
             AgentUsageDaily.day == day,
         )
     )
-    take = min(tokens, max(0, limit - (current or 0)))
+    take = min(credits, max(0, limit - (current or 0)))
     if take <= 0:
         return 0
     result = await session.execute(
@@ -127,9 +150,9 @@ async def spend_free(
             AgentUsageDaily.scope == scope,
             AgentUsageDaily.scope_id == scope_id,
             AgentUsageDaily.day == day,
-            AgentUsageDaily.free_used_tokens + take <= limit,
+            AgentUsageDaily.free_used_credits + take <= limit,
         )
-        .values(free_used_tokens=AgentUsageDaily.free_used_tokens + take)
+        .values(free_used_credits=AgentUsageDaily.free_used_credits + take)
         .execution_options(synchronize_session=False)
     )
     if result.rowcount != 1:  # type: ignore[attr-defined]
@@ -146,12 +169,12 @@ _CREDIT_CAS_RETRIES = 5
 async def spend_credit(
     scope: str,
     scope_id: int,
-    tokens: int,
+    credits: int,
     *,
     allow_debt: bool = False,
     session: AsyncSession | None = None,
 ) -> int:
-    """从余额扣 tokens 并记流水, 返回**实际扣掉的量**。
+    """从余额扣 credits 并记流水, 返回**实际扣掉的量**。
 
     `allow_debt=False`(默认): 最多扣可用余额, 一分不超。判断"够不够"和扣减是两条语句,
     用"读到的余额"做比较交换 —— 并发的另一次扣减会让这次失败并重读, 而不是各自拿旧值叠加,
@@ -161,14 +184,14 @@ async def spend_credit(
     跑完才知道的, 与其拒绝记账, 不如把欠费如实记下, 由下一次预检拦住。
     """
     assert session is not None
-    if tokens <= 0:
+    if credits <= 0:
         return 0
     await _ensure_credit_row(session, scope, scope_id)
     if allow_debt:
         balance = await session.scalar(
             sqlalchemy.update(AgentCredit)
             .where(AgentCredit.scope == scope, AgentCredit.scope_id == scope_id)
-            .values(balance=AgentCredit.balance - tokens)
+            .values(balance=AgentCredit.balance - credits)
             .returning(AgentCredit.balance)
             .execution_options(synchronize_session=False)
         )
@@ -177,12 +200,12 @@ async def spend_credit(
             AgentCreditLedger(
                 scope=scope,
                 scope_id=scope_id,
-                delta=-tokens,
+                delta=-credits,
                 balance_after=balance,
                 reason=CREDIT_REASON_USAGE,
             )
         )
-        return tokens
+        return credits
     for _ in range(_CREDIT_CAS_RETRIES):
         observed = await session.scalar(
             sqlalchemy.select(AgentCredit.balance).where(
@@ -191,7 +214,7 @@ async def spend_credit(
         )
         if observed is None or observed <= 0:
             return 0
-        take = min(tokens, observed)
+        take = min(credits, observed)
         result = await session.execute(
             sqlalchemy.update(AgentCredit)
             .where(
@@ -222,9 +245,12 @@ async def record_usage(
     day: date,
     input_tokens: int,
     output_tokens: int,
+    cache_read_tokens: int,
+    cache_write_tokens: int,
+    billed_credits: int,
     session: AsyncSession | None = None,
 ) -> None:
-    """记一次 run 的调用次数与 token: 加到本次调用涉及的每个账户上。"""
+    """Record one run's raw tokens and metered credits on every account."""
     assert session is not None
     for scope, scope_id in accounts:
         await _ensure_usage_row(session, scope, scope_id, day)
@@ -239,19 +265,23 @@ async def record_usage(
                 requests=AgentUsageDaily.requests + 1,
                 input_tokens=AgentUsageDaily.input_tokens + input_tokens,
                 output_tokens=AgentUsageDaily.output_tokens + output_tokens,
+                cache_read_tokens=AgentUsageDaily.cache_read_tokens + cache_read_tokens,
+                cache_write_tokens=AgentUsageDaily.cache_write_tokens
+                + cache_write_tokens,
+                billed_credits=AgentUsageDaily.billed_credits + billed_credits,
             )
             .execution_options(synchronize_session=False)
         )
 
 
 @with_tx
-async def charge_tokens(
+async def charge_credits(
     accounts: Sequence[ChargeAccount],
     day: date,
-    tokens: int,
+    credits: int,
     session: AsyncSession | None = None,
-) -> None:
-    """按实际 token 用量结算一次调用; 整个分配在同一个事务里完成。
+) -> int:
+    """Settle one call's credits; returns the amount actually charged.
 
     顺序固定: 免费额度(发言者 → 群) → 余额(发言者 → 群)。
 
@@ -262,12 +292,12 @@ async def charge_tokens(
       与其拒绝记账, 不如如实记下欠费, 由下一次的预检拦住。
     """
     assert session is not None
-    if tokens <= 0:
-        return
-    remaining = tokens
+    if credits <= 0 or not accounts:
+        return 0
+    remaining = credits
     for account in accounts:
         if account.free_limit is None:
-            return
+            return 0
         if account.free_limit <= 0:
             continue
         remaining -= await spend_free(
@@ -279,10 +309,10 @@ async def charge_tokens(
             session=session,
         )
         if remaining <= 0:
-            return
+            return credits
     for index, account in enumerate(accounts):
         if remaining <= 0:
-            return
+            return credits
         # 末位付款方吃掉余量(可以为负); 前面的账户最多扣到可用余额, 抢不到就把余量交下去。
         remaining -= await spend_credit(
             account.scope,
@@ -291,6 +321,7 @@ async def charge_tokens(
             allow_debt=index == len(accounts) - 1,
             session=session,
         )
+    return credits - remaining
 
 
 @with_tx
@@ -298,18 +329,28 @@ async def record_and_charge(
     accounts: Sequence[Account],
     charge_accounts: Sequence[ChargeAccount],
     day: date,
+    credits: int,
     input_tokens: int,
     output_tokens: int,
+    cache_read_tokens: int,
+    cache_write_tokens: int,
     session: AsyncSession | None = None,
 ) -> None:
-    """记一次 run 的用量并按用量扣费, 同一事务完成。
+    """Record raw usage and charge credits in one transaction.
 
     `charge_accounts` 为空表示只记账不扣费: 豁免账户的用量仍要能被 /quota 与面板
     统计出来。"""
     assert session is not None
-    await record_usage(accounts, day, input_tokens, output_tokens, session=session)
-    await charge_tokens(
-        charge_accounts, day, input_tokens + output_tokens, session=session
+    await charge_credits(charge_accounts, day, credits, session=session)
+    await record_usage(
+        accounts,
+        day,
+        input_tokens,
+        output_tokens,
+        cache_read_tokens,
+        cache_write_tokens,
+        credits,
+        session=session,
     )
 
 
@@ -423,8 +464,9 @@ __all__ = [
     "SCOPE_CHAT",
     "SCOPE_USER",
     "ChargeAccount",
+    "UsageTotals",
     "adjust_credits",
-    "charge_tokens",
+    "charge_credits",
     "get_credit",
     "get_usage",
     "record_and_charge",

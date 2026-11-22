@@ -16,7 +16,7 @@ from typing import Any, cast
 import uvicorn
 
 from kmua.common.utils import spawn
-from kmua.config import _legacy_health_keys_used, app_config
+from kmua.config import _legacy_health_keys_used, _legacy_quota_keys_used, app_config
 from kmua.logger import logger
 from kmua.webapp import create_app
 from kmua.webapp.static import resolve_static_dir, static_bundle_exists
@@ -162,12 +162,16 @@ def _warn_about_legacy_keys() -> None:
     names no longer describe what they configure, since the same server now also
     serves the panel.
     """
-    if not _legacy_health_keys_used:
-        return
-    logger.warning(
-        f"webapp: {', '.join(_legacy_health_keys_used)} is deprecated; "
-        "rename it to webapp_host / webapp_port. The old name still works for now."
-    )
+    if _legacy_health_keys_used:
+        logger.warning(
+            f"webapp: {', '.join(_legacy_health_keys_used)} is deprecated; "
+            "rename it to webapp_host / webapp_port. The old name still works for now."
+        )
+    if _legacy_quota_keys_used:
+        logger.warning(
+            f"agent quota: {', '.join(_legacy_quota_keys_used)} is deprecated; "
+            "rename it to *_credits. The old name still works for now."
+        )
 
 
 def _warn_about_exposure() -> None:

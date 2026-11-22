@@ -121,13 +121,21 @@ const readonlyItems = computed<DefinitionItem[]>(() => {
     items.push({
       label: t("admin.agentFreeToday"),
       value:
-        quota.free_limit_tokens === null
+        quota.free_limit_credits === null
           ? t("admin.agentUnlimited")
-          : `${formatTokens(quota.free_used_tokens_today)} / ${formatTokens(quota.free_limit_tokens)}`,
+          : `${formatTokens(quota.free_used_credits_today)} / ${formatTokens(quota.free_limit_credits)}`,
+    });
+    items.push({
+      label: t("admin.agentCreditsUsedToday"),
+      value: formatTokens(quota.billed_credits_today),
     });
     items.push({
       label: t("admin.agentTokensToday"),
       value: `${formatTokens(quota.input_tokens_today)} / ${formatTokens(quota.output_tokens_today)}`,
+    });
+    items.push({
+      label: t("admin.agentCacheTokensToday"),
+      value: `${formatTokens(quota.cache_read_tokens_today)} / ${formatTokens(quota.cache_write_tokens_today)}`,
     });
   }
   return items;

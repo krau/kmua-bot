@@ -178,7 +178,9 @@ async def _settle_shared(recipients: Sequence[int], usage: RunUsage | None) -> N
         return
     total_input = int(getattr(usage, "input_tokens", 0) or 0)
     total_output = int(getattr(usage, "output_tokens", 0) or 0)
-    if total_input == 0 and total_output == 0:
+    total_cache_read = int(getattr(usage, "cache_read_tokens", 0) or 0)
+    total_cache_write = int(getattr(usage, "cache_write_tokens", 0) or 0)
+    if not any((total_input, total_output, total_cache_read, total_cache_write)):
         return
     count = len(recipients)
     for index, chat_id in enumerate(recipients):
@@ -186,9 +188,20 @@ async def _settle_shared(recipients: Sequence[int], usage: RunUsage | None) -> N
         share_output = total_output // count + (
             total_output % count if index == 0 else 0
         )
+        share_cache_read = total_cache_read // count + (
+            total_cache_read % count if index == 0 else 0
+        )
+        share_cache_write = total_cache_write // count + (
+            total_cache_write % count if index == 0 else 0
+        )
         await quota.settle(
             quota.Subject(user_id=None, chat_id=chat_id, in_group=True),
-            RunUsage(input_tokens=share_input, output_tokens=share_output),
+            RunUsage(
+                input_tokens=share_input,
+                output_tokens=share_output,
+                cache_read_tokens=share_cache_read,
+                cache_write_tokens=share_cache_write,
+            ),
         )
 
 
