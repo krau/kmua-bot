@@ -114,18 +114,9 @@ async function flushSave(): Promise<void> {
   saving.value = true;
   try {
     await setChatPolicy(props.chatId, Object.fromEntries(writes));
-    const data = detail.data.value;
-    if (data) {
-      // 用量区块显示的就是这两个值, 不一起更新的话同一屏会自相矛盾。
-      for (const [field, value] of writes) {
-        if (field === "agent_quota_daily_credits") {
-          data.item.policy.agent_quota_daily_credits = value;
-          data.agent_quota.free_limit_credits = value;
-        } else {
-          data.agent_quota.credits = value;
-        }
-      }
-    }
+    // 群策略里的 0 表示“沿用部署默认额度”, 不是面板展示的生效上限。写完后必须重新
+    // 拉取详情, 否则 usage 区块会把 0 当成“未分配”, 与后端实际仍生效的默认值冲突。
+    await detail.reload();
     haptics.success();
   } catch (error) {
     notifyError(isApiError(error) ? tError(error.code) : t("app.loadFailed"));
