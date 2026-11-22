@@ -473,7 +473,7 @@ class AgentUsageOut(ApiModel):
     """一个额度账户的当日快照, 原始模型 token 与额度 credits 分开。
 
     账户用 `scope` + `scope_id` 标识: "user" 是发言者(用户/频道), "chat" 是会话(群)。
-    100 个可计费 token 折算为 1 credit, 向上取整。
+    1,000 个可计费 token 折算为 1 credit, 向上取整。
 
     `credits` 可以为负: 单次 run 的用量是跑完才知道的, 用超的部分记成欠费。
     """

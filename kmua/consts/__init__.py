@@ -6,7 +6,7 @@ DOCS_URL = "https://kmua.unv.app"
 # One quota credit represents this many billable model tokens. Billable tokens
 # are already weighted (for example, a cache read may count at 10%), and the
 # conversion rounds away from zero so a non-zero run never becomes free.
-TOKENS_PER_CREDIT = 100
+TOKENS_PER_CREDIT = 1_000
 
 
 def token_units_to_credits(token_units: int) -> int:

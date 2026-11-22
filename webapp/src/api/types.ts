@@ -258,7 +258,7 @@ export interface AdminChat {
  * null when no limit applies, which is not the same as 0 left; a chat account with
  * `free_limit_credits` 0 has no shared allowance allocated. `credits` can go negative:
  * a run's usage is only known once it finishes, so an overshoot is booked as debt.
- * 100 billable model-token units convert to one credit, rounded up.
+ * 1,000 billable model-token units convert to one credit, rounded up.
  */
 export interface AgentUsage {
   scope: string;

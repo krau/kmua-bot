@@ -357,7 +357,7 @@
     "removeConfirm": "确定移除「{name}」的策略配置? 所有开关将恢复默认值。",
     "removed": "已移除",
     "quota": "群额度",
-    "quotaHint": "个人免费额度用尽后从本群额度扣; 匿名管理与频道身份只能用本群额度。100 个可计费 token = 1 代币，模型 token 单独统计",
+    "quotaHint": "个人免费额度用尽后从本群额度扣; 匿名管理与频道身份只能用本群额度。1,000 个可计费 token = 1 代币，模型 token 单独统计",
     "quotaExempt": "本群不受额度限制",
     "quotaExemptHint": "开启后本群完全不计费也不限额",
     "quotaDaily": "每日群额度 (代币)",

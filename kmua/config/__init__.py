@@ -515,11 +515,11 @@ class _AppConfig(pydantic.BaseModel):
     agent_usage_total_tokens_limit: int = 0
     # 每个用户每天的免费 agent 额度, 单位是 credits (额度代币), 跨群共享, 按 UTC 日重置。
     # credits 与模型 token 是两套单位: 原始 token 只做统计, 额度按实际计价规则折算后扣 credits。
-    # 100 个可计费 token = 1 credit (向上取整), 所以默认额度对应约 100k 个可计费 token。
-    agent_quota_free_daily_credits: int = 1_000
+    # 1,000 个可计费 token = 1 credit (向上取整), 默认额度对应 300k 个可计费 token。
+    agent_quota_free_daily_credits: int = 300
     # 每个群每天的免费 agent 额度, 单位是 credits, 按 UTC 日重置, 群内共享: 成员的个人免费
     # 额度用尽后从群额度扣。群策略里自己设了正数就按群里的; 0 = 没有全局默认, 群不分配额度。
-    agent_quota_chat_free_daily_credits: int = 0
+    agent_quota_chat_free_daily_credits: int = 600
     # 缓存读 token 折算成 credits 的比例。10 = 命中缓存的输入按 10% 计费; 100 = 不打折。
     # 缓存写 token 仍包含在普通 input_tokens 中按 100% 计费, 等后续按 provider 价格细分。
     agent_quota_cache_read_billing_percent: int = pydantic.Field(

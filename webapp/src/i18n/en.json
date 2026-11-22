@@ -357,7 +357,7 @@
     "removeConfirm": "Remove the policy for \"{name}\"? All flags return to their defaults.",
     "removed": "Removed",
     "quota": "Chat quota",
-    "quotaHint": "Used after a member's own free allowance; anonymous admins and channels can only use this chat's quota. 100 billable tokens = 1 credit; model tokens are tracked separately",
+    "quotaHint": "Used after a member's own free allowance; anonymous admins and channels can only use this chat's quota. 1,000 billable tokens = 1 credit; model tokens are tracked separately",
     "quotaExempt": "No quota limit in this chat",
     "quotaExemptHint": "Members and channel posts here are never charged or limited",
     "quotaDaily": "Daily chat allowance (credits)",

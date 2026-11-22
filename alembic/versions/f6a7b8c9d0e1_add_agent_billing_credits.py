@@ -5,7 +5,7 @@ Revises: e5f6a7b8c9d0
 Create Date: 2026-11-22 00:00:00.000000
 
 Agent quota moves from raw model tokens to billing credits while the raw token
-counters stay intact. One credit is 100 billable token units, rounded away from
+counters stay intact. One credit is 1,000 billable token units, rounded away from
 zero. Existing usage, balances and ledger entries are compacted to that scale.
 """
 
@@ -20,7 +20,7 @@ down_revision: str | None = "e5f6a7b8c9d0"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
-_TOKENS_PER_CREDIT = 100
+_TOKENS_PER_CREDIT = 1_000
 _USAGE_TABLE = "agent_usage_daily"
 
 
