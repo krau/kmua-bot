@@ -87,16 +87,21 @@ function onDismiss(): void {
     The region has no height of its own, which is what makes that safe.
   */
   position: absolute;
-  top: var(--tg-safe-area-inset-top, 0px);
-  left: 0;
-  right: 0;
+  top: calc(var(--tg-safe-area-inset-top, 0px) + 0.625rem);
+  left: 50%;
+  right: auto;
+  width: max-content;
+  max-width: calc(100vw - 2rem);
+  translate: -50% 0;
   display: block;
-  padding: 0.5rem var(--spacing-related);
-  padding-left: calc(var(--spacing-related) + var(--tg-safe-area-inset-left, 0px));
-  padding-right: calc(var(--spacing-related) + var(--tg-safe-area-inset-right, 0px));
+  padding: 0.65rem 1rem;
   font-size: var(--text-sub);
   line-height: var(--text-sub--line-height);
+  border: 1px solid var(--kmua-line);
+  border-radius: 999px;
   text-align: center;
+  font-weight: 800;
+  box-shadow: var(--kmua-shadow);
   /*
     Translucent over the client's header colour. `color-mix` keeps it theme-driven:
     a hardcoded rgba() would be wrong in one of the two themes, and usually both.
@@ -119,10 +124,12 @@ function onDismiss(): void {
   colour. Only the failure case is coloured, because there the colour is the message.
 */
 .notice-bar--success {
-  color: var(--color-ink);
+  background: color-mix(in srgb, var(--kmua-mint-soft) 92%, transparent);
+  color: var(--kmua-ink);
 }
 
 .notice-bar--error {
+  background: color-mix(in srgb, var(--kmua-pink-soft) 94%, transparent);
   color: var(--color-danger);
 }
 
@@ -141,6 +148,6 @@ function onDismiss(): void {
 .notice-enter-from,
 .notice-leave-to {
   opacity: 0;
-  translate: 0 -100%;
+  translate: -50% -100%;
 }
 </style>

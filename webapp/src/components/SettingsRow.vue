@@ -80,7 +80,7 @@ function onActivate(): void {
     :type="navigable ? 'button' : undefined"
     :disabled="navigable && inert ? true : undefined"
     :aria-busy="busy ? 'true' : undefined"
-    class="border-line flex w-full items-center gap-related border-b px-related py-related text-left last:border-b-0"
+    class="settings-row border-line flex w-full items-center gap-related border-b px-related py-related text-left last:border-b-0"
     :class="[
       navigable && !inert
         ? 'active:bg-ink/5 dark:active:bg-ink/10 transition-colors duration-150 ease-out'
@@ -97,15 +97,18 @@ function onActivate(): void {
     @click="navigable ? onActivate() : undefined"
   >
     <span class="min-w-0 flex-1">
-      <span class="block text-body" :class="destructive ? 'text-danger dark:text-danger-dark' : ''">
+      <span
+        class="settings-row__label block text-body"
+        :class="destructive ? 'text-danger dark:text-danger-dark' : ''"
+      >
         {{ label }}
       </span>
-      <span v-if="hint" class="mt-1 block text-note text-hint">{{ hint }}</span>
+      <span v-if="hint" class="settings-row__hint mt-1 block text-note text-hint">{{ hint }}</span>
     </span>
 
     <span
       v-if="value !== null && value !== undefined && !busy"
-      class="text-sub text-hint shrink-0"
+      class="settings-row__value text-sub text-hint shrink-0"
       :class="mono ? 'font-mono' : ''"
     >
       {{ value }}
@@ -118,6 +121,75 @@ function onActivate(): void {
       geometry, so nothing reflows when the action starts or finishes.
     -->
     <ActivityDot v-if="busy" class="shrink-0" />
-    <span v-else-if="navigable" class="text-hint shrink-0 text-sub" aria-hidden="true">›</span>
+    <span
+      v-else-if="navigable"
+      class="settings-row__chevron text-hint shrink-0 text-sub"
+      aria-hidden="true"
+      >›</span
+    >
   </component>
 </template>
+
+<style scoped>
+.settings-row {
+  position: relative;
+  min-height: 3.875rem;
+  transition:
+    background 160ms ease,
+    padding 160ms ease;
+}
+
+.settings-row:is(button):hover {
+  background: color-mix(in srgb, var(--kmua-pink-soft) 45%, transparent);
+}
+
+.settings-row:is(button):active {
+  background: var(--kmua-pink-soft);
+}
+.settings-row__label {
+  font-weight: 800;
+}
+.settings-row__hint {
+  line-height: 1.55;
+  white-space: pre-line;
+}
+
+.settings-row__value {
+  max-width: 42%;
+  overflow: hidden;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  background: var(--kmua-yellow-soft);
+  font-size: 0.75rem;
+  font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.settings-row__chevron {
+  display: grid;
+  width: 1.75rem;
+  height: 1.75rem;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--kmua-mint-soft);
+  color: var(--kmua-mint-dark);
+  font-size: 1.25rem;
+  font-weight: 900;
+  line-height: 1;
+  transition: translate 160ms ease;
+}
+
+.settings-row:hover .settings-row__chevron {
+  translate: 2px 0;
+}
+
+@media (max-width: 480px) {
+  .settings-row {
+    gap: 0.625rem;
+  }
+  .settings-row__value {
+    max-width: 34%;
+  }
+}
+</style>

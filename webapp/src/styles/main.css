@@ -1,215 +1,375 @@
+@import url("https://fonts.googleapis.com/css2?family=Nunito:wght@500;600;700;800;900&family=ZCOOL+KuaiLe&display=swap");
 @import "tailwindcss";
 
-/*
-  Design tokens.
-
-  Base colours come from Telegram: the SDK binds --tg-theme-* at boot, so the
-  panel follows the user's own client theme instead of imposing one. That is what
-  makes it read as part of Telegram rather than a website in a WebView.
-
-  There is exactly one colour of our own - kmua ink green, sampled from the bot
-  avatar - and it appears in three places only: an engaged toggle, the current
-  route, and the primary button. Not behind icons, not as a card wash, not as a
-  gradient.
-
-  Note what is deliberately absent: no --shadow-* tokens, so `shadow-lg` and
-  friends cannot be written at all. In a full-screen WebView nothing floats, so a
-  shadow would be pure decoration; separation is a hairline and space. The
-  constraint lives in the build instead of in a review comment.
-*/
 @theme {
-  /* The one accent. */
-  --color-accent: #2f6f5e;
-  --color-accent-dark: #7fbfa8;
-  /* Destructive actions only: delete, leave, demote. */
-  --color-danger: #a04a42;
-  --color-danger-dark: #d98b83;
-
-  /* Telegram theme surface, with fallbacks for a browser opened outside Telegram. */
-  --color-bg: var(--tg-theme-bg-color, #ffffff);
-  --color-surface: var(--tg-theme-secondary-bg-color, #f2f2f7);
-  --color-ink: var(--tg-theme-text-color, #0b0b0c);
-  --color-hint: var(--tg-theme-hint-color, #6d6d72);
-  --color-line: var(--tg-theme-section-separator-color, #d8d8dd);
-  --color-link: var(--tg-theme-link-color, #2f6f5e);
-  --color-header: var(--tg-theme-header-bg-color, var(--tg-theme-bg-color, #ffffff));
-
-  /*
-    Five sizes with real jumps between them. A scale crammed into 14-18px leaves
-    hierarchy to shades of grey and forces the reader to parse every line to find
-    the structure.
-  */
-  --text-display: 2rem; /* 32 - page title, once per page */
-  --text-display--line-height: 1.15;
-  --text-display--letter-spacing: -0.02em;
-  --text-title: 1.375rem; /* 22 - section title */
+  --color-accent: #ee8098;
+  --color-accent-dark: #ffa3b8;
+  --color-danger: #c95568;
+  --color-danger-dark: #ff9ba9;
+  --color-bg: var(--kmua-bg);
+  --color-surface: var(--kmua-surface);
+  --color-ink: var(--kmua-ink);
+  --color-hint: var(--kmua-hint);
+  --color-line: var(--kmua-line);
+  --color-link: var(--kmua-mint-dark);
+  --color-header: var(--kmua-bg);
+  --text-display: 2rem;
+  --text-display--line-height: 1.2;
+  --text-title: 1.375rem;
   --text-title--line-height: 1.25;
-  --text-title--letter-spacing: -0.01em;
-  --text-body: 1.0625rem; /* 17 - row label, prose */
-  --text-body--line-height: 1.45;
-  --text-sub: 0.9375rem; /* 15 - secondary value */
-  --text-sub--line-height: 1.4;
-  --text-note: 0.8125rem; /* 13 - group label, hint */
-  --text-note--line-height: 1.45;
-
-  /*
-    Spacing is named by relationship, not by number. Writing `gap-tight` forces a
-    decision about how two things relate; `gap-4` everywhere announces that
-    nothing belongs to anything.
-  */
-  --spacing-tight: 0.5rem; /* within a group */
-  --spacing-related: 1rem; /* label to its content */
-  --spacing-group: 1.5rem; /* between groups */
-  --spacing-section: 2.5rem; /* between page sections */
-
-  /* Two radii, and they never nest inside each other: the group container, and the
-     input fields within it. Everything else stays square so corners never fight.
-
-     A field is drawn as a tinted dent in its row - see `.field-input` below for why
-     neither an underline nor a bordered white box works here. */
-  --radius-container: 0.625rem;
-  --radius-field: 0.375rem;
-
-  --font-sans:
-    -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans SC", "PingFang SC",
-    "Hiragino Sans GB", "Microsoft YaHei", system-ui, sans-serif;
-  /* Monospace is for identifiers and JSON in the developer panel - real code,
-     not a terminal aesthetic. */
+  --text-body: 1rem;
+  --text-body--line-height: 1.5;
+  --text-sub: 0.9375rem;
+  --text-sub--line-height: 1.45;
+  --text-note: 0.8125rem;
+  --text-note--line-height: 1.5;
+  --spacing-tight: 0.5rem;
+  --spacing-related: 1rem;
+  --spacing-group: 1.5rem;
+  --spacing-section: 2rem;
+  --radius-container: 1.375rem;
+  --radius-field: 0.875rem;
+  --font-sans: "Nunito", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+  --font-display: "ZCOOL KuaiLe", "Nunito", "PingFang SC", sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
 }
 
-/*
-  Dark mode follows the flag the app sets from Telegram's themeParams, not the OS
-  preference: a user on a light OS with a dark Telegram must get the dark panel.
-*/
 @custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
 
-/*
-  Contrast fallback. The hint and separator colours are supplied by the user's
-  client and some themes put them below the WCAG AA 4.5:1 minimum against the
-  background. main.ts measures them at boot and sets data-contrast="fallback",
-  which swaps in colours we control.
-*/
 @layer base {
+  :root {
+    --kmua-bg: #fff8f2;
+    --kmua-surface: #fffefd;
+    --kmua-ink: #493b4d;
+    --kmua-hint: #8d7d8e;
+    --kmua-line: #f0e3e4;
+    --kmua-pink: #ff9fb1;
+    --kmua-pink-soft: #ffe7eb;
+    --kmua-mint: #93d9c3;
+    --kmua-mint-dark: #3b9b83;
+    --kmua-mint-soft: #e1f7ee;
+    --kmua-yellow: #f7cf70;
+    --kmua-yellow-soft: #fff3cf;
+    --kmua-lilac: #c6b8ee;
+    --kmua-shadow: 0 7px 0 rgb(120 86 96 / 5%), 0 12px 30px rgb(140 95 111 / 7%);
+    color-scheme: light;
+  }
+
+  :root[data-theme="dark"] {
+    --kmua-bg: #292634;
+    --kmua-surface: #353140;
+    --kmua-ink: #fff5f4;
+    --kmua-hint: #b9aebe;
+    --kmua-line: #4c4455;
+    --kmua-pink: #ffa3b8;
+    --kmua-pink-soft: #513b4b;
+    --kmua-mint: #93d9c3;
+    --kmua-mint-dark: #a8ead4;
+    --kmua-mint-soft: #334d47;
+    --kmua-yellow: #f7cf70;
+    --kmua-yellow-soft: #4c4538;
+    --kmua-lilac: #c6b8ee;
+    --kmua-shadow: 0 8px 24px rgb(0 0 0 / 14%);
+    color-scheme: dark;
+  }
+
   :root[data-contrast="fallback"] {
-    --color-hint: #55555c;
-    --color-line: #c7c7cc;
+    --kmua-hint: #726473;
+    --kmua-line: #dbcdd0;
   }
 
   :root[data-contrast="fallback"][data-theme="dark"] {
-    --color-hint: #a8a8b0;
-    --color-line: #3a3a3f;
+    --kmua-hint: #c9bdcc;
+    --kmua-line: #5d5264;
+  }
+
+  * {
+    box-sizing: border-box;
   }
 
   html {
-    background-color: var(--color-bg);
-    /* Prevent iOS from resizing text in landscape. */
+    background: var(--kmua-bg);
     -webkit-text-size-adjust: 100%;
   }
 
   body {
     margin: 0;
-    background-color: var(--color-bg);
-    color: var(--color-ink);
+    background:
+      radial-gradient(
+        circle at 8% 3%,
+        color-mix(in srgb, var(--kmua-pink) 15%, transparent),
+        transparent 23rem
+      ),
+      radial-gradient(
+        circle at 96% 28%,
+        color-mix(in srgb, var(--kmua-mint) 16%, transparent),
+        transparent 24rem
+      ),
+      var(--kmua-bg);
+    color: var(--kmua-ink);
     font-family: var(--font-sans);
     font-size: var(--text-body);
-    line-height: 1.45;
-    /* Numbers must not shift width as values update. */
+    line-height: 1.5;
     font-variant-numeric: tabular-nums;
     -webkit-font-smoothing: antialiased;
     overscroll-behavior-y: none;
   }
 
-  /* Focus is visible for keyboard users without ringing every tap. */
-  :focus-visible {
-    outline: 2px solid var(--color-accent);
-    outline-offset: 2px;
+  body::before {
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    background-image: radial-gradient(
+      color-mix(in srgb, var(--kmua-pink) 28%, transparent) 1px,
+      transparent 1px
+    );
+    background-size: 24px 24px;
+    content: "";
+    opacity: 0.35;
+    pointer-events: none;
+    mask-image: linear-gradient(to bottom, black, transparent 70%);
   }
 
-  [data-theme="dark"] :focus-visible {
-    outline-color: var(--color-accent-dark);
+  :focus-visible {
+    outline: 3px solid var(--kmua-mint-dark);
+    outline-offset: 3px;
   }
 
   button {
-    font: inherit;
-    color: inherit;
-    background: none;
-    border: none;
     padding: 0;
-    /* Suppress the tap flash; feedback is our own :active state plus haptics. */
+    border: 0;
+    background: none;
+    color: inherit;
+    font: inherit;
     -webkit-tap-highlight-color: transparent;
+  }
+
+  button:not(:disabled) {
+    cursor: pointer;
   }
 
   input,
   textarea,
   select {
-    font: inherit;
     color: inherit;
+    font: inherit;
   }
 
-  /* Motion carries state changes only; honour a stated preference for less. */
+  ::selection {
+    background: var(--kmua-pink-soft);
+  }
+
   @media (prefers-reduced-motion: reduce) {
     *,
     *::before,
     *::after {
+      scroll-behavior: auto !important;
       transition-duration: 0.01ms !important;
       animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
     }
   }
 }
 
 @layer components {
-  /*
-    An editable field inside a settings group.
+  .app-shell {
+    position: relative;
+    width: min(100%, 48rem);
+    min-height: 100vh;
+    margin-inline: auto;
+    padding-top: calc(1.5rem + var(--tg-safe-area-inset-top, 0px));
+    padding-right: calc(1rem + var(--tg-safe-area-inset-right, 0px));
+    padding-bottom: calc(6rem + var(--tg-safe-area-inset-bottom, 0px));
+    padding-left: calc(1rem + var(--tg-safe-area-inset-left, 0px));
+    animation: page-arrive 450ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  }
 
-    Two earlier attempts, both wrong, and worth recording:
+  .page-header {
+    display: flex;
+    align-items: center;
+    gap: 0.875rem;
+    margin: 0 0.25rem 1.75rem;
+  }
 
-    An underline put its own hairline a few pixels above the row separator, so the
-    pair read as one doubled rule instead of as a field.
+  .page-header__mark {
+    display: grid;
+    flex: 0 0 auto;
+    width: 3.375rem;
+    height: 3.375rem;
+    place-items: center;
+    border: 2px solid var(--kmua-surface);
+    border-radius: 1.125rem 1.125rem 1.125rem 0.375rem;
+    background: var(--kmua-yellow-soft);
+    color: var(--kmua-yellow);
+    rotate: -5deg;
+    box-shadow: 0 3px 0 color-mix(in srgb, var(--kmua-yellow) 30%, transparent);
+  }
 
-    A white box with a border fixed that but overcorrected: `--color-bg` against the
-    group's `--color-surface` is the highest-contrast pairing available here, and a
-    bordered white rectangle is exactly what an unstyled `<input>` looks like. The
-    field ended up shouting louder than the label naming it.
+  .page-header__mark svg {
+    width: 2.75rem;
+  }
 
-    What works is a shade *of* the surface rather than a different surface: a few
-    percent of the text colour mixed into the group's own background. That lands
-    darker than the surface in a light theme and lighter in a dark one - recessed
-    either way, no border needed, and no new colour introduced. It reads as a dent in
-    the row, which is what a text field is.
+  .page-header__eyebrow {
+    margin-bottom: 0.125rem;
+    color: var(--kmua-mint-dark);
+    font-size: 0.625rem;
+    font-weight: 900;
+    letter-spacing: 0.14em;
+  }
 
-    Focus is left to the global :focus-visible outline: text inputs match it on a
-    plain click too, so a field-only focus style would be a second vocabulary for a
-    state already covered.
-  */
+  .page-header h1 {
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: clamp(1.8rem, 5vw, 2.15rem);
+    font-weight: 400;
+    line-height: 1.25;
+    letter-spacing: 0.02em;
+  }
+
+  .page-header__spark {
+    display: inline-block;
+    margin-left: 0.5rem;
+    color: var(--kmua-pink);
+    font-family: var(--font-sans);
+    font-size: 1rem;
+    vertical-align: top;
+    animation: sparkle 2.5s ease-in-out infinite;
+  }
+
+  .page-header p {
+    margin: 0.25rem 0 0;
+    overflow: hidden;
+    color: var(--kmua-hint);
+    font-size: var(--text-sub);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .settings-section {
+    margin-bottom: 1.75rem;
+    animation: section-arrive 450ms ease-out both;
+  }
+
+  .settings-section:nth-of-type(2) {
+    animation-delay: 50ms;
+  }
+  .settings-section:nth-of-type(3) {
+    animation-delay: 100ms;
+  }
+  .settings-section:nth-of-type(4) {
+    animation-delay: 150ms;
+  }
+
+  .settings-section__heading {
+    padding: 0 0.5rem 0.625rem;
+  }
+
+  .settings-section__heading h2 {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    margin: 0;
+    color: var(--kmua-ink);
+    font-size: 0.875rem;
+    font-weight: 900;
+    letter-spacing: 0.035em;
+  }
+
+  .settings-section__heading h2 span {
+    color: var(--kmua-pink);
+    font-size: 1rem;
+  }
+
+  .settings-section__heading p {
+    margin: 0.25rem 0 0 1.4rem;
+    color: var(--kmua-hint);
+    font-size: var(--text-note);
+    white-space: pre-line;
+  }
+
+  .settings-section__body {
+    overflow: hidden;
+    border: 1px solid color-mix(in srgb, var(--kmua-line) 85%, transparent);
+    border-radius: var(--radius-container);
+    background: color-mix(in srgb, var(--kmua-surface) 96%, transparent);
+    box-shadow: var(--kmua-shadow);
+  }
+
   .field-input {
     width: 100%;
-    padding: 0.4375rem 0.625rem;
-    border: none;
+    min-height: 2.625rem;
+    padding: 0.5rem 0.75rem;
+    border: 1.5px solid var(--kmua-line);
     border-radius: var(--radius-field);
-    background-color: color-mix(in srgb, var(--color-ink) 6%, var(--color-surface));
-    color: var(--color-ink);
+    outline: none;
+    background: color-mix(in srgb, var(--kmua-bg) 70%, var(--kmua-surface));
+    color: var(--kmua-ink);
+    transition:
+      border-color 160ms ease,
+      box-shadow 160ms ease,
+      background 160ms ease;
   }
 
   .field-input::placeholder {
-    color: var(--color-hint);
+    color: var(--kmua-hint);
+    opacity: 0.75;
+  }
+
+  .field-input:focus {
+    border-color: var(--kmua-mint);
+    background: var(--kmua-surface);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--kmua-mint) 20%, transparent);
   }
 
   .field-input:disabled {
     opacity: 0.5;
   }
 
-  /*
-    The app shell. Padding accounts for Telegram's safe-area insets plus room for
-    the native main button, which floats over the bottom of the viewport.
-  */
+  .border-l-accent {
+    border-left-color: var(--kmua-pink) !important;
+  }
+
+  @keyframes page-arrive {
+    from {
+      opacity: 0;
+      translate: 0 8px;
+    }
+    to {
+      opacity: 1;
+      translate: 0 0;
+    }
+  }
+
+  @keyframes section-arrive {
+    from {
+      opacity: 0;
+      translate: 0 10px;
+    }
+    to {
+      opacity: 1;
+      translate: 0 0;
+    }
+  }
+
+  @keyframes sparkle {
+    0%,
+    100% {
+      opacity: 0.65;
+      rotate: 0deg;
+      scale: 0.9;
+    }
+    50% {
+      opacity: 1;
+      rotate: 20deg;
+      scale: 1.15;
+    }
+  }
+}
+
+@media (min-width: 700px) {
   .app-shell {
-    min-height: 100vh;
-    padding-top: calc(var(--spacing-related) + var(--tg-safe-area-inset-top, 0px));
-    padding-left: calc(var(--spacing-related) + var(--tg-safe-area-inset-left, 0px));
-    padding-right: calc(var(--spacing-related) + var(--tg-safe-area-inset-right, 0px));
-    padding-bottom: calc(5rem + var(--tg-safe-area-inset-bottom, 0px));
-    max-width: 42rem;
-    margin-inline: auto;
+    padding-top: calc(2.5rem + var(--tg-safe-area-inset-top, 0px));
+    padding-right: calc(2rem + var(--tg-safe-area-inset-right, 0px));
+    padding-left: calc(2rem + var(--tg-safe-area-inset-left, 0px));
   }
 }

@@ -27,7 +27,7 @@ function go(delta: number): void {
 </script>
 
 <template>
-  <nav v-if="total > size" class="mt-related flex items-center justify-between px-related">
+  <nav v-if="total > size" class="pager mt-related flex items-center justify-between px-related">
     <button
       type="button"
       class="text-sub disabled:text-hint disabled:opacity-50"
@@ -53,3 +53,26 @@ function go(delta: number): void {
     </button>
   </nav>
 </template>
+
+<style scoped>
+.pager {
+  margin-bottom: 1.75rem;
+  padding: 0.5rem;
+  border: 1px solid var(--kmua-line);
+  border-radius: 999px;
+  background: var(--kmua-surface);
+}
+
+.pager button {
+  padding: 0.45rem 0.875rem;
+  border-radius: 999px;
+  font-weight: 800;
+}
+.pager button:not(:disabled):hover {
+  background: var(--kmua-mint-soft);
+}
+.pager > span {
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+</style>

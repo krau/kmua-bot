@@ -30,7 +30,7 @@ defineProps<{ items: DefinitionItem[] }>();
     >
       <dt class="text-hint min-w-0 flex-1 text-sub">{{ item.label }}</dt>
       <dd
-        class="m-0 shrink-0 text-body tabular-nums"
+        class="definition-value m-0 shrink-0 text-body tabular-nums"
         :class="[item.mono ? 'font-mono text-sub' : '', item.muted ? 'text-hint' : '']"
       >
         {{ item.value }}
@@ -38,3 +38,13 @@ defineProps<{ items: DefinitionItem[] }>();
     </div>
   </dl>
 </template>
+
+<style scoped>
+dt {
+  font-weight: 700;
+}
+.definition-value:not(.text-hint) {
+  color: var(--kmua-mint-dark);
+  font-weight: 900;
+}
+</style>

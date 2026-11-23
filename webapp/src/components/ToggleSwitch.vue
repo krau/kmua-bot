@@ -40,7 +40,7 @@ function toggle(): void {
     :aria-checked="modelValue"
     :aria-label="ariaLabel"
     :disabled="disabled"
-    class="relative h-[30px] w-[50px] shrink-0 rounded-full transition-colors duration-150 ease-out"
+    class="toggle-switch relative h-[30px] w-[50px] shrink-0 rounded-full transition-colors duration-150 ease-out"
     :class="[
       modelValue ? 'bg-accent dark:bg-accent-dark' : 'bg-hint/35',
       disabled ? 'cursor-not-allowed opacity-50' : '',
@@ -48,7 +48,7 @@ function toggle(): void {
     @click.stop="toggle"
   >
     <span
-      class="absolute top-[3px] left-[3px] block h-6 w-6 rounded-full bg-white transition-transform duration-150 ease-out"
+      class="toggle-switch__knob absolute top-[3px] left-[3px] block h-6 w-6 rounded-full bg-white transition-transform duration-150 ease-out"
       :class="modelValue ? 'translate-x-5' : 'translate-x-0'"
     >
       <span
@@ -58,3 +58,29 @@ function toggle(): void {
     </span>
   </button>
 </template>
+
+<style scoped>
+.toggle-switch {
+  border: 2px solid color-mix(in srgb, var(--kmua-hint) 25%, transparent);
+  box-shadow: inset 0 1px 3px rgb(60 40 50 / 8%);
+}
+
+.toggle-switch[aria-checked="true"] {
+  border-color: var(--kmua-mint);
+  background: var(--kmua-mint) !important;
+}
+
+.toggle-switch__knob {
+  box-shadow: 0 2px 5px rgb(70 45 55 / 18%);
+}
+
+.toggle-switch[aria-checked="true"] .toggle-switch__knob::after {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: var(--kmua-mint-dark);
+  content: "♥";
+  font-size: 0.625rem;
+}
+</style>
