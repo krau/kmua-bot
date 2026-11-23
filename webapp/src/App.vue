@@ -16,6 +16,7 @@ import {
 } from "vue";
 
 import NoticeBanner from "@/components/NoticeBanner.vue";
+import RouteTransition from "@/components/RouteTransition.vue";
 import { useBackButton } from "@/composables/useBackButton";
 import { useNoticeCleanup } from "@/composables/useNotice";
 import { isDarkTheme, onThemeChange } from "@/telegram";
@@ -62,9 +63,7 @@ onUnmounted(() => stopThemeWatch?.());
   <NoticeBanner />
 
   <div class="app-shell">
-    <RouterView v-slot="{ Component }">
-      <component :is="Component" />
-    </RouterView>
+    <RouteTransition />
   </div>
 
   <component :is="devBottomBar" v-if="devBottomBar" />

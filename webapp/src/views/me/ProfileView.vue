@@ -40,6 +40,7 @@ const profile = useAsyncData(async () => {
   form.commit({ lang: me.lang, waifu_mention: me.waifu_mention });
   return me;
 });
+const initialLoading = computed(() => profile.loading.value && !profile.data.value);
 
 const form = useDirtyState({ lang: "zh-CN", waifu_mention: false });
 
@@ -56,25 +57,45 @@ const localeOptions = computed(() =>
 
 const accountItems = computed<DefinitionItem[]>(() => {
   const me = profile.data.value;
-  if (!me) return [];
   return [
-    { label: t("me.id"), value: me.id, mono: true },
-    { label: t("me.username"), value: me.username ? `@${me.username}` : t("app.none") },
+    { label: t("me.id"), value: me?.id ?? t("app.loadingValue"), mono: true, muted: !me },
+    {
+      label: t("me.username"),
+      value: me ? (me.username ? `@${me.username}` : t("app.none")) : t("app.loadingValue"),
+      muted: !me,
+    },
   ];
 });
 
 const economyItems = computed<DefinitionItem[]>(() => {
   const me = profile.data.value;
-  if (!me) return [];
   const items: DefinitionItem[] = [
-    { label: t("me.coins"), value: formatNumber(me.coins) },
-    { label: t("me.affection"), value: formatNumber(me.affection) },
+    {
+      label: t("me.coins"),
+      value: me ? formatNumber(me.coins) : t("app.loadingValue"),
+      muted: !me,
+    },
+    {
+      label: t("me.affection"),
+      value: me ? formatNumber(me.affection) : t("app.loadingValue"),
+      muted: !me,
+    },
+    {
+      label: t("me.percentile"),
+      value: me
+        ? me.affection_percentile !== null
+          ? formatPercent(me.affection_percentile)
+          : t("app.none")
+        : t("app.loadingValue"),
+      muted: !me || me.affection_percentile === null,
+    },
   ];
-  if (me.affection_percentile !== null) {
-    items.push({ label: t("me.percentile"), value: formatPercent(me.affection_percentile) });
-  }
   return items;
 });
+
+function fieldValue(value: string | number | null | undefined) {
+  return initialLoading.value ? t("app.loadingValue") : value;
+}
 
 async function save(): Promise<void> {
   saving.value = true;
@@ -130,10 +151,17 @@ async function onRefreshAvatar(): Promise<void> {
 </script>
 
 <template>
-  <PageHeader :title="t('me.title')" :subtitle="profile.data.value?.full_name" />
+  <PageHeader
+    :title="t('me.title')"
+    :subtitle="
+      profile.data.value?.full_name ?? (initialLoading ? t('app.loadingValue') : undefined)
+    "
+  />
 
   <StateBlock
-    :loading="profile.loading.value && !profile.data.value"
+    :loading="initialLoading"
+    :loading-label="t('me.profile')"
+    loading-content
     :error="profile.error.value"
     @retry="profile.reload"
   >
@@ -144,6 +172,7 @@ async function onRefreshAvatar(): Promise<void> {
         :label="t('me.lang')"
         :options="localeOptions"
         :changed="form.changedFields.value.includes('lang')"
+        :disabled="initialLoading"
       />
     </SettingsSection>
 
@@ -160,13 +189,19 @@ async function onRefreshAvatar(): Promise<void> {
           <ToggleSwitch
             v-model="form.draft.value.waifu_mention"
             :aria-label="t('me.waifuMention')"
+            :disabled="initialLoading"
           />
         </template>
       </SettingsRow>
       <SettingsRow
         :label="t('me.waifuInChats')"
-        :value="profile.data.value?.is_married ? profile.data.value.married_waifu_name : undefined"
+        :value="
+          fieldValue(
+            profile.data.value?.is_married ? profile.data.value.married_waifu_name : undefined,
+          )
+        "
         navigable
+        :disabled="initialLoading"
         @click="router.push({ name: 'me-waifu' })"
       />
     </SettingsSection>
@@ -174,26 +209,30 @@ async function onRefreshAvatar(): Promise<void> {
     <SettingsSection :label="t('me.content')">
       <SettingsRow
         :label="t('me.quotes')"
-        :value="profile.data.value?.quote_count ?? 0"
+        :value="fieldValue(profile.data.value?.quote_count ?? 0)"
         navigable
+        :disabled="initialLoading"
         @click="router.push({ name: 'me-quotes' })"
       />
       <SettingsRow
         :label="t('me.gifts')"
-        :value="profile.data.value?.gift_count ?? 0"
+        :value="fieldValue(profile.data.value?.gift_count ?? 0)"
         navigable
+        :disabled="initialLoading"
         @click="router.push({ name: 'me-gifts' })"
       />
       <SettingsRow
         :label="t('me.chats')"
-        :value="profile.data.value?.chat_count ?? 0"
+        :value="fieldValue(profile.data.value?.chat_count ?? 0)"
         navigable
+        :disabled="initialLoading"
         @click="router.push({ name: 'chats' })"
       />
       <SettingsRow
         :label="t('me.rss')"
         :hint="t('me.rssHint')"
         navigable
+        :disabled="initialLoading"
         @click="router.push({ name: 'me-rss' })"
       />
     </SettingsSection>
@@ -204,6 +243,7 @@ async function onRefreshAvatar(): Promise<void> {
         :hint="refreshingAvatar ? t('app.working') : undefined"
         navigable
         :busy="refreshingAvatar"
+        :disabled="initialLoading"
         @click="onRefreshAvatar"
       />
     </SettingsSection>

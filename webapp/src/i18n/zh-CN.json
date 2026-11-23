@@ -2,6 +2,7 @@
   "app": {
     "name": "kmua",
     "loading": "正在连接...",
+    "loadingValue": "加载中",
     "retry": "重试",
     "back": "返回",
     "save": "保存",

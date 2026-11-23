@@ -2,6 +2,7 @@
   "app": {
     "name": "kmua",
     "loading": "Connecting...",
+    "loadingValue": "Loading",
     "retry": "Retry",
     "back": "Back",
     "save": "Save",
