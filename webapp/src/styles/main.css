@@ -32,6 +32,9 @@
   --font-sans: "Nunito", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
   --font-display: "ZCOOL KuaiLe", "Nunito", "PingFang SC", sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  --duration-quick: 150ms;
+  --duration-fast: 250ms;
+  --ease-smooth-out: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 @custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
@@ -278,6 +281,10 @@
   .settings-section__heading h2 span {
     color: var(--kmua-pink);
     font-size: 1rem;
+  }
+
+  .settings-section__heading h2 svg {
+    color: var(--kmua-pink);
   }
 
   .settings-section__heading p {

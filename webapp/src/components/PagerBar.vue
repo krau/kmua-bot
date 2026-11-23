@@ -58,21 +58,21 @@ function go(delta: number): void {
 .pager {
   margin-bottom: 1.75rem;
   padding: 0.5rem;
-  border: 1px solid var(--kmua-line);
-  border-radius: 999px;
+  border: 0.5px solid var(--kmua-line);
+  border-radius: 0.75rem;
   background: var(--kmua-surface);
 }
 
 .pager button {
-  padding: 0.45rem 0.875rem;
-  border-radius: 999px;
-  font-weight: 800;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.5rem;
+  font-weight: 500;
 }
 .pager button:not(:disabled):hover {
-  background: var(--kmua-mint-soft);
+  background: var(--kmua-accent-soft);
 }
 .pager > span {
-  font-size: 0.75rem;
-  font-weight: 700;
+  font-size: var(--text-note);
+  font-weight: 400;
 }
 </style>

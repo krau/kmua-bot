@@ -10,6 +10,7 @@
  * readers and keyboards get a real control and static rows stay static.
  */
 import { computed } from "vue";
+import { ChevronRight } from "@lucide/vue";
 
 import ActivityDot from "@/components/ActivityDot.vue";
 import { haptics } from "@/telegram";
@@ -121,33 +122,32 @@ function onActivate(): void {
       geometry, so nothing reflows when the action starts or finishes.
     -->
     <ActivityDot v-if="busy" class="shrink-0" />
-    <span
+    <ChevronRight
       v-else-if="navigable"
-      class="settings-row__chevron text-hint shrink-0 text-sub"
+      class="settings-row__chevron shrink-0"
+      :size="18"
+      :stroke-width="1.5"
       aria-hidden="true"
-      >›</span
-    >
+    />
   </component>
 </template>
 
 <style scoped>
 .settings-row {
   position: relative;
-  min-height: 3.875rem;
-  transition:
-    background 160ms ease,
-    padding 160ms ease;
+  min-height: 3.75rem;
+  transition: background-color var(--duration-quick) var(--ease-smooth-out);
 }
 
 .settings-row:is(button):hover {
-  background: color-mix(in srgb, var(--kmua-pink-soft) 45%, transparent);
+  background: var(--kmua-accent-soft);
 }
 
 .settings-row:is(button):active {
-  background: var(--kmua-pink-soft);
+  background: var(--kmua-accent-soft);
 }
 .settings-row__label {
-  font-weight: 800;
+  font-weight: 500;
 }
 .settings-row__hint {
   line-height: 1.55;
@@ -157,31 +157,19 @@ function onActivate(): void {
 .settings-row__value {
   max-width: 42%;
   overflow: hidden;
-  padding: 0.2rem 0.55rem;
-  border-radius: 999px;
-  background: var(--kmua-yellow-soft);
-  font-size: 0.75rem;
-  font-weight: 800;
+  font-size: var(--text-sub);
+  font-weight: 400;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .settings-row__chevron {
-  display: grid;
-  width: 1.75rem;
-  height: 1.75rem;
-  place-items: center;
-  border-radius: 50%;
-  background: var(--kmua-mint-soft);
-  color: var(--kmua-mint-dark);
-  font-size: 1.25rem;
-  font-weight: 900;
-  line-height: 1;
-  transition: translate 160ms ease;
+  color: var(--kmua-hint);
+  transition: transform var(--duration-quick) var(--ease-smooth-out);
 }
 
 .settings-row:hover .settings-row__chevron {
-  translate: 2px 0;
+  transform: translateX(2px);
 }
 
 @media (max-width: 480px) {

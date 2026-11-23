@@ -41,10 +41,10 @@ defineProps<{ items: DefinitionItem[] }>();
 
 <style scoped>
 dt {
-  font-weight: 700;
+  font-weight: 400;
 }
 .definition-value:not(.text-hint) {
-  color: var(--kmua-mint-dark);
-  font-weight: 900;
+  color: var(--kmua-ink);
+  font-weight: 500;
 }
 </style>

@@ -13,6 +13,8 @@
  * `import.meta.env.DEV` is a compile-time constant, so this component and its import
  * are removed from a production build.
  */
+import { ChevronLeft } from "@lucide/vue";
+import { t } from "@/i18n";
 import {
   backButtonHandler,
   backButtonVisible,
@@ -25,18 +27,17 @@ import {
 
 <template>
   <div class="border-line bg-surface fixed inset-x-0 bottom-0 z-50 border-t" data-dev-bottom-bar>
-    <p class="text-hint px-related pt-1 text-center font-mono text-[11px]">
-      dev · Telegram 原生按钮模拟
-    </p>
+    <p class="text-hint px-related pt-1 text-center text-note">浏览器预览 / Telegram 控件</p>
 
     <div class="flex items-center gap-tight p-tight">
       <button
         v-if="backButtonVisible"
         type="button"
-        class="border-line shrink-0 border px-3 py-2 text-sub"
+        class="dev-bottom-bar__back"
+        :aria-label="t('app.back')"
         @click="backButtonHandler?.()"
       >
-        ‹
+        <ChevronLeft :size="18" :stroke-width="1.5" aria-hidden="true" />
       </button>
 
       <button
@@ -70,3 +71,31 @@ import {
     </div>
   </div>
 </template>
+
+<style scoped>
+[data-dev-bottom-bar] {
+  border-top-width: 0.5px;
+  background: var(--kmua-surface);
+}
+
+[data-dev-bottom-bar] p {
+  padding-block: 0.5rem 0;
+  font-family: var(--font-sans);
+}
+[data-dev-bottom-bar] button {
+  min-height: 2.5rem;
+  border: 0;
+  border-radius: 0.625rem;
+  font-weight: 500;
+}
+[data-dev-bottom-bar] button.bg-accent {
+  color: var(--kmua-bg);
+}
+.dev-bottom-bar__back {
+  display: grid;
+  width: 2.5rem;
+  place-items: center;
+  background: var(--kmua-accent-soft);
+  color: var(--kmua-accent);
+}
+</style>

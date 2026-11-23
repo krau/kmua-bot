@@ -20,6 +20,7 @@
     "test": "vitest run --config vitest.config.ts"
   },
   "dependencies": {
+    "@lucide/vue": "^1.77.0",
     "@telegram-apps/sdk": "3.11.8",
     "pinia": "4.0.2",
     "vue": "3.5.44",

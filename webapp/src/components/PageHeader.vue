@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import KmuaMark from "@/components/KmuaMark.vue";
+import { Sparkles } from "@lucide/vue";
 
 defineProps<{
   title: string;
@@ -11,8 +12,10 @@ defineProps<{
   <header class="page-header">
     <div class="page-header__mark"><KmuaMark /></div>
     <div class="min-w-0">
-      <div class="page-header__eyebrow" aria-hidden="true">KMUA · LITTLE UNIVERSE</div>
-      <h1>{{ title }}<span class="page-header__spark" aria-hidden="true">✦</span></h1>
+      <h1>
+        {{ title
+        }}<Sparkles class="page-header__spark" :size="16" :stroke-width="1.5" aria-hidden="true" />
+      </h1>
       <p v-if="subtitle">{{ subtitle }}</p>
     </div>
   </header>

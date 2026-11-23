@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { ChevronDown } from "@lucide/vue";
+
 /**
  * A choice among a short list, rendered as a native `<select>`.
  *
@@ -66,7 +68,7 @@ const inputId = `select-${Math.random().toString(36).slice(2, 9)}`;
           {{ option.text }}
         </option>
       </select>
-      <span class="field-select-chevron text-note" aria-hidden="true">⌄</span>
+      <ChevronDown class="field-select-chevron" :size="16" :stroke-width="1.5" aria-hidden="true" />
     </div>
   </div>
 </template>
@@ -83,8 +85,8 @@ const inputId = `select-${Math.random().toString(36).slice(2, 9)}`;
 }
 
 .field-select-chevron {
-  /* Optical alignment: the glyph sits high in its box. */
-  translate: 0 -0.15em;
+  flex: 0 0 auto;
+  align-self: center;
 }
 
 /*
@@ -152,9 +154,11 @@ const inputId = `select-${Math.random().toString(36).slice(2, 9)}`;
     color: var(--color-accent);
     font-size: var(--text-sub);
   }
+}
+</style>
 
-  :global([data-theme="dark"]) .field-select option::checkmark {
-    color: var(--color-accent-dark);
-  }
+<style>
+[data-theme="dark"] .field-select option::checkmark {
+  color: var(--color-accent-dark);
 }
 </style>

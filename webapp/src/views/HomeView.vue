@@ -1,6 +1,16 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { useRouter } from "vue-router";
+import {
+  ArrowRight,
+  Cat,
+  Flower2,
+  Heart,
+  Music2,
+  SlidersHorizontal,
+  Sparkles,
+  UsersRound,
+} from "@lucide/vue";
 
 import mascotUrl from "@/assets/kmua-mascot.jpg";
 import KmuaMark from "@/components/KmuaMark.vue";
@@ -12,7 +22,6 @@ const router = useRouter();
 const session = useSessionStore();
 const meStore = useMeStore();
 
-const name = computed(() => session.user?.full_name || t("home.friend"));
 const chatCount = computed(() => meStore.me?.chat_count ?? 0);
 
 function open(routeName: string): void {
@@ -22,70 +31,72 @@ function open(routeName: string): void {
 
 <template>
   <main class="home">
-    <div class="home__orbit home__orbit--one" aria-hidden="true">✦</div>
-    <div class="home__orbit home__orbit--two" aria-hidden="true">✿</div>
+    <Sparkles
+      class="home__orbit home__orbit--one"
+      :size="28"
+      :stroke-width="1.5"
+      aria-hidden="true"
+    />
+    <Flower2
+      class="home__orbit home__orbit--two"
+      :size="24"
+      :stroke-width="1.5"
+      aria-hidden="true"
+    />
 
     <section class="hero">
       <div class="hero__copy">
         <div class="brand"><KmuaMark /><span>kmua</span><i>bot</i></div>
-        <div class="hero__status"><span />{{ t("home.online") }}</div>
-        <h1>{{ t("home.heroTitle") }}<span>♪</span></h1>
-        <p>{{ t("home.welcome", { name }) }}</p>
-        <div class="hero__signature" aria-hidden="true">with love, kmua <b>♡</b></div>
+        <div class="hero__status">{{ t("home.subtitle") }}</div>
+        <h1>
+          {{ t("home.heroTitle") }}<Music2 :size="28" :stroke-width="1.5" aria-hidden="true" />
+        </h1>
+        <p>{{ t("home.welcome") }}</p>
       </div>
 
       <div class="hero__art">
-        <span class="hero__doodle hero__doodle--star" aria-hidden="true">✧</span>
-        <span class="hero__doodle hero__doodle--heart" aria-hidden="true">♡</span>
+        <Sparkles
+          class="hero__doodle hero__doodle--star"
+          :size="32"
+          :stroke-width="1.5"
+          aria-hidden="true"
+        />
+        <Heart
+          class="hero__doodle hero__doodle--heart"
+          :size="24"
+          :stroke-width="1.5"
+          aria-hidden="true"
+        />
         <div class="hero__bubble">{{ t("home.mascotHello") }}</div>
         <div class="hero__portrait">
           <img :src="mascotUrl" :alt="t('home.mascotAlt')" />
         </div>
-        <div class="hero__name"><span>kmua</span>{{ t("home.mascotTag") }}</div>
+        <div class="hero__name">{{ t("home.mascotTag") }}</div>
       </div>
     </section>
 
-    <div class="home__divider"><span>✦</span>{{ t("home.choose") }}<span>✦</span></div>
+    <div class="home__divider">
+      <Sparkles :size="14" :stroke-width="1.5" aria-hidden="true" />
+      {{ t("home.choose") }}
+      <Sparkles :size="14" :stroke-width="1.5" aria-hidden="true" />
+    </div>
 
     <nav class="portal-list" :aria-label="t('home.choose')">
       <button type="button" class="portal portal--pink" @click="open('me')">
         <span class="portal__icon" aria-hidden="true">
-          <svg viewBox="0 0 48 48" fill="none">
-            <path
-              d="M14 21 12 9l10 6a19 19 0 0 1 5 0l10-6-2 12a15 15 0 1 1-21 0Z"
-              fill="currentColor"
-            />
-            <path
-              d="M18 28c2-2 4-2 5 0m3 0c2-2 4-2 5 0m-9 5 2 2 2-2"
-              stroke="#66434f"
-              stroke-width="2"
-              stroke-linecap="round"
-            />
-          </svg>
+          <Cat :size="34" :stroke-width="1.5" />
         </span>
         <span class="portal__text"
           ><strong>{{ t("home.me") }}</strong
           ><small>{{ t("home.meHint") }}</small></span
         >
         <span class="portal__sticker">{{ t("home.meSticker") }}</span>
-        <span class="portal__arrow" aria-hidden="true">→</span>
+        <ArrowRight class="portal__arrow" :size="22" :stroke-width="1.5" aria-hidden="true" />
       </button>
 
       <button type="button" class="portal portal--mint" @click="open('chats')">
         <span class="portal__icon" aria-hidden="true">
-          <svg viewBox="0 0 48 48" fill="none">
-            <path
-              d="M8 13a6 6 0 0 1 6-6h20a6 6 0 0 1 6 6v14a6 6 0 0 1-6 6H21l-9 8 2-8a6 6 0 0 1-6-6V13Z"
-              fill="currentColor"
-            />
-            <path
-              d="M16 19h16M16 25h10"
-              stroke="#416d62"
-              stroke-width="2.5"
-              stroke-linecap="round"
-            />
-            <path d="m31 27 2 2 4-5" stroke="#416d62" stroke-width="2" stroke-linecap="round" />
-          </svg>
+          <UsersRound :size="34" :stroke-width="1.5" />
         </span>
         <span class="portal__text"
           ><strong>{{ t("home.chats") }}</strong
@@ -94,7 +105,7 @@ function open(routeName: string): void {
         <span v-if="chatCount" class="portal__count">{{
           t("home.chatCount", { count: chatCount })
         }}</span>
-        <span class="portal__arrow" aria-hidden="true">→</span>
+        <ArrowRight class="portal__arrow" :size="22" :stroke-width="1.5" aria-hidden="true" />
       </button>
 
       <button
@@ -104,26 +115,15 @@ function open(routeName: string): void {
         @click="open('admin')"
       >
         <span class="portal__icon" aria-hidden="true">
-          <svg viewBox="0 0 48 48" fill="none">
-            <path d="m24 5 5 9 10 2-7 8 1 11-9-5-9 5 1-11-7-8 10-2 5-9Z" fill="currentColor" />
-            <path
-              d="m19 23 4 4 7-8"
-              stroke="#76613a"
-              stroke-width="2.5"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            />
-          </svg>
+          <SlidersHorizontal :size="32" :stroke-width="1.5" />
         </span>
         <span class="portal__text"
           ><strong>{{ t("home.admin") }}</strong
           ><small>{{ t("home.adminHint") }}</small></span
         >
-        <span class="portal__arrow" aria-hidden="true">→</span>
+        <ArrowRight class="portal__arrow" :size="22" :stroke-width="1.5" aria-hidden="true" />
       </button>
     </nav>
-
-    <footer class="home__footer"><span>♡</span>{{ t("home.footer") }}<span>♡</span></footer>
   </main>
 </template>
 
@@ -190,7 +190,7 @@ function open(routeName: string): void {
 .brand > span {
   color: var(--kmua-ink);
   font-size: 1.7rem;
-  font-weight: 900;
+  font-weight: 600;
   letter-spacing: -0.06em;
 }
 .brand i {
@@ -202,7 +202,7 @@ function open(routeName: string): void {
   color: #345e53;
   font-size: 0.625rem;
   font-style: normal;
-  font-weight: 900;
+  font-weight: 600;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   rotate: 6deg;
@@ -215,17 +215,8 @@ function open(routeName: string): void {
   margin-top: 1.4rem;
   color: var(--kmua-mint-dark);
   font-size: 0.6875rem;
-  font-weight: 900;
+  font-weight: 600;
   letter-spacing: 0.07em;
-}
-
-.hero__status span {
-  width: 0.5rem;
-  height: 0.5rem;
-  border: 2px solid var(--kmua-surface);
-  border-radius: 50%;
-  background: var(--kmua-mint);
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--kmua-mint) 25%, transparent);
 }
 
 .hero h1 {
@@ -238,7 +229,7 @@ function open(routeName: string): void {
   letter-spacing: 0.015em;
 }
 
-.hero h1 span {
+.hero h1 svg {
   position: absolute;
   margin: 0.2rem 0 0 0.2rem;
   color: var(--kmua-pink);
@@ -249,19 +240,6 @@ function open(routeName: string): void {
   color: var(--kmua-hint);
   font-size: 0.875rem;
 }
-.hero__signature {
-  margin-top: 1.25rem;
-  color: var(--kmua-hint);
-  font-size: 0.75rem;
-  font-weight: 700;
-  rotate: -3deg;
-}
-.hero__signature b {
-  margin-left: 0.25rem;
-  color: var(--kmua-pink);
-  font-size: 1.1rem;
-}
-
 .hero__art {
   position: relative;
   align-self: stretch;
@@ -305,7 +283,7 @@ function open(routeName: string): void {
   background: var(--kmua-surface);
   color: var(--kmua-ink);
   font-size: 0.75rem;
-  font-weight: 900;
+  font-weight: 600;
   rotate: 5deg;
 }
 
@@ -319,17 +297,11 @@ function open(routeName: string): void {
   background: var(--kmua-surface);
   color: var(--kmua-hint);
   font-size: 0.625rem;
-  font-weight: 800;
+  font-weight: 600;
   box-shadow: 0 3px 10px rgb(80 50 60 / 10%);
   rotate: -3deg;
 }
 
-.hero__name span {
-  margin-right: 0.4rem;
-  color: var(--kmua-pink);
-  font-size: 0.875rem;
-  font-weight: 900;
-}
 .hero__doodle {
   position: absolute;
   z-index: 2;
@@ -357,11 +329,11 @@ function open(routeName: string): void {
   margin: 1.75rem 0 1rem;
   color: var(--kmua-hint);
   font-size: 0.75rem;
-  font-weight: 800;
+  font-weight: 600;
   letter-spacing: 0.08em;
 }
 
-.home__divider span {
+.home__divider svg {
   color: var(--kmua-yellow);
   font-size: 0.625rem;
 }
@@ -455,7 +427,7 @@ function open(routeName: string): void {
 }
 .portal__text strong {
   font-size: 1.0625rem;
-  font-weight: 900;
+  font-weight: 600;
 }
 .portal__text small {
   margin-top: 0.2rem;
@@ -470,7 +442,7 @@ function open(routeName: string): void {
   z-index: 1;
   color: var(--portal-color);
   font-size: 1.5rem;
-  font-weight: 800;
+  font-weight: 600;
   transition: translate 180ms ease;
 }
 .portal:hover .portal__arrow {
@@ -487,20 +459,8 @@ function open(routeName: string): void {
   background: var(--portal-soft);
   color: var(--kmua-hint);
   font-size: 0.5625rem;
-  font-weight: 900;
+  font-weight: 600;
   rotate: 4deg;
-}
-
-.home__footer {
-  display: flex;
-  justify-content: center;
-  gap: 0.6rem;
-  margin-top: 1.75rem;
-  color: var(--kmua-hint);
-  font-size: 0.6875rem;
-}
-.home__footer span {
-  color: var(--kmua-pink);
 }
 
 @keyframes mascot-float {
@@ -552,9 +512,6 @@ function open(routeName: string): void {
     font-size: 0.75rem;
     line-height: 1.6;
   }
-  .hero__signature {
-    display: none;
-  }
   .hero__art {
     min-height: 18rem;
   }
@@ -573,9 +530,6 @@ function open(routeName: string): void {
   .hero__name {
     right: 0.6rem;
     bottom: 0.5rem;
-    max-width: 8.5rem;
-    overflow: hidden;
-    text-overflow: ellipsis;
     white-space: nowrap;
   }
   .hero__doodle--star {
