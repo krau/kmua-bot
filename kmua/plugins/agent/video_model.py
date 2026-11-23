@@ -34,8 +34,18 @@ class VideoCapableOpenAIChatModel(OpenAIChatModel):
     def _streamed_response_cls(self) -> type[OpenAIStreamedResponse]:
         return CacheStatsOpenAIStreamedResponse
 
-    def _process_response(self, response: Any) -> ModelResponse:
-        model_response = super()._process_response(response)
+    def _process_response(
+        self,
+        response: Any,
+        *,
+        include_raw_annotations: bool = False,
+        include_unmapped_response_data: bool = False,
+    ) -> ModelResponse:
+        model_response = super()._process_response(
+            response,
+            include_raw_annotations=include_raw_annotations,
+            include_unmapped_response_data=include_unmapped_response_data,
+        )
         log_cache_stats(
             self.model_name,
             getattr(response, "usage", None),
