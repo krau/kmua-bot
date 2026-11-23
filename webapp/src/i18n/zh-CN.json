@@ -2,6 +2,7 @@
   "app": {
     "name": "kmua",
     "loading": "正在连接...",
+    "loadingValue": "加载中",
     "retry": "重试",
     "back": "返回",
     "save": "保存",
@@ -28,12 +29,20 @@
   "home": {
     "title": "kmua",
     "subtitle": "喵喵の管理面板",
+    "heroTitle": "今天也要元气满满喵！",
+    "welcome": "管理你的资料、收藏和群组",
+    "mascotHello": "呀吼～",
+    "mascotAlt": "可爱的猫耳看板娘 kmua",
+    "mascotTag": "你的群聊小帮手",
+    "choose": "今天想去哪里看看呢",
+    "meSticker": "我的小天地",
+    "chatCount": "{count} 个群组",
     "me": "我的资料",
-    "meHint": "语言, 好感度, 语录, 老婆, 礼物",
+    "meHint": "资料、好感度与收藏",
     "chats": "我的群组",
-    "chatsHint": "配置 kmua 在群里的行为",
+    "chatsHint": "管理群里的互动与功能",
     "admin": "开发者后台",
-    "adminHint": "统计, 运行时配置, 群组与用户"
+    "adminHint": "查看运行状态与全局配置"
   },
   "me": {
     "title": "我的资料",

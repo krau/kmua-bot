@@ -160,6 +160,7 @@ async function remove(item: RssSubscription): Promise<void> {
 
   <StateBlock
     :loading="subscriptions.loading.value && !subscriptions.data.value"
+    :loading-label="t('chats.rss')"
     :error="subscriptions.error.value"
     :empty="!subscriptions.loading.value && items.length === 0"
     @retry="subscriptions.reload"

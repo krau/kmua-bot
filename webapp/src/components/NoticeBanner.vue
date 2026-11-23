@@ -87,16 +87,21 @@ function onDismiss(): void {
     The region has no height of its own, which is what makes that safe.
   */
   position: absolute;
-  top: var(--tg-safe-area-inset-top, 0px);
-  left: 0;
-  right: 0;
+  top: calc(var(--tg-safe-area-inset-top, 0px) + 0.75rem);
+  left: 50%;
+  right: auto;
+  width: max-content;
+  max-width: calc(100vw - 2rem);
+  translate: -50% 0;
   display: block;
-  padding: 0.5rem var(--spacing-related);
-  padding-left: calc(var(--spacing-related) + var(--tg-safe-area-inset-left, 0px));
-  padding-right: calc(var(--spacing-related) + var(--tg-safe-area-inset-right, 0px));
+  padding: 0.5rem 1rem;
   font-size: var(--text-sub);
   line-height: var(--text-sub--line-height);
+  border: 0.5px solid var(--kmua-line);
+  border-radius: 0.75rem;
   text-align: center;
+  font-weight: 500;
+  box-shadow: var(--kmua-shadow);
   /*
     Translucent over the client's header colour. `color-mix` keeps it theme-driven:
     a hardcoded rgba() would be wrong in one of the two themes, and usually both.
@@ -104,14 +109,12 @@ function onDismiss(): void {
   background-color: color-mix(in srgb, var(--color-header) 82%, transparent);
   -webkit-backdrop-filter: blur(12px);
   backdrop-filter: blur(12px);
-  /* Separation is a hairline, as everywhere else - no shadow. */
-  border-bottom: 1px solid color-mix(in srgb, var(--color-line) 60%, transparent);
   /*
     A replacement patches this element rather than swapping it, so a success followed
     by a failure changes colour on the spot. Easing it keeps that from reading as a
     flicker.
   */
-  transition: color 150ms ease-out;
+  transition: color var(--duration-quick) var(--ease-smooth-out);
 }
 
 /*
@@ -119,28 +122,32 @@ function onDismiss(): void {
   colour. Only the failure case is coloured, because there the colour is the message.
 */
 .notice-bar--success {
-  color: var(--color-ink);
+  background: var(--kmua-surface);
+  color: var(--kmua-ink);
 }
 
 .notice-bar--error {
+  background: var(--kmua-surface);
   color: var(--color-danger);
-}
-
-:global([data-theme="dark"]) .notice-bar--error {
-  color: var(--color-danger-dark);
 }
 
 /* Fade with a short slide from under the header; no bounce, no scale. */
 .notice-enter-active,
 .notice-leave-active {
   transition:
-    opacity 200ms ease-out,
-    translate 200ms ease-out;
+    opacity var(--duration-fast) var(--ease-smooth-out),
+    translate var(--duration-fast) var(--ease-smooth-out);
 }
 
 .notice-enter-from,
 .notice-leave-to {
   opacity: 0;
-  translate: 0 -100%;
+  translate: -50% -100%;
+}
+</style>
+
+<style>
+[data-theme="dark"] .notice-bar--error {
+  color: var(--color-danger-dark);
 }
 </style>

@@ -31,8 +31,8 @@ defineProps<{
 <style scoped>
 .activity-dot {
   display: inline-block;
-  width: 0.875rem;
-  height: 0.875rem;
+  width: 1.125rem;
+  height: 1.125rem;
   border: 2px solid currentColor;
   border-radius: 50%;
   /* One transparent quarter is what makes the rotation legible. */

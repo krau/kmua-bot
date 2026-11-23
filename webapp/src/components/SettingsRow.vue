@@ -10,6 +10,7 @@
  * readers and keyboards get a real control and static rows stay static.
  */
 import { computed } from "vue";
+import { ChevronRight } from "@lucide/vue";
 
 import ActivityDot from "@/components/ActivityDot.vue";
 import { haptics } from "@/telegram";
@@ -80,7 +81,7 @@ function onActivate(): void {
     :type="navigable ? 'button' : undefined"
     :disabled="navigable && inert ? true : undefined"
     :aria-busy="busy ? 'true' : undefined"
-    class="border-line flex w-full items-center gap-related border-b px-related py-related text-left last:border-b-0"
+    class="settings-row border-line flex w-full items-center gap-related border-b px-related py-related text-left last:border-b-0"
     :class="[
       navigable && !inert
         ? 'active:bg-ink/5 dark:active:bg-ink/10 transition-colors duration-150 ease-out'
@@ -97,15 +98,18 @@ function onActivate(): void {
     @click="navigable ? onActivate() : undefined"
   >
     <span class="min-w-0 flex-1">
-      <span class="block text-body" :class="destructive ? 'text-danger dark:text-danger-dark' : ''">
+      <span
+        class="settings-row__label block text-body"
+        :class="destructive ? 'text-danger dark:text-danger-dark' : ''"
+      >
         {{ label }}
       </span>
-      <span v-if="hint" class="mt-1 block text-note text-hint">{{ hint }}</span>
+      <span v-if="hint" class="settings-row__hint mt-1 block text-note text-hint">{{ hint }}</span>
     </span>
 
     <span
       v-if="value !== null && value !== undefined && !busy"
-      class="text-sub text-hint shrink-0"
+      class="settings-row__value text-sub text-hint shrink-0"
       :class="mono ? 'font-mono' : ''"
     >
       {{ value }}
@@ -118,6 +122,62 @@ function onActivate(): void {
       geometry, so nothing reflows when the action starts or finishes.
     -->
     <ActivityDot v-if="busy" class="shrink-0" />
-    <span v-else-if="navigable" class="text-hint shrink-0 text-sub" aria-hidden="true">›</span>
+    <ChevronRight
+      v-else-if="navigable"
+      class="settings-row__chevron shrink-0"
+      :size="18"
+      :stroke-width="1.5"
+      aria-hidden="true"
+    />
   </component>
 </template>
+
+<style scoped>
+.settings-row {
+  position: relative;
+  min-height: 3.75rem;
+  transition: background-color var(--duration-quick) var(--ease-smooth-out);
+}
+
+.settings-row:is(button):hover {
+  background: var(--kmua-accent-soft);
+}
+
+.settings-row:is(button):active {
+  background: var(--kmua-accent-soft);
+}
+.settings-row__label {
+  font-weight: 500;
+}
+.settings-row__hint {
+  line-height: 1.55;
+  white-space: pre-line;
+}
+
+.settings-row__value {
+  max-width: 42%;
+  overflow: hidden;
+  font-size: var(--text-sub);
+  font-weight: 400;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.settings-row__chevron {
+  color: var(--kmua-hint);
+  transition: transform var(--duration-quick) var(--ease-smooth-out);
+}
+
+.settings-row:hover .settings-row__chevron {
+  transform: translateX(2px);
+}
+
+@media (max-width: 480px) {
+  .settings-row {
+    gap: 0.625rem;
+  }
+  .settings-row__value {
+    max-width: 34%;
+  }
+}
+</style>

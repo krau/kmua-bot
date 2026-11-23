@@ -2,6 +2,7 @@
   "app": {
     "name": "kmua",
     "loading": "Connecting...",
+    "loadingValue": "Loading",
     "retry": "Retry",
     "back": "Back",
     "save": "Save",
@@ -28,12 +29,20 @@
   "home": {
     "title": "kmua",
     "subtitle": "Management panel",
+    "heroTitle": "Let's make today lovely!",
+    "welcome": "Manage your profile, collections and groups",
+    "mascotHello": "Hiya~",
+    "mascotAlt": "kmua, the cat-eared mascot",
+    "mascotTag": "Chat helper",
+    "choose": "Where shall we go today?",
+    "meSticker": "My little space",
+    "chatCount": "{count} groups",
     "me": "My profile",
-    "meHint": "Language, affection, quotes, waifu, gifts",
+    "meHint": "Profile, affection and collections",
     "chats": "My groups",
-    "chatsHint": "Configure how kmua behaves in a group",
+    "chatsHint": "Manage group interactions and features",
     "admin": "Developer panel",
-    "adminHint": "Stats, runtime config, groups and users"
+    "adminHint": "Runtime status and global settings"
   },
   "me": {
     "title": "My profile",

@@ -172,6 +172,7 @@ function go(name: string): void {
 
   <StateBlock
     :loading="chat.loading.value && !chat.data.value"
+    :loading-label="t('chats.interaction')"
     :error="chat.error.value"
     @retry="chat.reload"
   >

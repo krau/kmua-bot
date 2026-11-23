@@ -96,6 +96,7 @@ function reload(): void {
 
   <StateBlock
     :loading="loading || catalog.loading.value"
+    :loading-label="t('gifts.shop')"
     :error="error ?? catalog.error.value"
     @retry="reload"
   >

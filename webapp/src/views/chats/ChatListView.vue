@@ -33,6 +33,7 @@ function open(chatId: number): void {
 
   <StateBlock
     :loading="chats.loading.value && !chats.data.value"
+    :loading-label="t('chats.manageable')"
     :error="chats.error.value"
     :empty="!chats.loading.value && (chats.data.value?.length ?? 0) === 0"
     @retry="chats.reload"

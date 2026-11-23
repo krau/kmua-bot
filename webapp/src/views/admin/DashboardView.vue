@@ -153,6 +153,7 @@ function go(name: string): void {
 
   <StateBlock
     :loading="stats.loading.value && !stats.data.value"
+    :loading-label="t('admin.stats')"
     :error="stats.error.value"
     @retry="stats.reload"
   >
