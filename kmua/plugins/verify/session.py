@@ -39,6 +39,7 @@ RESULT_MESSAGE_TTL = 30
 
 # 贴纸验证失败时删除用户窗口期消息的上限。
 MAX_WINDOW_MESSAGE_DELETE = 300
+_WINDOW_MESSAGE_IDS_KEY = "window_message_ids"
 
 # --------------------------------------------------------------------------- 会话注册表
 # DB 为准, 内存为 O(1) 查询缓存: session_id -> session, (chat_id, user_id) -> session_id
@@ -142,29 +143,51 @@ async def _user_mention(user: User | Chat | int) -> str:
         return f"<a href='tg://user?id={user_id}'>User</a>"
 
 
+def _window_message_ids(session_row: VerificationSession) -> list[int]:
+    payload = session_row.payload or {}
+    raw_ids = payload.get(_WINDOW_MESSAGE_IDS_KEY)
+    if not isinstance(raw_ids, list):
+        return []
+    return [
+        message_id
+        for message_id in raw_ids
+        if isinstance(message_id, int)
+        and not isinstance(message_id, bool)
+        and message_id > 0
+    ][:MAX_WINDOW_MESSAGE_DELETE]
+
+
+async def record_window_message(chat_id: int, user_id: int, message_id: int) -> None:
+    """记录贴纸验证期间用户发送的消息, 供失败时删除。
+
+    Bot 账号不能调用 ``messages.Search`` 或读取聊天历史, 只能消费实时更新。这里把消息
+    ID 写进会话 payload, 进程重启后也能从数据库恢复, 不依赖内存缓存。
+    """
+    if message_id <= 0:
+        return
+    async with verification_lock(chat_id, user_id):
+        session_row = _get_for(chat_id, user_id)
+        if session_row is None or session_row.method != "sticker":
+            return
+        message_ids = _window_message_ids(session_row)
+        if message_id in message_ids or len(message_ids) >= MAX_WINDOW_MESSAGE_DELETE:
+            return
+        session_row.payload = {
+            **(session_row.payload or {}),
+            _WINDOW_MESSAGE_IDS_KEY: [*message_ids, message_id],
+        }
+        try:
+            await database.update_verification_session(session_row)
+        except Exception as e:
+            logger.warning(
+                f"verify: failed to record window message for session "
+                f"{session_row.id}: {e}"
+            )
+
+
 async def _delete_user_messages_in_window(session_row: VerificationSession) -> None:
-    """删除用户从入群到验证失败期间发送的消息(贴纸方式无限制, 失败兜底)。"""
-    created_at = session_row.created_at
-    if created_at is None:
-        return
-    if created_at.tzinfo is None:
-        created_at = created_at.replace(tzinfo=UTC)
-    message_ids: list[int] = []
-    try:
-        async for message in client.search_messages(
-            session_row.chat_id,
-            from_user=session_row.user_id,
-            min_date=created_at,
-            max_date=datetime.now(UTC),
-        ):
-            message_ids.append(message.id)
-            if len(message_ids) >= MAX_WINDOW_MESSAGE_DELETE:
-                break
-    except RPCError as e:
-        logger.warning(
-            f"verify: failed to search history for session {session_row.id}: {e}"
-        )
-        return
+    """删除贴纸验证期间记录的用户消息; Bot 不能查询聊天历史。"""
+    message_ids = _window_message_ids(session_row)
     if not message_ids:
         return
     try:
@@ -358,7 +381,7 @@ async def _fail_session(session_row: VerificationSession, reason: str) -> None:
             logger.debug(f"verify: failed to delete challenge {session_row.id}: {e}")
 
     if session_row.method == "sticker":
-        # 贴纸方式不限制发言, 失败时删除用户窗口期消息兜底
+        # 贴纸方式不限制发言, 失败时删除已记录的用户消息兜底。
         await _delete_user_messages_in_window(session_row)
 
     if action == "kick":

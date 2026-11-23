@@ -39,6 +39,7 @@ from kmua.plugins.verify.session import (
     _user_mention,
     _wrong_answer,
     capture_restore_permissions,
+    record_window_message,
     restore_member_permissions,
     verification_lock,
 )
@@ -479,4 +480,5 @@ async def on_first_message_verify(
         ),
     )
     if should_stop:
+        await record_window_message(chat_id, user.id, message.id)
         message.stop_propagation()
