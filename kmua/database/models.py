@@ -22,6 +22,8 @@ from sqlalchemy.orm import (
     relationship,
 )
 
+from kmua.consts import token_units_to_credits
+
 
 class Base(DeclarativeBase):
     pass
@@ -461,9 +463,9 @@ class ChatPolicy:
     agent_allowed: bool = False
     # Whether RSS subscriptions may be created here, when rss_whitelist_mode is on.
     rss_allowed: bool = False
-    # 该群的每日共享额度池(群账户的免费额度), 单位 token; 0 = 未分配。
+    # 该群的每日共享额度池(群账户的免费额度), 单位 credits; 0 = 未分配。
     # 群账户在个人免费额度用尽后兜底, 也让没有个人账户的匿名管理/频道身份有额度可用。
-    agent_quota_daily_tokens: int = 0
+    agent_quota_daily_credits: int = 0
     # 该群是否完全不计费(不计数、不限额)。
     agent_quota_exempt: bool = False
 
@@ -471,10 +473,15 @@ class ChatPolicy:
     def from_dict(cls, data: dict | None) -> "ChatPolicy":
         if data is None:
             return cls()
+        daily_credits = data.get("agent_quota_daily_credits")
+        if daily_credits is None:
+            daily_credits = token_units_to_credits(
+                int(data.get("agent_quota_daily_tokens", 0) or 0)
+            )
         return cls(
             agent_allowed=data.get("agent_allowed", False),
             rss_allowed=data.get("rss_allowed", False),
-            agent_quota_daily_tokens=data.get("agent_quota_daily_tokens", 0),
+            agent_quota_daily_credits=int(daily_credits or 0),
             agent_quota_exempt=data.get("agent_quota_exempt", False),
         )
 
@@ -747,11 +754,13 @@ class AgentPersistentFile(Base):
 
 
 class AgentUsageDaily(Base):
-    """一个额度账户在某一天(UTC)的用量, 单位一律是 token。
+    """一个额度账户在某一天(UTC)的 token 用量与 credits 消耗。
 
-    `input_tokens` / `output_tokens` 是当天真实的模型消耗, `free_used_tokens` 是其中由
-    该账户的免费额度付掉的部分(闸门)。两者分开, 因为被群池或余额付款的调用也算那个人的
-    用量, 而面板要能同时回答"这个人用了多少"和"他的免费额度还剩多少"。
+    `input_tokens` / `output_tokens` / cache counters 是当天真实的模型消耗;
+    `billed_credits` 是这些调用按计价规则归属到该账户的折算额度消耗(豁免也照记);
+    `free_used_credits` 是其中由该账户免费额度付掉的部分。三者分开, 因为被群池或余额
+    付款的调用也算那个人的 token 用量, 而面板要能同时回答"这个人用了多少模型 token"
+    和"他的额度还剩多少"。
     """
 
     __tablename__ = "agent_usage_daily"
@@ -766,13 +775,22 @@ class AgentUsageDaily(Base):
     requests: Mapped[int] = mapped_column(
         Integer, nullable=False, default=0, server_default=sa.text("0")
     )
-    free_used_tokens: Mapped[int] = mapped_column(
+    free_used_credits: Mapped[int] = mapped_column(
+        BigInteger, nullable=False, default=0, server_default=sa.text("0")
+    )
+    billed_credits: Mapped[int] = mapped_column(
         BigInteger, nullable=False, default=0, server_default=sa.text("0")
     )
     input_tokens: Mapped[int] = mapped_column(
         BigInteger, nullable=False, default=0, server_default=sa.text("0")
     )
     output_tokens: Mapped[int] = mapped_column(
+        BigInteger, nullable=False, default=0, server_default=sa.text("0")
+    )
+    cache_read_tokens: Mapped[int] = mapped_column(
+        BigInteger, nullable=False, default=0, server_default=sa.text("0")
+    )
+    cache_write_tokens: Mapped[int] = mapped_column(
         BigInteger, nullable=False, default=0, server_default=sa.text("0")
     )
     updated_at: Mapped[datetime] = mapped_column(
@@ -784,12 +802,13 @@ class AgentUsageDaily(Base):
     def __repr__(self) -> str:
         return (
             f"<AgentUsageDaily({self.scope}:{self.scope_id}, day={self.day}, "
-            f"requests={self.requests}, free_used_tokens={self.free_used_tokens})>"
+            f"requests={self.requests}, billed_credits={self.billed_credits}, "
+            f"free_used_credits={self.free_used_credits})>"
         )
 
 
 class AgentCredit(Base):
-    """一个额度账户的余额, 单位是 token。没有行就是 0, 只在第一次发放时创建。
+    """一个额度账户的余额, 单位是 credits。没有行就是 0, 只在第一次发放时创建。
 
     余额可以扣成负数: 单次 run 的用量只有跑完才知道, 用超的部分如实入账成为欠费,
     下一次调用的预检就会拒绝, 直到运维补发。所以这里没有非负约束。
@@ -816,7 +835,7 @@ class AgentCredit(Base):
 
 
 class AgentCreditLedger(Base):
-    """额度余额的 append-only 流水, 单位是 token。
+    """额度余额的 append-only 流水, 单位是 credits。
 
     只有余额回答不了"这笔钱从哪来"。所有余额变更(发放/扣费)都在同一事务里追加一行;
     将来接入支付时用 `ref` 存外部单号并对同一账户去重, 回调重放不会重复入账。

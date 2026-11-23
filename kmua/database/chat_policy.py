@@ -228,21 +228,22 @@ async def count_chat_policies(session: AsyncSession | None = None) -> int:
     return result.scalar() or 0
 
 
-def agent_free_daily_tokens(policy: ChatPolicy) -> int:
-    """This chat's daily free agent allowance, in tokens.
+def agent_free_daily_credits(policy: ChatPolicy) -> int:
+    """This chat's daily free agent allowance, in credits.
 
     A chat's own number wins when it is positive; otherwise the deployment-wide
     default applies, so an operator can hand every group an allowance without
     editing each one. 0 means the chat has none.
     """
     return (
-        policy.agent_quota_daily_tokens or app_config.agent_quota_chat_free_daily_tokens
+        policy.agent_quota_daily_credits
+        or app_config.agent_quota_chat_free_daily_credits
     )
 
 
 __all__ = [
     "agent_allowed_cache",
-    "agent_free_daily_tokens",
+    "agent_free_daily_credits",
     "count_chat_policies",
     "delete_chat_policy",
     "get_chat_policies",

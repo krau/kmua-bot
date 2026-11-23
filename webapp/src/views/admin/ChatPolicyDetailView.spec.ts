@@ -17,8 +17,9 @@ import { t } from "@/i18n";
 
 import ChatPolicyDetailView from "./ChatPolicyDetailView.vue";
 
-const { push, setChatPolicy, deleteChatPolicy, confirmMock } = vi.hoisted(() => ({
+const { push, fetchChatPolicy, setChatPolicy, deleteChatPolicy, confirmMock } = vi.hoisted(() => ({
   push: vi.fn(),
+  fetchChatPolicy: vi.fn(),
   setChatPolicy: vi.fn(async () => ({})),
   deleteChatPolicy: vi.fn(async () => ({})),
   confirmMock: vi.fn(async () => true),
@@ -35,7 +36,13 @@ vi.mock("@/telegram", () => ({
   },
 }));
 vi.mock("@/api/endpoints/admin", () => ({
-  fetchChatPolicy: vi.fn(async () => ({
+  fetchChatPolicy,
+  setChatPolicy,
+  deleteChatPolicy,
+}));
+
+function detailPayload(dailyCredits = 5, effectiveCredits = dailyCredits) {
+  return {
     agent_whitelist_mode: true,
     rss_whitelist_mode: false,
     item: {
@@ -44,7 +51,7 @@ vi.mock("@/api/endpoints/admin", () => ({
       policy: {
         agent_allowed: true,
         rss_allowed: false,
-        agent_quota_daily_tokens: 5,
+        agent_quota_daily_credits: dailyCredits,
         agent_quota_exempt: false,
       },
       created_at: "2026-01-01T00:00:00Z",
@@ -52,18 +59,19 @@ vi.mock("@/api/endpoints/admin", () => ({
       note: null,
     },
     agent_quota: {
-      free_used_tokens_today: 0,
-      free_limit_tokens: 5,
+      free_used_credits_today: 0,
+      free_limit_credits: effectiveCredits,
+      billed_credits_today: 0,
       credits: 0,
       requests_today: 0,
       input_tokens_today: 0,
       output_tokens_today: 0,
+      cache_read_tokens_today: 0,
+      cache_write_tokens_today: 0,
       exempt: false,
     },
-  })),
-  setChatPolicy,
-  deleteChatPolicy,
-}));
+  };
+}
 
 describe("ChatPolicyDetailView unmount", () => {
   beforeEach(() => {
@@ -71,6 +79,8 @@ describe("ChatPolicyDetailView unmount", () => {
     setActivePinia(createPinia());
     // Writes are owner-only in the UI, so the remove row only exists for an owner.
     useSessionStore().roles = ["owner"];
+    fetchChatPolicy.mockReset();
+    fetchChatPolicy.mockResolvedValue(detailPayload());
     setChatPolicy.mockClear();
     deleteChatPolicy.mockClear();
     confirmMock.mockClear();
@@ -109,7 +119,7 @@ describe("ChatPolicyDetailView unmount", () => {
     wrapper.unmount();
     await vi.advanceTimersByTimeAsync(0);
 
-    expect(setChatPolicy).toHaveBeenCalledWith(-1001, { agent_quota_daily_tokens: 7 });
+    expect(setChatPolicy).toHaveBeenCalledWith(-1001, { agent_quota_daily_credits: 7 });
   });
 });
 
@@ -118,6 +128,8 @@ describe("ChatPolicyDetailView quota scope", () => {
     vi.useFakeTimers();
     setActivePinia(createPinia());
     useSessionStore().roles = ["owner"];
+    fetchChatPolicy.mockReset();
+    fetchChatPolicy.mockResolvedValue(detailPayload());
   });
 
   afterEach(() => {
@@ -139,5 +151,21 @@ describe("ChatPolicyDetailView quota scope", () => {
 
     expect(wrapper.text()).not.toContain(t("chatPolicy.quota"));
     expect(wrapper.text()).not.toContain(t("chatPolicy.quotaUsage"));
+  });
+
+  it("reloads the effective allowance after saving zero", async () => {
+    fetchChatPolicy
+      .mockResolvedValueOnce(detailPayload(5, 5))
+      .mockResolvedValueOnce(detailPayload(0, 600));
+    const wrapper = mount(ChatPolicyDetailView, { props: { chatId: -1001 } });
+    await vi.advanceTimersByTimeAsync(0);
+
+    wrapper.findAllComponents({ name: "NumberField" })[0]!.vm.$emit("update:modelValue", 0);
+    await vi.advanceTimersByTimeAsync(800);
+
+    expect(setChatPolicy).toHaveBeenCalledWith(-1001, { agent_quota_daily_credits: 0 });
+    expect(fetchChatPolicy).toHaveBeenCalledTimes(2);
+    expect(wrapper.text()).not.toContain(t("chatPolicy.quotaDailyNone"));
+    expect(wrapper.text()).toContain("0 / 600");
   });
 });

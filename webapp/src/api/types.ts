@@ -252,22 +252,26 @@ export interface AdminChat {
 }
 
 /**
- * One quota account's snapshot for today, in tokens (input + output).
+ * One quota account's snapshot for today: raw model tokens and quota credits.
  *
- * `scope` is "user" (the speaker) or "chat" (the conversation). `free_limit_tokens` is
+ * `scope` is "user" (the speaker) or "chat" (the conversation). `free_limit_credits` is
  * null when no limit applies, which is not the same as 0 left; a chat account with
- * `free_limit_tokens` 0 has no shared allowance allocated. `credits` can go negative:
+ * `free_limit_credits` 0 has no shared allowance allocated. `credits` can go negative:
  * a run's usage is only known once it finishes, so an overshoot is booked as debt.
+ * 1,000 billable model-token units convert to one credit, rounded up.
  */
 export interface AgentUsage {
   scope: string;
   scope_id: number;
   requests_today: number;
-  free_used_tokens_today: number;
-  free_limit_tokens: number | null;
+  free_used_credits_today: number;
+  free_limit_credits: number | null;
+  billed_credits_today: number;
   credits: number;
   input_tokens_today: number;
   output_tokens_today: number;
+  cache_read_tokens_today: number;
+  cache_write_tokens_today: number;
   exempt: boolean;
 }
 
@@ -339,7 +343,7 @@ export interface Job {
 export interface ChatPolicyFlags {
   agent_allowed: boolean;
   rss_allowed: boolean;
-  agent_quota_daily_tokens: number;
+  agent_quota_daily_credits: number;
   agent_quota_exempt: boolean;
 }
 
@@ -374,7 +378,7 @@ export interface ChatPolicyPatch {
   agent_allowed?: boolean | null;
   rss_allowed?: boolean | null;
   note?: string | null;
-  agent_quota_daily_tokens?: number | null;
+  agent_quota_daily_credits?: number | null;
   agent_quota_exempt?: boolean | null;
   agent_credits?: number | null;
 }

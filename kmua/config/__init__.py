@@ -5,6 +5,8 @@ from typing import Any, TypeVar
 import pydantic
 from dynaconf import Dynaconf
 
+from kmua.consts import token_units_to_credits
+
 
 class ProviderConfig(pydantic.BaseModel):
     """Named AI provider: base URL + API key pair."""
@@ -511,11 +513,18 @@ class _AppConfig(pydantic.BaseModel):
     agent_usage_request_limit: int | None = None
     agent_usage_tool_calls_limit: int = 0
     agent_usage_total_tokens_limit: int = 0
-    # 每个用户每天的免费 agent 用量, 单位是 token (输入 + 输出), 跨群共享, 按 UTC 日重置。
-    agent_quota_free_daily_tokens: int = 100_000
-    # 每个群每天的免费 agent 用量, 单位是 token, 按 UTC 日重置, 群内共享: 成员的个人免费
+    # 每个用户每天的免费 agent 额度, 单位是 credits (额度代币), 跨群共享, 按 UTC 日重置。
+    # credits 与模型 token 是两套单位: 原始 token 只做统计, 额度按实际计价规则折算后扣 credits。
+    # 1,000 个可计费 token = 1 credit (向上取整), 默认额度对应 300k 个可计费 token。
+    agent_quota_free_daily_credits: int = 300
+    # 每个群每天的免费 agent 额度, 单位是 credits, 按 UTC 日重置, 群内共享: 成员的个人免费
     # 额度用尽后从群额度扣。群策略里自己设了正数就按群里的; 0 = 没有全局默认, 群不分配额度。
-    agent_quota_chat_free_daily_tokens: int = 0
+    agent_quota_chat_free_daily_credits: int = 600
+    # 缓存读 token 折算成 credits 的比例。10 = 命中缓存的输入按 10% 计费; 100 = 不打折。
+    # 缓存写 token 仍包含在普通 input_tokens 中按 100% 计费, 等后续按 provider 价格细分。
+    agent_quota_cache_read_billing_percent: int = pydantic.Field(
+        default=10, ge=0, le=100
+    )
     # Record every agent run and its steps (model requests and responses, tool
     # calls and results) and expose them read-only in the panel. Off means no
     # session is created and no row is written; the switch is read per run.
@@ -648,6 +657,14 @@ _LEGACY_HEALTH_ALIASES = {
 
 _legacy_health_keys_used: list[str] = []
 
+_LEGACY_QUOTA_ALIASES = {
+    "agent_quota_free_daily_credits": "agent_quota_free_daily_tokens",
+    "agent_quota_chat_free_daily_credits": "agent_quota_chat_free_daily_tokens",
+}
+"""Token-denominated quota settings accepted while installations migrate to credits."""
+
+_legacy_quota_keys_used: list[str] = []
+
 
 def _apply_legacy_health_aliases(
     config: _AppConfig, settings_obj: Any = None
@@ -672,8 +689,32 @@ def _apply_legacy_health_aliases(
     return applied
 
 
+def _apply_legacy_quota_aliases(
+    config: _AppConfig, settings_obj: Any = None
+) -> list[str]:
+    """Map legacy token-named quota settings onto their credits-named replacements.
+
+    Legacy settings name model tokens, so they are compacted into credits. An
+    explicit new setting always wins.
+    """
+    if settings_obj is None:
+        settings_obj = _settings
+
+    applied: list[str] = []
+    for new_field, legacy_field in _LEGACY_QUOTA_ALIASES.items():
+        if settings_obj.exists(new_field):
+            continue
+        if not settings_obj.exists(legacy_field):
+            continue
+        legacy_value = int(getattr(settings_obj, legacy_field) or 0)
+        setattr(config, new_field, token_units_to_credits(legacy_value))
+        applied.append(legacy_field)
+    return applied
+
+
 app_config = _get_typed_config(_AppConfig)
 _legacy_health_keys_used = _apply_legacy_health_aliases(app_config)
+_legacy_quota_keys_used = _apply_legacy_quota_aliases(app_config)
 
 if app_config.agent and app_config.agent_powermem_config_path:
     try:
@@ -718,6 +759,7 @@ def reload_config() -> tuple[bool, str, list[str]]:
         _settings.reload()
         new_config = _get_typed_config(_AppConfig)
         _apply_legacy_health_aliases(new_config)
+        _apply_legacy_quota_aliases(new_config)
 
         # Validate critical fields haven't changed
         critical_fields = [

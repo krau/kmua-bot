@@ -38,9 +38,9 @@ COINS_MIN = -144 * 16
 COINS_MAX = 10**9
 AFFECTION_MIN = -(10**6)
 AFFECTION_MAX = 10**6
-# Agent credit balances are granted by an operator in tokens, so the ceiling is a
-# trillion: a million calls at a million tokens each is comfortably out of reach.
-AGENT_CREDITS_MAX = 10**12
+# Agent credit values are display-sized (hundreds to thousands), so a billion is
+# already far beyond any practical daily allowance or grant.
+AGENT_CREDITS_MAX = 10**9
 
 
 def _valid_locale(value: str) -> str:
@@ -470,8 +470,10 @@ class AdminChatOut(ApiModel):
 
 
 class AgentUsageOut(ApiModel):
-    """一个额度账户的当日快照, 单位全部是 token (输入 + 输出)。账户用 `scope` +
-    `scope_id` 标识: "user" 是发言者(用户/频道), "chat" 是会话(群)。
+    """一个额度账户的当日快照, 原始模型 token 与额度 credits 分开。
+
+    账户用 `scope` + `scope_id` 标识: "user" 是发言者(用户/频道), "chat" 是会话(群)。
+    1,000 个可计费 token 折算为 1 credit, 向上取整。
 
     `credits` 可以为负: 单次 run 的用量是跑完才知道的, 用超的部分记成欠费。
     """
@@ -479,11 +481,14 @@ class AgentUsageOut(ApiModel):
     scope: str
     scope_id: int
     requests_today: int
-    free_used_tokens_today: int
-    free_limit_tokens: int | None  # None = 该账户免费部分不限额; 群账户 0 = 未分配
+    free_used_credits_today: int
+    free_limit_credits: int | None  # None = 该账户免费部分不限额; 群账户 0 = 未分配
+    billed_credits_today: int
     credits: int
     input_tokens_today: int
     output_tokens_today: int
+    cache_read_tokens_today: int
+    cache_write_tokens_today: int
     exempt: bool
 
 
@@ -641,7 +646,7 @@ class ChatPolicyFlagsOut(ApiModel):
 
     agent_allowed: bool
     rss_allowed: bool
-    agent_quota_daily_tokens: int
+    agent_quota_daily_credits: int
     agent_quota_exempt: bool
 
 
@@ -688,7 +693,11 @@ class ChatPolicyIn(ApiModel):
     agent_allowed: bool | None = None
     rss_allowed: bool | None = None
     note: str | None = Field(default=None, max_length=256)
-    # None = 保持原值。agent_quota_daily_tokens 的 0 表示"该群不分配额度", 与"保持原值"不冲突。
+    # None = 保持原值。agent_quota_daily_credits 的 0 表示"该群不分配额度", 与"保持原值"不冲突。
+    agent_quota_daily_credits: int | None = Field(
+        default=None, ge=0, le=AGENT_CREDITS_MAX
+    )
+    # Deprecated token-named alias accepted during the credits migration.
     agent_quota_daily_tokens: int | None = Field(default=None, ge=0, le=10**12)
     agent_quota_exempt: bool | None = None
     agent_credits: int | None = Field(default=None, ge=0, le=AGENT_CREDITS_MAX)

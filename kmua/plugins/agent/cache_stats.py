@@ -51,9 +51,14 @@ def cache_stats_from_usage(usage: UsageBase | None) -> tuple[int, int, int]:
     """
     if usage is None:
         return 0, 0, 0
-    read = usage.cache_read_tokens or usage.details.get("prompt_cache_hit_tokens", 0)
-    write = usage.cache_write_tokens or usage.details.get("prompt_cache_miss_tokens", 0)
-    return usage.input_tokens, read, write
+    details = getattr(usage, "details", None) or {}
+    read = getattr(usage, "cache_read_tokens", 0) or details.get(
+        "prompt_cache_hit_tokens", 0
+    )
+    write = getattr(usage, "cache_write_tokens", 0) or details.get(
+        "prompt_cache_miss_tokens", 0
+    )
+    return getattr(usage, "input_tokens", 0), read, write
 
 
 def log_cache_stats(model_name: str, raw_usage: Any, usage: UsageBase | None) -> None:

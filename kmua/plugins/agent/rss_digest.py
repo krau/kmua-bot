@@ -19,7 +19,7 @@ from pydantic_ai.usage import RunUsage
 
 from kmua.config import app_config
 from kmua.logger import logger
-from kmua.plugins.agent import provider, quota, trace
+from kmua.plugins.agent import billing, provider, quota, trace
 from kmua.services.rss import FeedEntry
 
 _DIGEST_TIMEOUT = 30.0
@@ -171,24 +171,26 @@ async def _settle_shared(recipients: Sequence[int], usage: RunUsage | None) -> N
 
     A feed fans out to every subscribed chat, but the summary is generated once per
     language and then reused, so the recipients have to share the bill: each pays its
-    share of the same tokens and the sum still equals what the call really cost.
-    The remainder goes to the first recipient so rounding never loses a token.
+    share of one metered call. Metering happens before the split, so per-recipient
+    credit rounding can never make the recipients pay more than the call cost.
     """
     if not recipients or usage is None:
         return
-    total_input = int(getattr(usage, "input_tokens", 0) or 0)
-    total_output = int(getattr(usage, "output_tokens", 0) or 0)
-    if total_input == 0 and total_output == 0:
-        return
-    count = len(recipients)
-    for index, chat_id in enumerate(recipients):
-        share_input = total_input // count + (total_input % count if index == 0 else 0)
-        share_output = total_output // count + (
-            total_output % count if index == 0 else 0
+    meter = billing.from_run_usage(usage)
+    if not any(
+        (
+            meter.input_tokens,
+            meter.output_tokens,
+            meter.cache_read_tokens,
+            meter.cache_write_tokens,
         )
-        await quota.settle(
+    ):
+        return
+    shares = billing.split_billing_usage(meter, len(recipients))
+    for chat_id, share in zip(recipients, shares, strict=True):
+        await quota.settle_metered(
             quota.Subject(user_id=None, chat_id=chat_id, in_group=True),
-            RunUsage(input_tokens=share_input, output_tokens=share_output),
+            share,
         )
 
 
