@@ -154,22 +154,26 @@ const usageItems = computed<DefinitionItem[]>(() => {
   const quota = detail.data.value?.agent_quota;
   if (!quota) return [];
   return [
-    { label: t("admin.agentUsedToday"), value: formatNumber(quota.requests_today) },
+    { label: t("chatPolicy.quotaRuns"), value: formatNumber(quota.requests_today) },
     {
-      label: t("chatPolicy.quotaDaily"),
+      label: t("chatPolicy.quotaDailyUsed"),
       value:
         quota.free_limit_credits === 0
           ? t("chatPolicy.quotaDailyNone")
           : `${formatTokens(quota.free_used_credits_today)} / ${formatTokens(quota.free_limit_credits ?? 0)}`,
     },
-    { label: t("admin.agentCreditsUsedToday"), value: formatTokens(quota.billed_credits_today) },
+    { label: t("chatPolicy.quotaBilled"), value: formatTokens(quota.billed_credits_today) },
+    {
+      label: t("chatPolicy.quotaBalanceSpent"),
+      value: formatTokens(quota.balance_spent_credits_today),
+    },
     { label: t("chatPolicy.quotaCredits"), value: formatTokens(quota.credits) },
     {
-      label: t("admin.agentTokensToday"),
+      label: t("chatPolicy.quotaTokens"),
       value: `${formatTokens(quota.input_tokens_today)} / ${formatTokens(quota.output_tokens_today)}`,
     },
     {
-      label: t("admin.agentCacheTokensToday"),
+      label: t("chatPolicy.quotaCacheTokens"),
       value: `${formatTokens(quota.cache_read_tokens_today)} / ${formatTokens(quota.cache_write_tokens_today)}`,
     },
   ];

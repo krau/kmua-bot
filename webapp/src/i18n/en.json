@@ -298,9 +298,10 @@
     "blocked": "Blocked",
     "agentQuota": "AI quota",
     "agentCredits": "Credit balance (credits)",
-    "agentUsedToday": "Calls today",
-    "agentFreeToday": "Free allowance today (credits)",
-    "agentCreditsUsedToday": "Credits used today",
+    "agentUsedToday": "Billing runs today",
+    "agentFreeToday": "Free allowance used today (credits)",
+    "agentCreditsUsedToday": "Total billed today (credits)",
+    "agentBalanceSpentToday": "Balance charged today (credits)",
     "agentTokensToday": "Actual tokens today (in/out)",
     "agentCacheTokensToday": "Cache tokens (subset of input; read/write)",
     "agentUnlimited": "Unlimited"
@@ -369,11 +370,17 @@
     "quotaHint": "Used after a member's own free allowance; anonymous admins and channels can only use this chat's quota. 1,000 billable tokens = 1 credit; model tokens are tracked separately",
     "quotaExempt": "No quota limit in this chat",
     "quotaExemptHint": "Members and channel posts here are never charged or limited",
-    "quotaDaily": "Daily chat allowance (credits)",
-    "quotaDailyHint": "Shared by members after their own allowance; 0 = the deployment default",
+    "quotaDaily": "Daily chat free allowance (credits)",
+    "quotaDailyHint": "Shared by members after their own free allowance; 0 = the deployment default",
     "quotaDailyNone": "Not allocated",
     "quotaCredits": "Chat credit balance (credits)",
-    "quotaUsage": "Usage today"
+    "quotaUsage": "Usage today",
+    "quotaRuns": "Billing runs today",
+    "quotaDailyUsed": "Chat free allowance used (credits)",
+    "quotaBilled": "Total billed in chat (credits)",
+    "quotaBalanceSpent": "Chat balance charged today (credits)",
+    "quotaTokens": "Actual tokens today (in/out)",
+    "quotaCacheTokens": "Cache tokens (subset of input; read/write)"
   },
   "verify": {
     "method": {

@@ -62,6 +62,7 @@ function detailPayload(dailyCredits = 5, effectiveCredits = dailyCredits) {
       free_used_credits_today: 0,
       free_limit_credits: effectiveCredits,
       billed_credits_today: 0,
+      balance_spent_credits_today: 0,
       credits: 0,
       requests_today: 0,
       input_tokens_today: 0,
@@ -151,6 +152,21 @@ describe("ChatPolicyDetailView quota scope", () => {
 
     expect(wrapper.text()).not.toContain(t("chatPolicy.quota"));
     expect(wrapper.text()).not.toContain(t("chatPolicy.quotaUsage"));
+  });
+
+  it("separates total billed credits from chat balance spending", async () => {
+    const payload = detailPayload(1_000, 1_000);
+    payload.agent_quota.free_used_credits_today = 792;
+    payload.agent_quota.billed_credits_today = 1_200;
+    payload.agent_quota.balance_spent_credits_today = 0;
+    fetchChatPolicy.mockResolvedValueOnce(payload);
+
+    const wrapper = mount(ChatPolicyDetailView, { props: { chatId: -1001 } });
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(wrapper.text()).toContain(t("chatPolicy.quotaBilled"));
+    expect(wrapper.text()).toContain("1.2k");
+    expect(wrapper.text()).toContain(t("chatPolicy.quotaBalanceSpent"));
   });
 
   it("reloads the effective allowance after saving zero", async () => {

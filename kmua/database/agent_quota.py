@@ -15,7 +15,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 from typing import NamedTuple
 
 import sqlalchemy
@@ -113,6 +113,28 @@ async def get_usage(
         row.cache_read_tokens,
         row.cache_write_tokens,
     )
+
+
+@with_session
+async def get_balance_spent(
+    scope: str, scope_id: int, day: date, session: AsyncSession | None = None
+) -> int:
+    """Credits actually deducted from one balance on a UTC day."""
+    assert session is not None
+    start = datetime(day.year, day.month, day.day, tzinfo=UTC)
+    spent = await session.scalar(
+        sqlalchemy.select(
+            sqlalchemy.func.coalesce(sqlalchemy.func.sum(AgentCreditLedger.delta), 0)
+        ).where(
+            AgentCreditLedger.scope == scope,
+            AgentCreditLedger.scope_id == scope_id,
+            AgentCreditLedger.reason == CREDIT_REASON_USAGE,
+            AgentCreditLedger.delta < 0,
+            AgentCreditLedger.created_at >= start,
+            AgentCreditLedger.created_at < start + timedelta(days=1),
+        )
+    )
+    return max(0, -int(spent or 0))
 
 
 @with_tx
@@ -468,6 +490,7 @@ __all__ = [
     "adjust_credits",
     "charge_credits",
     "get_credit",
+    "get_balance_spent",
     "get_usage",
     "record_and_charge",
     "record_usage",

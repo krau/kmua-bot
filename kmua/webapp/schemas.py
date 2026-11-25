@@ -484,6 +484,7 @@ class AgentUsageOut(ApiModel):
     free_used_credits_today: int
     free_limit_credits: int | None  # None = 该账户免费部分不限额; 群账户 0 = 未分配
     billed_credits_today: int
+    balance_spent_credits_today: int
     credits: int
     input_tokens_today: int
     output_tokens_today: int

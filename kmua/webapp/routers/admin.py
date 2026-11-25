@@ -318,7 +318,8 @@ async def _agent_usage_out(scope: str, scope_id: int, exempt: bool) -> AgentUsag
     The free limit is reported as None when it does not apply, so the UI can tell
     "unlimited" apart from "0 left".
     """
-    usage = await database.get_usage(scope, scope_id, database.utc_day())
+    day = database.utc_day()
+    usage = await database.get_usage(scope, scope_id, day)
     if scope == database.SCOPE_USER:
         limit = app_config.agent_quota_free_daily_credits
         free_limit = None if limit <= 0 else limit
@@ -334,6 +335,9 @@ async def _agent_usage_out(scope: str, scope_id: int, exempt: bool) -> AgentUsag
         free_used_credits_today=usage.free_used_credits,
         free_limit_credits=free_limit,
         billed_credits_today=usage.billed_credits,
+        balance_spent_credits_today=await database.get_balance_spent(
+            scope, scope_id, day
+        ),
         credits=await database.get_credit(scope, scope_id),
         input_tokens_today=usage.input_tokens,
         output_tokens_today=usage.output_tokens,

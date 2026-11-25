@@ -267,6 +267,7 @@ export interface AgentUsage {
   free_used_credits_today: number;
   free_limit_credits: number | null;
   billed_credits_today: number;
+  balance_spent_credits_today: number;
   credits: number;
   input_tokens_today: number;
   output_tokens_today: number;

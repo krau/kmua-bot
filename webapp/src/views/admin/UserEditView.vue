@@ -130,6 +130,10 @@ const readonlyItems = computed<DefinitionItem[]>(() => {
       value: formatTokens(quota.billed_credits_today),
     });
     items.push({
+      label: t("admin.agentBalanceSpentToday"),
+      value: formatTokens(quota.balance_spent_credits_today),
+    });
+    items.push({
       label: t("admin.agentTokensToday"),
       value: `${formatTokens(quota.input_tokens_today)} / ${formatTokens(quota.output_tokens_today)}`,
     });
