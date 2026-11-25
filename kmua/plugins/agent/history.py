@@ -178,11 +178,11 @@ class InPlaceSummarizingCompaction(SummarizingCompaction):
 
     The summary request is built by the agent's graph from the same system
     prompt, tool schemas, and verbatim history as the conversation - a
-    byte-identical cache prefix - plus the summary instruction.
-    ``tool_choice='none'`` keeps the tool schemas in the request while making
-    tool execution impossible. Other harness mechanisms (incremental
-    anchoring, safe cutoffs, keep_user_messages, receipts, pinning) are
-    inherited unchanged.
+    byte-identical cache prefix - plus the summary instruction. Some
+    OpenAI-compatible gateways reject ``tool_choice='none'``, so use ``auto``
+    and abort before executing any tool call the model may still emit. Other
+    harness mechanisms (incremental anchoring, safe cutoffs,
+    keep_user_messages, receipts, pinning) are inherited unchanged.
     """
 
     agent: Any = None
@@ -208,6 +208,9 @@ class InPlaceSummarizingCompaction(SummarizingCompaction):
                 "Keep the same section format.\n\n"
                 f"<previous-summary>\n{previous_summary}\n</previous-summary>"
             )
+        instruction = (
+            f"{instruction}\n\nDo not call any tools; reply directly with the summary."
+        )
         # The summary run shares the conversation's usage object (`iter(usage=...)`
         # accumulates into it), so its own tokens are the difference around the call.
         usage_before = _usage_snapshot(ctx.usage)
@@ -217,10 +220,18 @@ class InPlaceSummarizingCompaction(SummarizingCompaction):
                 message_history=list(messages),
                 deps=ctx.deps,
                 model=ctx.model,
-                model_settings=ModelSettings(tool_choice="none"),
+                model_settings=ModelSettings(tool_choice="auto"),
                 usage=ctx.usage,
             ) as agent_run:
                 async for node in agent_run:
+                    if (
+                        Agent.is_call_tools_node(node)
+                        and node.model_response.tool_calls
+                    ):
+                        raise RuntimeError(
+                            "compaction summary tried to call a tool; refusing to "
+                            "execute it"
+                        )
                     if Agent.is_end_node(node):
                         output = agent_run.result.output
                         text = output.strip() if isinstance(output, str) else ""
